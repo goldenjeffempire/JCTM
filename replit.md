@@ -28,6 +28,31 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Project: JCTM Digital Sanctuary
 
+### Homepage Structure (Home.tsx — 16 sections)
+1. **HeroSection** — Layered parallax, typewriter subtitle cycling ministry themes, floating metric pills (479+ sermons, 40+ nations, 25 years), floating orb particles, magnetic CTA buttons
+2. **PlatformBar** — Social proof strip: Temple TV (YouTube), Facebook, Temple TV Broadcast, Global Nations
+3. **BentoGrid** — 5-card asymmetric layout: Featured Sermon (large), Live Countdown, Testimony of Day, Impact Numbers mini-card
+4. **TestimoniesMarquee** — Two infinite-scroll rows (opposite directions) of testimony cards fetched from /api/testimonies with fallback data; pauses on hover
+5. **ProphetSection** — Split layout: stylized bio card with spinning gradient ring avatar, rotating credential badges, pull quote; bio text on right with credentials grid
+6. **MandateReveal** — Scroll-linked parallax reveal of "The Bible Is Our Standard" / "Restoring Primitive Christianity" on dark background
+7. **SermonSpotlight** — Featured sermon with inline YouTube player, ministry pillars info-cards with tilt physics
+8. **RecentSermonsCarousel** — Horizontal scroll-snap carousel fetching live from /api/sermons
+9. **MinistryPillars** — 6-card grid with accordion expand on click, scripture reference revealed, gradient accent top-bar on hover
+10. **ScriptureFeature** — Full-width Jeremiah 6:16 typographic display on deep navy background with parallax dot grid
+11. **EventsSection** — Upcoming events from /api/events/upcoming with date badge cards, hover reveal, skeleton loaders
+12. **GlobalReach** — Dark impact section: animated counters (sermons, views, nations, years), region chips with emoji flags
+13. **GivingBand** — Tithe / Offerings / Missions cards on navy gradient with diagonal line texture; magnetic CTA
+14. **NewcomerSection** — 3-step onboarding: Beliefs, Find a Branch, Join a Unit with tilt cards
+15. **ConnectSection** — Social channels (YouTube, Facebook, Email) + headquarters location card
+16. **TimelineTeaser** — Dark parallax section with CTA to /correction-timeline
+
+### Design System
+- **Palette**: Ivory `#FFFEF8`, Temple Blue `#003366`, Sky Blue `#38BDF8`, Near-black `#020b18`
+- **Typography**: Georgia/serif for headlines, Inter/sans for body
+- **Components**: MagneticButton (spring cursor pull), TiltCard (3D hover physics), AnimatedCounter (scroll-triggered odometer), ScriptureTicker (cycling verses), useTypewriter hook
+- **Animations**: Framer Motion throughout; marquee CSS keyframes in index.css; scroll-linked useScroll/useTransform parallax
+- **TempleBots**: Smart contextual toasts triggered via CustomEvents "jctm:section-enter" from GivingBand and NewcomerSection
+
 **Ministry**: Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria
 **Leader**: Prophet Amos Evomobor
 **Mission**: Primitive Christianity, Holiness, and the Correction Mandate
