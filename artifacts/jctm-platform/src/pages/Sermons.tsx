@@ -4,9 +4,8 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw } from "lucide-react";
+import { Search, Volume2, Play, RefreshCw, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Link } from "wouter";
 
 export default function Sermons() {
   const [search, setSearch] = useState("");
@@ -144,12 +143,16 @@ function SermonCard({ sermon, index }: { sermon: { id: number; videoId: string; 
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
-          <Link href={`/sermons/${sermon.id}`}>
+          <a
+            href={`https://www.youtube.com/watch?v=${sermon.videoId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Button size="sm" className="bg-accent text-white hover:bg-accent/90 rounded-full text-xs gap-1">
               <Play className="h-3 w-3" />
               Watch
             </Button>
-          </Link>
+          </a>
           <button
             onClick={() => setAudioMode(!audioMode)}
             className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors ${audioMode ? "bg-accent text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
@@ -163,9 +166,20 @@ function SermonCard({ sermon, index }: { sermon: { id: number; videoId: string; 
         <h3 className="font-semibold text-primary text-sm leading-snug mb-1 line-clamp-2">
           {sermon.title}
         </h3>
-        <p className="text-xs text-muted-foreground">
-          {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}
-        </p>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-xs text-muted-foreground">
+            {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}
+          </p>
+          <a
+            href={`https://www.youtube.com/watch?v=${sermon.videoId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent hover:text-accent/80 flex items-center gap-1 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            YouTube
+          </a>
+        </div>
       </div>
     </motion.div>
   );
