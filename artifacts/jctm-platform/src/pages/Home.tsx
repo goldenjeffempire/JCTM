@@ -275,7 +275,7 @@ function HeroSection() {
   const metrics = [
     { value: 479, suffix: "+", label: "Sermons", icon: Mic2 },
     { value: 40, suffix: "+", label: "Nations", icon: Globe },
-    { value: 25, suffix: "yrs", label: "Ministry", icon: Award },
+    { value: 13, suffix: "yrs", label: "Ministry", icon: Award },
   ];
 
   return (
@@ -345,7 +345,7 @@ function HeroSection() {
               style={{ boxShadow: "0 8px 24px rgba(56,189,248,0.4)" }}
             >
               <Mic2 className="h-3 w-3 text-white" />
-              <p className="text-white text-[10px] font-bold whitespace-nowrap">25 yrs Active</p>
+              <p className="text-white text-[10px] font-bold whitespace-nowrap">13 yrs Active</p>
             </motion.div>
           </div>
         </motion.div>
@@ -788,7 +788,7 @@ function BentoGrid() {
                   { v: stats?.total ?? 479, s: "+", l: "Sermons", icon: Mic2 },
                   { v: stats?.totalViews ?? 2951335, s: "", l: "YouTube Views", icon: Youtube },
                   { v: 40, s: "+", l: "Nations Reached", icon: Globe },
-                  { v: 25, s: "yrs", l: "Ministry", icon: Award },
+                  { v: 13, s: "yrs", l: "Ministry", icon: Award },
                   { v: 12, s: "+", l: "Weekly Broadcasts", icon: Tv },
                   { v: 8, s: "+", l: "Ministry Units", icon: Users },
                 ].map(({ v, s, l, icon: Icon }, i) => (
@@ -918,7 +918,7 @@ function ProphetSection() {
   const [activePhoto, setActivePhoto] = useState<"portrait" | "preaching">("portrait");
 
   const credentials = [
-    { icon: Award, label: "25+ Years in Ministry", color: "from-amber-400 to-orange-500" },
+    { icon: Award, label: "13+ Years in Ministry", color: "from-amber-400 to-orange-500" },
     { icon: Mic2, label: "Verified Prophetic Office", color: "from-accent to-[#0284C7]" },
     { icon: BookOpen, label: "Apostolic Teacher", color: "from-emerald-400 to-teal-600" },
     { icon: Globe, label: "International Broadcaster", color: "from-primary to-[#003d80]" },
@@ -996,7 +996,7 @@ function ProphetSection() {
             <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 px-4 py-2.5 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               <div>
-                <p className="text-primary text-xs font-bold">25+ Years</p>
+                <p className="text-primary text-xs font-bold">13+ Years</p>
                 <p className="text-muted-foreground text-[10px]">Faithful Ministry</p>
               </div>
             </div>
@@ -1452,7 +1452,7 @@ function GlobalReach() {
     { value: stats?.total ?? 479, suffix: "+", label: "Sermons Preached", icon: Mic2, color: "from-accent to-[#0284C7]" },
     { value: stats?.totalViews ?? 2951335, suffix: "", label: "YouTube Views", icon: Youtube, color: "from-red-400 to-red-600" },
     { value: 40, suffix: "+", label: "Nations Reached", icon: Globe, color: "from-emerald-400 to-teal-600" },
-    { value: 25, suffix: "+", label: "Years of Ministry", icon: Award, color: "from-amber-400 to-orange-500" },
+    { value: 13, suffix: "+", label: "Years of Ministry", icon: Award, color: "from-amber-400 to-orange-500" },
   ];
 
   const regions = [
