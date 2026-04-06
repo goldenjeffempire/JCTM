@@ -189,12 +189,45 @@ export default function Give() {
             </div>
 
             <div className="glass-panel rounded-2xl p-6 border border-border/50">
-              <h3 className="font-serif font-bold text-primary mb-3">Direct Transfer</h3>
-              <p className="text-xs text-muted-foreground mb-3">For large transfers, you may pay directly to our bank account:</p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Bank:</span><span className="font-medium text-primary">Access Bank</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Account Name:</span><span className="font-medium text-primary">JCTM Ministries</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Account No:</span><span className="font-mono font-bold text-primary">0123456789</span></div>
+              <h3 className="font-serif font-bold text-primary mb-1">Direct Transfer</h3>
+              <p className="text-xs text-muted-foreground mb-4">For direct bank transfers, use any of the accounts below:</p>
+
+              {/* NGN Accounts */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-accent mb-2">🇳🇬 NGN Accounts</p>
+              <p className="text-xs font-semibold text-primary mb-2">Account Name: Jesus Christ Temple Ministry</p>
+              <div className="space-y-2 text-sm mb-5">
+                {[
+                  { bank: "UBA", number: "1018953924" },
+                  { bank: "FCMB", number: "4642959015" },
+                  { bank: "GTBank", number: "0165388758" },
+                  { bank: "Zenith Bank", number: "1015851298" },
+                ].map(({ bank, number }) => (
+                  <div key={bank} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
+                    <span className="text-muted-foreground font-medium">{bank}</span>
+                    <span className="font-mono font-bold text-primary tracking-wide">{number}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* USD Account */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-accent mb-2">🌐 USD Account</p>
+              <div className="space-y-1.5 text-sm bg-accent/5 rounded-xl p-3 border border-accent/15">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Account Name</span>
+                  <span className="font-semibold text-primary">Evomobor Amos</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Bank</span>
+                  <span className="font-semibold text-primary">Guaranty Trust Bank</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Account No</span>
+                  <span className="font-mono font-bold text-primary tracking-wide">0737296821</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Swift Code</span>
+                  <span className="font-mono font-bold text-accent tracking-widest">GTBINGLA</span>
+                </div>
               </div>
             </div>
 
