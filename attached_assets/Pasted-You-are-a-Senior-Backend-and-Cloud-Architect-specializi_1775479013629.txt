@@ -1,0 +1,35 @@
+You are a Senior Backend and Cloud Architect specializing in Real-Time Data Streaming.
+
+Objective: Create a fully automated, real-time synchronization engine between the Temple TV YouTube Channel (@TEMPLETVJCTM / ID: UCPFFvkE-KGpR37qJgvYriJg) and the JCTM Platform database.
+
+1. The "Initial Harvest" Logic:
+
+Purge & Populate: Write a script to delete all existing video data from the platform's sermons table and perform a one-time fetch of the entire video history from the channel (up to API limits).
+
+Data Extraction: For every video, capture: VideoID, Title, Description, Duration, PublishDate, and HighResThumbnail.
+
+2. The "Real-Time Sync" Engine (The "Always Reflect" Feature):
+
+PubSubHubbub Integration: Implement a WebSub (formerly PubSubHubbub) subscriber. This allows the platform to receive a "Push Notification" from Google/YouTube the second a new video is uploaded or a Live Stream starts.
+
+Fallback Cron Job: Set up a GitHub Action or Vercel Cron Job that runs every 30 minutes as a fallback to poll the YouTube Data API v3 for any missed uploads or title updates.
+
+3. Intelligent Content Processing:
+
+Auto-Tagging: Program the backend to scan video titles. If a title contains "Live," "Sunday Service," or "Prophetic," automatically flag it as a "Featured" or "Live Now" item on the home screen.
+
+TempleBots Update: Ensure that every new video transcript is automatically queued for the TempleBots RAG pipeline so the AI stays updated with the very latest sermons.
+
+4. Frontend "Live" Reactivity:
+
+WebSocket Notification: Use Supabase Realtime or Pusher so that if a user is currently browsing the site when a new video is posted, a "New Message from Prophet Amos" toast notification appears instantly.
+
+Automatic Redirects: Ensure the "Watch" buttons on the platform always point to the official https://www.youtube.com/watch?v=[ID] for full engagement on the Temple TV channel.
+
+5. Production-Ready Deployment:
+
+API Key Management: Use secure Environment Variables for the YOUTUBE_API_KEY.
+
+Error Handling: Implement a retry logic in case the YouTube API is temporarily unavailable.
+
+Execute this synchronization architecture now, ensuring the "Sermon Hub" page is fully dynamic and self-updating.

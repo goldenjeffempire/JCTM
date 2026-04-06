@@ -36,6 +36,8 @@ export const ListSermonsResponseItem = zod.object({
   publishedAt: zod.string(),
   viewCount: zod.number().nullish(),
   duration: zod.string().nullish(),
+  isFeatured: zod.boolean(),
+  isLive: zod.boolean(),
   createdAt: zod.string(),
 });
 export const ListSermonsResponse = zod.array(ListSermonsResponseItem);
@@ -60,6 +62,8 @@ export const GetFeaturedSermonResponse = zod.object({
   publishedAt: zod.string(),
   viewCount: zod.number().nullish(),
   duration: zod.string().nullish(),
+  isFeatured: zod.boolean(),
+  isLive: zod.boolean(),
   createdAt: zod.string(),
 });
 
@@ -88,6 +92,8 @@ export const GetSermonResponse = zod.object({
   publishedAt: zod.string(),
   viewCount: zod.number().nullish(),
   duration: zod.string().nullish(),
+  isFeatured: zod.boolean(),
+  isLive: zod.boolean(),
   createdAt: zod.string(),
 });
 

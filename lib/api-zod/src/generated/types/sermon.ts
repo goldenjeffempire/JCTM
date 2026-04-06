@@ -18,5 +18,7 @@ export interface Sermon {
   viewCount?: number | null;
   /** @nullable */
   duration?: string | null;
+  isFeatured: boolean;
+  isLive: boolean;
   createdAt: string;
 }

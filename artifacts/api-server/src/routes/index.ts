@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import sermonsRouter from "./sermons";
+import websubRouter from "./websub";
 import testimoniesRouter from "./testimonies";
 import eventsRouter from "./events";
 import givingRouter from "./giving";
@@ -13,6 +14,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(sermonsRouter);
+router.use(websubRouter);
 router.use(testimoniesRouter);
 router.use(eventsRouter);
 router.use(givingRouter);

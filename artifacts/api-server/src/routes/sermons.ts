@@ -10,54 +10,28 @@ import {
   GetSermonStatsResponse,
   SyncSermonsResponse,
 } from "@workspace/api-zod";
+import { syncIncremental, harvestAll } from "../lib/youtube-sync.js";
+import { sseBroadcaster } from "../lib/sse-broadcaster.js";
+import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
-const CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
-// The uploads playlist for a channel is always UU + channel_id minus the leading UC
-const UPLOADS_PLAYLIST_ID = "UUPFFvkE-KGpR37qJgvYriJg";
+// ──────────────────────────────────────────────────────
+// GET /sermons/stream  — Server-Sent Events for real-time updates
+// ──────────────────────────────────────────────────────
+router.get("/sermons/stream", (req, res): void => {
+  const clientId = randomUUID();
+  req.log.info({ clientId, total: sseBroadcaster.size() + 1 }, "SSE client connected");
+  sseBroadcaster.add(clientId, res);
 
-interface PlaylistItem {
-  snippet: {
-    resourceId: { videoId: string };
-    title: string;
-    description: string;
-    publishedAt: string;
-    thumbnails: {
-      maxres?: { url: string };
-      standard?: { url: string };
-      high?: { url: string };
-      medium?: { url: string };
-      default?: { url: string };
-    };
-  };
-}
+  req.on("close", () => {
+    req.log.info({ clientId }, "SSE client disconnected");
+  });
+});
 
-interface VideoDetail {
-  id: string;
-  contentDetails: { duration: string };
-  statistics: { viewCount?: string };
-}
-
-function iso8601DurationToSeconds(duration: string): number {
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  const hours = parseInt(match[1] ?? "0");
-  const minutes = parseInt(match[2] ?? "0");
-  const seconds = parseInt(match[3] ?? "0");
-  return hours * 3600 + minutes * 60 + seconds;
-}
-
-function bestThumbnail(thumbnails: PlaylistItem["snippet"]["thumbnails"], videoId: string): string {
-  // Prefer maxresdefault, fallback to hqdefault via direct URL, then API thumbnails
-  return (
-    thumbnails.maxres?.url ??
-    thumbnails.standard?.url ??
-    thumbnails.high?.url ??
-    `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-  );
-}
-
+// ──────────────────────────────────────────────────────
+// GET /sermons  — list sermons
+// ──────────────────────────────────────────────────────
 router.get("/sermons", async (req, res): Promise<void> => {
   const parsed = ListSermonsQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -66,10 +40,7 @@ router.get("/sermons", async (req, res): Promise<void> => {
   }
 
   const { limit = 20, offset = 0, search } = parsed.data;
-
-  const conditions = search
-    ? [ilike(sermonsTable.title, `%${search}%`)]
-    : [];
+  const conditions = search ? [ilike(sermonsTable.title, `%${search}%`)] : [];
 
   const sermons = await db
     .select()
@@ -87,12 +58,25 @@ router.get("/sermons", async (req, res): Promise<void> => {
   res.json(ListSermonsResponse.parse(serialized));
 });
 
+// ──────────────────────────────────────────────────────
+// GET /sermons/featured  — latest / featured sermon
+// ──────────────────────────────────────────────────────
 router.get("/sermons/featured", async (req, res): Promise<void> => {
-  const [sermon] = await db
+  // Prefer a live sermon, then an isFeatured one, then just the latest
+  const [liveSermon] = await db
     .select()
     .from(sermonsTable)
+    .where(eq(sermonsTable.isLive, true))
     .orderBy(desc(sermonsTable.publishedAt))
     .limit(1);
+
+  const [sermon] = liveSermon
+    ? [liveSermon]
+    : await db
+        .select()
+        .from(sermonsTable)
+        .orderBy(desc(sermonsTable.publishedAt))
+        .limit(1);
 
   if (!sermon) {
     res.status(404).json({ error: "No sermons found" });
@@ -106,6 +90,9 @@ router.get("/sermons/featured", async (req, res): Promise<void> => {
   }));
 });
 
+// ──────────────────────────────────────────────────────
+// GET /sermons/stats
+// ──────────────────────────────────────────────────────
 router.get("/sermons/stats", async (req, res): Promise<void> => {
   const [result] = await db
     .select({
@@ -122,6 +109,9 @@ router.get("/sermons/stats", async (req, res): Promise<void> => {
   }));
 });
 
+// ──────────────────────────────────────────────────────
+// GET /sermons/:id
+// ──────────────────────────────────────────────────────
 router.get("/sermons/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = GetSermonParams.safeParse({ id: raw });
@@ -147,6 +137,10 @@ router.get("/sermons/:id", async (req, res): Promise<void> => {
   }));
 });
 
+// ──────────────────────────────────────────────────────
+// POST /sermons  — incremental sync (manual trigger)
+// POST /sermons?harvest=true  — full purge + repopulate
+// ──────────────────────────────────────────────────────
 router.post("/sermons", async (req, res): Promise<void> => {
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
@@ -155,130 +149,20 @@ router.post("/sermons", async (req, res): Promise<void> => {
     return;
   }
 
+  const isHarvest = req.query.harvest === "true";
+
   try {
-    // Step 1: Fetch from the channel uploads playlist — this reliably returns ALL uploads
-    // including livestream archives, unlike the search endpoint which caps results
-    const playlistItems: PlaylistItem[] = [];
-    let pageToken: string | undefined;
+    const result = isHarvest
+      ? await harvestAll(YOUTUBE_API_KEY, req.log)
+      : await syncIncremental(YOUTUBE_API_KEY, req.log);
 
-    // Fetch enough to have a pool to filter from (Shorts exclusion), targeting 20 valid videos
-    while (playlistItems.length < 50) {
-      const params = new URLSearchParams({
-        key: YOUTUBE_API_KEY,
-        playlistId: UPLOADS_PLAYLIST_ID,
-        part: "snippet",
-        maxResults: "50",
-        ...(pageToken ? { pageToken } : {}),
-      });
-
-      const playlistRes = await fetch(
-        `https://www.googleapis.com/youtube/v3/playlistItems?${params}`
-      );
-      const playlistData = await playlistRes.json() as {
-        items?: PlaylistItem[];
-        nextPageToken?: string;
-        error?: { message: string };
-      };
-
-      if (playlistData.error) {
-        req.log.error({ error: playlistData.error }, "YouTube playlist API error");
-        res.status(502).json({ error: `YouTube API error: ${playlistData.error.message}` });
-        return;
-      }
-
-      if (!playlistData.items || playlistData.items.length === 0) break;
-
-      playlistItems.push(...playlistData.items);
-      pageToken = playlistData.nextPageToken;
-      if (!pageToken) break;
-    }
-
-    if (playlistItems.length === 0) {
-      res.json(SyncSermonsResponse.parse({ synced: 0, message: "No videos found on channel" }));
-      return;
-    }
-
-    // Step 2: Get video IDs from the first batch to fetch content details
-    const videoIds = playlistItems.map(item => item.snippet.resourceId.videoId);
-    const batchSize = 50;
-    const videoDetails: VideoDetail[] = [];
-
-    for (let i = 0; i < videoIds.length; i += batchSize) {
-      const batch = videoIds.slice(i, i + batchSize);
-      const detailParams = new URLSearchParams({
-        key: YOUTUBE_API_KEY,
-        id: batch.join(","),
-        part: "contentDetails,statistics",
-      });
-
-      const detailRes = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?${detailParams}`
-      );
-      const detailData = await detailRes.json() as {
-        items?: VideoDetail[];
-        error?: { message: string };
-      };
-
-      if (detailData.error) {
-        req.log.error({ error: detailData.error }, "YouTube videos API error");
-        res.status(502).json({ error: `YouTube API error: ${detailData.error.message}` });
-        return;
-      }
-
-      if (detailData.items) {
-        videoDetails.push(...detailData.items);
-      }
-    }
-
-    // Build a lookup map for video details
-    const detailMap = new Map<string, VideoDetail>();
-    for (const detail of videoDetails) {
-      detailMap.set(detail.id, detail);
-    }
-
-    // Step 3: Filter out Shorts (duration <= 60 seconds) and pick the 20 most recent
-    const validVideos = playlistItems
-      .filter(item => {
-        const videoId = item.snippet.resourceId.videoId;
-        const detail = detailMap.get(videoId);
-        if (!detail) return false;
-        const durationSeconds = iso8601DurationToSeconds(detail.contentDetails.duration);
-        // Exclude Shorts (≤ 60s) but keep everything else including livestream archives
-        return durationSeconds > 60;
-      })
-      .slice(0, 20);
-
-    if (validVideos.length === 0) {
-      res.json(SyncSermonsResponse.parse({ synced: 0, message: "No valid sermon videos found" }));
-      return;
-    }
-
-    // Step 4: Purge existing data
-    await db.delete(sermonsTable);
-
-    // Step 5: Insert new records
-    const inserts = validVideos.map(item => {
-      const videoId = item.snippet.resourceId.videoId;
-      const detail = detailMap.get(videoId);
-      return {
-        videoId,
-        title: item.snippet.title,
-        thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
-        description: item.snippet.description.slice(0, 1000),
-        publishedAt: new Date(item.snippet.publishedAt),
-        viewCount: detail?.statistics?.viewCount
-          ? parseInt(detail.statistics.viewCount)
-          : null,
-        duration: detail?.contentDetails?.duration ?? null,
-      };
+    // Broadcast sync complete event to any connected SSE clients
+    sseBroadcaster.broadcast({
+      type: "sync_complete",
+      data: { synced: result.synced, featured: result.featured },
     });
 
-    await db.insert(sermonsTable).values(inserts);
-
-    res.json(SyncSermonsResponse.parse({
-      synced: inserts.length,
-      message: `Synced ${inserts.length} sermons from Temple TV`,
-    }));
+    res.json(SyncSermonsResponse.parse({ synced: result.synced, message: result.message }));
   } catch (err) {
     req.log.error({ err }, "YouTube sync failed");
     res.status(500).json({ error: "Failed to sync sermons from YouTube" });

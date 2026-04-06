@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startCron } from "./lib/cron.js";
+import { subscribeToWebSub } from "./lib/youtube-sync.js";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +24,17 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Start the 30-minute YouTube sync cron
+  startCron(logger);
+
+  // Register WebSub subscription with YouTube's PubSubHubbub hub
+  // Only in production or when REPLIT_DEV_DOMAIN is available
+  const domain = process.env.REPLIT_DEV_DOMAIN;
+  if (domain) {
+    const callbackUrl = `https://${domain}/api/sermons/websub`;
+    subscribeToWebSub(callbackUrl, logger);
+  } else {
+    logger.info("REPLIT_DEV_DOMAIN not set — WebSub subscription skipped in this environment");
+  }
 });

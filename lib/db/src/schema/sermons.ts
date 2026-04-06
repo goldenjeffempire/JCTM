@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,6 +11,8 @@ export const sermonsTable = pgTable("sermon_data", {
   publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
   viewCount: integer("view_count"),
   duration: text("duration"),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  isLive: boolean("is_live").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
