@@ -1339,7 +1339,6 @@ export default function Home() {
   return (
     <Layout>
       <HeroSection />
-      <StatsBar />
       <BentoGrid />
       <MandateReveal />
       <SermonSpotlight />
