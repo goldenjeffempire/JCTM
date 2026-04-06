@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useChatWithTempleBots } from "@workspace/api-client-react";
@@ -38,6 +38,11 @@ function getContextualGreeting(path: string): string {
   return "Welcome to the Digital Sanctuary. I am TempleBots. Ask me anything about JCTM teachings or the Correction Mandate.";
 }
 
+const SMART_NOTIFICATIONS: Record<string, string> = {
+  giving: "💛 Ready to partner with the Mandate? I can guide you through giving options.",
+  testimonies: "✨ Exploring testimonies? I can share more stories of God's faithfulness through JCTM.",
+};
+
 const REACH_US = [
   {
     label: "Facebook",
@@ -71,6 +76,9 @@ export function TempleBots() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string>();
+  const [notification, setNotification] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const chatMutation = useChatWithTempleBots();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -82,6 +90,25 @@ export function TempleBots() {
     setSessionId(undefined);
   }, [location]);
 
+  // Listen for section enter events from Home page
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const section = (e as CustomEvent<string>).detail;
+      if (isOpen) return;
+      const msg = SMART_NOTIFICATIONS[section];
+      if (!msg) return;
+      setNotification(msg);
+      setShowToast(true);
+      if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current);
+      notificationTimerRef.current = setTimeout(() => setShowToast(false), 6000);
+    };
+    window.addEventListener("jctm:section-enter", handler);
+    return () => {
+      window.removeEventListener("jctm:section-enter", handler);
+      if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current);
+    };
+  }, [isOpen]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -89,6 +116,12 @@ export function TempleBots() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOpen]);
+
+  const handleOpen = () => {
+    setIsOpen(true);
+    setNotification(null);
+    setShowToast(false);
+  };
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +159,38 @@ export function TempleBots() {
 
   return (
     <>
+      {/* Smart notification toast */}
+      <AnimatePresence>
+        {showToast && notification && !isOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: 60, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 60, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            className="fixed bottom-24 right-6 z-50 max-w-[260px] bg-white rounded-2xl shadow-xl border border-border p-4 cursor-pointer"
+            onClick={handleOpen}
+          >
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-accent/15 flex items-center justify-center shrink-0 mt-0.5">
+                <Bell className="h-4 w-4 text-accent" />
+              </div>
+              <div>
+                <p className="text-primary font-semibold text-xs mb-1">TempleBots</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">{notification}</p>
+              </div>
+            </div>
+            {/* Auto-dismiss progress bar */}
+            <motion.div
+              initial={{ scaleX: 1 }}
+              animate={{ scaleX: 0 }}
+              transition={{ duration: 6, ease: "linear" }}
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent origin-left rounded-b-2xl"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating button */}
       <AnimatePresence>
         {!isOpen && (
           <motion.div
@@ -134,46 +199,87 @@ export function TempleBots() {
             exit={{ opacity: 0, scale: 0.8 }}
             className="fixed bottom-6 right-6 z-50"
           >
-            <Button
-              onClick={() => setIsOpen(true)}
-              size="icon"
-              className="h-14 w-14 rounded-full bg-accent hover:bg-accent/90 shadow-lg p-0 overflow-hidden"
-              aria-label="Open TempleBots chat"
-            >
-              <img
-                src="/jctm-logo.jpeg"
-                alt="TempleBots"
-                className="h-14 w-14 rounded-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
-                }}
-              />
-              <MessageCircle className="h-6 w-6 text-accent-foreground hidden" />
-            </Button>
+            <div className="relative">
+              {/* Pulse ring when notification is active */}
+              {notification && (
+                <>
+                  <motion.div
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                    className="absolute inset-0 rounded-full bg-accent"
+                  />
+                  <motion.div
+                    animate={{ scale: [1, 1.35, 1], opacity: [0.4, 0, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.3 }}
+                    className="absolute inset-0 rounded-full bg-accent"
+                  />
+                </>
+              )}
+
+              <Button
+                onClick={handleOpen}
+                size="icon"
+                className="relative h-14 w-14 rounded-full bg-accent hover:bg-accent/90 shadow-xl shadow-accent/30 p-0 overflow-hidden transition-all hover:scale-105"
+                aria-label="Open TempleBots chat"
+              >
+                <img
+                  src="/jctm-logo.jpeg"
+                  alt="TempleBots"
+                  className="h-14 w-14 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    const next = (e.target as HTMLImageElement).nextElementSibling;
+                    if (next) (next as HTMLElement).classList.remove("hidden");
+                  }}
+                />
+                <MessageCircle className="h-6 w-6 text-accent-foreground hidden" />
+              </Button>
+
+              {/* Notification dot */}
+              {notification && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center"
+                >
+                  <span className="text-white text-[8px] font-bold">1</span>
+                </motion.div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Chat panel */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] h-[540px] max-h-[calc(100vh-6rem)] glass-panel rounded-xl shadow-2xl flex flex-col overflow-hidden"
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] h-[540px] max-h-[calc(100vh-6rem)] glass-panel rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            style={{
+              background: "rgba(255, 254, 248, 0.95)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(0,51,102,0.1)",
+            }}
           >
             {/* Header */}
             <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <img
-                  src="/jctm-logo.jpeg"
-                  alt="JCTM"
-                  className="h-8 w-8 rounded-full object-cover ring-2 ring-white/30"
-                />
+                <div className="relative">
+                  <img
+                    src="/jctm-logo.jpeg"
+                    alt="JCTM"
+                    className="h-8 w-8 rounded-full object-cover ring-2 ring-white/30"
+                  />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-emerald-400 rounded-full border border-primary" />
+                </div>
                 <div className="leading-tight">
                   <span className="font-semibold text-sm block">TempleBots</span>
-                  <span className="text-[10px] text-white/60">JCTM Digital Sanctuary</span>
+                  <span className="text-[10px] text-white/60">JCTM Digital Sanctuary · Online</span>
                 </div>
               </div>
               <Button
@@ -181,6 +287,7 @@ export function TempleBots() {
                 size="icon"
                 className="h-8 w-8 hover:bg-primary/80 text-primary-foreground"
                 onClick={() => setIsOpen(false)}
+                aria-label="Close chat"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -190,13 +297,18 @@ export function TempleBots() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-                    msg.role === "user"
-                      ? "bg-accent text-accent-foreground rounded-tr-sm"
-                      : "glass-panel bg-white text-primary rounded-tl-sm border border-border"
-                  }`}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                      msg.role === "user"
+                        ? "bg-accent text-accent-foreground rounded-tr-sm shadow-sm"
+                        : "bg-white text-primary rounded-tl-sm border border-border shadow-sm"
+                    }`}
+                  >
                     <p className="text-sm leading-relaxed">{msg.content}</p>
-                  </div>
+                  </motion.div>
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {msg.sources.map((s, i) => (
@@ -211,7 +323,7 @@ export function TempleBots() {
 
               {chatMutation.isPending && (
                 <div className="flex items-start">
-                  <div className="glass-panel bg-white text-primary rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1">
+                  <div className="bg-white text-primary rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1 border border-border shadow-sm">
                     <span className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce" />
                     <span className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:0.2s]" />
                     <span className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -247,20 +359,21 @@ export function TempleBots() {
             </div>
 
             {/* Input */}
-            <div className="p-3 bg-white border-t border-border shrink-0">
+            <div className="p-3 bg-white/80 border-t border-border shrink-0">
               <form onSubmit={handleSend} className="flex gap-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about JCTM..."
-                  className="flex-1 bg-secondary border-none focus-visible:ring-1 focus-visible:ring-accent"
+                  className="flex-1 bg-secondary border-none focus-visible:ring-1 focus-visible:ring-accent min-h-[44px]"
                   disabled={chatMutation.isPending}
                 />
                 <Button
                   type="submit"
                   size="icon"
                   disabled={!input.trim() || chatMutation.isPending}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0 min-h-[44px] min-w-[44px]"
+                  aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
