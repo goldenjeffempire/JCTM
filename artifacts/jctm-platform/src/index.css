@@ -135,3 +135,18 @@
   background: rgba(0, 51, 102, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* Hide scrollbar for carousel */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Shimmer animation for hero gradient text */
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-\[shimmer_3s_linear_infinite\] {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
