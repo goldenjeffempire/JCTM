@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useListEvents } from "@workspace/api-client-react";
+import { useListEvents, useGetFeaturedSermon, getGetFeaturedSermonQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { Calendar, MapPin, Clock, Youtube, Radio } from "lucide-react";
-import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
+import { Calendar, MapPin, Clock, Youtube, Radio, Play, ExternalLink } from "lucide-react";
+import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 
 function Countdown({ target }: { target: string }) {
@@ -38,7 +38,10 @@ const YOUTUBE_LIVE_ID = "UCPFFvkE-KGpR37qJgvYriJg";
 
 export default function Events() {
   const [showLive, setShowLive] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const { data: events, isLoading } = useListEvents({ limit: 20, offset: 0 });
+  const { data: latestSermon } = useGetFeaturedSermon({ query: { queryKey: getGetFeaturedSermonQueryKey() } });
+  const latestYtId = (latestSermon as { videoId?: string })?.videoId;
 
   useEffect(() => { document.title = "Events | JCTM Digital Sanctuary"; }, []);
 
@@ -53,6 +56,61 @@ export default function Events() {
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online for these anointed gatherings of the Jesus Christ Temple Ministry.</p>
         </motion.div>
+
+        {latestSermon && latestYtId && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">
+            <h2 className="text-xl font-serif font-bold text-primary mb-4 flex items-center gap-2">
+              <Youtube className="h-5 w-5 text-red-600" /> Latest Upload
+            </h2>
+            <div
+              className="rounded-2xl overflow-hidden border border-border shadow-lg bg-primary group cursor-pointer"
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+                {hovered ? (
+                  <iframe
+                    className="w-full h-full absolute inset-0"
+                    src={`https://www.youtube.com/embed/${latestYtId}?autoplay=1&mute=1&controls=1&rel=0`}
+                    allow="autoplay; fullscreen"
+                    allowFullScreen
+                    title={latestSermon.title}
+                  />
+                ) : (
+                  <>
+                    <img
+                      src={latestSermon.thumbnailUrl}
+                      alt={latestSermon.title}
+                      className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-700"
+                      onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${latestYtId}/maxresdefault.jpg`; }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/30 to-transparent" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-2xl">
+                        <Play className="h-7 w-7 text-white fill-white ml-1" />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                      <span className="text-red-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                        <span className="h-1.5 w-1.5 bg-red-400 rounded-full animate-pulse" /> Just Uploaded
+                      </span>
+                      <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{latestSermon.title}</h3>
+                      <p className="text-white/50 text-xs mt-1.5">Hover to preview · <span className="text-accent">{formatDistanceToNow(new Date(latestSermon.publishedAt), { addSuffix: true })}</span></p>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="p-4 flex items-center justify-between bg-primary border-t border-white/10">
+                <span className="text-white/60 text-sm">{latestSermon.title}</span>
+                <a href={`https://www.youtube.com/watch?v=${latestYtId}`} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" className="rounded-full bg-red-600 hover:bg-red-700 text-white text-xs h-8 px-4 gap-1.5">
+                    <ExternalLink className="h-3 w-3" /> Watch on YouTube
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <div className="glass-panel rounded-2xl p-6 mb-10 border border-red-200/50 bg-red-50/30">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

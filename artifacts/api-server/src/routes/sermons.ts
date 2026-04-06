@@ -62,21 +62,12 @@ router.get("/sermons", async (req, res): Promise<void> => {
 // GET /sermons/featured  — latest / featured sermon
 // ──────────────────────────────────────────────────────
 router.get("/sermons/featured", async (req, res): Promise<void> => {
-  // Prefer a live sermon, then an isFeatured one, then just the latest
-  const [liveSermon] = await db
+  // Prefer the most recently published sermon (always show the latest upload)
+  const [sermon] = await db
     .select()
     .from(sermonsTable)
-    .where(eq(sermonsTable.isLive, true))
     .orderBy(desc(sermonsTable.publishedAt))
     .limit(1);
-
-  const [sermon] = liveSermon
-    ? [liveSermon]
-    : await db
-        .select()
-        .from(sermonsTable)
-        .orderBy(desc(sermonsTable.publishedAt))
-        .limit(1);
 
   if (!sermon) {
     res.status(404).json({ error: "No sermons found" });
