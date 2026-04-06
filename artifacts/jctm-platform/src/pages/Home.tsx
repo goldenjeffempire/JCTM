@@ -389,6 +389,51 @@ function HeroSection() {
         </div>
       </motion.div>
 
+      {/* ── Floating Prophet Portrait — right side, desktop only ── */}
+      <motion.div
+        initial={{ opacity: 0, x: 80, y: 20 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ type: "spring", stiffness: 45, damping: 16, delay: 0.8 }}
+        className="absolute right-8 xl:right-16 top-1/2 -translate-y-1/2 z-10 hidden lg:block"
+      >
+        <motion.div animate={{ y: [0, -12, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}>
+          <div className="relative">
+            {/* Glow ring */}
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+              className="absolute -inset-3 rounded-[2.5rem]"
+              style={{ background: "conic-gradient(from 0deg, rgba(56,189,248,0.4), rgba(0,51,102,0.15), rgba(56,189,248,0.4))", filter: "blur(6px)" }}
+            />
+            {/* Photo frame */}
+            <div className="relative w-52 h-64 rounded-[2rem] overflow-hidden shadow-2xl border-2 border-white/80"
+              style={{ boxShadow: "0 24px 80px rgba(0,51,102,0.18), 0 0 0 1px rgba(56,189,248,0.12)" }}>
+              <img
+                src="/founder/prophet-portrait.jpg"
+                alt="Prophet Amos Evomobor"
+                className="w-full h-full object-cover object-top"
+              />
+              {/* Gradient overlay at bottom */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <p className="text-white font-serif font-bold text-sm leading-tight">Prophet Amos</p>
+                <p className="text-white/55 text-[10px] font-medium">Founder, JCTM</p>
+              </div>
+            </div>
+            {/* Floating accent badge */}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              className="absolute -bottom-4 -left-5 bg-white rounded-2xl shadow-xl border border-border/60 px-3 py-2 flex items-center gap-2"
+              style={{ boxShadow: "0 8px 32px rgba(0,51,102,0.12)" }}
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <p className="text-primary text-[11px] font-bold whitespace-nowrap">Ministry Active</p>
+            </motion.div>
+          </div>
+        </motion.div>
+      </motion.div>
+
       {/* Scroll indicator */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
         <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-5 h-8 rounded-full border-2 border-primary/15 flex justify-center pt-1.5" style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.4)" }}>
@@ -785,110 +830,199 @@ function TestimoniesMarquee() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROPHET SECTION — About Prophet Amos, split layout
+// PROPHET SECTION — Cinematic dual-photo editorial layout
 // ═══════════════════════════════════════════════════════════════════════════
 function ProphetSection() {
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-15%" });
+  const inView = useInView(ref, { once: true, margin: "-10%" });
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const yImg = useTransform(scrollYProgress, [0, 1], [-30, 30]);
+  const [hovered, setHovered] = useState(false);
 
   const credentials = [
-    { icon: Award, label: "25+ Years in Ministry" },
-    { icon: Mic2, label: "Verified Prophetic Office" },
-    { icon: BookOpen, label: "Apostolic Teacher" },
-    { icon: Globe, label: "International Broadcaster" },
+    { icon: Award, label: "25+ Years in Ministry", color: "from-amber-400 to-orange-500" },
+    { icon: Mic2, label: "Verified Prophetic Office", color: "from-accent to-[#0284C7]" },
+    { icon: BookOpen, label: "Apostolic Teacher", color: "from-emerald-400 to-teal-600" },
+    { icon: Globe, label: "International Broadcaster", color: "from-primary to-[#003d80]" },
   ];
 
   return (
-    <section ref={ref} className="py-28 bg-white relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, #003366 0%, transparent 60%)" }} />
-      <div className="container mx-auto px-4">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left: Visual */}
-          <motion.div initial={{ opacity: 0, x: -50 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}>
-            <div className="relative max-w-md mx-auto">
-              {/* Main card */}
-              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary via-[#003d80] to-[#001a40] p-10 text-white shadow-2xl">
-                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 30% 70%, #38BDF8 0%, transparent 60%)" }} />
-                <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+    <section ref={ref} className="py-0 bg-white relative overflow-hidden">
+      {/* Subtle background texture */}
+      <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "radial-gradient(circle at 70% 50%, #003366 0%, transparent 55%)" }} />
 
-                {/* Avatar */}
-                <div className="relative z-10 flex flex-col items-center text-center mb-8">
-                  <div className="relative mb-4">
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="absolute -inset-1.5 rounded-full" style={{ background: "conic-gradient(from 0deg, #38BDF8, #003366, #38BDF8)" }} />
-                    <div className="relative h-24 w-24 rounded-full bg-gradient-to-br from-[#38BDF8] to-[#0284C7] flex items-center justify-center text-white font-serif font-bold text-5xl shadow-xl">
-                      A
-                    </div>
-                  </div>
-                  <h3 className="text-2xl font-serif font-bold text-white mb-0.5">Prophet Amos Evomobor</h3>
-                  <p className="text-accent text-sm font-medium">Founder & Senior Prophet, JCTM</p>
-                  <p className="text-white/50 text-xs mt-1">Warri, Delta State, Nigeria</p>
-                </div>
+      <div className="grid lg:grid-cols-2 min-h-[720px]">
+        {/* ── LEFT: Cinematic Photo Frame ── */}
+        <motion.div
+          initial={{ opacity: 0, x: -60 }}
+          animate={inView ? { opacity: 1, x: 0 } : {}}
+          transition={{ type: "spring", stiffness: 55, damping: 20 }}
+          className="relative overflow-hidden min-h-[480px] lg:min-h-full"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          {/* Parallax photo stack */}
+          <motion.div style={{ y: yImg }} className="absolute inset-0 scale-105">
+            {/* Portrait — base photo */}
+            <img
+              src="/founder/prophet-portrait.jpg"
+              alt="Prophet Amos Evomobor — Founder, JCTM"
+              className="w-full h-full object-cover object-top"
+            />
+            {/* Preaching — overlay on hover */}
+            <motion.div
+              animate={{ opacity: hovered ? 1 : 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-0"
+            >
+              <img
+                src="/founder/prophet-preaching.jpg"
+                alt="Prophet Amos Evomobor preaching"
+                className="w-full h-full object-cover object-top"
+              />
+            </motion.div>
+          </motion.div>
 
-                {/* Pull quote */}
-                <div className="relative z-10 border-t border-white/10 pt-6">
-                  <Quote className="h-6 w-6 text-accent/50 mb-2" />
-                  <p className="text-white/75 text-sm leading-relaxed italic">
-                    "God has sent me not to start a new church, but to call His people back to what was already established — the New Testament standard."
-                  </p>
-                  <p className="text-accent text-xs font-semibold mt-3">— Prophet Amos Evomobor</p>
-                </div>
+          {/* Deep gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/85 via-[#001830]/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#001830]/30 via-transparent to-transparent" />
+
+          {/* Bottom text block over photo */}
+          <div className="absolute bottom-0 left-0 right-0 p-8 z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{ type: "spring", stiffness: 60, delay: 0.4 }}
+            >
+              <p className="text-accent text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="h-px w-5 bg-accent inline-block" />The Prophetic Voice
+              </p>
+              <h3 className="text-white font-serif font-bold text-3xl md:text-4xl leading-tight mb-1">
+                Prophet Amos<br />Evomobor
+              </h3>
+              <p className="text-white/60 text-sm">Founder & Senior Prophet, JCTM · Warri, Nigeria</p>
+
+              {/* Hover hint */}
+              <motion.p
+                animate={{ opacity: hovered ? 0 : 1 }}
+                transition={{ duration: 0.3 }}
+                className="text-white/30 text-xs mt-3 flex items-center gap-1.5"
+              >
+                <span className="h-px w-4 bg-white/30 inline-block" /> Hover to see him preach
+              </motion.p>
+              <motion.p
+                animate={{ opacity: hovered ? 1 : 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-accent text-xs mt-3 flex items-center gap-1.5 absolute"
+                style={{ bottom: "2.2rem" }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-accent inline-block animate-pulse" /> Live from the Sanctuary
+              </motion.p>
+            </motion.div>
+          </div>
+
+          {/* Floating credentials badges */}
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-8 right-8 z-10"
+          >
+            <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/50 p-3 flex items-center gap-2.5"
+              style={{ boxShadow: "0 8px 32px rgba(0,51,102,0.2)" }}>
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-accent to-[#0284C7] flex items-center justify-center shrink-0">
+                <Zap className="h-4 w-4 text-white" />
               </div>
-
-              {/* Floating badge cards */}
-              <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -top-4 -right-4 bg-white rounded-2xl shadow-xl border border-border p-3 flex items-center gap-2"
-              >
-                <Zap className="h-5 w-5 text-accent" />
-                <div><p className="text-primary text-xs font-bold">Prophetic Office</p><p className="text-muted-foreground text-[10px]">Verified Ministry</p></div>
-              </motion.div>
-              <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl border border-border p-3 flex items-center gap-2"
-              >
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                <div><p className="text-primary text-xs font-bold">25+ Years</p><p className="text-muted-foreground text-[10px]">Faithful Ministry</p></div>
-              </motion.div>
+              <div>
+                <p className="text-primary text-xs font-bold leading-tight">Prophetic Office</p>
+                <p className="text-muted-foreground text-[10px]">Verified · JCTM</p>
+              </div>
             </div>
           </motion.div>
 
-          {/* Right: Bio */}
-          <motion.div variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"}>
-            <motion.div variants={fadeUp}>
-              <span className="inline-flex items-center gap-2 text-accent text-xs font-bold uppercase tracking-widest mb-5">
-                <span className="h-px w-8 bg-accent inline-block" /> The Prophetic Voice
-              </span>
-            </motion.div>
-            <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-primary mb-6 leading-tight">
-              A Voice Crying in the{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-[#0284C7]">Wilderness</span>
-            </motion.h2>
-            <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-4">
-              Prophet Amos Evomobor received a sovereign divine mandate to correct the church from within — not through rebellion, but through the clear light of scripture. He established the Jesus Christ Temple Ministry in Warri, Nigeria as the base for this global corrective mission.
-            </motion.p>
-            <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-8">
-              His ministry is marked by expository preaching, the manifestation of signs, and an uncompromising stand against false doctrines — particularly the prosperity gospel, prophetic manipulation, and spiritual exploitation that pervades modern Christianity.
-            </motion.p>
-
-            {/* Credentials grid */}
-            <motion.div variants={stagger} className="grid grid-cols-2 gap-3 mb-8">
-              {credentials.map(({ icon: Icon, label }, i) => (
-                <motion.div key={i} variants={fadeUp} className="flex items-center gap-3 p-3 rounded-xl bg-primary/[0.04] border border-primary/8">
-                  <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0"><Icon className="h-4 w-4 text-accent" /></div>
-                  <span className="text-primary text-sm font-medium">{label}</span>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            <motion.div variants={fadeUp}>
-              <MagneticButton>
-                <Link href="/about">
-                  <Button className="rounded-full px-8 h-12 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
-                    Learn About the Ministry <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </Link>
-              </MagneticButton>
-            </motion.div>
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+            className="absolute top-28 right-8 z-10"
+          >
+            <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-border/50 px-4 py-2.5 flex items-center gap-2"
+              style={{ boxShadow: "0 8px 32px rgba(0,51,102,0.15)" }}>
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-primary text-xs font-bold">25+ Years</p>
+                <p className="text-muted-foreground text-[10px]">Faithful Ministry</p>
+              </div>
+            </div>
           </motion.div>
-        </div>
+        </motion.div>
+
+        {/* ── RIGHT: Bio & Credentials ── */}
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate={inView ? "show" : "hidden"}
+          className="flex flex-col justify-center px-8 md:px-12 lg:px-16 py-20"
+        >
+          <motion.div variants={fadeUp}>
+            <span className="inline-flex items-center gap-2 text-accent text-xs font-bold uppercase tracking-widest mb-6">
+              <span className="h-px w-8 bg-accent inline-block" /> Meet the Founder
+            </span>
+          </motion.div>
+
+          <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-primary mb-6 leading-tight">
+            A Voice Crying in the{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-[#0284C7]">Wilderness</span>
+          </motion.h2>
+
+          <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-4 text-base">
+            Prophet Amos Evomobor received a sovereign divine mandate to correct the church from within — not through rebellion, but through the clear light of scripture. He established the Jesus Christ Temple Ministry in Warri, Nigeria as the base for this global corrective mission.
+          </motion.p>
+
+          <motion.p variants={fadeUp} className="text-muted-foreground leading-relaxed mb-8 text-base">
+            His ministry is marked by expository preaching, the manifestation of signs, and an uncompromising stand against false doctrines — particularly the prosperity gospel, prophetic manipulation, and spiritual exploitation that pervades modern Christianity.
+          </motion.p>
+
+          {/* Pull quote */}
+          <motion.div variants={fadeUp} className="relative mb-8 pl-5 border-l-2 border-accent/40">
+            <Quote className="h-5 w-5 text-accent/40 mb-2" />
+            <p className="text-primary/80 font-serif italic text-lg leading-relaxed">
+              "God has sent me not to start a new church, but to call His people back to what was already established — the New Testament standard."
+            </p>
+            <p className="text-accent font-bold text-xs mt-3 uppercase tracking-wider">— Prophet Amos Evomobor</p>
+          </motion.div>
+
+          {/* Credentials grid */}
+          <motion.div variants={stagger} className="grid grid-cols-2 gap-3 mb-10">
+            {credentials.map(({ icon: Icon, label, color }, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-border hover:border-accent/20 hover:shadow-md transition-all duration-200 group"
+              >
+                <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
+                  <Icon className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-primary text-sm font-medium leading-tight">{label}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div variants={fadeUp} className="flex flex-wrap gap-3">
+            <MagneticButton>
+              <Link href="/about">
+                <RippleButton className="group inline-flex items-center justify-center h-12 px-8 rounded-full text-sm font-semibold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 min-h-[44px]">
+                  Learn About the Ministry <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </RippleButton>
+              </Link>
+            </MagneticButton>
+            <MagneticButton>
+              <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
+                <RippleButton className="group inline-flex items-center justify-center h-12 px-8 rounded-full text-sm font-semibold bg-white border border-primary/15 text-primary hover:bg-primary/5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 min-h-[44px]">
+                  <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch Sermons
+                </RippleButton>
+              </a>
+            </MagneticButton>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );
