@@ -3,13 +3,27 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: JCTM Digital Sanctuary API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: sermons
+    description: Sermon management
+  - name: testimonies
+    description: Testimony submissions
+  - name: events
+    description: Event calendar
+  - name: giving
+    description: Giving and donations
+  - name: members
+    description: Member directory
+  - name: chat
+    description: TempleBots AI chat
+  - name: livestream
+    description: Live stream status
 paths:
   /healthz:
     get:
@@ -24,6 +38,384 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /sermons:
+    get:
+      operationId: listSermons
+      tags: [sermons]
+      summary: List sermons
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of sermons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sermon"
+    post:
+      operationId: syncSermons
+      tags: [sermons]
+      summary: Sync latest sermons from YouTube
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+
+  /sermons/featured:
+    get:
+      operationId: getFeaturedSermon
+      tags: [sermons]
+      summary: Get the featured/latest sermon
+      responses:
+        "200":
+          description: Featured sermon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sermon"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sermons/stats:
+    get:
+      operationId: getSermonStats
+      tags: [sermons]
+      summary: Get sermon statistics (totals, counts by topic)
+      responses:
+        "200":
+          description: Sermon statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonStats"
+
+  /sermons/{id}:
+    get:
+      operationId: getSermon
+      tags: [sermons]
+      summary: Get a sermon by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sermon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sermon"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /testimonies:
+    get:
+      operationId: listTestimonies
+      tags: [testimonies]
+      summary: List approved testimonies
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of testimonies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Testimony"
+    post:
+      operationId: submitTestimony
+      tags: [testimonies]
+      summary: Submit a testimony
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTestimonyBody"
+      responses:
+        "201":
+          description: Testimony submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Testimony"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List upcoming events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+    post:
+      operationId: createEvent
+      tags: [events]
+      summary: Create a new event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventBody"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+  /events/upcoming:
+    get:
+      operationId: getUpcomingEvents
+      tags: [events]
+      summary: Get next 3 upcoming events for homepage
+      responses:
+        "200":
+          description: Upcoming events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+
+  /giving:
+    get:
+      operationId: listGivingLogs
+      tags: [giving]
+      summary: List giving logs (admin)
+      responses:
+        "200":
+          description: List of giving logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GivingLog"
+    post:
+      operationId: initiateDonation
+      tags: [giving]
+      summary: Initiate a donation / giving
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DonationRequest"
+      responses:
+        "200":
+          description: Donation initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /giving/stats:
+    get:
+      operationId: getGivingStats
+      tags: [giving]
+      summary: Get giving statistics (total received, recent count)
+      responses:
+        "200":
+          description: Giving stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GivingStats"
+
+  /giving/verify/{reference}:
+    get:
+      operationId: verifyDonation
+      tags: [giving]
+      summary: Verify a donation payment
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationVerification"
+
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List members
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+    post:
+      operationId: createMember
+      tags: [members]
+      summary: Create or register a member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemberBody"
+      responses:
+        "201":
+          description: Member created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  /chat:
+    post:
+      operationId: chatWithTempleBots
+      tags: [chat]
+      summary: Send a message to TempleBots AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /livestream/status:
+    get:
+      operationId: getLivestreamStatus
+      tags: [livestream]
+      summary: Get current livestream status
+      responses:
+        "200":
+          description: Livestream status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivestreamStatus"
+    post:
+      operationId: updateLivestreamStatus
+      tags: [livestream]
+      summary: Update livestream active status (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLivestreamBody"
+      responses:
+        "200":
+          description: Updated livestream status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivestreamStatus"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +426,353 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Sermon:
+      type: object
+      properties:
+        id:
+          type: integer
+        videoId:
+          type: string
+        title:
+          type: string
+        thumbnailUrl:
+          type: string
+        description:
+          type: ["string", "null"]
+        publishedAt:
+          type: string
+        viewCount:
+          type: ["integer", "null"]
+        duration:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - videoId
+        - title
+        - thumbnailUrl
+        - publishedAt
+        - createdAt
+
+    SermonStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        latestDate:
+          type: ["string", "null"]
+        totalViews:
+          type: ["integer", "null"]
+      required:
+        - total
+
+    SyncResult:
+      type: object
+      properties:
+        synced:
+          type: integer
+        message:
+          type: string
+      required:
+        - synced
+        - message
+
+    Testimony:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        content:
+          type: string
+        videoUrl:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        approved:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - content
+        - approved
+        - createdAt
+
+    CreateTestimonyBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        content:
+          type: string
+        videoUrl:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+      required:
+        - name
+        - content
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        startDate:
+          type: string
+        endDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        eventType:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - startDate
+        - eventType
+        - createdAt
+
+    CreateEventBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        startDate:
+          type: string
+        endDate:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        eventType:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+      required:
+        - title
+        - startDate
+        - eventType
+
+    GivingLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        donorName:
+          type: ["string", "null"]
+        donorEmail:
+          type: ["string", "null"]
+        amount:
+          type: number
+        currency:
+          type: string
+        purpose:
+          type: ["string", "null"]
+        reference:
+          type: string
+        status:
+          type: string
+        paymentMethod:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - amount
+        - currency
+        - reference
+        - status
+        - createdAt
+
+    DonationRequest:
+      type: object
+      properties:
+        donorName:
+          type: string
+        donorEmail:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          default: "NGN"
+        purpose:
+          type: ["string", "null"]
+      required:
+        - donorName
+        - donorEmail
+        - amount
+
+    DonationResponse:
+      type: object
+      properties:
+        reference:
+          type: string
+        authorizationUrl:
+          type: ["string", "null"]
+        message:
+          type: string
+      required:
+        - reference
+        - message
+
+    DonationVerification:
+      type: object
+      properties:
+        status:
+          type: string
+        amount:
+          type: number
+        donorName:
+          type: ["string", "null"]
+        message:
+          type: string
+      required:
+        - status
+        - amount
+        - message
+
+    GivingStats:
+      type: object
+      properties:
+        totalAmount:
+          type: number
+        totalDonations:
+          type: integer
+        recentCount:
+          type: integer
+      required:
+        - totalAmount
+        - totalDonations
+        - recentCount
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        role:
+          type: string
+        department:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        joinedAt:
+          type: string
+      required:
+        - id
+        - firstName
+        - lastName
+        - role
+        - joinedAt
+
+    CreateMemberBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        role:
+          type: string
+        department:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+      required:
+        - firstName
+        - lastName
+        - role
+
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        sessionId:
+          type: ["string", "null"]
+      required:
+        - message
+
+    ChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+        sessionId:
+          type: string
+        sources:
+          type: array
+          items:
+            type: string
+      required:
+        - reply
+        - sessionId
+
+    LivestreamStatus:
+      type: object
+      properties:
+        isLive:
+          type: boolean
+        title:
+          type: ["string", "null"]
+        streamUrl:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+      required:
+        - isLive
+
+    UpdateLivestreamBody:
+      type: object
+      properties:
+        isLive:
+          type: boolean
+        title:
+          type: ["string", "null"]
+        streamUrl:
+          type: ["string", "null"]
+      required:
+        - isLive

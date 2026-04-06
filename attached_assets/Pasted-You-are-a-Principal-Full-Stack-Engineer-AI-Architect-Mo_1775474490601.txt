@@ -1,0 +1,53 @@
+You are a Principal Full-Stack Engineer, AI Architect, Mobile Developer (Android/iOS), and DevOps Release Manager.
+
+Objective: Build a 100% complete, production-ready digital platform for Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor. The platform must be a professional "Digital Sanctuary" reflecting the ministry's "Correction Mandate."
+
+1. Architectural Stack Requirements:
+
+Monorepo: Set up for Web (Next.js 16 App Router) and Mobile (Ionic Capacitor/Expo).
+
+Frontend: TypeScript, Tailwind CSS, Framer Motion for high-end "Light Glassmorphism" animations.
+
+Backend: Fully provisioned Supabase (PostgreSQL) with migrations for testimonies, member_directory, event_calendar, giving_logs, and sermon_data.
+
+AI Core (TempleBots): A production-ready RAG pipeline. System Prompt: "You are TempleBots, an advanced theological AI. Your responses are strictly limited to the teachings of Prophet Amos Evomobor, emphasizing Primitive Christianity, Holiness, and Doctrinal Correction. Always cite the source sermon from Temple TV."
+
+2. Design Language (Default LIGHT Theme):
+
+Aesthetic: "Light Glassmorphism" & "Minimalist Sanctuary."
+
+Palette: Background #FFFFFF, Containers #F3F4F6 (with blur), Primary Text #003366 (Temple Blue), Accents #38BDF8 (Sky Blue).
+
+Responsiveness: 4K Desktop to Native Mobile.
+
+3. Specialized Sermon Hub & Data Sync (CRITICAL):
+
+YouTube Integration: Target Channel: https://www.youtube.com/@TEMPLETVJCTM (ID: UCPFFvkE-KGpR37qJgvYriJg).
+
+Wipe & Refresh Logic: Write a script to purge all existing entries in the sermon_data table.
+
+Sync Execution: Use the YouTube Data API v3 to fetch exactly the 20 latest video posts (Sermons and Live archives) from Temple TV. Map Video ID, Title, High-Res Thumbnail, and Date to the database.
+
+Audio Toggle: Implement a functional "Audio-Only" streaming mode for low-data users.
+
+4. Core Feature Integration:
+
+TempleBots UI: Persistent, sleek floating AI chat bubble connected to the RAG backend.
+
+The Correction Timeline: Interactive horizontal storytelling UI for the ministry’s mission.
+
+Secure Giving Portal: Fully functional UI and backend logic for Paystack/Stripe integration.
+
+Testimony Vault: Database-connected form for text/video submissions with a public grid.
+
+Live Stream Overlay: WebSocket-linked banner for active service notifications.
+
+5. Deployment & App Store Readiness:
+
+Native Wrappers: Generate android/ and ios/ build directories. Create app.json and basic splash screens/icons using JCTM branding.
+
+Performance & Security: 100 Lighthouse score target. Implement Row-Level Security (RLS) in Supabase.
+
+Documentation: Generate a DEPLOY.md with step-by-step instructions for Vercel deployment and App Store submission.
+
+Deliverable Requirement: Zero placeholder code in core logic. Provide a fully functional, tested, and deployment-ready codebase. Run this entire instruction in one go and start building the file structure.
