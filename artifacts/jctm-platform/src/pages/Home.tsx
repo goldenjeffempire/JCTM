@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   motion, Variants, useScroll, useTransform, useInView,
   AnimatePresence, useMotionValue, useSpring,
@@ -9,8 +9,8 @@ import {
   Calendar, ArrowRight, MapPin, ShieldCheck, Flame, Users,
   Radio, BookOpen, Heart, Sparkles, ChevronRight, Globe,
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
-  Youtube, Facebook, Mail, CheckCircle2, ChevronDown, ChevronUp,
-  Tv, Award, TrendingUp, Zap,
+  Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
+  Tv, Award, TrendingUp, Zap, Radio as LiveIcon,
 } from "lucide-react";
 import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
@@ -160,8 +160,83 @@ function ScriptureTicker() {
   );
 }
 
+// ─── Ripple Button ──────────────────────────────────────────────────────────
+function RippleButton({ children, className, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) {
+  const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
+  const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const id = Date.now();
+    setRipples(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top, id }]);
+    setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 700);
+    onClick?.(e);
+  }, [onClick]);
+  return (
+    <button {...props} onClick={handleClick} className={`relative overflow-hidden ${className ?? ""}`}>
+      {ripples.map(r => (
+        <span key={r.id} className="ripple-effect" style={{ left: r.x, top: r.y }} />
+      ))}
+      {children}
+    </button>
+  );
+}
+
+// ─── Cursor Gradient Mesh ────────────────────────────────────────────────────
+function CursorMesh() {
+  const x = useMotionValue(50);
+  const y = useMotionValue(50);
+  const sx = useSpring(x, { stiffness: 40, damping: 18 });
+  const sy = useSpring(y, { stiffness: 40, damping: 18 });
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      x.set((e.clientX / window.innerWidth) * 100);
+      y.set((e.clientY / window.innerHeight) * 100);
+    };
+    window.addEventListener("mousemove", handler, { passive: true });
+    return () => window.removeEventListener("mousemove", handler);
+  }, [x, y]);
+
+  return (
+    <motion.div
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{
+        background: `radial-gradient(ellipse 65% 45% at ${sx}% ${sy}%, rgba(56,189,248,0.075) 0%, transparent 72%)`,
+      }}
+    />
+  );
+}
+
+// ─── Staggered Word Reveal ───────────────────────────────────────────────────
+function KineticHeadline({ lines }: { lines: { text: string; gradient?: boolean }[] }) {
+  return (
+    <div className="text-6xl sm:text-7xl md:text-8xl lg:text-[5.5rem] font-serif font-bold leading-[1.04] tracking-tight mb-4">
+      {lines.map((line, li) => (
+        <div key={li} className="overflow-hidden block">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04, delayChildren: 0.3 + li * 0.18 } } }}
+            className="flex flex-wrap justify-center"
+          >
+            {line.text.split("").map((char, ci) => (
+              <motion.span
+                key={ci}
+                variants={{ hidden: { opacity: 0, y: 60, rotateX: -40 }, show: { opacity: 1, y: 0, rotateX: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } } }}
+                className={`inline-block ${char === " " ? "w-[0.3em]" : ""} ${line.gradient ? "text-transparent bg-clip-text bg-gradient-to-r from-[#003366] via-[#38BDF8] to-[#0284C7]" : "text-primary"}`}
+                style={{ perspective: 800, transformStyle: "preserve-3d" }}
+              >
+                {char === " " ? "\u00A0" : char}
+              </motion.span>
+            ))}
+          </motion.div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
-// HERO — Enhanced Light Sanctuary + Typewriter + Floating Metrics
+// HERO — Living Digital Sanctuary: Cursor Mesh, Kinetic Type, LIVE Badge
 // ═══════════════════════════════════════════════════════════════════════════
 function HeroSection() {
   const ref = useRef<HTMLDivElement>(null);
@@ -171,7 +246,8 @@ function HeroSection() {
   const yLogo = useTransform(scrollYProgress, [0, 1], [0, -25]);
   const yContent = useTransform(scrollYProgress, [0, 1], [0, 130]);
   const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
+  const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
+  const [isLive, setIsLive] = useState(false);
 
   const typeword = useTypewriter([
     "Primitive Christianity.",
@@ -181,6 +257,19 @@ function HeroSection() {
     "Apostolic Truth.",
   ]);
 
+  // Check live status
+  useEffect(() => {
+    const check = () => {
+      fetch(`${BASE}/api/livestream/status`)
+        .then(r => r.json())
+        .then((d: { isLive?: boolean }) => setIsLive(d?.isLive ?? false))
+        .catch(() => {});
+    };
+    check();
+    const t = setInterval(check, 60000);
+    return () => clearInterval(t);
+  }, []);
+
   const metrics = [
     { value: 479, suffix: "+", label: "Sermons" },
     { value: 40, suffix: "+", label: "Nations" },
@@ -188,21 +277,24 @@ function HeroSection() {
   ];
 
   return (
-    <section ref={ref} className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: "#FFFEF8" }}>
+    <section ref={ref} className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: "#FFFFFF" }}>
+      {/* Cursor-reactive gradient mesh */}
+      <CursorMesh />
+
       {/* Parallax BG */}
-      <motion.div style={{ y: yBg, scale }} className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FFFEF8] via-[#EEF4FF] to-[#DDE8FF]" />
-        <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(ellipse 90% 60% at 50% -10%, rgba(56,189,248,0.14) 0%, transparent 65%)" }} />
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(0,51,102,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,51,102,1) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
+      <motion.div style={{ y: yBg, scale: bgScale }} className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-[#F0F6FF] to-[#E0EDFF]" />
+        <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(ellipse 90% 60% at 50% -10%, rgba(56,189,248,0.16) 0%, transparent 65%)" }} />
+        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "linear-gradient(rgba(0,51,102,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,51,102,1) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
       </motion.div>
 
-      {/* Orbs */}
+      {/* Animated orbs */}
       <motion.div style={{ y: yOrbs }} className="absolute inset-0 pointer-events-none">
-        <motion.div animate={{ scale: [1, 1.18, 1], opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }} className="absolute top-1/4 left-1/4 w-[520px] h-[520px] rounded-full" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.13) 0%, transparent 70%)" }} />
-        <motion.div animate={{ scale: [1, 1.22, 1], opacity: [0.3, 0.55, 0.3] }} transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full" style={{ background: "radial-gradient(circle, rgba(0,51,102,0.09) 0%, transparent 70%)" }} />
-        <motion.div animate={{ x: [0, 30, 0], y: [0, -20, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} className="absolute top-20 right-20 w-4 h-4 bg-accent/30 rounded-full" />
-        <motion.div animate={{ x: [0, -20, 0], y: [0, 30, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }} className="absolute bottom-32 left-24 w-3 h-3 bg-primary/20 rounded-full" />
-        <motion.div animate={{ x: [0, 15, 0], y: [0, 15, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 3 }} className="absolute top-1/2 left-16 w-2 h-2 bg-accent/40 rounded-full" />
+        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.45, 0.75, 0.45] }} transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }} className="absolute top-1/4 left-1/4 w-[520px] h-[520px] rounded-full" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 70%)" }} />
+        <motion.div animate={{ scale: [1, 1.22, 1], opacity: [0.25, 0.5, 0.25] }} transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full" style={{ background: "radial-gradient(circle, rgba(0,51,102,0.08) 0%, transparent 70%)" }} />
+        <motion.div animate={{ x: [0, 30, 0], y: [0, -20, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} className="absolute top-20 right-20 w-4 h-4 bg-accent/25 rounded-full" />
+        <motion.div animate={{ x: [0, -20, 0], y: [0, 30, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }} className="absolute bottom-32 left-24 w-3 h-3 bg-primary/15 rounded-full" />
+        <motion.div animate={{ x: [0, 15, 0], y: [0, 15, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 3 }} className="absolute top-1/2 left-16 w-2 h-2 bg-accent/35 rounded-full" />
       </motion.div>
 
       <motion.div style={{ opacity }} className="container mx-auto px-4 relative z-10 text-center pt-12">
@@ -210,67 +302,84 @@ function HeroSection() {
           {/* Logo */}
           <motion.div style={{ y: yLogo }} className="mb-8 flex justify-center">
             <motion.div initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }} className="relative">
-              <motion.div animate={{ scale: [1, 1.14, 1], opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-full blur-2xl scale-150" style={{ background: "rgba(56,189,248,0.28)" }} />
-              <img src="/jctm-logo.jpeg" alt="JCTM" className="relative h-32 w-32 rounded-full object-cover ring-4 ring-accent/30 shadow-2xl" style={{ boxShadow: "0 0 60px rgba(56,189,248,0.25), 0 24px 60px rgba(0,51,102,0.15)" }} />
+              <motion.div animate={{ scale: [1, 1.14, 1], opacity: [0.28, 0.6, 0.28] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-full blur-2xl scale-150" style={{ background: "rgba(56,189,248,0.3)" }} />
+              <img src="/jctm-logo.jpeg" alt="JCTM" className="relative h-32 w-32 rounded-full object-cover ring-4 ring-accent/30 shadow-2xl" style={{ boxShadow: "0 0 60px rgba(56,189,248,0.28), 0 24px 60px rgba(0,51,102,0.14)" }} />
             </motion.div>
           </motion.div>
 
-          {/* Content layer */}
           <motion.div style={{ y: yContent }}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <span className="inline-flex items-center gap-2 border border-primary/12 text-primary/65 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-7 bg-white/60 backdrop-blur-sm shadow-sm">
+            {/* Identity badge + LIVE indicator */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex items-center justify-center gap-3 mb-7 flex-wrap">
+              <span className="inline-flex items-center gap-2 border border-primary/10 text-primary/60 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-white/70 backdrop-blur-sm shadow-sm"
+                style={{ boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 4px 16px rgba(0,51,102,0.06)" }}>
                 <Sparkles className="h-3 w-3 text-accent" />
                 Jesus Christ Temple Ministry · Warri, Nigeria
               </span>
+              {/* LIVE badge — only visible when streaming */}
+              <AnimatePresence>
+                {isLive && (
+                  <motion.a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer"
+                    initial={{ opacity: 0, scale: 0.8, x: -10 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.8 }}
+                    className="inline-flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-red-500/30"
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                    </span>
+                    Live Now
+                  </motion.a>
+                )}
+              </AnimatePresence>
             </motion.div>
 
-            <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.9, ease: [0.16, 1, 0.3, 1] }} className="text-6xl sm:text-7xl md:text-8xl lg:text-[5.5rem] font-serif font-bold text-primary mb-4 leading-[1.04] tracking-tight">
-              The<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#003366] via-[#38BDF8] to-[#003366] animate-[shimmer_3s_linear_infinite]">
-                Correction
-              </span>
-              <br />Mandate
-            </motion.h1>
+            {/* Staggered kinetic headline */}
+            <KineticHeadline lines={[
+              { text: "The" },
+              { text: "Correction", gradient: true },
+              { text: "Mandate" },
+            ]} />
 
             {/* Typewriter subtitle */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mb-3 h-8 flex items-center justify-center">
-              <span className="text-lg md:text-xl font-light text-primary/50">Restoring </span>
-              <span className="text-lg md:text-xl font-semibold text-accent ml-2 min-w-[200px] text-left">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.0 }} className="mb-3 h-9 flex items-center justify-center">
+              <span className="text-lg md:text-xl font-light text-primary/45">Restoring </span>
+              <span className="text-lg md:text-xl font-semibold text-accent ml-2 min-w-[210px] text-left">
                 {typeword}<span className="animate-[blink_1s_step-end_infinite] text-accent">|</span>
               </span>
             </motion.div>
 
-            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }} className="text-base md:text-lg text-primary/50 mb-8 max-w-xl mx-auto font-light leading-relaxed">
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="text-base md:text-lg text-primary/45 mb-8 max-w-xl mx-auto font-light leading-relaxed">
               Under the prophetic leadership of{" "}
-              <span className="text-accent font-semibold">Prophet Amos Evomobor</span>{" "}
-              — proclaiming the Good News from Warri to the world.
+              <span className="text-accent font-semibold">Prophet Amos Evomobor</span>
+              {" "}— proclaiming the Good News from Warri to the world.
             </motion.p>
 
             <ScriptureTicker />
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85 }} className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6 mb-10">
+            {/* CTA buttons with ripple effect */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6 mb-10">
               <MagneticButton>
                 <Link href="/sermons">
-                  <Button size="lg" className="group h-14 px-10 rounded-full text-base font-semibold bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/25 transition-all duration-300 hover:-translate-y-0.5">
+                  <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-semibold bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/25 transition-all duration-300 hover:-translate-y-0.5 min-h-[44px]">
                     <Play className="h-4 w-4 mr-2 group-hover:scale-125 transition-transform fill-white" />
                     Experience the Word
-                  </Button>
+                  </RippleButton>
                 </Link>
               </MagneticButton>
               <MagneticButton>
                 <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" variant="ghost" className="h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary hover:bg-primary/5 border border-primary/12 transition-all duration-300">
-                    <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch Live
-                  </Button>
+                  <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary bg-white/60 hover:bg-white/80 border border-primary/10 backdrop-blur-sm transition-all duration-300 shadow-sm min-h-[44px]">
+                    <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch on Temple TV
+                  </RippleButton>
                 </a>
               </MagneticButton>
             </motion.div>
 
-            {/* Floating metric pills */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="flex flex-wrap justify-center gap-4">
+            {/* Floating metric pills — glassmorphism 2.0 */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }} className="flex flex-wrap justify-center gap-4">
               {metrics.map((m, i) => (
-                <motion.div key={i} animate={{ y: [0, -4, 0] }} transition={{ duration: 3.5 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
-                  className="flex items-center gap-2.5 bg-white/80 backdrop-blur-sm border border-primary/10 px-5 py-2.5 rounded-2xl shadow-sm"
+                <motion.div key={i} animate={{ y: [0, -5, 0] }} transition={{ duration: 3.5 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
+                  className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl"
+                  style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(56,189,248,0.15)", boxShadow: "0 4px 20px rgba(0,51,102,0.07), inset 0 1px 0 rgba(255,255,255,0.8)" }}
                 >
                   <span className="font-serif font-bold text-primary text-xl"><AnimatedCounter target={m.value} suffix={m.suffix} /></span>
                   <span className="text-muted-foreground text-xs font-medium">{m.label}</span>
@@ -282,8 +391,8 @@ function HeroSection() {
       </motion.div>
 
       {/* Scroll indicator */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
-        <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-5 h-8 rounded-full border-2 border-primary/20 flex justify-center pt-1.5">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+        <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-5 h-8 rounded-full border-2 border-primary/15 flex justify-center pt-1.5" style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.4)" }}>
           <div className="w-1 h-2 rounded-full bg-accent" />
         </motion.div>
       </motion.div>
