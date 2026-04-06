@@ -22,11 +22,20 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 w-full glass-panel border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/">
-          <div className="font-serif font-bold text-xl text-primary cursor-pointer flex items-center gap-2">
-            JCTM <span className="text-sm font-sans font-medium text-muted-foreground hidden sm:inline-block">| Digital Sanctuary</span>
+          <div className="flex items-center gap-3 cursor-pointer group">
+            <img
+              src="/jctm-logo.jpeg"
+              alt="JCTM — Jesus Christ Temple Ministry"
+              className="h-10 w-10 rounded-full object-cover shadow ring-2 ring-red-500/30 group-hover:ring-red-500/60 transition-all duration-200"
+            />
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="font-serif font-bold text-primary text-sm leading-tight">Jesus Christ Temple Ministry</span>
+              <span className="text-[10px] font-medium text-muted-foreground tracking-wide">The Land Of Good News</span>
+            </div>
+            <span className="sm:hidden font-serif font-bold text-primary text-lg">JCTM</span>
           </div>
         </Link>
-        
+
         <div className="hidden md:flex items-center gap-6">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
@@ -44,13 +53,12 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Nav */}
       {isOpen && (
         <div className="md:hidden glass-panel border-b">
           <div className="flex flex-col px-4 py-4 space-y-4">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
-                <div 
+                <div
                   className={`text-sm font-medium transition-colors hover:text-accent cursor-pointer ${location === item.href ? "text-accent" : "text-primary"}`}
                   onClick={() => setIsOpen(false)}
                 >

@@ -1,0 +1,45 @@
+You are a Senior Product Designer and Brand Identity Specialist.
+
+Objective: Perform the final branding and visual integration for the JCTM platform, utilizing the official Uploaded Logo (image_0.png) and the provided Social Media/Contact handles.
+
+1. The Master Logo Integration (From Upload):
+
+Asset: Use the exact circle logo from image_0.png as the primary brand asset.
+
+Analysis: The logo features (a) The outer red ring, (b) Text: 'Jesus Christ Temple Ministry', 'The Land Of Good News', (c) Inner graphic: The mountain landscape, three white doves, and the open Bible over the stylized blue text 'J.C.T.M.', (d) Text below: 'The Bible Is Our Standard..'.
+
+Placement (Web & Mobile):
+
+Navbar: Place a scaled, crisp version of this logo in the navigation header. Clicking it must always return the user to the homepage.
+
+Footer: Include a larger version of this logo in the site footer for visual balance.
+
+Splash Screens: Set this logo as the only visual element on the launch/splash screen for the native iOS and Android apps, on a pure ivory/white background (#FFFFFF).
+
+App Icons: Create a square App Store Icon by precisely placing the entire circular JCTM logo inside a rounded-corner container.
+
+2. The Social Media & Contact Module:
+
+Handles: Integrate the following verified channels:
+
+Facebook: www.facebook.com/templetvjctm
+
+YouTube (Temple TV): www.youtube.com/templetvjctm
+
+Contact Email: jesuschristtempleministryng@gmail.com
+
+UI/UX: Place these links as sleek, high-end "contact chips" or "social buttons" in two locations: (A) The lower footer of every page, and (B) A dedicated "Reach Us" card within the TempleBots AI chat interface.
+
+Iconography: Use modern, minimal Lucide React or FontAwesome icons for the Facebook, YouTube, and Email logos, using the "Temple Blue" (#003366) as the hover color.
+
+3. General Visual Alignment:
+
+Typography: Ensure the on-screen typography on the platform (e.g., the title "The Land of Good News") uses a clean, modern sans-serif that complements the more stylized fonts used inside the logo.
+
+Palette: Verify that the primary accent colors used across the site are the Red (#FF0000) and Blue (#003366) sampled directly from the logo.
+
+4. Testing: > * Asset Quality: Confirm the logo is not pixelated or distorted when displayed at various sizes.
+
+Functional Links: Verify that the social media chips on all pages correctly link to the Facebook/YouTube pages.
+
+Execute this brand integration across all files now.
