@@ -251,6 +251,7 @@ function HeroSection() {
   const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
   const [isLive, setIsLive] = useState(false);
   const [imgHovered, setImgHovered] = useState<"portrait" | "preaching" | null>(null);
+  const [lightbox, setLightbox] = useState<"portrait" | "preaching" | null>(null);
 
   const typeword = useTypewriter([
     "The Lost Souls.",
@@ -272,15 +273,85 @@ function HeroSection() {
     return () => clearInterval(t);
   }, []);
 
+  // Close lightbox on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLightbox(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const metrics = [
     { value: 479, suffix: "+", label: "Sermons", icon: Mic2 },
     { value: 40, suffix: "+", label: "Nations", icon: Globe },
     { value: 13, suffix: "yrs", label: "Ministry", icon: Award },
   ];
 
+  const lightboxData = {
+    portrait: { src: "/founder/prophet-portrait.jpg", title: "Prophet Amos Evomobor", sub: "Founder & Senior Prophet · Jesus Christ Temple Ministry" },
+    preaching: { src: "/founder/prophet-preaching.jpg", title: "The Preaching Mandate", sub: "Prophet Amos Evomobor — Live Ministry, Warri Nigeria" },
+  };
+
+  const previewImages = [
+    { key: "preaching" as const, src: "/founder/prophet-preaching.jpg", label: "Preaching", tag: "Live Ministry" },
+    { key: "portrait" as const, src: "/founder/prophet-portrait.jpg", label: "Portrait", tag: "Founder" },
+  ];
+
   return (
     <section ref={ref} className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: "#FFFFFF" }}>
       <CursorMesh />
+
+      {/* ── LIGHTBOX OVERLAY ── */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center"
+            style={{ backdropFilter: "blur(18px)", background: "rgba(0,10,30,0.88)" }}
+            onClick={() => setLightbox(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.88, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 260, damping: 26 }}
+              className="relative max-w-lg w-full mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Glow halo */}
+              <div className="absolute -inset-6 rounded-[3rem] blur-3xl opacity-40" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.5), rgba(0,51,102,0.4))" }} />
+              <div className="relative rounded-[2.5rem] overflow-hidden border-2 border-white/20 shadow-2xl">
+                <img src={lightboxData[lightbox].src} alt={lightboxData[lightbox].title} className="w-full object-cover object-top max-h-[70vh]" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/90 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-7">
+                  <p className="text-accent text-[10px] font-bold uppercase tracking-widest mb-1">Jesus Christ Temple Ministry</p>
+                  <h3 className="text-white font-serif font-bold text-2xl leading-tight mb-1">{lightboxData[lightbox].title}</h3>
+                  <p className="text-white/60 text-sm">{lightboxData[lightbox].sub}</p>
+                </div>
+              </div>
+              {/* Close button */}
+              <motion.button
+                whileHover={{ scale: 1.12 } as never} whileTap={{ scale: 0.92 } as never}
+                onClick={() => setLightbox(null)}
+                className="absolute -top-4 -right-4 h-10 w-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors shadow-xl"
+              >
+                ✕
+              </motion.button>
+              {/* Switch photo */}
+              <div className="flex gap-3 justify-center mt-5">
+                {previewImages.map(p => (
+                  <motion.button key={p.key} onClick={() => setLightbox(p.key)}
+                    whileHover={{ scale: 1.06 } as never}
+                    className={`relative h-14 w-11 rounded-xl overflow-hidden border-2 transition-all ${lightbox === p.key ? "border-accent shadow-lg shadow-accent/30" : "border-white/20 opacity-60 hover:opacity-90"}`}
+                  >
+                    <img src={p.src} alt={p.label} className="w-full h-full object-cover object-top" />
+                  </motion.button>
+                ))}
+              </div>
+              <p className="text-center text-white/30 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Parallax BG layers */}
       <motion.div style={{ y: yBg, scale: bgScale }} className="absolute inset-0 pointer-events-none">
@@ -289,61 +360,52 @@ function HeroSection() {
         <div className="absolute inset-0 opacity-[0.018]" style={{ backgroundImage: "linear-gradient(rgba(0,51,102,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,51,102,1) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
       </motion.div>
 
-      {/* Orbs */}
+      {/* Orbs + particles */}
       <motion.div style={{ y: yOrbs }} className="absolute inset-0 pointer-events-none">
         <motion.div animate={{ scale: [1, 1.25, 1], opacity: [0.4, 0.7, 0.4] }} transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }} className="absolute top-1/3 left-1/3 w-[600px] h-[600px] rounded-full" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.13) 0%, transparent 70%)" }} />
         <motion.div animate={{ scale: [1, 1.18, 1], opacity: [0.2, 0.45, 0.2] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute bottom-1/4 right-1/3 w-80 h-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(0,51,102,0.09) 0%, transparent 70%)" }} />
-        {[...Array(8)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <motion.div key={i}
-            animate={{ x: [0, (i % 2 ? 1 : -1) * (15 + i * 4), 0], y: [0, (i % 3 ? -1 : 1) * (10 + i * 3), 0] }}
-            transition={{ duration: 7 + i * 1.2, repeat: Infinity, ease: "easeInOut", delay: i * 0.7 }}
+            animate={{ x: [0, (i % 2 ? 1 : -1) * (15 + i * 4), 0], y: [0, (i % 3 ? -1 : 1) * (10 + i * 3), 0], opacity: [0.3, 0.8, 0.3] }}
+            transition={{ duration: 7 + i * 1.2, repeat: Infinity, ease: "easeInOut", delay: i * 0.55 }}
             className="absolute rounded-full"
-            style={{ width: 4 + (i % 3) * 3, height: 4 + (i % 3) * 3, background: i % 2 ? "rgba(56,189,248,0.3)" : "rgba(0,51,102,0.15)", top: `${10 + i * 10}%`, left: `${5 + i * 11}%` }}
+            style={{ width: 3 + (i % 4) * 2, height: 3 + (i % 4) * 2, background: i % 3 === 0 ? "rgba(56,189,248,0.4)" : i % 3 === 1 ? "rgba(0,51,102,0.2)" : "rgba(255,255,255,0.6)", top: `${8 + i * 7}%`, left: `${4 + i * 8}%` }}
           />
         ))}
       </motion.div>
 
-      {/* ── LEFT Floating Card: Prophet Preaching ── */}
+      {/* ── LEFT Floating Card: Prophet Preaching (clickable) ── */}
       <motion.div
         style={{ y: yLeft }}
         initial={{ opacity: 0, x: -90, rotate: -4 }}
         animate={{ opacity: 1, x: 0, rotate: -4 }}
         transition={{ type: "spring", stiffness: 42, damping: 18, delay: 0.7 }}
-        className="absolute left-4 xl:left-12 top-1/2 -translate-y-1/2 z-10 hidden lg:block"
+        className="absolute left-4 xl:left-12 top-1/2 -translate-y-1/2 z-10 hidden lg:block cursor-pointer"
         onMouseEnter={() => setImgHovered("preaching")}
         onMouseLeave={() => setImgHovered(null)}
-        whileHover={{ rotate: 0, scale: 1.04, transition: { duration: 0.4 } } as never}
+        onClick={() => setLightbox("preaching")}
+        whileHover={{ rotate: 0, scale: 1.05, transition: { duration: 0.4 } } as never}
+        whileTap={{ scale: 0.97 } as never}
       >
         <motion.div animate={{ y: [0, 14, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}>
           <div className="relative">
-            <motion.div
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -inset-4 rounded-[2.5rem] blur-2xl"
-              style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.35), rgba(56,189,248,0.25))" }}
-            />
-            <div className="relative w-48 h-60 rounded-[2rem] overflow-hidden shadow-2xl border-2 border-white/90"
-              style={{ boxShadow: "0 28px 80px rgba(0,51,102,0.22), 0 0 0 1px rgba(56,189,248,0.14)" }}>
-              <img
-                src="/founder/prophet-preaching.jpg"
-                alt="Prophet Amos preaching"
-                className="w-full h-full object-cover object-top transition-transform duration-700"
-                style={{ transform: imgHovered === "preaching" ? "scale(1.08)" : "scale(1)" }}
-              />
+            <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="absolute -inset-4 rounded-[2.5rem] blur-2xl" style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.35), rgba(56,189,248,0.25))" }} />
+            <div className="relative w-48 h-60 rounded-[2rem] overflow-hidden shadow-2xl border-2 border-white/90" style={{ boxShadow: "0 28px 80px rgba(0,51,102,0.22), 0 0 0 1px rgba(56,189,248,0.14)" }}>
+              <img src="/founder/prophet-preaching.jpg" alt="Prophet Amos preaching" className="w-full h-full object-cover object-top transition-transform duration-700" style={{ transform: imgHovered === "preaching" ? "scale(1.1)" : "scale(1)" }} />
               <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/80 via-transparent to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-b from-[#001830]/30 via-transparent to-transparent" />
+              {/* Hover expand hint */}
+              <motion.div animate={{ opacity: imgHovered === "preaching" ? 1 : 0 }} transition={{ duration: 0.2 }} className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 border border-white/30">
+                  <ExternalLink className="h-4 w-4 text-white" />
+                </div>
+              </motion.div>
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <p className="text-white font-serif font-bold text-sm">Live Preaching</p>
-                <p className="text-accent text-[10px] font-semibold">The Correction Mandate</p>
+                <p className="text-accent text-[10px] font-semibold">The Genuine Gospel</p>
               </div>
             </div>
-            {/* Floating tag */}
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -top-4 -right-4 bg-accent rounded-2xl shadow-xl px-3 py-2 flex items-center gap-1.5"
-              style={{ boxShadow: "0 8px 24px rgba(56,189,248,0.4)" }}
-            >
+            <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} className="absolute -top-4 -right-4 bg-accent rounded-2xl shadow-xl px-3 py-2 flex items-center gap-1.5" style={{ boxShadow: "0 8px 24px rgba(56,189,248,0.4)" }}>
               <Mic2 className="h-3 w-3 text-white" />
               <p className="text-white text-[10px] font-bold whitespace-nowrap">13 yrs Active</p>
             </motion.div>
@@ -366,8 +428,7 @@ function HeroSection() {
           <motion.div style={{ y: yContent }}>
             {/* Identity badge + LIVE */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex items-center justify-center gap-3 mb-7 flex-wrap">
-              <span className="inline-flex items-center gap-2 border border-primary/10 text-primary/60 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-white/75 backdrop-blur-md shadow-sm"
-                style={{ boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 4px 16px rgba(0,51,102,0.06)" }}>
+              <span className="inline-flex items-center gap-2 border border-primary/10 text-primary/60 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-white/75 backdrop-blur-md shadow-sm" style={{ boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 4px 16px rgba(0,51,102,0.06)" }}>
                 <Sparkles className="h-3 w-3 text-accent" />
                 Jesus Christ Temple Ministry · Warri, Nigeria
               </span>
@@ -408,7 +469,7 @@ function HeroSection() {
             <ScriptureTicker />
 
             {/* CTA buttons */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6 mb-10">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6 mb-8">
               <MagneticButton>
                 <Link href="/sermons">
                   <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-semibold bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/25 transition-all duration-300 hover:-translate-y-1 min-h-[44px]">
@@ -426,13 +487,13 @@ function HeroSection() {
               </MagneticButton>
             </motion.div>
 
-            {/* Metric pills — glassmorphism 3.0 */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }} className="flex flex-wrap justify-center gap-4">
+            {/* Metric pills */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }} className="flex flex-wrap justify-center gap-4 mb-10">
               {metrics.map((m, i) => (
                 <motion.div key={i}
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3.5 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
-                  whileHover={{ scale: 1.06, y: -8 } as never}
+                  whileHover={{ scale: 1.08, y: -10 } as never}
                   className="flex items-center gap-3 px-5 py-3 rounded-2xl cursor-default"
                   style={{ background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(56,189,248,0.18)", boxShadow: "0 4px 24px rgba(0,51,102,0.08), inset 0 1px 0 rgba(255,255,255,0.9)" }}
                 >
@@ -446,57 +507,86 @@ function HeroSection() {
                 </motion.div>
               ))}
             </motion.div>
+
+            {/* ── Interactive Image Preview Strip (all screens) ── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }} className="flex items-center justify-center gap-3 flex-wrap">
+              <p className="text-primary/30 text-[10px] uppercase tracking-widest font-medium w-full mb-1">Meet the Prophet</p>
+              {previewImages.map((img, i) => (
+                <motion.button
+                  key={img.key}
+                  onClick={() => setLightbox(img.key)}
+                  whileHover={{ scale: 1.06, y: -4 } as never}
+                  whileTap={{ scale: 0.95 } as never}
+                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.7 + i * 0.1 }}
+                  className="group relative flex flex-col items-center gap-2"
+                >
+                  <div className="relative w-16 h-20 md:w-20 md:h-24 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg transition-all duration-300 group-hover:border-accent/60 group-hover:shadow-accent/20 group-hover:shadow-xl">
+                    <img src={img.src} alt={img.label} className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/70 via-transparent to-transparent" />
+                    <motion.div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="bg-white/25 backdrop-blur-sm rounded-full p-1.5">
+                        <ExternalLink className="h-3 w-3 text-white" />
+                      </div>
+                    </motion.div>
+                  </div>
+                  <span className="text-[10px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-accent transition-colors">{img.tag}</span>
+                </motion.button>
+              ))}
+              {/* YouTube watch badge */}
+              <motion.a
+                href="https://www.youtube.com/templetvjctm"
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.06, y: -4 } as never}
+                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.9 }}
+                className="group relative flex flex-col items-center gap-2"
+              >
+                <div className="relative w-16 h-20 md:w-20 md:h-24 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center transition-all duration-300 group-hover:border-red-400/70 group-hover:shadow-red-400/30 group-hover:shadow-xl">
+                  <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-2xl bg-red-400/20" />
+                  <Youtube className="h-7 w-7 text-white relative z-10" />
+                </div>
+                <span className="text-[10px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-red-500 transition-colors">Temple TV</span>
+              </motion.a>
+            </motion.div>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* ── RIGHT Floating Card: Prophet Portrait ── */}
+      {/* ── RIGHT Floating Card: Prophet Portrait (clickable) ── */}
       <motion.div
         style={{ y: yRight }}
         initial={{ opacity: 0, x: 90, rotate: 4 }}
         animate={{ opacity: 1, x: 0, rotate: 4 }}
         transition={{ type: "spring", stiffness: 42, damping: 18, delay: 0.9 }}
-        className="absolute right-4 xl:right-12 top-1/2 -translate-y-1/2 z-10 hidden lg:block"
+        className="absolute right-4 xl:right-12 top-1/2 -translate-y-1/2 z-10 hidden lg:block cursor-pointer"
         onMouseEnter={() => setImgHovered("portrait")}
         onMouseLeave={() => setImgHovered(null)}
-        whileHover={{ rotate: 0, scale: 1.04, transition: { duration: 0.4 } } as never}
+        onClick={() => setLightbox("portrait")}
+        whileHover={{ rotate: 0, scale: 1.05, transition: { duration: 0.4 } } as never}
+        whileTap={{ scale: 0.97 } as never}
       >
         <motion.div animate={{ y: [0, -14, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}>
           <div className="relative">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
-              className="absolute -inset-3 rounded-[2.5rem]"
-              style={{ background: "conic-gradient(from 0deg, rgba(56,189,248,0.5), rgba(0,51,102,0.2), rgba(56,189,248,0.5))", filter: "blur(6px)" }}
-            />
-            <div className="relative w-52 h-64 rounded-[2rem] overflow-hidden shadow-2xl border-2 border-white/90"
-              style={{ boxShadow: "0 28px 80px rgba(0,51,102,0.2), 0 0 0 1px rgba(56,189,248,0.14)" }}>
-              <img
-                src="/founder/prophet-portrait.jpg"
-                alt="Prophet Amos Evomobor"
-                className="w-full h-full object-cover object-top transition-transform duration-700"
-                style={{ transform: imgHovered === "portrait" ? "scale(1.08)" : "scale(1)" }}
-              />
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 22, repeat: Infinity, ease: "linear" }} className="absolute -inset-3 rounded-[2.5rem]" style={{ background: "conic-gradient(from 0deg, rgba(56,189,248,0.5), rgba(0,51,102,0.2), rgba(56,189,248,0.5))", filter: "blur(6px)" }} />
+            <div className="relative w-52 h-64 rounded-[2rem] overflow-hidden shadow-2xl border-2 border-white/90" style={{ boxShadow: "0 28px 80px rgba(0,51,102,0.2), 0 0 0 1px rgba(56,189,248,0.14)" }}>
+              <img src="/founder/prophet-portrait.jpg" alt="Prophet Amos Evomobor" className="w-full h-full object-cover object-top transition-transform duration-700" style={{ transform: imgHovered === "portrait" ? "scale(1.1)" : "scale(1)" }} />
               <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
+              {/* Hover expand hint */}
+              <motion.div animate={{ opacity: imgHovered === "portrait" ? 1 : 0 }} transition={{ duration: 0.2 }} className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 border border-white/30">
+                  <ExternalLink className="h-5 w-5 text-white" />
+                </div>
+              </motion.div>
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <p className="text-white font-serif font-bold text-sm leading-tight">Prophet Amos</p>
                 <p className="text-accent text-[10px] font-semibold">Founder, JCTM</p>
               </div>
             </div>
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              className="absolute -bottom-4 -left-5 bg-white rounded-2xl shadow-xl border border-border/60 px-3 py-2 flex items-center gap-2"
-              style={{ boxShadow: "0 8px 32px rgba(0,51,102,0.12)" }}
-            >
+            <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }} className="absolute -bottom-4 -left-5 bg-white rounded-2xl shadow-xl border border-border/60 px-3 py-2 flex items-center gap-2" style={{ boxShadow: "0 8px 32px rgba(0,51,102,0.12)" }}>
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <p className="text-primary text-[11px] font-bold whitespace-nowrap">Ministry Active</p>
             </motion.div>
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-              className="absolute -top-3 -left-6 bg-white/95 backdrop-blur-xl rounded-xl shadow-lg border border-border/50 px-3 py-2 flex items-center gap-1.5"
-            >
+            <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute -top-3 -left-6 bg-white/95 backdrop-blur-xl rounded-xl shadow-lg border border-border/50 px-3 py-2 flex items-center gap-1.5">
               <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
               <p className="text-primary text-[10px] font-bold">Prophetic Office</p>
             </motion.div>
@@ -505,8 +595,8 @@ function HeroSection() {
       </motion.div>
 
       {/* Scroll indicator */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-        <p className="text-primary/30 text-[10px] uppercase tracking-widest font-medium">Scroll to explore</p>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 }} className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+        <p className="text-primary/25 text-[10px] uppercase tracking-widest font-medium">Scroll to explore</p>
         <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-5 h-8 rounded-full border-2 border-primary/15 flex justify-center pt-1.5" style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.4)" }}>
           <div className="w-1 h-2 rounded-full bg-accent" />
         </motion.div>
