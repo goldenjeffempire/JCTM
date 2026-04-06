@@ -253,7 +253,7 @@ function HeroSection() {
   const [imgHovered, setImgHovered] = useState<"portrait" | "preaching" | null>(null);
 
   const typeword = useTypewriter([
-    "Primitive Christianity.",
+    "The Lost Souls.",
     "Scriptural Purity.",
     "True Worship.",
     "Doctrinal Correction.",
