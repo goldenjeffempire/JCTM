@@ -42,10 +42,10 @@ const FALLBACK_TESTIMONIES = [
   { name: "Deacon Paul", content: "The clarity of teaching here is unmatched. No emotionalism — just pure, verified, biblical truth. My family is grateful.", category: "Family" },
 ];
 
-// ─── Animation Variants ────────────────────────────────────────────────────
+// ─── Animation Variants (Spring Physics) ───────────────────────────────────
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 40 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 70, damping: 18 } },
 };
 const stagger: Variants = {
   hidden: {},
@@ -334,9 +334,8 @@ function HeroSection() {
 
             {/* Staggered kinetic headline */}
             <KineticHeadline lines={[
-              { text: "The" },
-              { text: "Correction", gradient: true },
-              { text: "Mandate" },
+              { text: "The Land of" },
+              { text: "Good News", gradient: true },
             ]} />
 
             {/* Typewriter subtitle */}
@@ -435,137 +434,251 @@ function PlatformBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// BENTO GRID — 5-card layout
+// BENTO KNOWLEDGE HUB — Elite 5-tile layout
 // ═══════════════════════════════════════════════════════════════════════════
+const PROPHETIC_WORDS = [
+  { verse: "\"Stand ye in the ways, and see, and ask for the old paths, where is the good way, and walk therein.\"", ref: "Jeremiah 6:16" },
+  { verse: "\"Sanctify them through thy truth: thy word is truth.\"", ref: "John 17:17" },
+  { verse: "\"Contend earnestly for the faith which was once delivered unto the saints.\"", ref: "Jude 1:3" },
+  { verse: "\"Buy the truth, and sell it not; also wisdom, and instruction, and understanding.\"", ref: "Proverbs 23:23" },
+  { verse: "\"Follow peace with all men, and holiness, without which no man shall see the Lord.\"", ref: "Hebrews 12:14" },
+];
+
 function BentoGrid() {
   const { data: sermon, isLoading: sermonLoading } = useGetFeaturedSermon({ query: { queryKey: getGetFeaturedSermonQueryKey() } });
   const { data: stats } = useGetSermonStats({ query: { queryKey: getGetSermonStatsQueryKey() } });
   const countdown = useNextService();
-  const [testimony, setTestimony] = useState<{ name?: string; content?: string; category?: string } | null>(null);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/testimonies?limit=1`).then(r => r.json())
-      .then((d: { name?: string; content?: string; category?: string }[]) => { if (d?.[0]) setTestimony(d[0]); })
-      .catch(() => {});
-  }, []);
-
+  const [wordIdx, setWordIdx] = useState(0);
+  const [hoveredSermon, setHoveredSermon] = useState(false);
   const ytId = (sermon as { videoId?: string })?.videoId;
 
+  useEffect(() => {
+    const t = setInterval(() => setWordIdx(i => (i + 1) % PROPHETIC_WORDS.length), 6000);
+    return () => clearInterval(t);
+  }, []);
+
+  const pw = PROPHETIC_WORDS[wordIdx];
+
   return (
-    <section className="py-20 bg-background">
+    <section className="py-20 bg-gradient-to-b from-[#F9FAFB] to-white">
       <div className="container mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 80 }} className="mb-12">
           <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
-            <span className="h-px w-6 bg-accent inline-block" /> Digital Sanctuary
+            <span className="h-px w-6 bg-accent inline-block" /> Knowledge Hub
           </span>
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Today's Highlights</h2>
+          <p className="text-muted-foreground mt-1 text-sm max-w-md">Live feeds, scripture, and ministry news — all in one place.</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 auto-rows-auto">
-          {/* Card 1: Latest Sermon — large */}
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="md:col-span-7">
-            <TiltCard>
-              <div className="rounded-3xl overflow-hidden border border-border bg-white shadow-sm hover:shadow-2xl transition-shadow duration-500 group h-full">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-auto">
+          {/* ── LARGE TILE: Latest from Temple TV ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ type: "spring", stiffness: 70, damping: 18 }}
+            className="md:col-span-7 md:row-span-2"
+          >
+            <TiltCard className="h-full">
+              <div
+                className="rounded-3xl overflow-hidden border border-border bg-primary shadow-xl hover:shadow-2xl transition-all duration-500 group h-full flex flex-col"
+                onMouseEnter={() => setHoveredSermon(true)}
+                onMouseLeave={() => setHoveredSermon(false)}
+              >
                 {sermonLoading ? (
-                  <><Skeleton className="aspect-video w-full" /><div className="p-5"><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-3 w-1/3" /></div></>
-                ) : sermon ? (
+                  <><Skeleton className="aspect-video w-full" /><div className="p-5 flex-1"><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-3 w-1/3" /></div></>
+                ) : sermon && ytId ? (
                   <>
                     <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                      <img src={sermon.thumbnailUrl} alt={sermon.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                        onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
-                      <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/15 to-transparent" />
-                      <a href={ytId ? `https://www.youtube.com/watch?v=${ytId}` : "#"} target="_blank" rel="noopener noreferrer" className="absolute inset-0 flex items-end p-6">
-                        <div>
-                          <span className="text-accent text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2"><span className="h-1.5 w-1.5 bg-accent rounded-full" />Latest Broadcast</span>
-                          <h3 className="text-white font-serif font-bold text-xl leading-snug mb-3 line-clamp-2">{sermon.title}</h3>
-                          <div className="flex items-center gap-2">
-                            <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <Play className="h-4 w-4 text-white fill-white ml-0.5" />
+                      <AnimatePresence mode="wait">
+                        {hoveredSermon ? (
+                          <motion.div key="iframe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="absolute inset-0">
+                            <iframe
+                              className="w-full h-full"
+                              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&rel=0&playlist=${ytId}`}
+                              allow="autoplay; fullscreen"
+                              allowFullScreen
+                              title={sermon.title}
+                            />
+                          </motion.div>
+                        ) : (
+                          <motion.div key="thumb" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="absolute inset-0">
+                            <img
+                              src={sermon.thumbnailUrl}
+                              alt={sermon.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                              onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/20 to-transparent" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <motion.div
+                                animate={{ scale: [1, 1.08, 1] }}
+                                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                                className="h-16 w-16 rounded-full bg-white/15 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-2xl"
+                              >
+                                <Play className="h-7 w-7 text-white fill-white ml-1" />
+                              </motion.div>
                             </div>
-                            <span className="text-white/60 text-xs">Watch on YouTube</span>
-                          </div>
-                        </div>
-                      </a>
+                            <div className="absolute bottom-0 left-0 right-0 p-6">
+                              <span className="text-accent text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse" />Latest from Temple TV
+                              </span>
+                              <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{sermon.title}</h3>
+                              <p className="text-white/50 text-xs mt-1.5">Hover to preview · <span className="text-accent">Published {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}</span></p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                    <div className="p-5 flex items-center justify-between">
-                      <p className="text-muted-foreground text-xs">Published {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}</p>
-                      <Badge variant="secondary" className="text-[10px] rounded-full">Featured Message</Badge>
+                    <div className="p-5 flex items-center justify-between bg-primary">
+                      <Badge variant="secondary" className="text-[10px] rounded-full bg-white/10 text-white border-white/10">Featured Message</Badge>
+                      <a href={`https://www.youtube.com/watch?v=${ytId}`} target="_blank" rel="noopener noreferrer">
+                        <Button size="sm" className="rounded-full bg-accent hover:bg-accent/90 text-white text-xs h-8 px-4">
+                          <ExternalLink className="h-3 w-3 mr-1.5" />Watch Full
+                        </Button>
+                      </a>
                     </div>
                   </>
                 ) : (
-                  <div className="flex items-center justify-center aspect-video text-muted-foreground">
-                    <BookOpen className="h-10 w-10 opacity-20" />
+                  <div className="flex items-center justify-center aspect-video text-white/30">
+                    <Tv className="h-12 w-12" />
                   </div>
                 )}
               </div>
             </TiltCard>
           </motion.div>
 
-          {/* Right column: 3 stacked cards */}
-          <div className="md:col-span-5 flex flex-col gap-5">
-            {/* Live Countdown */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-              <TiltCard>
-                <div className="rounded-3xl border border-border bg-primary text-white p-6 shadow-sm hover:shadow-2xl transition-shadow duration-500 relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 90% 10%, #38BDF8 0%, transparent 55%)" }} />
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="h-8 w-8 rounded-xl bg-accent/20 flex items-center justify-center"><Clock className="h-4 w-4 text-accent" /></div>
-                      <div><p className="text-white/80 text-xs font-bold uppercase tracking-widest">Next Service</p><p className="text-white/45 text-[10px]">Sunday · 9:00 AM WAT</p></div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 mb-4">
-                      {[{ v: countdown.days, l: "Days" }, { v: countdown.hours, l: "Hrs" }, { v: countdown.minutes, l: "Min" }, { v: countdown.seconds, l: "Sec" }].map(({ v, l }) => (
-                        <div key={l} className="bg-white/10 rounded-xl p-2 text-center">
-                          <AnimatePresence mode="wait">
-                            <motion.div key={v} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 8, opacity: 0 }} transition={{ duration: 0.2 }} className="text-xl font-serif font-bold text-white">{String(v).padStart(2, "0")}</motion.div>
-                          </AnimatePresence>
-                          <p className="text-white/45 text-[9px] uppercase tracking-widest">{l}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <Link href="/events">
-                      <Button size="sm" className="w-full rounded-xl bg-accent hover:bg-accent/90 text-white text-xs h-9 min-h-[44px]"><Radio className="h-3 w-3 mr-1.5" />Join Live</Button>
-                    </Link>
+          {/* ── SMALL TILE: Today's Prophetic Word ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ type: "spring", stiffness: 70, damping: 18, delay: 0.1 }}
+            className="md:col-span-5"
+          >
+            <TiltCard className="h-full">
+              <div className="rounded-3xl border border-border bg-gradient-to-br from-[#EEF4FF] via-[#F0F6FF] to-white p-6 shadow-sm hover:shadow-xl transition-all duration-500 h-full flex flex-col relative overflow-hidden min-h-[180px]">
+                <div className="absolute top-0 right-0 w-40 h-40 opacity-[0.06]" style={{ background: "radial-gradient(circle, #003366 0%, transparent 70%)" }} />
+                <div className="flex items-center gap-2 mb-4 relative z-10">
+                  <div className="h-8 w-8 rounded-xl bg-accent/15 flex items-center justify-center">
+                    <BookOpen className="h-4 w-4 text-accent" />
                   </div>
+                  <p className="text-primary text-xs font-bold uppercase tracking-widest">Today's Prophetic Word</p>
                 </div>
-              </TiltCard>
-            </motion.div>
-
-            {/* Testimony */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.18 }} className="flex-1">
-              <TiltCard className="h-full">
-                <div className="rounded-3xl border border-border bg-gradient-to-br from-sky-50 to-blue-50/60 p-6 h-full shadow-sm hover:shadow-2xl transition-shadow duration-500 relative overflow-hidden flex flex-col">
-                  <div className="absolute top-3 right-3 opacity-8"><Quote className="h-14 w-14 text-primary" /></div>
-                  <div className="flex items-center gap-2 mb-3 relative z-10">
-                    <div className="h-8 w-8 rounded-xl bg-accent/15 flex items-center justify-center"><MessageSquare className="h-4 w-4 text-accent" /></div>
-                    <p className="text-primary text-xs font-bold uppercase tracking-widest">Testimony</p>
-                  </div>
-                  <p className="text-primary/70 text-sm leading-relaxed italic flex-1 line-clamp-4 relative z-10">
-                    "{testimony?.content ?? FALLBACK_TESTIMONIES[0].content}"
-                  </p>
-                  <div className="mt-3 flex items-center justify-between relative z-10">
-                    <span className="text-primary font-semibold text-xs">— {testimony?.name ?? FALLBACK_TESTIMONIES[0].name}</span>
-                    <Link href="/testimonies"><Button size="sm" variant="ghost" className="text-accent text-xs h-7 px-2 hover:bg-accent/10">More →</Button></Link>
-                  </div>
+                <div className="flex-1 relative z-10 overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={wordIdx}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -16 }}
+                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <p className="text-primary/75 text-sm leading-relaxed italic font-serif mb-2 line-clamp-3">
+                        {pw.verse}
+                      </p>
+                      <p className="text-accent font-bold text-xs">{pw.ref}</p>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
-              </TiltCard>
-            </motion.div>
-
-            {/* Impact numbers mini card */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.26 }}>
-              <div className="rounded-3xl border border-border bg-white p-5 shadow-sm hover:shadow-lg transition-shadow duration-300">
-                <p className="text-primary text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-accent" />Ministry Impact</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[{ v: stats?.total ?? 479, s: "+", l: "Sermons" }, { v: stats?.totalViews ?? 2951335, s: "", l: "Views" }, { v: 40, s: "+", l: "Nations" }].map((m, i) => (
-                    <div key={i} className="text-center">
-                      <div className="text-lg font-serif font-bold text-primary"><AnimatedCounter target={m.v} suffix={m.s} /></div>
-                      <div className="text-[10px] text-muted-foreground">{m.l}</div>
-                    </div>
+                <div className="flex gap-1 mt-3 relative z-10">
+                  {PROPHETIC_WORDS.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setWordIdx(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${i === wordIdx ? "w-6 bg-accent" : "w-1.5 bg-primary/15"}`}
+                    />
                   ))}
                 </div>
               </div>
-            </motion.div>
-          </div>
+            </TiltCard>
+          </motion.div>
+
+          {/* ── MEDIUM TILE: Our Mandate (Correction Timeline Teaser) ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ type: "spring", stiffness: 70, damping: 18, delay: 0.18 }}
+            className="md:col-span-3"
+          >
+            <TiltCard className="h-full">
+              <Link href="/correction-timeline">
+                <div className="rounded-3xl border border-accent/20 bg-gradient-to-br from-[#003366] to-[#001a40] p-6 shadow-sm hover:shadow-2xl hover:border-accent/40 transition-all duration-500 h-full flex flex-col group cursor-pointer min-h-[160px] relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 20% 80%, #38BDF8 0%, transparent 60%)" }} />
+                  <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(circle, rgba(56,189,248,0.6) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+                  <div className="relative z-10 flex-1 flex flex-col">
+                    <div className="h-9 w-9 rounded-xl bg-accent/20 flex items-center justify-center mb-4">
+                      <Sparkles className="h-4 w-4 text-accent" />
+                    </div>
+                    <p className="text-accent text-[10px] font-bold uppercase tracking-widest mb-1.5">Our Mandate</p>
+                    <h3 className="text-white font-serif font-bold text-base leading-snug mb-2">The Correction Timeline</h3>
+                    <p className="text-white/50 text-xs leading-relaxed flex-1">From divine calling to global broadcast — explore our living history.</p>
+                    <div className="flex items-center gap-1 mt-3 text-accent text-xs font-semibold group-hover:gap-2 transition-all">
+                      Explore <ChevronRight className="h-3 w-3" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </TiltCard>
+          </motion.div>
+
+          {/* ── SERVICE COUNTDOWN ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ type: "spring", stiffness: 70, damping: 18, delay: 0.26 }}
+            className="md:col-span-2"
+          >
+            <div className="rounded-3xl border border-border bg-white p-5 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full min-h-[160px]">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center"><Clock className="h-3.5 w-3.5 text-accent" /></div>
+                <p className="text-primary text-[10px] font-bold uppercase tracking-widest">Next Service</p>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 flex-1">
+                {[{ v: countdown.days, l: "D" }, { v: countdown.hours, l: "H" }, { v: countdown.minutes, l: "M" }, { v: countdown.seconds, l: "S" }].map(({ v, l }) => (
+                  <div key={l} className="bg-primary/5 rounded-xl p-1.5 text-center">
+                    <AnimatePresence mode="wait">
+                      <motion.div key={v} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 6, opacity: 0 }} transition={{ duration: 0.18 }} className="text-lg font-serif font-bold text-primary leading-none">
+                        {String(v).padStart(2, "0")}
+                      </motion.div>
+                    </AnimatePresence>
+                    <p className="text-[8px] text-muted-foreground uppercase tracking-wider mt-0.5">{l}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[10px] text-muted-foreground text-center">Sun · 9:00 AM WAT</div>
+            </div>
+          </motion.div>
+
+          {/* ── IMPACT STATS ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ type: "spring", stiffness: 70, damping: 18, delay: 0.32 }}
+            className="md:col-span-12"
+          >
+            <div className="rounded-3xl border border-border bg-gradient-to-r from-[#F9FAFB] via-white to-[#F9FAFB] p-5 shadow-sm">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4 divide-x divide-border">
+                {[
+                  { v: stats?.total ?? 479, s: "+", l: "Sermons", icon: Mic2 },
+                  { v: stats?.totalViews ?? 2951335, s: "", l: "YouTube Views", icon: Youtube },
+                  { v: 40, s: "+", l: "Nations Reached", icon: Globe },
+                  { v: 25, s: "yrs", l: "Ministry", icon: Award },
+                  { v: 12, s: "+", l: "Weekly Broadcasts", icon: Tv },
+                  { v: 8, s: "+", l: "Ministry Units", icon: Users },
+                ].map(({ v, s, l, icon: Icon }, i) => (
+                  <div key={i} className="text-center px-4 first:pl-0 last:pr-0">
+                    <Icon className="h-4 w-4 text-accent mx-auto mb-1.5" />
+                    <div className="text-xl font-serif font-bold text-primary"><AnimatedCounter target={v} suffix={s} /></div>
+                    <div className="text-[10px] text-muted-foreground leading-tight">{l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
@@ -573,12 +686,43 @@ function BentoGrid() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TESTIMONIES MARQUEE — Infinite scroll, two rows
+// TESTIMONIES MARQUEE — Premium infinite-loop horizontal slider
 // ═══════════════════════════════════════════════════════════════════════════
+function TestimonyCard({ t, reverse = false }: { t: { name?: string; content?: string; category?: string }; reverse?: boolean }) {
+  const initials = (t.name ?? "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const gradient = reverse
+    ? "from-primary to-[#0284C7]"
+    : "from-accent to-[#003366]";
+  return (
+    <div className="shrink-0 w-[340px] md:w-[400px] testimony-card bg-white/90 border border-border/60 rounded-3xl p-7 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col gap-4">
+      {/* Large decorative quote */}
+      <div className="text-accent/15 font-serif text-7xl leading-none select-none -mb-4">"</div>
+      {/* Quote text — large professional typography */}
+      <p className="text-primary/80 text-base md:text-lg leading-relaxed font-serif italic line-clamp-4 flex-1">
+        {t.content}
+      </p>
+      {/* Stars */}
+      <div className="flex gap-0.5">
+        {[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
+      </div>
+      {/* Author */}
+      <div className="flex items-center gap-3 pt-2 border-t border-border/40">
+        <div className={`h-11 w-11 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 text-white font-bold text-sm shadow-md`}>
+          {initials}
+        </div>
+        <div>
+          <p className="text-primary font-bold text-sm leading-tight">{t.name}</p>
+          <Badge variant="secondary" className="text-[10px] rounded-full mt-0.5 bg-accent/8 text-accent border-accent/15">{t.category}</Badge>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TestimoniesMarquee() {
   const [testimonies, setTestimonies] = useState(FALLBACK_TESTIMONIES);
   useEffect(() => {
-    fetch(`${BASE}/api/testimonies?limit=12`)
+    fetch(`${BASE}/api/testimonies?limit=16`)
       .then(r => r.json())
       .then((d: typeof FALLBACK_TESTIMONIES) => { if (d?.length >= 4) setTestimonies(d); })
       .catch(() => {});
@@ -588,68 +732,54 @@ function TestimoniesMarquee() {
   const row2 = [...testimonies.slice().reverse(), ...testimonies.slice().reverse()];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-[#f0f6ff]/60 to-white overflow-hidden">
-      <div className="container mx-auto px-4 mb-10">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center">
+    <section className="py-24 bg-gradient-to-b from-[#F0F6FF]/70 via-white to-[#F0F6FF]/50 overflow-hidden">
+      <div className="container mx-auto px-4 mb-14">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ type: "spring", stiffness: 70 }}
+          className="text-center"
+        >
           <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
-            <span className="h-px w-6 bg-accent inline-block" /> Testimony Vault <span className="h-px w-6 bg-accent inline-block" />
+            <span className="h-px w-8 bg-accent inline-block" /> Testimony Vault <span className="h-px w-8 bg-accent inline-block" />
           </span>
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-2">God Is Faithful</h2>
-          <p className="text-muted-foreground text-base max-w-lg mx-auto">Stories of transformation from the JCTM Digital Sanctuary community.</p>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3">God Is Faithful</h2>
+          <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
+            Real stories of transformation, healing, and revelation from our global community.
+          </p>
         </motion.div>
       </div>
 
-      {/* Row 1 — left to right */}
-      <div className="flex overflow-hidden mb-4">
-        <div className="flex gap-4 animate-marquee hover:pause-animation shrink-0">
-          {row1.map((t, i) => (
-            <div key={i} className="shrink-0 w-72 bg-white rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-accent to-primary/80 flex items-center justify-center shrink-0 text-white font-bold text-sm">
-                  {t.name?.[0] ?? "?"}
-                </div>
-                <div>
-                  <p className="text-primary font-semibold text-sm">{t.name}</p>
-                  <Badge variant="secondary" className="text-[10px] rounded-full mt-0.5">{t.category}</Badge>
-                </div>
-              </div>
-              <p className="text-muted-foreground text-xs leading-relaxed line-clamp-4 italic">"{t.content}"</p>
-              <div className="flex mt-3 gap-0.5">{[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}</div>
-            </div>
-          ))}
+      {/* Row 1 — left to right, pause on hover */}
+      <div className="pause-on-hover overflow-hidden mb-5">
+        <div className="flex gap-5 animate-marquee shrink-0">
+          {row1.map((t, i) => <TestimonyCard key={i} t={t} />)}
         </div>
       </div>
 
-      {/* Row 2 — right to left */}
-      <div className="flex overflow-hidden">
-        <div className="flex gap-4 animate-marquee-reverse hover:pause-animation shrink-0">
-          {row2.map((t, i) => (
-            <div key={i} className="shrink-0 w-72 bg-white rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent/80 flex items-center justify-center shrink-0 text-white font-bold text-sm">
-                  {t.name?.[0] ?? "?"}
-                </div>
-                <div>
-                  <p className="text-primary font-semibold text-sm">{t.name}</p>
-                  <Badge variant="secondary" className="text-[10px] rounded-full mt-0.5">{t.category}</Badge>
-                </div>
-              </div>
-              <p className="text-muted-foreground text-xs leading-relaxed line-clamp-4 italic">"{t.content}"</p>
-              <div className="flex mt-3 gap-0.5">{[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}</div>
-            </div>
-          ))}
+      {/* Row 2 — right to left, pause on hover */}
+      <div className="pause-on-hover overflow-hidden">
+        <div className="flex gap-5 animate-marquee-reverse shrink-0">
+          {row2.map((t, i) => <TestimonyCard key={i} t={t} reverse />)}
         </div>
       </div>
 
-      <div className="text-center mt-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ type: "spring", stiffness: 70, delay: 0.2 }}
+        className="text-center mt-14"
+      >
         <MagneticButton>
           <Link href="/testimonies">
-            <Button variant="outline" className="rounded-full px-8 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all">
-              View All Testimonies <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-semibold bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 min-h-[44px]">
+              View All Testimonies <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </RippleButton>
           </Link>
         </MagneticButton>
-      </div>
+      </motion.div>
     </section>
   );
 }
