@@ -515,64 +515,6 @@ function HeroSection() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PHOTO GALLERY BAND — Cinematic full-width image showcase strip
-// ═══════════════════════════════════════════════════════════════════════════
-function PhotoGalleryBand() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const x1 = useTransform(scrollYProgress, [0, 1], [0, -60]);
-  const x2 = useTransform(scrollYProgress, [0, 1], [0, 60]);
-  const scale1 = useTransform(scrollYProgress, [0, 0.5, 1], [1.06, 1.0, 1.06]);
-  const [activeImg, setActiveImg] = useState<number | null>(null);
-
-  const images = [
-    { src: "/founder/prophet-preaching.jpg", alt: "Prophet Amos preaching the Word", label: "The Preaching Mandate", tag: "Live Ministry" },
-    { src: "/jctm-logo.jpeg", alt: "JCTM Logo", label: "Jesus Christ Temple Ministry", tag: "Est. 1999" },
-    { src: "/founder/prophet-portrait.jpg", alt: "Prophet Amos Evomobor", label: "Prophet Amos Evomobor", tag: "Founder & Senior Prophet" },
-  ];
-
-  return (
-    <div ref={ref} className="relative overflow-hidden h-[340px] md:h-[420px]">
-      <motion.div style={{ x: x1 }} className="absolute inset-0 flex">
-        <div className="flex w-full h-full">
-          {images.map((img, i) => (
-            <motion.div
-              key={i}
-              className="relative flex-1 overflow-hidden cursor-pointer"
-              onMouseEnter={() => setActiveImg(i)}
-              onMouseLeave={() => setActiveImg(null)}
-              style={{ flexBasis: activeImg === i ? "50%" : "33.333%", transition: "flex-basis 0.5s cubic-bezier(0.16,1,0.3,1)" }}
-            >
-              <motion.img
-                src={img.src}
-                alt={img.alt}
-                className="w-full h-full object-cover"
-                style={{ scale: scale1 }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/85 via-[#001830]/20 to-transparent" />
-              <motion.div
-                animate={{ opacity: activeImg === i ? 1 : 0.7 }}
-                className="absolute inset-0 flex flex-col justify-end p-6 md:p-8"
-              >
-                <span className="text-accent text-[10px] font-bold uppercase tracking-widest mb-1">{img.tag}</span>
-                <h3 className="text-white font-serif font-bold text-lg md:text-2xl leading-tight">{img.label}</h3>
-                <motion.div
-                  animate={{ width: activeImg === i ? "3rem" : "1.5rem" }}
-                  transition={{ duration: 0.3 }}
-                  className="h-0.5 bg-accent mt-3 rounded-full"
-                />
-              </motion.div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
-      {/* Edge vignettes */}
-      <div className="absolute inset-y-0 left-0 w-16 pointer-events-none" style={{ background: "linear-gradient(to right, rgba(255,255,255,0.08), transparent)" }} />
-      <div className="absolute inset-y-0 right-0 w-16 pointer-events-none" style={{ background: "linear-gradient(to left, rgba(255,255,255,0.08), transparent)" }} />
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PLATFORM BAR — Social proof strip with live counters
@@ -1830,7 +1772,6 @@ export default function Home() {
   return (
     <Layout>
       <HeroSection />
-      <PhotoGalleryBand />
       <PlatformBar />
       <BentoGrid />
       <TestimoniesMarquee />
