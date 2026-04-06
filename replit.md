@@ -41,7 +41,16 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Member Join** — `/join` page with registration, login, member dashboard (localStorage token), links to resources
 - **Member Directory** — Searchable grid with role badges (existing `/members` page)
 - **Correction Timeline** — 5 core corrections (1994–2016) with animated scroll-driven timeline, error/correction/scripture for each
-- **About Page** — Prophet bio, doctrines, contact info
+- **About Page** — Enhanced: Prophet bio, doctrines, Vision & Mission section, Ebrumede Temple history timeline
+- **Privacy Policy** (`/privacy`) — GDPR + NDPR compliant, 10 sections covering data collection, member data security, giving records, and user rights
+- **Terms of Service** (`/terms`) — Rules of Engagement for testimony submissions, giving, TempleBots usage, and membership
+- **Custom 404 Page** — Light Sanctuary themed with Psalm 119:105 scripture, Compass icon, Return Home + Visit Sermon Hub buttons
+- **Error Boundary** — React ErrorBoundary wrapping entire app; Romans 8:28 themed error UI with Try Again / Return Home buttons
+- **TempleBots Contextual Intelligence** — Bot greeting changes based on current page (e.g., giving advice on /give, mandate questions on /correction-timeline)
+- **Sonner Toast Notifications** — Global toast system replacing old Toaster; fires on testimony submission and payment processing
+- **Lazy-loaded Routes** — All pages use React.lazy() + Suspense with skeleton fallback for faster initial bundle load
+- **PWA Manifest** — `/public/manifest.json` with app ID `com.onomelabs.jctm`, theme color, and permissions
+- **SEO Meta Tags** — OpenGraph tags, description, apple-mobile-web-app, theme-color in `index.html`
 - **Live Banner** — Auto-shown when livestream is active (in-memory state)
 
 ### Architecture

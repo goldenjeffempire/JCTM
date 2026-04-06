@@ -1,0 +1,26 @@
+{
+  "name": "JCTM Digital Sanctuary",
+  "short_name": "JCTM",
+  "description": "The official digital sanctuary of Jesus Christ Temple Ministry. Sermons, giving, testimonies, and the Correction Mandate of Prophet Amos Evomobor.",
+  "id": "com.onomelabs.jctm",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#003366",
+  "categories": ["religion", "lifestyle", "education"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "permissions": [
+    "notifications",
+    "camera"
+  ]
+}

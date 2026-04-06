@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Plus, X, ChevronRight, ChevronLeft, CheckCircle, Flame } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useListTestimonies, getListTestimoniesQueryKey } from "@workspace/api-client-react";
+import { toast } from "sonner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const CATEGORIES = ["Healing", "Deliverance", "Financial Breakthrough", "Marriage Restoration", "Salvation", "Other"];
@@ -58,6 +59,9 @@ export default function Testimonies() {
         setStep(1);
         setForm({ name: "", email: "", title: "", category: "", content: "", videoUrl: "" });
         queryClient.invalidateQueries({ queryKey: getListTestimoniesQueryKey() });
+        toast.success("Testimony Submitted Successfully", {
+          description: "Your miracle story is pending review and will be published shortly.",
+        });
       }
     } finally { setSubmitting(false); }
   };

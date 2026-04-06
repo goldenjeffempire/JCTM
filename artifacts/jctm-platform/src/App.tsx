@@ -1,37 +1,67 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { Toaster } from "sonner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Skeleton } from "@/components/ui/skeleton";
 
-import Home from "@/pages/Home";
-import Sermons from "@/pages/Sermons";
-import SermonDetail from "@/pages/SermonDetail";
-import Testimonies from "@/pages/Testimonies";
-import Give from "@/pages/Give";
-import Events from "@/pages/Events";
-import Members from "@/pages/Members";
-import Timeline from "@/pages/Timeline";
-import About from "@/pages/About";
-import Join from "@/pages/Join";
+const Home = lazy(() => import("@/pages/Home"));
+const Sermons = lazy(() => import("@/pages/Sermons"));
+const SermonDetail = lazy(() => import("@/pages/SermonDetail"));
+const Testimonies = lazy(() => import("@/pages/Testimonies"));
+const Give = lazy(() => import("@/pages/Give"));
+const Events = lazy(() => import("@/pages/Events"));
+const Members = lazy(() => import("@/pages/Members"));
+const Timeline = lazy(() => import("@/pages/Timeline"));
+const About = lazy(() => import("@/pages/About"));
+const Join = lazy(() => import("@/pages/Join"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      retry: 2,
+    },
+  },
+});
+
+function PageFallback() {
+  return (
+    <div className="container mx-auto px-4 py-16 space-y-6 max-w-4xl">
+      <Skeleton className="h-12 w-1/2 rounded-xl" />
+      <Skeleton className="h-4 w-3/4 rounded" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-52 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/sermons" component={Sermons} />
-      <Route path="/sermons/:id" component={SermonDetail} />
-      <Route path="/testimonies" component={Testimonies} />
-      <Route path="/give" component={Give} />
-      <Route path="/events" component={Events} />
-      <Route path="/members" component={Members} />
-      <Route path="/correction-timeline" component={Timeline} />
-      <Route path="/about" component={About} />
-      <Route path="/join" component={Join} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageFallback />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/sermons" component={Sermons} />
+        <Route path="/sermons/:id" component={SermonDetail} />
+        <Route path="/testimonies" component={Testimonies} />
+        <Route path="/give" component={Give} />
+        <Route path="/events" component={Events} />
+        <Route path="/members" component={Members} />
+        <Route path="/correction-timeline" component={Timeline} />
+        <Route path="/about" component={About} />
+        <Route path="/join" component={Join} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -39,10 +69,24 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <ErrorBoundary>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+        </ErrorBoundary>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            classNames: {
+              toast: "glass-panel border border-border font-sans text-primary",
+              title: "font-semibold text-primary",
+              description: "text-muted-foreground",
+              success: "border-accent/40",
+              error: "border-destructive/40",
+            },
+          }}
+          richColors
+        />
       </TooltipProvider>
     </QueryClientProvider>
   );

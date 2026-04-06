@@ -1,0 +1,41 @@
+You are a Senior Product Manager, Legal Compliance Officer, and UI/UX Specialist.
+
+Objective: Complete the final 5% of the JCTM platform to ensure it passes Apple/Google App Store review and provides a world-class user experience. Maintain the Light Sanctuary theme throughout.
+
+Task 1: Mandatory Legal & Information Pages
+
+The "About JCTM" Page (/about): Generate a professional, high-fidelity narrative about Prophet Amos Evomobor, the Ebrumede Temple, and the "Mandate to Correct the Body of Christ." Include a "Vision & Mission" section with futuristic typography.
+
+Privacy Policy (/privacy): Draft a standard, professional Privacy Policy compliant with GDPR and NDPR (Nigeria Data Protection Regulation). Explicitly state how member data (Names/Emails/Giving history) is secured.
+
+Terms of Service (/terms): Define the "Rules of Engagement" for the digital sanctuary, focusing on respectful testimony submissions and secure giving.
+
+Task 2: App Store Metadata & Assets
+
+App Manifest (app.json / Capacitor.config): Configure the official App IDs (com.onomelabs.jctm), Versioning (1.0.0), and Permissions (Camera for testimonies, Notifications for Live Services).
+
+Splash Screens & Icons: Generate the code-logic to handle high-resolution splash screens featuring the JCTM Logo on a clean Ivory background.
+
+Task 3: TempleBots Contextual Intelligence
+
+Contextual Awareness: Program TempleBots to recognize which page the user is on.
+
+On /give: "I can help you understand the spiritual significance of seed sowing."
+
+On /our-mandate: "Ask me about the specific corrections Prophet Amos is bringing to the church."
+
+Task 4: Production Hardening (The "No-Bugs" Mode)
+
+Error Boundaries: Build a custom "404 Not Found" and "Internal Error" page that matches the Light Sanctuary theme, featuring a scripture and a button to return home.
+
+Loading States (Skeletons): Implement "Skeleton Loaders" for the Sermon Hub and Testimony Grid so the app feels lightning-fast even on slow networks.
+
+Global Toast Notifications: Integrate a sleek notification system (e.g., Sonner or React Hot Toast) to confirm: "Testimony Submitted Successfully" or "Payment Processed."
+
+Task 5: Final Build Optimization
+
+Image Compression: Ensure all images are converted to .webp via Next.js <Image /> component for 100/100 Lighthouse performance scores.
+
+Code Splitting: Optimize chunks so the mobile app stays under 50MB for easy downloading in Nigeria.
+
+Perform the final code generation, organize the file structure for App Store submission, and provide the 'Success' confirmation.

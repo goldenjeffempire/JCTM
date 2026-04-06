@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, User } from "lucide-react";
+import { MessageCircle, X, Send, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useChatWithTempleBots } from "@workspace/api-client-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
 
 interface Message {
   id: string;
@@ -12,16 +13,47 @@ interface Message {
   sources?: string[];
 }
 
+function getContextualGreeting(path: string): string {
+  if (path === "/give" || path.startsWith("/give")) {
+    return "Welcome to the Giving Portal. I can help you understand the spiritual significance of seed sowing and what the Word of God says about giving. What would you like to know?";
+  }
+  if (path === "/our-mandate" || path === "/correction-timeline" || path.startsWith("/correction-timeline")) {
+    return "You're exploring the Correction Mandate. Ask me about the specific corrections Prophet Amos is bringing to the church — on prosperity doctrine, prophetic manipulation, or any of the five mandated corrections.";
+  }
+  if (path === "/sermons" || path.startsWith("/sermons")) {
+    return "Welcome to the Sermon Hub. I can help you find teachings on specific topics — Holiness, Baptism, End Times, or Primitive Christianity. What are you studying today?";
+  }
+  if (path === "/testimonies") {
+    return "You're in the Testimony Vault — a record of God's faithfulness. Ask me about the miracles God is doing through the Correction Mandate, or share what's on your heart.";
+  }
+  if (path === "/about") {
+    return "Welcome. I can tell you more about Prophet Amos Evomobor, the Ebrumede Temple, and the divine mandate given to JCTM. What would you like to know?";
+  }
+  if (path === "/join" || path === "/members") {
+    return "Glad you're joining the Digital Sanctuary family. I can answer questions about membership and what it means to be part of this reformation community.";
+  }
+  if (path === "/events") {
+    return "Looking for upcoming gatherings? I can help you understand the significance of our events and services. What's on your mind?";
+  }
+  return "Welcome to the Digital Sanctuary. I am TempleBots. Ask me anything about JCTM teachings or the Correction Mandate.";
+}
+
 export function TempleBots() {
+  const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "bot", content: "Welcome to the Digital Sanctuary. I am TempleBots. Ask me anything about JCTM teachings or the Correction Mandate." }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string>();
-  
+
   const chatMutation = useChatWithTempleBots();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages([
+      { id: "1", role: "bot", content: getContextualGreeting(location) }
+    ]);
+    setSessionId(undefined);
+  }, [location]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,7 +69,7 @@ export function TempleBots() {
 
     const userMessage = input.trim();
     setInput("");
-    
+
     setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: userMessage }]);
 
     chatMutation.mutate(
@@ -47,9 +79,9 @@ export function TempleBots() {
           if (data.sessionId) setSessionId(data.sessionId);
           setMessages(prev => [
             ...prev,
-            { 
-              id: Date.now().toString(), 
-              role: "bot", 
+            {
+              id: Date.now().toString(),
+              role: "bot",
               content: data.reply,
               sources: data.sources
             }
@@ -94,7 +126,6 @@ export function TempleBots() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className="fixed bottom-6 right-6 z-50 w-[350px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-6rem)] glass-panel rounded-xl shadow-2xl flex flex-col overflow-hidden"
           >
-            {/* Header */}
             <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-accent" />
@@ -105,13 +136,12 @@ export function TempleBots() {
               </Button>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-                    msg.role === "user" 
-                      ? "bg-accent text-accent-foreground rounded-tr-sm" 
+                    msg.role === "user"
+                      ? "bg-accent text-accent-foreground rounded-tr-sm"
                       : "glass-panel bg-white text-primary rounded-tl-sm border border-border"
                   }`}>
                     <p className="text-sm leading-relaxed">{msg.content}</p>
@@ -139,7 +169,6 @@ export function TempleBots() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <div className="p-3 bg-white border-t border-border">
               <form onSubmit={handleSend} className="flex gap-2">
                 <Input
@@ -149,9 +178,9 @@ export function TempleBots() {
                   className="flex-1 bg-secondary border-none focus-visible:ring-1 focus-visible:ring-accent"
                   disabled={chatMutation.isPending}
                 />
-                <Button 
-                  type="submit" 
-                  size="icon" 
+                <Button
+                  type="submit"
+                  size="icon"
                   disabled={!input.trim() || chatMutation.isPending}
                   className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0"
                 >

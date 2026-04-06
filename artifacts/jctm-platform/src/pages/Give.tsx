@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Heart, Shield, Star, CheckCircle, Globe } from "lucide-react";
+import { toast } from "sonner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -55,9 +56,15 @@ export default function Give() {
       });
       const data = await res.json();
       if (res.ok && data.paymentUrl) {
+        toast.success("Redirecting to payment...", {
+          description: "You will be securely redirected to complete your giving.",
+        });
         window.location.href = data.paymentUrl;
       } else if (res.ok) {
         setStep("success");
+        toast.success("Payment Processed", {
+          description: "Your gift has been received. May God multiply it back to you.",
+        });
       } else {
         setError(data.error ?? "Payment could not be initiated. Please try again.");
       }
