@@ -1,66 +1,70 @@
 modules = ["nodejs-24", "postgresql-16"]
 
-[[artifacts]]
-id = "artifacts/api-server"
+  [[artifacts]]
+  id = "artifacts/jctm-platform"
 
-[[artifacts]]
-id = "artifacts/mockup-sandbox"
+  [[artifacts]]
+  id = "artifacts/api-server"
 
-[deployment]
-router = "application"
-deploymentTarget = "autoscale"
+  [[artifacts]]
+  id = "artifacts/mockup-sandbox"
 
-[deployment.postBuild]
-args = ["pnpm", "store", "prune"]
-env = { "CI" = "true" }
+  [deployment]
+  router = "application"
+  deploymentTarget = "autoscale"
 
-[workflows]
-runButton = "Project"
+  [deployment.postBuild]
+  args = ["pnpm", "store", "prune"]
+  env = { "CI" = "true" }
 
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
+  [workflows]
+  runButton = "Project"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start Backend"
+  [[workflows.workflow]]
+  name = "Project"
+  mode = "parallel"
+  author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "Start Backend"
 
-[[workflows.workflow]]
-name = "Start Backend"
-author = "agent"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "Start application"
 
-[workflows.workflow.metadata]
-outputType = "console"
+  [[workflows.workflow]]
+  name = "Start Backend"
+  author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
+  [workflows.workflow.metadata]
+  outputType = "console"
 
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+  waitForPort = 8080
 
-[workflows.workflow.metadata]
-outputType = "webview"
+  [[workflows.workflow]]
+  name = "Start application"
+  author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=24565 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run dev"
-waitForPort = 24565
+  [workflows.workflow.metadata]
+  outputType = "webview"
 
-[agent]
-stack = "PNPM_WORKSPACE"
-expertMode = true
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "PORT=24565 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run dev"
+  waitForPort = 24565
 
-[postMerge]
-path = "scripts/post-merge.sh"
-timeoutMs = 20000
+  [agent]
+  stack = "PNPM_WORKSPACE"
+  expertMode = true
 
-[nix]
-channel = "stable-25_05"
+  [postMerge]
+  path = "scripts/post-merge.sh"
+  timeoutMs = 20000
+
+  [nix]
+  channel = "stable-25_05"
+  
