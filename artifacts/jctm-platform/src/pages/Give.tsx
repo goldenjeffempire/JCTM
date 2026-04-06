@@ -14,9 +14,7 @@ const PRESET_USD = [5, 10, 25, 50, 100, 250];
 const GIVING_TYPES = [
   { id: "tithe", label: "Tithe", icon: "🏛️" },
   { id: "offering", label: "Offering", icon: "🙏" },
-  { id: "first_fruits", label: "First Fruits", icon: "🌿" },
   { id: "missions", label: "Missions", icon: "🌍" },
-  { id: "building_fund", label: "Building Fund", icon: "🏗️" },
 ];
 
 export default function Give() {
