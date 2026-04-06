@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AuthResponse,
   ChatRequest,
   ChatResponse,
   CreateEventBody,
@@ -30,12 +31,16 @@ import type {
   GivingLog,
   GivingStats,
   HealthStatus,
+  LikeResponse,
   ListEventsParams,
   ListMembersParams,
   ListSermonsParams,
   ListTestimoniesParams,
   LivestreamStatus,
+  LoginMemberBody,
   Member,
+  MemberProfile,
+  RegisterMemberBody,
   Sermon,
   SermonStats,
   SyncResult,
@@ -717,6 +722,337 @@ export const useSubmitTestimony = <
 > => {
   return useMutation(getSubmitTestimonyMutationOptions(options));
 };
+
+/**
+ * @summary Increment the Amen/Like count on a testimony
+ */
+export const getLikeTestimonyUrl = (id: number) => {
+  return `/api/testimonies/${id}/like`;
+};
+
+export const likeTestimony = async (
+  id: number,
+  options?: RequestInit,
+): Promise<LikeResponse> => {
+  return customFetch<LikeResponse>(getLikeTestimonyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLikeTestimonyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof likeTestimony>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof likeTestimony>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["likeTestimony"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof likeTestimony>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return likeTestimony(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LikeTestimonyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof likeTestimony>>
+>;
+
+export type LikeTestimonyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Increment the Amen/Like count on a testimony
+ */
+export const useLikeTestimony = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof likeTestimony>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof likeTestimony>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getLikeTestimonyMutationOptions(options));
+};
+
+/**
+ * @summary Register a new digital sanctuary member
+ */
+export const getRegisterMemberUrl = () => {
+  return `/api/auth/register`;
+};
+
+export const registerMember = async (
+  registerMemberBody: RegisterMemberBody,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getRegisterMemberUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerMemberBody),
+  });
+};
+
+export const getRegisterMemberMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerMember>>,
+    TError,
+    { data: BodyType<RegisterMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerMember>>,
+  TError,
+  { data: BodyType<RegisterMemberBody> },
+  TContext
+> => {
+  const mutationKey = ["registerMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerMember>>,
+    { data: BodyType<RegisterMemberBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerMember(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerMember>>
+>;
+export type RegisterMemberMutationBody = BodyType<RegisterMemberBody>;
+export type RegisterMemberMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Register a new digital sanctuary member
+ */
+export const useRegisterMember = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerMember>>,
+    TError,
+    { data: BodyType<RegisterMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerMember>>,
+  TError,
+  { data: BodyType<RegisterMemberBody> },
+  TContext
+> => {
+  return useMutation(getRegisterMemberMutationOptions(options));
+};
+
+/**
+ * @summary Login to the digital sanctuary
+ */
+export const getLoginMemberUrl = () => {
+  return `/api/auth/login`;
+};
+
+export const loginMember = async (
+  loginMemberBody: LoginMemberBody,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getLoginMemberUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(loginMemberBody),
+  });
+};
+
+export const getLoginMemberMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginMember>>,
+    TError,
+    { data: BodyType<LoginMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof loginMember>>,
+  TError,
+  { data: BodyType<LoginMemberBody> },
+  TContext
+> => {
+  const mutationKey = ["loginMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof loginMember>>,
+    { data: BodyType<LoginMemberBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return loginMember(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LoginMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof loginMember>>
+>;
+export type LoginMemberMutationBody = BodyType<LoginMemberBody>;
+export type LoginMemberMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Login to the digital sanctuary
+ */
+export const useLoginMember = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginMember>>,
+    TError,
+    { data: BodyType<LoginMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof loginMember>>,
+  TError,
+  { data: BodyType<LoginMemberBody> },
+  TContext
+> => {
+  return useMutation(getLoginMemberMutationOptions(options));
+};
+
+/**
+ * @summary Get current member profile (requires Bearer token)
+ */
+export const getGetMemberProfileUrl = () => {
+  return `/api/auth/me`;
+};
+
+export const getMemberProfile = async (
+  options?: RequestInit,
+): Promise<MemberProfile> => {
+  return customFetch<MemberProfile>(getGetMemberProfileUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMemberProfileQueryKey = () => {
+  return [`/api/auth/me`] as const;
+};
+
+export const getGetMemberProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMemberProfile>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMemberProfile>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMemberProfileQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMemberProfile>>
+  > = ({ signal }) => getMemberProfile({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMemberProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMemberProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMemberProfile>>
+>;
+export type GetMemberProfileQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get current member profile (requires Bearer token)
+ */
+
+export function useGetMemberProfile<
+  TData = Awaited<ReturnType<typeof getMemberProfile>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMemberProfile>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMemberProfileQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List upcoming events

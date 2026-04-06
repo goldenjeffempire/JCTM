@@ -33,22 +33,30 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 **Mission**: Primitive Christianity, Holiness, and the Correction Mandate
 
 ### Features
-- **Sermon Hub** — Sermons listing with YouTube sync, Audio Only mode, search
+- **Sermon Hub** — 20 latest YouTube sermons (Uploads Playlist API), filters Shorts, hqdefault thumbnails, Watch on YouTube links
 - **TempleBots AI** — Floating chat widget powered by OpenAI via Replit integration
-- **Giving Portal** — Paystack integration + preset NGN amounts (NGN currency)
-- **Testimony Vault** — Submit & display testimonies with category filtering
-- **Events Calendar** — Upcoming events with "Next Up" section
-- **Member Directory** — Searchable grid with role badges
-- **Correction Timeline** — Horizontal scroll ministry history from 1990s to 2026
+- **Giving Portal** — Currency toggle (NGN/USD), giving type selector, Paystack (NGN) / Stripe (USD), preset amounts, bank transfer details
+- **Testimony Vault** — Masonry grid with category filters, 3-step submission form, Amen/like button (flame icon, optimistic UI), title + likeCount fields
+- **Events Calendar** — Countdown timers per event, YouTube Live embed toggle, upcoming/past sections
+- **Member Join** — `/join` page with registration, login, member dashboard (localStorage token), links to resources
+- **Member Directory** — Searchable grid with role badges (existing `/members` page)
+- **Correction Timeline** — 5 core corrections (1994–2016) with animated scroll-driven timeline, error/correction/scripture for each
 - **About Page** — Prophet bio, doctrines, contact info
 - **Live Banner** — Auto-shown when livestream is active (in-memory state)
 
 ### Architecture
 - **Frontend**: `artifacts/jctm-platform` — React + Vite, port from `PORT` env var
 - **Backend**: `artifacts/api-server` — Express 5 + Drizzle ORM, port 8080
-- **DB**: PostgreSQL with 5 tables: sermons, testimonies, events, giving_logs, members
+- **DB**: PostgreSQL tables: sermons, testimonies (title, likeCount), events, giving_logs, members, member_auth
+- **Auth**: `member_auth` table — SHA-256 password hashing with salt, random token per login, Bearer token auth
 - **AI**: OpenAI (gpt-4o) via Replit AI integration, chat route in `api-server/src/routes/chat.ts`
 - **API codegen**: Orval generates hooks in `lib/api-client-react` from `lib/api-spec/openapi.yaml`
+
+### API Routes Added
+- `POST /api/auth/register` — member registration
+- `POST /api/auth/login` — member login (refreshes token)
+- `GET /api/auth/me` — get profile from Bearer token
+- `POST /api/testimonies/:id/like` — increment Amen count
 
 ### Design
 - Light Glassmorphism — `.glass-panel` CSS class throughout
@@ -57,7 +65,8 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ### Environment Variables (Optional)
 - `YOUTUBE_API_KEY` — Enables YouTube sync for sermons
-- `PAYSTACK_SECRET_KEY` — Enables live Paystack payment gateway
+- `PAYSTACK_SECRET_KEY` — Enables live Paystack payment gateway (NGN)
+- `STRIPE_SECRET_KEY` — Enables Stripe for USD payments
 
 ### Important: Date Serialization
-Drizzle returns `Date` objects from PostgreSQL. All API routes must convert date fields to ISO strings before Zod validation (`.toISOString()`). See `sermons.ts`, `events.ts`, `testimonies.ts`, `members.ts`.
+Drizzle returns `Date` objects from PostgreSQL. All API routes must convert date fields to ISO strings before Zod validation (`.toISOString()`). See `sermons.ts`, `events.ts`, `testimonies.ts`, `members.ts`, `auth.ts`.

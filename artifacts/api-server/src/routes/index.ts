@@ -5,6 +5,7 @@ import testimoniesRouter from "./testimonies";
 import eventsRouter from "./events";
 import givingRouter from "./giving";
 import membersRouter from "./members";
+import authRouter from "./auth";
 import chatRouter from "./chat";
 import livestreamRouter from "./livestream";
 
@@ -16,6 +17,7 @@ router.use(testimoniesRouter);
 router.use(eventsRouter);
 router.use(givingRouter);
 router.use(membersRouter);
+router.use(authRouter);
 router.use(chatRouter);
 router.use(livestreamRouter);
 

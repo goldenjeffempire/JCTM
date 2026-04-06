@@ -13,6 +13,7 @@ import Events from "@/pages/Events";
 import Members from "@/pages/Members";
 import Timeline from "@/pages/Timeline";
 import About from "@/pages/About";
+import Join from "@/pages/Join";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/members" component={Members} />
       <Route path="/correction-timeline" component={Timeline} />
       <Route path="/about" component={About} />
+      <Route path="/join" component={Join} />
       <Route component={NotFound} />
     </Switch>
   );

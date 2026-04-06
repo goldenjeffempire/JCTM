@@ -1,0 +1,55 @@
+You are a Senior Product Engineer and System Architect.
+
+Objective: Complete the full development of all internal pages and functional modules for the Jesus Christ Temple Ministry (JCTM) platform. Every page must strictly adhere to the "Light Sanctuary" (White/Ivory/Temple Blue) aesthetic and be 100% functional, connected to the Supabase backend.
+
+Instructions for Specific Pages:
+
+1. The Testimony Vault (/testimonies):
+
+UI: A Masonry-style grid of Glassmorphism cards.
+
+Functionality: Build a "Share Your Miracle" multi-step form.
+
+Database: Create the insert logic to Supabase testimonies table (Fields: Name, Title, Category, Content, VideoURL, ApprovedStatus).
+
+Feature: Implement a "Like/Amen" counter for each testimony.
+
+2. The Giving Portal (/give):
+
+UI: A clean, trust-focused interface with pre-set "Seed" amounts and a "Custom Amount" field.
+
+Logic: Fully integrate the Paystack Inline (for Nigeria) and Stripe (for International) checkout logic.
+
+Security: Ensure all transactions generate a unique reference stored in the donations table.
+
+3. The Correction Timeline (/our-mandate):
+
+UI: A high-end, horizontal-scroll "Mission Roadmap."
+
+Content: Use Framer Motion to reveal the 5 core corrections of JCTM: (1) Primitive Christianity, (2) Scriptural Holiness, (3) The Spirit of Truth, (4) Deliverance from Darkness, (5) The Final Correction of the Body of Christ.
+
+4. Member Onboarding & Portal (/join):
+
+UI: A professional membership registration form.
+
+Functionality: Authenticate users via Supabase Auth.
+
+Member Dashboard: Create a private "Sanctuary" view for logged-in members to view internal ministry announcements and download study materials.
+
+5. Events & Live Stream (/live):
+
+UI: A real-time "On-Air" indicator.
+
+Functionality: Create a countdown timer to the next Sunday Service (8:00 AM WAT) or Wednesday Service (5:00 PM WAT).
+
+Integration: Embed the YouTube Live player specifically filtered for the current active stream from @TEMPLETVJCTM.
+
+6. Global Navigation & SEO:
+
+Persistence: Ensure the TempleBots AI floating bubble is present and context-aware on every page.
+
+Metadata: Generate SEO tags for every page (Title, Description, OpenGraph images) to ensure JCTM ranks #1 for "Prophet Amos Warri" and "Primitive Christianity."
+
+Final Constraint: Ensure the "Light Theme" is consistent across all forms, buttons, and modals. The platform must be "App Store Ready" with all routes functioning in the Capacitor mobile wrapper.
+
+Proceed to build all routes and logic now.

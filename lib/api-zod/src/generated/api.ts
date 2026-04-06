@@ -100,16 +100,19 @@ export const listTestimoniesQueryOffsetDefault = 0;
 export const ListTestimoniesQueryParams = zod.object({
   limit: zod.coerce.number().default(listTestimoniesQueryLimitDefault),
   offset: zod.coerce.number().default(listTestimoniesQueryOffsetDefault),
+  category: zod.coerce.string().nullish(),
 });
 
 export const ListTestimoniesResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string().nullish(),
+  title: zod.string().nullish(),
   content: zod.string(),
   videoUrl: zod.string().nullish(),
   category: zod.string().nullish(),
   approved: zod.boolean(),
+  likeCount: zod.number(),
   createdAt: zod.string(),
 });
 export const ListTestimoniesResponse = zod.array(ListTestimoniesResponseItem);
@@ -120,9 +123,65 @@ export const ListTestimoniesResponse = zod.array(ListTestimoniesResponseItem);
 export const SubmitTestimonyBody = zod.object({
   name: zod.string(),
   email: zod.string().nullish(),
+  title: zod.string().nullish(),
   content: zod.string(),
   videoUrl: zod.string().nullish(),
   category: zod.string().nullish(),
+});
+
+/**
+ * @summary Increment the Amen/Like count on a testimony
+ */
+export const LikeTestimonyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const LikeTestimonyResponse = zod.object({
+  likeCount: zod.number(),
+});
+
+/**
+ * @summary Register a new digital sanctuary member
+ */
+export const RegisterMemberBody = zod.object({
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  phone: zod.string().nullish(),
+});
+
+/**
+ * @summary Login to the digital sanctuary
+ */
+export const LoginMemberBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const LoginMemberResponse = zod.object({
+  token: zod.string(),
+  member: zod.object({
+    id: zod.number(),
+    firstName: zod.string(),
+    lastName: zod.string(),
+    email: zod.string(),
+    phone: zod.string().nullish(),
+    createdAt: zod.string(),
+  }),
+  message: zod.string(),
+});
+
+/**
+ * @summary Get current member profile (requires Bearer token)
+ */
+export const GetMemberProfileResponse = zod.object({
+  id: zod.number(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  phone: zod.string().nullish(),
+  createdAt: zod.string(),
 });
 
 /**

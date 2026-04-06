@@ -10,6 +10,8 @@ export interface CreateTestimonyBody {
   name: string;
   /** @nullable */
   email?: string | null;
+  /** @nullable */
+  title?: string | null;
   content: string;
   /** @nullable */
   videoUrl?: string | null;

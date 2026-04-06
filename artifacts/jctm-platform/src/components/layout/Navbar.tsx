@@ -7,10 +7,10 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/sermons", label: "Sermons" },
   { href: "/testimonies", label: "Testimonies" },
-  { href: "/give", label: "Give" },
-  { href: "/events", label: "Events" },
-  { href: "/members", label: "Members" },
   { href: "/correction-timeline", label: "Timeline" },
+  { href: "/events", label: "Events" },
+  { href: "/give", label: "Give" },
+  { href: "/join", label: "Join" },
   { href: "/about", label: "About" },
 ];
 

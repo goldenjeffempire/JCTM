@@ -11,11 +11,14 @@ export interface Testimony {
   name: string;
   /** @nullable */
   email?: string | null;
+  /** @nullable */
+  title?: string | null;
   content: string;
   /** @nullable */
   videoUrl?: string | null;
   /** @nullable */
   category?: string | null;
   approved: boolean;
+  likeCount: number;
   createdAt: string;
 }

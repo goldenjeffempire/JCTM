@@ -5,3 +5,4 @@ export * from "./giving";
 export * from "./members";
 export * from "./conversations";
 export * from "./messages";
+export * from "./memberAuth";

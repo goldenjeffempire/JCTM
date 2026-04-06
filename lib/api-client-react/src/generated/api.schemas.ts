@@ -46,12 +46,15 @@ export interface Testimony {
   name: string;
   /** @nullable */
   email?: string | null;
+  /** @nullable */
+  title?: string | null;
   content: string;
   /** @nullable */
   videoUrl?: string | null;
   /** @nullable */
   category?: string | null;
   approved: boolean;
+  likeCount: number;
   createdAt: string;
 }
 
@@ -59,11 +62,47 @@ export interface CreateTestimonyBody {
   name: string;
   /** @nullable */
   email?: string | null;
+  /** @nullable */
+  title?: string | null;
   content: string;
   /** @nullable */
   videoUrl?: string | null;
   /** @nullable */
   category?: string | null;
+}
+
+export interface LikeResponse {
+  likeCount: number;
+}
+
+export interface RegisterMemberBody {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  /** @nullable */
+  phone?: string | null;
+}
+
+export interface LoginMemberBody {
+  email: string;
+  password: string;
+}
+
+export interface MemberProfile {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  /** @nullable */
+  phone?: string | null;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  member: MemberProfile;
+  message: string;
 }
 
 export interface Event {
@@ -219,6 +258,10 @@ export type ListSermonsParams = {
 export type ListTestimoniesParams = {
   limit?: number;
   offset?: number;
+  /**
+   * @nullable
+   */
+  category?: string | null;
 };
 
 export type ListEventsParams = {

@@ -20,6 +20,8 @@ tags:
     description: Giving and donations
   - name: members
     description: Member directory
+  - name: auth
+    description: Member authentication
   - name: chat
     description: TempleBots AI chat
   - name: livestream
@@ -153,6 +155,10 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: category
+          in: query
+          schema:
+            type: ["string", "null"]
       responses:
         "200":
           description: List of testimonies
@@ -181,6 +187,106 @@ paths:
                 $ref: "#/components/schemas/Testimony"
         "400":
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /testimonies/{id}/like:
+    post:
+      operationId: likeTestimony
+      tags: [testimonies]
+      summary: Increment the Amen/Like count on a testimony
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated like count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/register:
+    post:
+      operationId: registerMember
+      tags: [auth]
+      summary: Register a new digital sanctuary member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterMemberBody"
+      responses:
+        "201":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginMember
+      tags: [auth]
+      summary: Login to the digital sanctuary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginMemberBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMemberProfile
+      tags: [auth]
+      summary: Get current member profile (requires Bearer token)
+      responses:
+        "200":
+          description: Member profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberProfile"
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:
@@ -495,6 +601,8 @@ components:
           type: string
         email:
           type: ["string", "null"]
+        title:
+          type: ["string", "null"]
         content:
           type: string
         videoUrl:
@@ -503,6 +611,8 @@ components:
           type: ["string", "null"]
         approved:
           type: boolean
+        likeCount:
+          type: integer
         createdAt:
           type: string
       required:
@@ -510,6 +620,7 @@ components:
         - name
         - content
         - approved
+        - likeCount
         - createdAt
 
     CreateTestimonyBody:
@@ -519,6 +630,8 @@ components:
           type: string
         email:
           type: ["string", "null"]
+        title:
+          type: ["string", "null"]
         content:
           type: string
         videoUrl:
@@ -528,6 +641,80 @@ components:
       required:
         - name
         - content
+
+    LikeResponse:
+      type: object
+      properties:
+        likeCount:
+          type: integer
+      required:
+        - likeCount
+
+    RegisterMemberBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: ["string", "null"]
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+
+    LoginMemberBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        member:
+          $ref: "#/components/schemas/MemberProfile"
+        message:
+          type: string
+      required:
+        - token
+        - member
+        - message
+
+    MemberProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - createdAt
 
     Event:
       type: object

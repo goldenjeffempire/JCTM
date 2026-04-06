@@ -6,11 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListTestimoniesParams = {
-  limit?: number;
-  offset?: number;
-  /**
-   * @nullable
-   */
-  category?: string | null;
-};
+export interface LikeResponse {
+  likeCount: number;
+}

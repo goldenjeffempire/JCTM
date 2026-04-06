@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./authResponse";
 export * from "./chatRequest";
 export * from "./chatResponse";
 export * from "./createEventBody";
@@ -19,12 +20,16 @@ export * from "./event";
 export * from "./givingLog";
 export * from "./givingStats";
 export * from "./healthStatus";
+export * from "./likeResponse";
 export * from "./listEventsParams";
 export * from "./listMembersParams";
 export * from "./listSermonsParams";
 export * from "./listTestimoniesParams";
 export * from "./livestreamStatus";
+export * from "./loginMemberBody";
 export * from "./member";
+export * from "./memberProfile";
+export * from "./registerMemberBody";
 export * from "./sermon";
 export * from "./sermonStats";
 export * from "./syncResult";
