@@ -29,7 +29,30 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const ALLOWED_ORIGINS = new Set([
+  "https://jctm.org.ng",
+  "https://www.jctm.org.ng",
+  "https://jctm.onrender.com",
+  ...(process.env.ALLOWED_ORIGINS ?? "").split(",").map(s => s.trim()).filter(Boolean),
+]);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);
+      if (
+        ALLOWED_ORIGINS.has(origin) ||
+        /\.replit\.dev$/.test(origin) ||
+        /\.onrender\.com$/.test(origin) ||
+        process.env.NODE_ENV !== "production"
+      ) {
+        return cb(null, true);
+      }
+      cb(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 

@@ -29,24 +29,25 @@ app.listen(port, (err) => {
   startCron(logger);
 
   // Register WebSub subscription with YouTube's PubSubHubbub hub.
-  // Supports Replit (REPLIT_DEV_DOMAIN), Render (RENDER_EXTERNAL_URL), and
-  // any other platform via PUBLIC_URL.
+  // Resolves the public base URL in order of preference:
+  //   1. REPLIT_DEV_DOMAIN  — Replit dev environment
+  //   2. RENDER_EXTERNAL_URL — automatically set by Render
+  //   3. PUBLIC_URL          — any other platform override
+  //   4. https://jctm.org.ng — production custom domain (final fallback)
   const replitDomain = process.env.REPLIT_DEV_DOMAIN;
   const renderUrl = process.env.RENDER_EXTERNAL_URL;
   const publicUrl = process.env.PUBLIC_URL;
 
-  let callbackBase: string | undefined;
+  let callbackBase: string;
   if (replitDomain) {
     callbackBase = `https://${replitDomain}`;
   } else if (renderUrl) {
     callbackBase = renderUrl.replace(/\/$/, "");
   } else if (publicUrl) {
     callbackBase = publicUrl.replace(/\/$/, "");
+  } else {
+    callbackBase = "https://jctm.org.ng";
   }
 
-  if (callbackBase) {
-    subscribeToWebSub(`${callbackBase}/api/sermons/websub`, logger);
-  } else {
-    logger.info("No public domain env var set — WebSub subscription skipped");
-  }
+  subscribeToWebSub(`${callbackBase}/api/sermons/websub`, logger);
 });
