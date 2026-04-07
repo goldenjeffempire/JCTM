@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
+import prophetAmosImg from "@/assets/prophet-amos-evomobor.png";
 
 const DOCTRINES = [
   {
@@ -94,7 +95,7 @@ export default function About() {
                 <div className="relative">
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-accent/20 to-primary/20 blur-xl scale-110" />
                   <img
-                    src="/prophet-amos-evomobor.jpeg"
+                    src={prophetAmosImg}
                     alt="Prophet Amos Evomobor — General Overseer, JCTM"
                     className="relative w-56 md:w-full md:h-full object-cover object-top rounded-2xl md:rounded-none shadow-2xl"
                     style={{ maxHeight: "420px" }}
