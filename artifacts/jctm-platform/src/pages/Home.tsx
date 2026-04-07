@@ -1641,6 +1641,72 @@ function CrusadeInviteSection() {
 // ═══════════════════════════════════════════════════════════════════════════
 // UPCOMING EVENTS
 // ═══════════════════════════════════════════════════════════════════════════
+function SundayServiceCard() {
+  const countdown = useNextService();
+  return (
+    <motion.div variants={fadeUp}>
+      <TiltCard>
+        <div className="bg-gradient-to-br from-[#003366] to-[#0284C7] rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white/10 group relative overflow-hidden h-full flex flex-col">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.8), transparent)" }} />
+            {[...Array(6)].map((_, i) => (
+              <motion.div key={i}
+                animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.3, 1] }}
+                transition={{ duration: 4 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.7 }}
+                className="absolute rounded-full bg-white"
+                style={{ width: 2 + (i % 3), height: 2 + (i % 3), top: `${12 + i * 13}%`, left: `${8 + i * 14}%`, opacity: 0.2 }}
+              />
+            ))}
+          </div>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent via-white/40 to-accent opacity-60" />
+
+          <div className="p-6 flex flex-col flex-1 relative z-10">
+            <div className="flex items-start justify-between mb-5">
+              <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 text-white text-center shadow-lg">
+                <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest">Every</span>
+                <span className="block font-serif font-bold text-3xl leading-none">SUN</span>
+                <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest mt-0.5">Weekly</span>
+              </div>
+              <span className="bg-white/20 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-white/20">Recurring</span>
+            </div>
+
+            <h3 className="text-xl font-serif font-bold text-white mb-1 leading-tight">Sunday Worship Service</h3>
+            <p className="text-white/60 text-xs mb-4 leading-relaxed">Join us every Sunday for corporate worship, prayer, and the Word of God.</p>
+
+            <div className="space-y-2 mb-5 text-sm text-white/75 flex-1">
+              <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />9:00 AM WAT every Sunday</div>
+              <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><span className="leading-snug">Main Sanctuary, Ebrumede, Warri, Delta State</span></div>
+            </div>
+
+            <div className="bg-white/10 rounded-2xl p-3 mb-4 border border-white/10">
+              <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold mb-2">Next Service In</p>
+              <div className="flex gap-2">
+                {[
+                  { v: countdown.days, l: "Days" },
+                  { v: countdown.hours, l: "Hrs" },
+                  { v: countdown.minutes, l: "Min" },
+                  { v: countdown.seconds, l: "Sec" },
+                ].map(({ v, l }) => (
+                  <div key={l} className="flex-1 flex flex-col items-center bg-white/10 rounded-xl py-1.5">
+                    <span className="text-lg font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
+                    <span className="text-[8px] text-white/50 uppercase tracking-wide mt-0.5">{l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <a href="https://www.youtube.com/@JesusChristTempleMinistry" target="_blank" rel="noopener noreferrer">
+              <Button className="w-full rounded-xl bg-white/20 text-white hover:bg-white/30 border border-white/20 shadow-none transition-all duration-200 gap-2 text-sm">
+                <Radio className="h-3.5 w-3.5" /> Watch Live on YouTube
+              </Button>
+            </a>
+          </div>
+        </div>
+      </TiltCard>
+    </motion.div>
+  );
+}
+
 function EventsSection() {
   const { data: events, isLoading } = useGetUpcomingEvents({ query: { queryKey: getGetUpcomingEventsQueryKey() } });
   return (
@@ -1656,18 +1722,24 @@ function EventsSection() {
         </div>
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-white rounded-3xl p-8 shadow-sm border border-border"><Skeleton className="h-16 w-20 rounded-2xl mb-6" /><Skeleton className="h-6 w-full mb-3" /><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-4 w-1/2 mb-6" /><Skeleton className="h-10 w-full rounded-xl" /></div>)}
+            <div className="bg-gradient-to-br from-[#003366] to-[#0284C7] rounded-3xl p-8 shadow-xl border border-white/10">
+              <Skeleton className="h-16 w-20 rounded-2xl mb-6 bg-white/20" />
+              <Skeleton className="h-6 w-full mb-3 bg-white/20" />
+              <Skeleton className="h-4 w-3/4 mb-2 bg-white/20" />
+              <Skeleton className="h-10 w-full rounded-xl bg-white/20" />
+            </div>
+            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="bg-white rounded-3xl p-8 shadow-sm border border-border"><Skeleton className="h-16 w-20 rounded-2xl mb-6" /><Skeleton className="h-6 w-full mb-3" /><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-4 w-1/2 mb-6" /><Skeleton className="h-10 w-full rounded-xl" /></div>)}
           </div>
-        ) : events && events.length > 0 ? (
+        ) : (
           <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            {events.slice(0, 4).map((event) => {
+            <SundayServiceCard />
+            {events && events.length > 0 && events.slice(0, 3).map((event) => {
               const date = new Date(event.startDate);
               return (
                 <motion.div key={event.id} variants={fadeUp}>
                   <TiltCard>
                     <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full flex flex-col">
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                      {/* Flyer image */}
                       {event.imageUrl ? (
                         <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
                           <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
@@ -1692,6 +1764,7 @@ function EventsSection() {
                             <div className="bg-gradient-to-br from-accent to-[#0284C7] rounded-xl px-3 py-1.5 text-white text-center">
                               <span className="block font-bold text-xs leading-none uppercase">{format(date, "MMM d")}</span>
                             </div>
+                            <Badge variant="secondary" className="rounded-full text-xs">{event.eventType}</Badge>
                           </div>
                         )}
                         <h3 className="text-lg font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{event.title}</h3>
@@ -1707,11 +1780,9 @@ function EventsSection() {
               );
             })}
           </motion.div>
-        ) : (
-          <div className="text-center py-16 text-muted-foreground">
-            <Calendar className="h-12 w-12 mx-auto mb-4 opacity-30" />
-            <p>No upcoming events at this time. Check back soon.</p>
-          </div>
+        )}
+        {!isLoading && (!events || events.length === 0) && (
+          <p className="text-center text-muted-foreground text-sm mt-8">No upcoming special events scheduled. Check back soon.</p>
         )}
       </div>
     </section>
