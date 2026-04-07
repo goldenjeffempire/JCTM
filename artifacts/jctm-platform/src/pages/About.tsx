@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { BookOpen, Target, Globe, Shield, Eye, Compass, Mail, Phone, MapPin } from "lucide-react";
+import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
 
 const DOCTRINES = [
   {
@@ -150,38 +150,16 @@ export default function About() {
               A Mandate for This Generation
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="glass-panel rounded-2xl p-7 border border-accent/20 relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -translate-y-12 translate-x-12" />
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
-                  <Eye className="h-5 w-5 text-accent" />
-                </div>
-                <h3 className="text-xl font-serif font-bold text-primary mb-3">Our Vision</h3>
-                <p className="text-muted-foreground leading-relaxed text-sm">
-                  To see the global Body of Christ restored to its apostolic foundation — a church that walks in holiness, operates in genuine power, preaches uncompromised truth, and is fully prepared for the return of the Lord Jesus Christ.
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="glass-panel rounded-2xl p-7 border border-primary/10 relative overflow-hidden"
-              >
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 rounded-full translate-y-12 -translate-x-12" />
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <Compass className="h-5 w-5 text-primary" />
-                </div>
-                <h3 className="text-xl font-serif font-bold text-primary mb-3">Our Mission</h3>
-                <p className="text-muted-foreground leading-relaxed text-sm">
-                  To proclaim and demonstrate the Correction Mandate — correcting false doctrines, restoring primitive Christian practice, raising a generation of believers grounded in holiness and the authentic baptism of the Holy Spirit, and preparing souls for the imminent return of Christ.
-                </p>
-              </motion.div>
+            <div className="glass-panel rounded-2xl p-8 mb-8 space-y-5">
+              <p className="text-muted-foreground leading-relaxed text-[15px]">
+                The mission and vision of Jesus Christ Temple Ministry are centered on bringing men and women back into a right relationship with the Lord Jesus Christ through the pathway of genuine repentance and a life of holiness. The ministry emphasizes that true reconciliation with God is not achieved through outward appearance or religious activities alone, but through a sincere turning away from sin and a complete surrender to the will and nature of Christ. Repentance is taught as a deep, heartfelt transformation that leads to a renewed life, while holiness is upheld as the daily lifestyle that reflects God's character in every believer.
+              </p>
+              <p className="text-muted-foreground leading-relaxed text-[15px]">
+                This divine assignment is rooted in the understanding that the presence of the Holy Spirit can only dwell in a vessel that is purified and set apart unto God. Therefore, the ministry continually calls believers to live in purity, righteousness, and obedience so they can become worthy carriers of the Spirit of God. It stresses that the indwelling of the Holy Spirit is not just for spiritual experience, but for transformation, guidance, and preparation for eternal life.
+              </p>
+              <p className="text-muted-foreground leading-relaxed text-[15px]">
+                Ultimately, the vision looks forward to the rapture — the glorious moment when the Lord will gather His people to Himself. Jesus Christ Temple Ministry seeks to prepare hearts and lives for that day, ensuring that those who follow this path are ready, watchful, and spiritually equipped to meet the Lord when He appears.
+              </p>
             </div>
 
             {/* Ministry Timeline */}
