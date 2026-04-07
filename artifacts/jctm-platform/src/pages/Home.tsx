@@ -2053,7 +2053,7 @@ function NewcomerSection() {
 
   const steps = [
     { icon: BookOpen, title: "Our Beliefs", desc: "Discover what JCTM stands for and the doctrinal foundations of our faith.", href: "/about", cta: "Learn More" },
-    { icon: MapPin, title: "Find a Branch", desc: "Our headquarters is in Warri. Connect with our services in person or online.", href: "/about", cta: "Get Directions" },
+    { icon: MapPin, title: "Find a Viewing Centre", desc: "Our headquarters is in Warri. Connect with our services in person or online.", href: "/about", cta: "Get Directions" },
     { icon: Users, title: "Join a Unit", desc: "Become part of the worshipping community and get involved in ministry.", href: "/join", cta: "Get Involved" },
   ];
 
