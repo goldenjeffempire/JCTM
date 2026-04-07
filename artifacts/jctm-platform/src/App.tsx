@@ -19,6 +19,7 @@ const Join = lazy(() => import("@/pages/Join"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Crusade = lazy(() => import("@/pages/Crusade"));
+const ViewingCentres = lazy(() => import("@/pages/ViewingCentres"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -61,6 +62,7 @@ function Router() {
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/crusade" component={Crusade} />
+        <Route path="/viewing-centres" component={ViewingCentres} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

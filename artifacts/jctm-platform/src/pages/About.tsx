@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Tv } from "lucide-react";
+import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
 const prophetAmosImg = "/founder/DSC_0649.jpg";
 
 const DOCTRINES = [
@@ -41,31 +41,6 @@ const STORY_PARAGRAPHS = [
   "Under the leadership of Prophet Amos Evomobor, the ministry continues to grow and expand, not merely in numbers, but in spiritual depth and impact. His role is not just administrative, but deeply prophetic and pastoral, ensuring that the church remains aligned with God's will at all times. Through his leadership, the ministry maintains its focus on raising a people who are not only hearers of the Word but doers also — believers who live out the message they receive and become examples of Christ in their daily lives.",
   "Jesus Christ Temple Ministry is therefore more than just a place of worship; it is a movement of divine purpose, a gathering of believers who are committed to living for God in truth and in spirit. It is a place where lives are transformed, destinies are redirected, and hearts are prepared for eternity. Every teaching, every gathering, and every outreach effort is directed toward one central goal: to ensure that as many souls as possible are saved and ready for the coming of the Lord.",
   "In a world where many have drifted away from the truth, this ministry stands as a beacon of light, pointing people back to God's original standard. It is a call to awakening, a reminder that God is still speaking, and an invitation for all who are willing to walk the narrow path that leads to life. Through its unwavering commitment to holiness and its passion for soul-winning, Jesus Christ Temple Ministry continues to fulfill its divine assignment, reaching out to the world with the life-transforming message of the gospel and preparing a people for the glorious kingdom of God.",
-];
-
-const VIEWING_CENTRES = [
-  { name: "Bro Adeniyi David",               location: "Lagos",            phone: "08051366325" },
-  { name: "Pst Basibe Evans",                 location: "Lagos",            phone: "0803266645" },
-  { name: "Joseph Dominic Dan",               location: "Akwa Ibom",        phone: "07065380637" },
-  { name: "Bro Amos Isaac Tsaku",             location: "Nasarawa",         phone: "08036366515" },
-  { name: "Bro Silas Danladi",               location: "Adamawa",          phone: "07046322470" },
-  { name: "Bro Bitrus Hassan",               location: "Adamawa",          phone: "07080002054" },
-  { name: "Pst Chibuwa James",               location: "Rivers",           phone: "08162062703" },
-  { name: "Bro Eke Samson",                  location: "Rivers",           phone: "09022759069" },
-  { name: "Bro Akaku Emeka",                 location: "Rivers",           phone: "08039386734" },
-  { name: "Bro Ipanya Odonemero",            location: "Delta – Oleh",     phone: "09138513281" },
-  { name: "Bro Odiete Onoriode",             location: "Delta – Abraka",   phone: "08034430378" },
-  { name: "Bro Victor Udekwe",              location: "Delta – Kwale",    phone: "07087707817" },
-  { name: "Bro Chikwado Martins / Bro Osita Emeka", location: "Edo",      phone: "08129409312" },
-  { name: "Bro Joseph Ulankhoba",            location: "Edo",              phone: "07032226903" },
-  { name: "Bro Ifeadi Henry",               location: "Anambra",          phone: "07036312885" },
-  { name: "Bro Ntui Cyril",                 location: "Anambra",          phone: "07031296721" },
-  { name: "Bro Ugwudinso Christian",         location: "Enugu",            phone: "08138975516" },
-  { name: "Bro Ogbonna Nwaokoro",            location: "Abia",             phone: null },
-  { name: "Bro Lumi Istifanus",             location: "Lagos",            phone: "07040689542" },
-  { name: "Bro Stephen Bassey",             location: "Akwa Ibom",        phone: "08123451718" },
-  { name: "Evang. Joel Uchechukwu John",    location: "Abia – Umuahia",   phone: "08038501555" },
-  { name: "Evang. Josiah Anfofun",          location: "Benue – Makurdi",  phone: "07032818130" },
 ];
 
 const staggerContainer = {
@@ -240,63 +215,6 @@ export default function About() {
                   <p className="text-muted-foreground text-sm leading-relaxed">{doctrine.description}</p>
                 </motion.div>
               ))}
-            </div>
-          </div>
-
-          {/* Viewing Centres */}
-          <div className="mb-10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                <Tv className="h-4 w-4 text-accent" />
-              </div>
-              <span className="text-sm font-medium text-accent uppercase tracking-widest">Nationwide Network</span>
-            </div>
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-2">Viewing Centres</h2>
-            <p className="text-muted-foreground text-[15px] mb-8 max-w-2xl">
-              Connect with a JCTM viewing centre near you across Nigeria. Contact the coordinator in your state to join a local gathering.
-            </p>
-
-            <div className="glass-panel rounded-2xl overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-12 gap-2 px-5 py-3 bg-primary/5 border-b border-border text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                <div className="col-span-1">#</div>
-                <div className="col-span-5">Coordinator</div>
-                <div className="col-span-3">State / City</div>
-                <div className="col-span-3">Contact</div>
-              </div>
-
-              {/* Rows */}
-              <div className="divide-y divide-border/60">
-                {VIEWING_CENTRES.map((centre, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.03 }}
-                    className="grid grid-cols-12 gap-2 px-5 py-3.5 items-center hover:bg-accent/5 transition-colors"
-                  >
-                    <div className="col-span-1 text-xs text-muted-foreground font-mono">{i + 1}</div>
-                    <div className="col-span-5 text-sm font-semibold text-primary leading-tight">{centre.name}</div>
-                    <div className="col-span-3">
-                      <span className="inline-block text-xs bg-primary/8 text-primary rounded-full px-2.5 py-0.5 font-medium">
-                        {centre.location}
-                      </span>
-                    </div>
-                    <div className="col-span-3 text-sm text-muted-foreground">
-                      {centre.phone
-                        ? <a href={`tel:${centre.phone}`} className="hover:text-accent transition-colors font-mono text-xs">{centre.phone}</a>
-                        : <span className="text-xs text-muted-foreground/40 italic">—</span>
-                      }
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="px-5 py-3 border-t border-border bg-primary/3 text-xs text-muted-foreground">
-                {VIEWING_CENTRES.length} viewing centres across Nigeria · To register a new centre, contact{" "}
-                <a href="mailto:info@jctm.org.ng" className="text-accent hover:underline">info@jctm.org.ng</a>
-              </div>
             </div>
           </div>
 
