@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
-const prophetAmosImg = "/founder/DSC_0615.jpg";
+const prophetAmosImg = "/founder/DSC_0649.jpg";
 
 const DOCTRINES = [
   {
