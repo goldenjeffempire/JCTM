@@ -30,6 +30,7 @@ const VIEWING_CENTRES = [
   { name: "Bro Stephen Bassey",                      location: "Akwa Ibom",        phone: "08123451718" },
   { name: "Evang. Joel Uchechukwu John",             location: "Abia – Umuahia",   phone: "08038501555" },
   { name: "Evang. Josiah Anfofun",                   location: "Benue – Makurdi",  phone: "07032818130" },
+  { name: "Pst. Emmanuel",                           location: "Abuja – Jikwoyi",  phone: "08069041250" },
 ];
 
 export default function ViewingCentres() {
