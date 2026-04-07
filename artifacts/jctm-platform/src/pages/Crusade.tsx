@@ -368,214 +368,228 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     canvas.width = W;
     canvas.height = H;
 
-    const royal = "#0a1a6b";
-    const gold = "#D4A017";
+    const gold      = "#D4A017";
     const goldLight = "#FFD700";
+    const white     = "#ffffff";
+    const green     = "#00c853";
+    const cyan      = "#4dc8ff";
 
-    // ── Full background ─────────────────────────────────────────────
-    ctx.fillStyle = royal;
+    // ── BACKGROUND GRADIENT ──────────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W * 0.6, H);
+    bg.addColorStop(0,    "#06103a");
+    bg.addColorStop(0.35, "#0e1d60");
+    bg.addColorStop(0.7,  "#0a1550");
+    bg.addColorStop(1,    "#050d2a");
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    const radial = ctx.createRadialGradient(W / 2, H * 0.5, 0, W / 2, H * 0.5, H * 0.7);
-    radial.addColorStop(0, "rgba(30,80,180,0.5)");
-    radial.addColorStop(1, "rgba(10,26,107,0)");
-    ctx.fillStyle = radial;
+    // Top purple radial glow
+    const topGlow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, W * 0.9);
+    topGlow.addColorStop(0, "rgba(110,40,230,0.55)");
+    topGlow.addColorStop(1, "rgba(6,16,58,0)");
+    ctx.fillStyle = topGlow;
+    ctx.fillRect(0, 0, W, H * 0.55);
+
+    // Bottom-left accent
+    const blGlow = ctx.createRadialGradient(0, H, 0, 0, H, W * 0.65);
+    blGlow.addColorStop(0, "rgba(30,80,200,0.28)");
+    blGlow.addColorStop(1, "rgba(5,13,42,0)");
+    ctx.fillStyle = blGlow;
     ctx.fillRect(0, 0, W, H);
 
-    // Stars across full card
-    for (let i = 0; i < 80; i++) {
-      ctx.beginPath();
-      ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 1.5 + 0.4, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,220,60,${Math.random() * 0.45 + 0.08})`;
-      ctx.fill();
+    // ── DOT GRID PATTERN ────────────────────────────────────────────
+    const gs = 54;
+    ctx.fillStyle = "rgba(120,170,255,0.07)";
+    for (let gx = 0; gx <= W; gx += gs) {
+      for (let gy = 0; gy <= H; gy += gs) {
+        ctx.beginPath(); ctx.arc(gx, gy, 1.2, 0, Math.PI * 2); ctx.fill();
+      }
     }
-
-    // Outer gold border
-    ctx.strokeStyle = gold; ctx.lineWidth = 8;
-    ctx.strokeRect(28, 28, W - 56, H - 56);
-    ctx.strokeStyle = goldLight; ctx.lineWidth = 2;
-    ctx.strokeRect(42, 42, W - 84, H - 84);
-    // Corner dots
-    [[50, 50], [W - 50, 50], [50, H - 50], [W - 50, H - 50]].forEach(([cx, cy]) => {
-      ctx.fillStyle = goldLight;
-      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
-    });
+    ctx.strokeStyle = "rgba(100,150,255,0.03)"; ctx.lineWidth = 1;
+    for (let gy = 0; gy <= H; gy += gs) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+    for (let gx = 0; gx <= W; gx += gs) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
 
     ctx.textAlign = "center";
 
-    // ════════════════════════════════════════════════════════════════
-    // SECTION 1 — TOP: "JCTM PRESENTS" (Y: 0–220)
-    // ════════════════════════════════════════════════════════════════
-    ctx.fillStyle = goldLight; ctx.font = `bold 20px sans-serif`;
-    ctx.fillText("✦  ✦  ✦", W / 2, 82);
+    // ── "CONFIRMED" PILL BADGE — top right ──────────────────────────
+    const cPillW = 200, cPillH = 48, cPillX = W - cPillW - 44, cPillY = 46;
+    ctx.fillStyle = "rgba(0,200,83,0.18)";
+    ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 24); ctx.fill();
+    ctx.strokeStyle = green; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 24); ctx.stroke();
+    ctx.fillStyle = green; ctx.font = "bold 20px sans-serif";
+    ctx.fillText("✓  CONFIRMED", cPillX + cPillW / 2, cPillY + 32);
 
-    ctx.fillStyle = "#ffffff"; ctx.font = `bold 44px serif`;
-    ctx.fillText("JESUS CHRIST TEMPLE MINISTRY", W / 2, 142);
+    // ── MINISTRY LABEL ───────────────────────────────────────────────
+    ctx.fillStyle = "rgba(255,255,255,0.38)";
+    ctx.font = "bold 17px sans-serif";
+    ctx.fillText("J E S U S   C H R I S T   T E M P L E   M I N I S T R Y", W / 2, 80);
 
-    ctx.fillStyle = gold; ctx.font = `bold 28px sans-serif`;
-    ctx.fillText("P  R  E  S  E  N  T  S", W / 2, 186);
+    // ── EVENT TITLE ──────────────────────────────────────────────────
+    ctx.shadowColor = "rgba(255,215,0,0.5)"; ctx.shadowBlur = 32;
+    ctx.fillStyle = goldLight; ctx.font = "bold 88px serif";
+    ctx.fillText("WARRI CITY", W / 2, 172);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
 
-    // Divider
+    ctx.fillStyle = white; ctx.font = "bold 70px serif";
+    ctx.fillText("CRUSADE 2026", W / 2, 252);
+
+    ctx.fillStyle = "rgba(255,255,255,0.42)"; ctx.font = "italic 23px serif";
+    ctx.fillText("Prophet Amos Global Crusade", W / 2, 293);
+
+    // Fade-out divider line
+    const divGrad = ctx.createLinearGradient(80, 0, W - 80, 0);
+    divGrad.addColorStop(0, "transparent");
+    divGrad.addColorStop(0.25, "rgba(212,160,23,0.5)");
+    divGrad.addColorStop(0.75, "rgba(212,160,23,0.5)");
+    divGrad.addColorStop(1, "transparent");
+    ctx.strokeStyle = divGrad; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(80, 318); ctx.lineTo(W - 80, 318); ctx.stroke();
+
+    // ── PHOTO ────────────────────────────────────────────────────────
+    const photoSize   = 460;
+    const photoX      = (W - photoSize) / 2;   // 310
+    const photoY      = 338;
+    const photoBottom = photoY + photoSize;     // 798
+
+    const drawPhoto = async () => {
+      // Dark backing behind frame
+      ctx.fillStyle = "#060e2a";
+      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.fill();
+
+      if (photo) {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const iw = img.naturalWidth || img.width || 1;
+            const ih = img.naturalHeight || img.height || 1;
+
+            // Outer cyan glow ring
+            ctx.shadowColor = "rgba(77,200,255,0.75)"; ctx.shadowBlur = 55;
+            ctx.strokeStyle = cyan; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 30); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+            // Gold inner border
+            ctx.strokeStyle = goldLight; ctx.lineWidth = 7;
+            ctx.beginPath(); ctx.roundRect(photoX - 7, photoY - 7, photoSize + 14, photoSize + 14, 22); ctx.stroke();
+
+            // Photo (contain-fit — full image, no cropping)
+            ctx.save();
+            ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.clip();
+            const scale = Math.min(photoSize / iw, photoSize / ih);
+            const dw = iw * scale, dh = ih * scale;
+            ctx.drawImage(img, photoX + (photoSize - dw) / 2, photoY + (photoSize - dh) / 2, dw, dh);
+            ctx.restore();
+
+            // Corner bracket accents
+            const cl = 50, pad = 22;
+            ctx.strokeStyle = cyan; ctx.lineWidth = 4; ctx.lineCap = "square";
+            const x1 = photoX - pad, y1 = photoY - pad;
+            const x2 = photoX + photoSize + pad, y2 = photoBottom + pad;
+            ctx.beginPath(); ctx.moveTo(x1, y1 + cl); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cl, y1); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2 - cl, y1); ctx.lineTo(x2, y1); ctx.lineTo(x2, y1 + cl); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x1, y2 - cl); ctx.lineTo(x1, y2); ctx.lineTo(x1 + cl, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2 - cl, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - cl); ctx.stroke();
+            ctx.lineCap = "butt";
+
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = photo;
+        });
+      } else {
+        // Placeholder
+        ctx.shadowColor = "rgba(77,200,255,0.6)"; ctx.shadowBlur = 40;
+        ctx.strokeStyle = cyan; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 30); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+        ctx.strokeStyle = goldLight; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.roundRect(photoX - 7, photoY - 7, photoSize + 14, photoSize + 14, 22); ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.font = "110px sans-serif";
+        ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 42);
+      }
+    };
+    await drawPhoto();
+
+    // ── "ATTENDING" CIRCULAR SEAL — bottom-right corner of photo ────
+    const sealR  = 68;
+    const sealCX = photoX + photoSize - sealR * 0.25;   // overlaps right edge
+    const sealCY = photoBottom - sealR * 0.25;           // overlaps bottom edge
+
+    ctx.shadowColor = "rgba(212,160,23,0.55)"; ctx.shadowBlur = 22;
+    ctx.fillStyle = "#0b1a5e";
+    ctx.beginPath(); ctx.arc(sealCX, sealCY, sealR, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.strokeStyle = goldLight; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(sealCX, sealCY, sealR, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = gold; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(120, 210); ctx.lineTo(W - 120, 210); ctx.stroke();
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(sealCX, sealCY, sealR - 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
 
-    // ════════════════════════════════════════════════════════════════
-    // SECTION 2 — MIDDLE: Photo + Name (Y: 220–740)
-    // ════════════════════════════════════════════════════════════════
-    const hasName = name.trim().length > 0;
-    const hasPhoto = !!photo;
+    ctx.fillStyle = green; ctx.font = "bold 34px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("✓", sealCX, sealCY - 1);
+    ctx.fillStyle = goldLight; ctx.font = "bold 11px sans-serif";
+    ctx.fillText("ATTENDING", sealCX, sealCY + 19);
 
-    // Square photo dimensions — centred horizontally
-    const photoSize = 500;           // side length of the square
-    const photoX = (W - photoSize) / 2;
-    const photoY = 220;              // top edge of the photo
-    const photoBottom = photoY + photoSize;
-
-    if (hasPhoto) {
-      await new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const iw = img.naturalWidth  || img.width  || 1;
-          const ih = img.naturalHeight || img.height || 1;
-
-          // ── Gold glow halo behind the square ──────────────────────
-          ctx.shadowColor = "rgba(212,160,23,0.6)";
-          ctx.shadowBlur = 52;
-          ctx.fillStyle = "rgba(212,160,23,0.15)";
-          ctx.beginPath();
-          ctx.roundRect(photoX - 12, photoY - 12, photoSize + 24, photoSize + 24, 30);
-          ctx.fill();
-          ctx.shadowBlur = 0;
-          ctx.shadowColor = "transparent";
-
-          // ── Square clip (rounded corners) ─────────────────────────
-          ctx.save();
-          ctx.beginPath();
-          ctx.roundRect(photoX, photoY, photoSize, photoSize, 20);
-          ctx.clip();
-
-          // Contain-fit: scale so the longest side fits inside the square,
-          // then centre — the full image is always visible, never cropped.
-          const scale = Math.min(photoSize / iw, photoSize / ih);
-          const dw = iw * scale;   // drawn width  (≤ photoSize)
-          const dh = ih * scale;   // drawn height (≤ photoSize)
-          const dx = photoX + (photoSize - dw) / 2;  // centred horizontally
-          const dy = photoY + (photoSize - dh) / 2;  // centred vertically
-          ctx.drawImage(img, dx, dy, dw, dh);
-
-          ctx.restore();
-
-          // ── Bold outer gold border ────────────────────────────────
-          ctx.strokeStyle = goldLight;
-          ctx.lineWidth = 12;
-          ctx.beginPath();
-          ctx.roundRect(photoX - 6, photoY - 6, photoSize + 12, photoSize + 12, 24);
-          ctx.stroke();
-
-          // ── Thin accent border further out ───────────────────────
-          ctx.strokeStyle = gold;
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 32);
-          ctx.stroke();
-
-          resolve();
-        };
-        img.onerror = () => resolve();
-        img.src = photo!;
-      });
-    } else {
-      // Placeholder square when no photo uploaded
-      ctx.fillStyle = "rgba(30,60,160,0.45)";
-      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.fill();
-      ctx.strokeStyle = "rgba(212,160,23,0.45)"; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.font = `110px sans-serif`;
-      ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 40);
+    // ── NAME ─────────────────────────────────────────────────────────
+    const nameStr = name.trim() || "YOUR NAME HERE";
+    const nameY   = photoBottom + 82;
+    let nameFontSize = 72;
+    ctx.font = `900 ${nameFontSize}px sans-serif`;
+    while (ctx.measureText(nameStr.toUpperCase()).width > W - 100 && nameFontSize > 36) {
+      nameFontSize -= 3;
+      ctx.font = `900 ${nameFontSize}px sans-serif`;
     }
+    ctx.shadowColor = "rgba(255,255,255,0.22)"; ctx.shadowBlur = 18;
+    ctx.fillStyle = white; ctx.textAlign = "center";
+    ctx.fillText(nameStr.toUpperCase(), W / 2, nameY);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
 
-    // ── Bold name block below photo ──────────────────────────────
-    let nameBlockBottom = photoBottom;
+    // ── "CONFIRMED & ATTENDING" STATUS PILL ──────────────────────────
+    const sPillY = nameY + 40;
+    const sPillW = 470, sPillH = 48;
+    ctx.fillStyle = "rgba(0,200,83,0.14)";
+    ctx.beginPath(); ctx.roundRect(W / 2 - sPillW / 2, sPillY, sPillW, sPillH, 24); ctx.fill();
+    ctx.strokeStyle = green; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(W / 2 - sPillW / 2, sPillY, sPillW, sPillH, 24); ctx.stroke();
+    ctx.fillStyle = green; ctx.font = "bold 22px sans-serif";
+    ctx.fillText("●   CONFIRMED & ATTENDING", W / 2, sPillY + 32);
 
-    if (hasName) {
-      nameBlockBottom = photoBottom + 14;
+    // ── DETAILS SECTION ──────────────────────────────────────────────
+    let dy = sPillY + sPillH + 44;
 
-      // Bold dark backing panel for the name
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.beginPath();
-      ctx.roundRect(photoX - 5, nameBlockBottom, photoSize + 10, 74, 0);
-      ctx.fill();
+    ctx.fillStyle = goldLight; ctx.font = "bold 23px sans-serif";
+    ctx.fillText("REGISTERED ATTENDEE", W / 2, dy); dy += 34;
 
-      // Gold top stripe on the name panel
-      ctx.fillStyle = gold;
-      ctx.fillRect(photoX - 5, nameBlockBottom, photoSize + 10, 6);
-
-      // Name text — large, bold, white
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `900 54px serif`;
-      ctx.fillText(name.toUpperCase(), W / 2, nameBlockBottom + 56);
-
-      nameBlockBottom += 88;
-    }
-
-    // "I will be attending" badge
-    const badgeY = nameBlockBottom + 18;
-    ctx.fillStyle = "rgba(212,160,23,0.28)";
-    ctx.beginPath(); ctx.roundRect(W / 2 - 300, badgeY, 600, 54, 27); ctx.fill();
-    ctx.strokeStyle = gold; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(W / 2 - 300, badgeY, 600, 54, 27); ctx.stroke();
-    ctx.fillStyle = goldLight; ctx.font = `bold 23px sans-serif`;
-    ctx.fillText("🙋  I WILL BE ATTENDING — JOIN ME!", W / 2, badgeY + 36);
-
-    // Divider into bottom section
-    const midEnd = badgeY + 72;
-    ctx.strokeStyle = gold; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(120, midEnd); ctx.lineTo(W - 120, midEnd); ctx.stroke();
-
-    // ════════════════════════════════════════════════════════════════
-    // SECTION 3 — BOTTOM: Crusade Info (Y: midEnd – H)
-    // ════════════════════════════════════════════════════════════════
-    let y = midEnd + 58;
-
-    ctx.fillStyle = goldLight; ctx.font = `bold 66px serif`;
-    ctx.fillText("WARRI CITY", W / 2, y);
-    y += 72;
-
-    ctx.fillStyle = "#ffffff"; ctx.font = `bold 58px serif`;
-    ctx.fillText("CRUSADE 2026", W / 2, y);
-    y += 50;
-
-    ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.font = `italic 24px serif`;
-    ctx.fillText("Prophet Amos Global Crusade", W / 2, y);
-    y += 48;
-
-    ctx.fillStyle = gold; ctx.font = `italic 22px serif`;
-    ["\u201cBe Ready For Rapture:", "Tribulation Is Coming!", "Run For Your Soul!\u201d"].forEach((line) => {
-      ctx.fillText(line, W / 2, y); y += 30;
-    });
-    y += 14;
+    ctx.fillStyle = "rgba(255,255,255,0.48)"; ctx.font = "21px sans-serif";
+    ctx.fillText("2-Day Open-Air Crusade  ·  Warri, Delta State", W / 2, dy); dy += 50;
 
     // Details panel
-    ctx.fillStyle = "rgba(255,255,255,0.07)";
-    ctx.beginPath(); ctx.roundRect(80, y, W - 160, 168, 16); ctx.fill();
-    ctx.strokeStyle = "rgba(212,160,23,0.25)"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(80, y, W - 160, 168, 16); ctx.stroke();
-    y += 36;
+    const panelH = 210;
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.beginPath(); ctx.roundRect(72, dy, W - 144, panelH, 18); ctx.fill();
+    ctx.strokeStyle = "rgba(212,160,23,0.22)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(72, dy, W - 144, panelH, 18); ctx.stroke();
+    dy += 44;
 
-    ctx.fillStyle = "#ffffff"; ctx.font = `bold 28px sans-serif`;
-    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, y); y += 38;
+    ctx.fillStyle = white; ctx.font = "bold 30px sans-serif";
+    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, dy); dy += 48;
 
-    ctx.fillStyle = gold; ctx.font = `24px sans-serif`;
-    ctx.fillText("⏰  6:00 PM Daily  ·  WAT", W / 2, y); y += 34;
+    ctx.fillStyle = gold; ctx.font = "25px sans-serif";
+    ctx.fillText("⏰  6:00 PM Daily  ·  West Africa Time", W / 2, dy); dy += 42;
 
-    ctx.fillStyle = "#ffffff"; ctx.font = `21px sans-serif`;
-    ctx.fillText("📍 Ighogbadu Primary School, Okumagba Ave, Warri", W / 2, y); y += 34;
+    ctx.fillStyle = "rgba(255,255,255,0.68)"; ctx.font = "22px sans-serif";
+    ctx.fillText("📍  Ighogbadu Primary School, Warri", W / 2, dy); dy += 42;
 
-    ctx.fillStyle = gold; ctx.font = `bold 20px sans-serif`;
-    ctx.fillText(`📞 ${CONTACT}  ·  jctm.church`, W / 2, y); y += 36;
+    ctx.fillStyle = goldLight; ctx.font = "bold 21px sans-serif";
+    ctx.fillText(`📞 ${CONTACT}  ·  jctm.org.ng`, W / 2, dy);
 
-    ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `18px sans-serif`;
-    ctx.fillText("#WarriCrusade2026  ·  #ProphetAmos  ·  Free Admission", W / 2, H - 50);
+    // Bottom hashtags
+    ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.font = "18px sans-serif";
+    ctx.fillText("#WarriCrusade2026  ·  #ProphetAmos  ·  Free Admission", W / 2, H - 44);
 
     setGenerated(true);
   }, [name, photo]);
