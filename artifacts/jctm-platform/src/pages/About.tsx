@@ -64,6 +64,8 @@ const VIEWING_CENTRES = [
   { name: "Bro Ogbonna Nwaokoro",            location: "Abia",             phone: null },
   { name: "Bro Lumi Istifanus",             location: "Lagos",            phone: "07040689542" },
   { name: "Bro Stephen Bassey",             location: "Akwa Ibom",        phone: "08123451718" },
+  { name: "Evang. Joel Uchechukwu John",    location: "Abia – Umuahia",   phone: "08038501555" },
+  { name: "Evang. Josiah Anfofun",          location: "Benue – Makurdi",  phone: "07032818130" },
 ];
 
 const staggerContainer = {
