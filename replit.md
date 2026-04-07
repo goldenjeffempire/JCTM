@@ -65,6 +65,22 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 **Leader**: Prophet Amos Evomobor
 **Mission**: Primitive Christianity, Holiness, and the Correction Mandate
 
+### Warri City Crusade 2026 (`/crusade`)
+Full dedicated event landing page for the Prophet Amos Global Crusade (April 30 – May 1, 2026).
+- **Live Countdown Timer** — Animated flip-card countdown to April 30th 6PM WAT; auto-shows "Live Now" when crusade starts
+- **RSVP Registration** — "I Will Attend" magnetic form storing data in `crusade_registrations` DB table; live attendee counter
+- **Add to Calendar** — One-click Google, Apple (.ics), and Outlook links
+- **Interactive Map** — Google Maps iframe embed for Ighogbadu Primary School, Okumagba Avenue, Warri
+- **Automated Ad Copy Generator** — 3 platform-specific versions (Short/Medium/Long) for Instagram, Facebook, YouTube with copy-to-clipboard
+- **Shareable Invite Card** — HTML5 Canvas generator; user types their name, downloads/shares a branded 1080×1080 PNG invite
+- **YouTube Ad Banner** — `CrusadeAdBanner` component embedded on sermon detail pages (dismissable overlay)
+- **Browser Push Notifications** — Permission-based scheduling: 7 days, 24 hours, 1 hour before crusade start
+- **Social Share Buttons** — WhatsApp, Facebook, X/Twitter one-click deep-link sharing
+- **SEO** — Page title, meta description targeting Prophet Amos, Rapture Crusade 2026, JCTM keywords
+- **Navbar** — Gold-highlighted `🔥 Crusade` link in main navigation
+- **DB Table**: `crusade_registrations` (full_name, email, phone, city, will_attend)
+- **API Routes**: `POST /api/crusade/register`, `GET /api/crusade/count`
+
 ### Features
 - **Sermon Hub** — 20 latest YouTube sermons (Uploads Playlist API), filters Shorts, hqdefault thumbnails, Watch on YouTube links
 - **TempleBots AI** — Floating chat widget powered by OpenAI via Replit integration

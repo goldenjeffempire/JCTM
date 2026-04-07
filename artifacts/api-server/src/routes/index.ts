@@ -10,6 +10,7 @@ import authRouter from "./auth";
 import chatRouter from "./chat";
 import livestreamRouter from "./livestream";
 import altarRouter from "./altar";
+import crusadeRouter from "./crusade";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(authRouter);
 router.use(chatRouter);
 router.use(livestreamRouter);
 router.use(altarRouter);
+router.use(crusadeRouter);
 
 export default router;

@@ -7,6 +7,7 @@ import { Volume2, VideoIcon, ArrowLeft, Calendar, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
+import { CrusadeAdBanner } from "@/pages/Crusade";
 
 export default function SermonDetail() {
   const params = useParams<{ id: string }>();
@@ -87,8 +88,13 @@ export default function SermonDetail() {
             )}
           </div>
 
+          {/* Crusade Ad Banner */}
+          <div className="mb-6 rounded-2xl overflow-hidden shadow-lg">
+            <CrusadeAdBanner />
+          </div>
+
           {/* Media Player */}
-          <div className="rounded-2xl overflow-hidden mb-8 shadow-lg">
+          <div className="rounded-2xl overflow-hidden mb-8 shadow-lg relative">
             {audioMode ? (
               <div className="aspect-video bg-primary flex flex-col items-center justify-center gap-6">
                 <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center">

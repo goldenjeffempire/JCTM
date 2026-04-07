@@ -10,6 +10,7 @@ const navItems = [
   { href: "/testimonies", label: "Testimonies" },
   { href: "/correction-timeline", label: "Timeline" },
   { href: "/events", label: "Events" },
+  { href: "/crusade", label: "🔥 Crusade", highlight: true },
   { href: "/give", label: "Give" },
   { href: "/join", label: "Join" },
   { href: "/about", label: "About" },
@@ -69,18 +70,31 @@ export function Navbar() {
           </div>
         </Link>
 
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-5">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <div className={`relative text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${location === item.href ? "text-accent" : "text-primary/80"}`}>
-                {item.label}
-                {location === item.href && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
-                  />
-                )}
-              </div>
+              {item.highlight ? (
+                <div
+                  className="relative text-sm font-bold cursor-pointer px-3 py-1 rounded-full transition-all"
+                  style={{
+                    background: location === item.href ? "#D4A017" : "rgba(212,160,23,0.12)",
+                    color: location === item.href ? "#0a1a4a" : "#D4A017",
+                    border: "1px solid rgba(212,160,23,0.4)",
+                  }}
+                >
+                  {item.label}
+                </div>
+              ) : (
+                <div className={`relative text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${location === item.href ? "text-accent" : "text-primary/80"}`}>
+                  {item.label}
+                  {location === item.href && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
+                    />
+                  )}
+                </div>
+              )}
             </Link>
           ))}
         </div>
@@ -126,11 +140,18 @@ export function Navbar() {
                 >
                   <Link href={item.href}>
                     <div
-                      className={`text-sm font-medium transition-colors hover:text-accent cursor-pointer py-3 px-3 rounded-lg ${
-                        location === item.href
+                      className={`text-sm font-medium transition-colors cursor-pointer py-3 px-3 rounded-lg ${
+                        item.highlight
+                          ? "font-bold"
+                          : location === item.href
                           ? "text-accent bg-accent/5"
-                          : "text-primary hover:bg-primary/5"
+                          : "text-primary hover:text-accent hover:bg-primary/5"
                       }`}
+                      style={item.highlight ? {
+                        color: "#D4A017",
+                        background: "rgba(212,160,23,0.1)",
+                        border: "1px solid rgba(212,160,23,0.3)",
+                      } : undefined}
                       onClick={() => setIsOpen(false)}
                     >
                       {item.label}
