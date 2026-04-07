@@ -148,7 +148,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
 
     // Extract YouTube links mentioned in the reply as source citations.
     const ytMatches = reply.match(/https:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g);
-    const sources: string[] = ytMatches ? [...new Set(ytMatches)] : [];
+    const sources: string[] = ytMatches ? Array.from(new Set<string>(ytMatches)) : [];
 
     res.json(
       ChatWithTempleBotsResponse.parse({ reply, sessionId: newSessionId, sources }),

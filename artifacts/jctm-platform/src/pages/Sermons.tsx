@@ -119,17 +119,14 @@ export default function Sermons() {
   };
 
   const handleSync = () => {
-    syncMutation.mutate(
-      { data: {} },
-      {
-        onSuccess: (data) => {
-          toast.success((data as { message?: string }).message ?? "Sync complete");
-          loadFirstPage(debouncedSearch);
-          refetchStats();
-        },
-        onError: () => toast.error("Sync failed — check YouTube API key"),
-      }
-    );
+    syncMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        toast.success((data as { message?: string }).message ?? "Sync complete");
+        loadFirstPage(debouncedSearch);
+        refetchStats();
+      },
+      onError: () => toast.error("Sync failed — check YouTube API key"),
+    });
   };
 
   const handleHarvest = async () => {
