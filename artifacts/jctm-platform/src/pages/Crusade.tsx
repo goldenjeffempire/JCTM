@@ -453,59 +453,56 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     const photoBottom = photoY + photoSize;     // 798
 
     const drawPhoto = async () => {
+      // ── Dark backing always visible inside frame (like the reference) ──
+      ctx.fillStyle = "#06091e";
+      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.fill();
+
+      // ── Outer neon cyan glow ring (strong, like reference) ────────────
+      ctx.shadowColor = "rgba(0,220,255,0.95)"; ctx.shadowBlur = 40;
+      ctx.strokeStyle = "#00d4ff"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(photoX - 18, photoY - 18, photoSize + 36, photoSize + 36, 32); ctx.stroke();
+      // Second pass for extra glow intensity
+      ctx.shadowBlur = 70;
+      ctx.beginPath(); ctx.roundRect(photoX - 18, photoY - 18, photoSize + 36, photoSize + 36, 32); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+      // ── Inner subtle border (slightly lighter cyan) ───────────────────
+      ctx.strokeStyle = "rgba(0,210,255,0.4)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(photoX - 6, photoY - 6, photoSize + 12, photoSize + 12, 24); ctx.stroke();
+
+      // ── Corner bracket accents ────────────────────────────────────────
+      const cl = 44, pad = 20;
+      ctx.strokeStyle = "#00d4ff"; ctx.lineWidth = 4; ctx.lineCap = "square";
+      ctx.shadowColor = "rgba(0,220,255,0.8)"; ctx.shadowBlur = 12;
+      const x1 = photoX - pad, y1 = photoY - pad;
+      const x2 = photoX + photoSize + pad, y2 = photoBottom + pad;
+      ctx.beginPath(); ctx.moveTo(x1, y1 + cl); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cl, y1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2 - cl, y1); ctx.lineTo(x2, y1); ctx.lineTo(x2, y1 + cl); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, y2 - cl); ctx.lineTo(x1, y2); ctx.lineTo(x1 + cl, y2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2 - cl, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - cl); ctx.stroke();
+      ctx.lineCap = "butt"; ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
       if (photo) {
         await new Promise<void>((resolve) => {
           const img = new Image();
           img.onload = () => {
             const iw = img.naturalWidth || img.width || 1;
             const ih = img.naturalHeight || img.height || 1;
-
-            // Outer cyan glow ring
-            ctx.shadowColor = "rgba(77,200,255,0.75)"; ctx.shadowBlur = 55;
-            ctx.strokeStyle = cyan; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 30); ctx.stroke();
-            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-
-            // Gold inner border
-            ctx.strokeStyle = goldLight; ctx.lineWidth = 7;
-            ctx.beginPath(); ctx.roundRect(photoX - 7, photoY - 7, photoSize + 14, photoSize + 14, 22); ctx.stroke();
-
-            // Cover-fit — fills the square fully, no background gap
+            // Contain-fit — full image on dark background (matches reference style)
             ctx.save();
-            ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.clip();
-            const scale = Math.max(photoSize / iw, photoSize / ih);
+            ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.clip();
+            const scale = Math.min(photoSize / iw, photoSize / ih);
             const dw = iw * scale, dh = ih * scale;
             ctx.drawImage(img, photoX + (photoSize - dw) / 2, photoY + (photoSize - dh) / 2, dw, dh);
             ctx.restore();
-
-            // Corner bracket accents
-            const cl = 50, pad = 22;
-            ctx.strokeStyle = cyan; ctx.lineWidth = 4; ctx.lineCap = "square";
-            const x1 = photoX - pad, y1 = photoY - pad;
-            const x2 = photoX + photoSize + pad, y2 = photoBottom + pad;
-            ctx.beginPath(); ctx.moveTo(x1, y1 + cl); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cl, y1); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x2 - cl, y1); ctx.lineTo(x2, y1); ctx.lineTo(x2, y1 + cl); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x1, y2 - cl); ctx.lineTo(x1, y2); ctx.lineTo(x1 + cl, y2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x2 - cl, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - cl); ctx.stroke();
-            ctx.lineCap = "butt";
-
             resolve();
           };
           img.onerror = () => resolve();
           img.src = photo;
         });
       } else {
-        // Placeholder — dark backing only shown when no photo
-        ctx.fillStyle = "#060e2a";
-        ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.fill();
-        ctx.shadowColor = "rgba(77,200,255,0.6)"; ctx.shadowBlur = 40;
-        ctx.strokeStyle = cyan; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 30); ctx.stroke();
-        ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-        ctx.strokeStyle = goldLight; ctx.lineWidth = 7;
-        ctx.beginPath(); ctx.roundRect(photoX - 7, photoY - 7, photoSize + 14, photoSize + 14, 22); ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.font = "110px sans-serif";
-        ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 42);
+        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.font = "100px sans-serif";
+        ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 38);
       }
     };
     await drawPhoto();
