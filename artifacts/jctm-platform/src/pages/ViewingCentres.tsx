@@ -15,6 +15,7 @@ const VIEWING_CENTRES = [
   { name: "Bro Ipanya Odonemero",                    location: "Delta – Oleh",     phone: "09138513281" },
   { name: "Bro Odiete Onoriode",                     location: "Delta – Abraka",   phone: "08034430378" },
   { name: "Bro Victor Udekwe",                       location: "Delta – Kwale",    phone: "07087707817" },
+  { name: "Bro Chikwado Martins",                    location: "Delta – Asaba",    phone: "08063261415" },
   { name: "Bro Chikwado Martins / Bro Osita Emeka", location: "Edo",              phone: "08129409312" },
   { name: "Bro Joseph Ulankhoba",                    location: "Edo",              phone: "07032226903" },
   { name: "Bro Ifeadi Henry",                        location: "Anambra",          phone: "07036312885" },
