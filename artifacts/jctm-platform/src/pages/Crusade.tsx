@@ -16,6 +16,7 @@ const LOCATION = "Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South 
 const CONTACT = "+234(0)8081313111";
 const EVENT_TITLE = "Warri City Crusade 2026 — Prophet Amos Global Crusade";
 const EVENT_THEME = "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!";
+const CRUSADE_YT_VIDEO = "oJUkSAZu0y0";
 
 function useCountdown(target: Date) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, started: false });
@@ -136,6 +137,145 @@ Subscribe to JCTM Digital Sanctuary for live crusade updates, sermons, and testi
 #WarriCityCrusade2026 #ProphetAmosGlobalCrusade #BeReadyForRapture #TribulationIsComing #JesusChristTempleMinistry #EndTimes #Rapture2026 #WarriForJesus #DeltaStateRevival`,
   },
 };
+
+function FlyerShowcase() {
+  const shareText = encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State\n\n📞 ${CONTACT}\n🌐 www.jctmng.org\n\n#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`);
+  const shareUrl = encodeURIComponent("https://jctm.church/crusade");
+  const platforms = [
+    { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${shareText}` },
+    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}&quote=${shareText}` },
+    { label: "X / Twitter", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}` },
+    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${shareUrl}&text=${shareText}` },
+    { label: "Instagram", emoji: "📷", bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)", href: "https://www.instagram.com/templetv.jctm/" },
+  ];
+
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = "/warri-crusade-flyer2.jpeg";
+    link.download = "warri-city-crusade-2026-flyer.jpeg";
+    link.click();
+    toast.success("Flyer downloaded! Share it everywhere — WhatsApp, Facebook, Instagram.");
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+      className="mb-14 rounded-3xl overflow-hidden border-2 group relative"
+      style={{ borderColor: "rgba(212,160,23,0.6)" }}
+    >
+      <img
+        src="/warri-crusade-flyer2.jpeg"
+        alt="Warri City Crusade 2026 — Official Event Flyer"
+        className="w-full object-cover group-hover:scale-105 transition-transform duration-700"
+        style={{ maxHeight: "600px", objectPosition: "center top" }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#020b2a] via-[#020b2a]/30 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+        <p className="text-yellow-400 text-xs font-bold uppercase tracking-[0.25em] mb-4 flex items-center gap-2">
+          <Share2 className="h-3.5 w-3.5" />
+          Official Flyer — Share on All Platforms
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          {platforms.map(p => (
+            <a
+              key={p.label}
+              href={p.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
+              style={{ background: p.bg }}
+            >
+              <span>{p.emoji}</span>
+              <span className="hidden sm:inline">{p.label}</span>
+            </a>
+          ))}
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg border-2"
+            style={{ borderColor: "#D4A017", color: "#FFD700", background: "rgba(212,160,23,0.12)" }}
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Download Flyer</span>
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function CrusadeVideoLoop() {
+  const videoShareText = encodeURIComponent(`🔥 Watch the official Warri City Crusade 2026 promo!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026 · 6PM Daily\n📍 Ighogbadu Primary School, Warri\n\nhttps://youtu.be/${CRUSADE_YT_VIDEO}\n\n#WarriCrusade2026 #ProphetAmos`);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.4 }}
+      className="mb-10 rounded-3xl overflow-hidden border border-yellow-400/20"
+      style={{ background: "rgba(10,26,74,0.7)" }}
+    >
+      <div className="p-6 border-b border-yellow-400/10">
+        <div className="flex items-center gap-3 mb-1">
+          <Youtube className="h-5 w-5 text-red-500" />
+          <h3 className="font-serif font-bold text-white text-xl">Warri Crusade 2026 — YouTube Ad (Running Now)</h3>
+          <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-bold uppercase tracking-widest">
+            <span className="h-2 w-2 bg-red-400 rounded-full animate-pulse" /> Live Promo
+          </span>
+        </div>
+        <p className="text-white/60 text-sm">The official crusade video uploaded to YouTube. Playing as a continuous ad — watch, share, and amplify the reach across all platforms.</p>
+      </div>
+      <div className="p-4">
+        <div className="rounded-2xl overflow-hidden shadow-2xl" style={{ aspectRatio: "16/9" }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${CRUSADE_YT_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_YT_VIDEO}&controls=1&rel=0&modestbranding=1`}
+            title="Warri City Crusade 2026 — Official Promo Video"
+            allow="autoplay; fullscreen; accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="w-full h-full"
+          />
+        </div>
+        <div className="flex flex-wrap gap-3 mt-5 justify-center">
+          <a
+            href={`https://www.youtube.com/watch?v=${CRUSADE_YT_VIDEO}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-red-600 hover:bg-red-700 transition-all hover:scale-105 shadow-lg"
+          >
+            <Youtube className="h-4 w-4" /> Watch Full Video
+          </a>
+          <a
+            href={`https://wa.me/?text=${videoShareText}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
+            style={{ background: "#25D366" }}
+          >
+            💬 Share on WhatsApp
+          </a>
+          <a
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://youtu.be/${CRUSADE_YT_VIDEO}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
+            style={{ background: "#1877F2" }}
+          >
+            👍 Share on Facebook
+          </a>
+          <a
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`🔥 "${EVENT_THEME}" — Watch the Warri City Crusade 2026 promo! Apr 30–May 1, Warri. #WarriCrusade2026`)}&url=https://youtu.be/${CRUSADE_YT_VIDEO}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-black hover:bg-gray-900 transition-all hover:scale-105 shadow-lg"
+          >
+            𝕏 Share on X
+          </a>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 function AdCopySection() {
   const [active, setActive] = useState<keyof typeof AD_COPIES>("medium");
@@ -742,6 +882,9 @@ export default function Crusade() {
             </div>
           </motion.div>
 
+          {/* Official Flyer with Social Sharing */}
+          <FlyerShowcase />
+
           {/* Countdown */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -844,6 +987,9 @@ export default function Crusade() {
               </div>
             </motion.div>
           </div>
+
+          {/* YouTube Crusade Promo Loop */}
+          <CrusadeVideoLoop />
 
           {/* Ad Copy Generator */}
           <motion.div
