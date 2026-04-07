@@ -14,16 +14,20 @@ const router: IRouter = Router();
 router.get("/sermons/websub", (req, res): void => {
   const challenge = req.query["hub.challenge"];
   const mode = req.query["hub.mode"];
+  const topic = req.query["hub.topic"];
 
-  if (mode === "subscribe" || mode === "unsubscribe") {
-    if (typeof challenge === "string") {
-      req.log.info({ mode }, "WebSub hub verification passed");
-      res.status(200).send(challenge);
-      return;
-    }
+  req.log.info({ mode, topic, hasChallenge: typeof challenge === "string" }, "WebSub verification request received");
+
+  // Per the WebSub spec the only requirement is to echo back hub.challenge.
+  // Accept it regardless of whether hub.mode is present — some hubs omit it.
+  if (typeof challenge === "string" && challenge.length > 0) {
+    req.log.info({ mode }, "WebSub hub verification passed");
+    res.status(200).send(challenge);
+    return;
   }
 
-  res.status(400).json({ error: "Invalid WebSub verification request" });
+  req.log.warn({ query: req.query }, "WebSub verification missing hub.challenge");
+  res.status(400).json({ error: "Missing hub.challenge parameter" });
 });
 
 /**
