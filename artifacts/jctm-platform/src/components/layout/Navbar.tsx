@@ -51,11 +51,12 @@ export function Navbar() {
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
             <motion.img
-              src="/jctm-logo.jpeg"
+              src="/jctm-logo-sm.jpeg"
               alt="JCTM — Jesus Christ Temple Ministry"
               animate={{ height: scrolled ? 32 : 40, width: scrolled ? 32 : 40 }}
               transition={{ duration: 0.3 }}
               className="rounded-full object-cover shadow ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all duration-200"
+              decoding="async"
             />
             <div className="hidden sm:flex flex-col leading-tight">
               <motion.span

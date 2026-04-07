@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
-import prophetAmosImg from "@/assets/prophet-amos-evomobor.png";
+const prophetAmosImg = "/founder/DSC_0615.jpg";
 
 const DOCTRINES = [
   {
@@ -99,6 +99,8 @@ export default function About() {
                     alt="Prophet Amos Evomobor — General Overseer, JCTM"
                     className="relative w-56 md:w-full md:h-full object-cover object-top rounded-2xl md:rounded-none shadow-2xl"
                     style={{ maxHeight: "420px" }}
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>

@@ -170,6 +170,8 @@ function FlyerShowcase() {
         alt="Warri City Crusade 2026 — Official Event Flyer"
         className="w-full object-cover group-hover:scale-105 transition-transform duration-700"
         style={{ maxHeight: "600px", objectPosition: "center top" }}
+        loading="lazy"
+        decoding="async"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#020b2a] via-[#020b2a]/30 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">

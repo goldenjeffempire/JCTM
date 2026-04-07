@@ -63,9 +63,11 @@ export function Footer() {
           <div className="md:col-span-2">
             <div className="flex items-center gap-4 mb-5">
               <img
-                src="/jctm-logo.jpeg"
+                src="/jctm-logo-sm.jpeg"
                 alt="JCTM Official Logo"
                 className="h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-red-500/20"
+                loading="lazy"
+                decoding="async"
               />
               <div>
                 <h3 className="font-serif font-bold text-xl leading-tight">Jesus Christ Temple Ministry</h3>

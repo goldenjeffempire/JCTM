@@ -241,12 +241,12 @@ function KineticHeadline({ lines }: { lines: { text: string; gradient?: boolean 
 // HERO — Cinematic Multi-Image Sanctuary: Immersive Full-Viewport
 // ═══════════════════════════════════════════════════════════════════════════
 const HERO_IMAGES = [
-  { key: "img1", src: "/DSC_0615.jpg", label: "Ministry", tag: "Service", title: "Ministry in Action", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img2", src: "/DSC_0649.jpg", label: "Fellowship", tag: "Community", title: "Fellowship & Community", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img3", src: "/DSC1657.jpg", label: "Worship", tag: "Praise", title: "Corporate Worship", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img4", src: "/DSC1671.jpg", label: "Crusade", tag: "Outreach", title: "Crusade & Evangelism", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img5", src: "/DSC1743.jpg", label: "Preaching", tag: "Ministry", title: "The Preaching Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img6", src: "/DSC1774.jpg", label: "Prayer", tag: "Intercession", title: "Intercession & Prayer", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img1", src: "/founder/DSC_0615.jpg", label: "Ministry", tag: "Service", title: "Ministry in Action", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img2", src: "/founder/DSC_0649.jpg", label: "Fellowship", tag: "Community", title: "Fellowship & Community", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img3", src: "/founder/DSC1657.jpg", label: "Worship", tag: "Praise", title: "Corporate Worship", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach", title: "Crusade & Evangelism", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry", title: "The Preaching Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img6", src: "/founder/DSC1774.jpg", label: "Prayer", tag: "Intercession", title: "Intercession & Prayer", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
 ];
 
 function HeroSection() {
@@ -323,7 +323,7 @@ function HeroSection() {
             >
               <div className="absolute -inset-6 rounded-[3rem] blur-3xl opacity-40" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.5), rgba(0,51,102,0.4))" }} />
               <div className="relative rounded-[2.5rem] overflow-hidden border-2 border-white/20 shadow-2xl">
-                <img src={lightboxImg.src} alt={lightboxImg.title} className="w-full object-cover object-center max-h-[70vh]" />
+                <img src={lightboxImg.src} alt={lightboxImg.title} className="w-full object-cover object-center max-h-[70vh]" loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/90 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-7">
                   <p className="text-accent text-[10px] font-bold uppercase tracking-widest mb-1">Jesus Christ Temple Ministry</p>
@@ -344,7 +344,7 @@ function HeroSection() {
                     whileHover={{ scale: 1.06 } as never}
                     className={`relative h-12 w-10 rounded-xl overflow-hidden border-2 transition-all ${lightbox === img.key ? "border-accent shadow-lg shadow-accent/30" : "border-white/20 opacity-60 hover:opacity-90"}`}
                   >
-                    <img src={img.src} alt={img.label} className="w-full h-full object-cover" />
+                    <img src={img.src} alt={img.label} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   </motion.button>
                 ))}
               </div>
@@ -401,7 +401,7 @@ function HeroSection() {
                 onMouseEnter={() => setImgHovered(img.key)}
                 onMouseLeave={() => setImgHovered(null)}
               >
-                <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-700" style={{ transform: imgHovered === img.key ? "scale(1.12)" : "scale(1)" }} />
+                <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-700" style={{ transform: imgHovered === img.key ? "scale(1.12)" : "scale(1)" }} loading="eager" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
                 <motion.div animate={{ opacity: imgHovered === img.key ? 1 : 0 }} transition={{ duration: 0.2 }} className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
@@ -432,7 +432,7 @@ function HeroSection() {
             <motion.div initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }} className="relative">
               <motion.div animate={{ scale: [1, 1.16, 1], opacity: [0.25, 0.55, 0.25] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-full blur-2xl scale-150" style={{ background: "rgba(56,189,248,0.32)" }} />
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 30, repeat: Infinity, ease: "linear" }} className="absolute -inset-2 rounded-full opacity-40" style={{ background: "conic-gradient(from 0deg, rgba(56,189,248,0.6), transparent, rgba(0,51,102,0.4), transparent, rgba(56,189,248,0.6))" }} />
-              <img src="/jctm-logo.jpeg" alt="JCTM" className="relative h-28 w-28 rounded-full object-cover ring-4 ring-white/80 shadow-2xl" style={{ boxShadow: "0 0 60px rgba(56,189,248,0.3), 0 20px 60px rgba(0,51,102,0.16)" }} />
+              <img src="/jctm-logo-sm.jpeg" alt="JCTM" className="relative h-28 w-28 rounded-full object-cover ring-4 ring-white/80 shadow-2xl" style={{ boxShadow: "0 0 60px rgba(56,189,248,0.3), 0 20px 60px rgba(0,51,102,0.16)" }} decoding="async" />
             </motion.div>
           </motion.div>
 
@@ -532,7 +532,7 @@ function HeroSection() {
                   className="group relative flex flex-col items-center gap-1.5"
                 >
                   <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg transition-all duration-300 group-hover:border-accent/60 group-hover:shadow-accent/20 group-hover:shadow-xl">
-                    <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/70 via-transparent to-transparent" />
                     <motion.div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <div className="bg-white/25 backdrop-blur-sm rounded-full p-1.5">
@@ -588,7 +588,7 @@ function HeroSection() {
                 onMouseEnter={() => setImgHovered(img.key)}
                 onMouseLeave={() => setImgHovered(null)}
               >
-                <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-700" style={{ transform: imgHovered === img.key ? "scale(1.12)" : "scale(1)" }} />
+                <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-700" style={{ transform: imgHovered === img.key ? "scale(1.12)" : "scale(1)" }} loading="eager" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
                 <motion.div animate={{ opacity: imgHovered === img.key ? 1 : 0 }} transition={{ duration: 0.2 }} className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
@@ -736,6 +736,8 @@ function BentoGrid() {
                               src={sermon.thumbnailUrl}
                               alt={sermon.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                              loading="lazy"
+                              decoding="async"
                               onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/20 to-transparent" />
@@ -1057,7 +1059,8 @@ function ProphetSection() {
               {founderPhotos.map((photo) =>
                 activePhoto === photo.key ? (
                   <motion.img key={photo.key} src={photo.src} alt="Prophet Amos Evomobor" className="w-full h-full object-cover object-top absolute inset-0"
-                    initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} />
+                    initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                    loading="lazy" decoding="async" />
                 ) : null
               )}
             </AnimatePresence>
@@ -1083,7 +1086,7 @@ function ProphetSection() {
                 whileTap={{ scale: 0.95 } as never}
                 className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-lg ${activePhoto === key ? "border-accent shadow-accent/30" : "border-white/30 hover:border-white/60"}`}
               >
-                <img src={src} alt={label} className="w-full h-full object-cover object-top" />
+                <img src={src} alt={label} className="w-full h-full object-cover object-top" loading="lazy" decoding="async" />
                 <div className={`absolute inset-0 transition-opacity duration-300 ${activePhoto === key ? "opacity-0" : "opacity-40 bg-[#001830]"}`} />
                 {activePhoto === key && <div className="absolute top-1 right-1 h-2 w-2 bg-accent rounded-full animate-pulse" />}
               </motion.button>
@@ -1311,7 +1314,7 @@ function SermonSpotlight() {
                     ) : (
                       <>
                         <div className="aspect-video relative overflow-hidden">
-                          <img src={sermon.thumbnailUrl} alt={sermon.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
+                          <img src={sermon.thumbnailUrl} alt={sermon.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
                           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
                           {(sermon as { isLive?: boolean }).isLive && (
                             <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full"><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-white" /></span>LIVE NOW</div>
@@ -1547,7 +1550,7 @@ function CrusadeInviteSection() {
             {/* Flyer image */}
             <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
               <div className="relative rounded-3xl overflow-hidden border-2 group shadow-2xl shadow-yellow-400/20" style={{ borderColor: "rgba(212,160,23,0.5)" }}>
-                <img src="/warri-crusade-flyer2.jpeg" alt="Warri City Crusade 2026 Flyer" className="w-full object-cover object-top group-hover:scale-105 transition-transform duration-700" style={{ maxHeight: "460px" }} />
+                <img src="/warri-crusade-flyer2.jpeg" alt="Warri City Crusade 2026 Flyer" className="w-full object-cover object-top group-hover:scale-105 transition-transform duration-700" style={{ maxHeight: "460px" }} loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#020b2a]/80 via-transparent to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <p className="text-yellow-400 text-[10px] font-bold uppercase tracking-widest mb-2">Share the Flyer</p>
@@ -1667,7 +1670,7 @@ function EventsSection() {
                       {/* Flyer image */}
                       {event.imageUrl ? (
                         <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" />
+                          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           <div className="absolute bottom-3 left-3">
                             <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>

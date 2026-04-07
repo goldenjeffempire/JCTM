@@ -366,7 +366,7 @@ export function TempleBots() {
                   className="relative h-14 w-14 rounded-full bg-accent hover:bg-accent/90 shadow-xl shadow-accent/30 p-0 overflow-hidden transition-all hover:scale-105"
                   aria-label="Open TempleBots chat"
                 >
-                  <img src="/jctm-logo.jpeg" alt="TempleBots" className="h-14 w-14 rounded-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  <img src="/jctm-logo-sm.jpeg" alt="TempleBots" className="h-14 w-14 rounded-full object-cover" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   <Bot className="h-6 w-6 text-white hidden absolute" />
                 </Button>
                 {(notification || whisper) && (
@@ -400,7 +400,7 @@ export function TempleBots() {
               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, rgba(56,189,248,0.5) 0%, transparent 60%)" }} />
               <div className="relative flex items-center gap-2.5">
                 <div className="relative">
-                  <img src="/jctm-logo.jpeg" alt="JCTM" className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20" />
+                  <img src="/jctm-logo-sm.jpeg" alt="JCTM" className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20" decoding="async" />
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-emerald-400 rounded-full border border-primary" />
                 </div>
                 <div className="leading-tight">
