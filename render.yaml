@@ -1,37 +1,86 @@
 services:
+  # ─────────────────────────────────────────────
+  # JCTM Platform – Web Service (API + SPA)
+  # ─────────────────────────────────────────────
   - type: web
     name: jctm-platform
     runtime: node
     region: oregon
     plan: standard
 
+    # ── Build ──────────────────────────────────
+    # 1. Pin pnpm, install workspace deps
+    # 2. Build the React/Vite SPA (outputs to artifacts/jctm-platform/dist/public)
+    # 3. Compile the Express API server (outputs to artifacts/api-server/dist)
     buildCommand: >
       npm install -g pnpm@10 &&
       pnpm install --no-frozen-lockfile &&
       PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build &&
       pnpm --filter @workspace/api-server run build
 
+    # ── Start ──────────────────────────────────
+    # Express serves both the API (/api/*) and the compiled SPA in production
     startCommand: pnpm --filter @workspace/api-server run start
 
+    # ── Health check ───────────────────────────
+    # Render pings this endpoint to determine instance health.
+    # Our handler probes PostgreSQL (+ Redis when configured) and returns
+    # 200 OK when all services are reachable, or 503 Degraded otherwise.
     healthCheckPath: /api/health
 
+    # ── Auto-scaling ───────────────────────────
+    # Scale from 1 to 8 instances during peak events (e.g. Warri City Crusade 2026).
+    # Render adds instances when CPU exceeds 65% or memory exceeds 75%.
     scaling:
       minInstances: 1
-      maxInstances: 5
-      targetMemoryPercent: 80
-      targetCPUPercent: 70
+      maxInstances: 8
+      targetMemoryPercent: 75
+      targetCPUPercent: 65
 
+    # ── Static asset caching headers ───────────
+    # Hashed Vite assets (/assets/*) are immutable – cache for 1 year.
+    # Images, logos, and media in /public are versioned by filename – cache 7 days.
+    # HTML and API responses must never be cached by the browser.
     headers:
+      # Vite-hashed JS/CSS bundles (filename contains content hash)
       - path: /assets/*
         name: Cache-Control
         value: "public, max-age=31536000, immutable"
+
+      # Media & logos uploaded to the public directory
+      - path: "/*.jpeg"
+        name: Cache-Control
+        value: "public, max-age=604800, stale-while-revalidate=86400"
+      - path: "/*.jpg"
+        name: Cache-Control
+        value: "public, max-age=604800, stale-while-revalidate=86400"
+      - path: "/*.png"
+        name: Cache-Control
+        value: "public, max-age=604800, stale-while-revalidate=86400"
+      - path: "/*.webp"
+        name: Cache-Control
+        value: "public, max-age=604800, stale-while-revalidate=86400"
+      - path: "/*.svg"
+        name: Cache-Control
+        value: "public, max-age=604800, stale-while-revalidate=86400"
+      - path: "/*.ico"
+        name: Cache-Control
+        value: "public, max-age=86400"
+
+      # HTML shell – always revalidate so the SPA entry point is fresh
       - path: /
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
-      - path: /*.html
+      - path: "/*.html"
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
 
+      # API responses must not be cached by intermediaries
+      - path: /api/*
+        name: Cache-Control
+        value: "no-store"
+
+    # ── Environment variables ───────────────────
     envVars:
       - key: NODE_ENV
         value: production
@@ -39,35 +88,51 @@ services:
       - key: BASE_PATH
         value: /
 
+      # Render assigns port 10000 to the process automatically
       - key: PORT
         value: 10000
 
       - key: LOG_LEVEL
         value: info
 
+      # Redis connection injected automatically from the jctm-redis service below
       - key: REDIS_URL
         fromService:
           type: redis
           name: jctm-redis
           property: connectionString
 
-      # Set this to your Neon PostgreSQL connection string in the Render dashboard
+      # ── Secrets – set these in the Render dashboard, not here ──────────
+      # Neon PostgreSQL connection string  (Settings → Environment → Add Secret File)
       - key: DATABASE_URL
         sync: false
 
+      # YouTube Data API v3 key for sermon syncing
       - key: YOUTUBE_API_KEY
         sync: false
 
+      # Paystack secret key for donation processing
       - key: PAYSTACK_SECRET_KEY
         sync: false
 
-      # Set OPENAI_API_KEY to your OpenAI key in the Render dashboard
+      # OpenAI API key for TempleBot / sermon summarisation
       - key: OPENAI_API_KEY
         sync: false
 
+      # Random 64-char string used to sign session cookies
+      # Generate with: openssl rand -hex 32
+      - key: SESSION_SECRET
+        sync: false
+
+  # ─────────────────────────────────────────────
+  # Redis – session store, rate-limit counters,
+  # and SSE broadcast fan-out cache
+  # ─────────────────────────────────────────────
   - type: redis
     name: jctm-redis
     region: oregon
     plan: starter
+    # Evict least-recently-used keys when memory is full
     maxmemoryPolicy: allkeys-lru
+    # Only the jctm-platform service may connect
     ipAllowList: []
