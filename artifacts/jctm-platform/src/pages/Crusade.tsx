@@ -926,6 +926,7 @@ export default function Crusade() {
   const countdown = useCountdown(CRUSADE_START);
   const [attendCount, setAttendCount] = useState<number | null>(null);
   const [rsvpName, setRsvpName] = useState("");
+  const [rsvpPhoto, setRsvpPhoto] = useState<string | null>(null);
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
   useEffect(() => {
@@ -1097,7 +1098,7 @@ export default function Crusade() {
                 <p className="text-white/50 text-sm">Let the ministry know you&apos;re coming. Free entry for all.</p>
               </div>
               <div className="p-6 space-y-5">
-                <RSVPForm onSuccess={setRsvpName} />
+                <RSVPForm onSuccess={(name, photo) => { setRsvpName(name); setRsvpPhoto(photo); }} />
                 <NotificationManager />
                 <AddToCalendar />
               </div>
@@ -1164,7 +1165,7 @@ export default function Crusade() {
             transition={{ duration: 0.7, delay: 0.6 }}
             className="mb-12"
           >
-            <InviteCardGenerator />
+            <InviteCardGenerator initialName={rsvpName} initialPhoto={rsvpPhoto} />
           </motion.div>
 
           {/* YouTube Ad Banner Preview */}
