@@ -474,10 +474,10 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
             ctx.strokeStyle = goldLight; ctx.lineWidth = 7;
             ctx.beginPath(); ctx.roundRect(photoX - 7, photoY - 7, photoSize + 14, photoSize + 14, 22); ctx.stroke();
 
-            // Photo (contain-fit — full image, no cropping)
+            // Cover-fit — fills the square fully, no background gap
             ctx.save();
             ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.clip();
-            const scale = Math.min(photoSize / iw, photoSize / ih);
+            const scale = Math.max(photoSize / iw, photoSize / ih);
             const dw = iw * scale, dh = ih * scale;
             ctx.drawImage(img, photoX + (photoSize - dw) / 2, photoY + (photoSize - dh) / 2, dw, dh);
             ctx.restore();
