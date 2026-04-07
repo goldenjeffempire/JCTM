@@ -28,7 +28,15 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Project: JCTM Digital Sanctuary
 
-### Homepage Structure (Home.tsx — 16 sections)
+### New Features Added (April 2026 Enhancement Sprint)
+- **Global Altar SSE Counter** — `/api/altar/stream` SSE endpoint tracks live worshippers; `GlobalAltar.tsx` component with animated spring counter, region flags, pulsing rings, trend arrows
+- **Interactive Mandate Map** — `MandateMap.tsx` SVG-based world map with 11 glow points (Warri HQ + global hubs), travelling pulse animations, connection lines, hover tooltips showing flag + reach stats
+- **TikTok-style Testimony Reel** — `Testimonies.tsx` now has Grid/Reel toggle; Reel view shows snap-scroll vertical cards with gradient backgrounds, Amen fire buttons, category badges
+- **Predictive TempleBots Hover Whispers** — listens to `jctm:hover-enter` custom events dispatched on section hover (giving, altar, sermons, testimony); shows whisper tooltip with auto-dismiss timer bar
+- **Enhanced Glassmorphism** — `index.css` new `.glass-dark`, `.glass-panel` enhanced, `.altar-glow`, `.scrollbar-hide`, `.bento-card-hover`, `.reel-card-enter`, `.glow-dot` animations
+- Custom events architecture: `jctm:section-enter` (scroll-based), `jctm:hover-enter` / `jctm:hover-leave` (hover-based) for cross-component communication
+
+### Homepage Structure (Home.tsx — 17 sections)
 1. **HeroSection** — Layered parallax, typewriter subtitle cycling ministry themes, floating metric pills (479+ sermons, 40+ nations, 25 years), floating orb particles, magnetic CTA buttons
 2. **PlatformBar** — Social proof strip: Temple TV (YouTube), Facebook, Temple TV Broadcast, Global Nations
 3. **BentoGrid** — 5-card asymmetric layout: Featured Sermon (large), Live Countdown, Testimony of Day, Impact Numbers mini-card

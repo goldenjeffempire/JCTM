@@ -9,6 +9,7 @@ import membersRouter from "./members";
 import authRouter from "./auth";
 import chatRouter from "./chat";
 import livestreamRouter from "./livestream";
+import altarRouter from "./altar";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(membersRouter);
 router.use(authRouter);
 router.use(chatRouter);
 router.use(livestreamRouter);
+router.use(altarRouter);
 
 export default router;

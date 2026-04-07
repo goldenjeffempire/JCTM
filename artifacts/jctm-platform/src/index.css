@@ -294,3 +294,96 @@
   background-size: 200% auto;
   animation: gradient-shift 4s ease-in-out infinite;
 }
+
+/* ─── Enhanced Glassmorphism ─── */
+.glass-panel {
+  background: rgba(255, 254, 248, 0.72);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 4px 24px rgba(0, 51, 102, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.glass-panel:hover {
+  box-shadow:
+    0 12px 40px rgba(0, 51, 102, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Dark glass for dark sections */
+.glass-dark {
+  background: rgba(0, 18, 37, 0.6);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(56, 189, 248, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Altar counter glow pulse ─── */
+@keyframes altar-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 0 40px rgba(56, 189, 248, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.6), 0 0 70px rgba(56, 189, 248, 0.25);
+  }
+}
+.altar-glow {
+  animation: altar-pulse 3s ease-in-out infinite;
+}
+
+/* ─── Mandate Map Styles ─── */
+.mandate-map-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+/* ─── Testimony Reel: hide scrollbar but keep scroll ─── */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Snap scroll for testimonies reel ─── */
+.snap-y { scroll-snap-type: y mandatory; }
+.snap-start { scroll-snap-align: start; }
+
+/* ─── Hover whisper from TempleBots ─── */
+.templebots-whisper {
+  background: rgba(255, 254, 248, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  box-shadow: 0 8px 40px rgba(0, 51, 102, 0.16), 0 0 0 1px rgba(56, 189, 248, 0.08);
+}
+
+/* ─── Bento grid enhancements ─── */
+.bento-card-hover {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.bento-card-hover:hover {
+  transform: translateY(-3px) scale(1.005);
+  box-shadow: 0 16px 48px rgba(0, 51, 102, 0.14);
+}
+
+/* ─── Floating glow dot animation for map ─── */
+@keyframes glow-dot {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+.glow-dot { animation: glow-dot 2.4s ease-in-out infinite; }
+
+/* ─── TikTok reel card entrance ─── */
+@keyframes reel-in {
+  from { opacity: 0; transform: translateY(40px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.reel-card-enter {
+  animation: reel-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

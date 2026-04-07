@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone, Bell, Search, ChevronRight } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone, Bell, Search, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useChatWithTempleBots } from "@workspace/api-client-react";
@@ -45,6 +45,26 @@ const SMART_NOTIFICATIONS: Record<string, string> = {
   testimonies: "✨ Exploring testimonies? I can share more stories of God's faithfulness through JCTM.",
 };
 
+// Hover-triggered predictive whispers per section
+const HOVER_WHISPERS: Record<string, { message: string; cta: string }> = {
+  giving: {
+    message: "Would you like to see the spiritual benefits of seed-sowing according to scripture?",
+    cta: "Show me the benefits",
+  },
+  sermons: {
+    message: "I can help you find sermons on a specific topic — holiness, end times, or baptism.",
+    cta: "Find a sermon",
+  },
+  testimony: {
+    message: "Want to share your own miracle testimony or read how God is moving?",
+    cta: "Share a testimony",
+  },
+  altar: {
+    message: "Join thousands worshipping now globally. Would you like a prayer guide?",
+    cta: "Get prayer guide",
+  },
+};
+
 const REACH_US = [
   { label: "Facebook", href: "https://www.facebook.com/templetvjctm", icon: Facebook, color: "#1877F2", bg: "hover:bg-[#1877F2]/10 hover:border-[#1877F2]/30", hint: "templetvjctm" },
   { label: "Temple TV", href: "https://www.youtube.com/templetvjctm", icon: Youtube, color: "#FF0000", bg: "hover:bg-[#FF0000]/10 hover:border-[#FF0000]/30", hint: "youtube.com/templetvjctm" },
@@ -62,8 +82,10 @@ export function TempleBots() {
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchVal, setSearchVal] = useState("");
+  const [whisper, setWhisper] = useState<{ section: string; message: string; cta: string } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const whisperTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatMutation = useChatWithTempleBots();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +108,7 @@ export function TempleBots() {
     setSessionId(undefined);
   }, [location]);
 
+  // Smart scroll-based notifications
   useEffect(() => {
     const handler = (e: Event) => {
       const section = (e as CustomEvent<string>).detail;
@@ -104,6 +127,31 @@ export function TempleBots() {
     };
   }, [isOpen]);
 
+  // Predictive hover whispers
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const section = (e as CustomEvent<string>).detail;
+      if (isOpen || showToast) return;
+      const w = HOVER_WHISPERS[section];
+      if (!w) return;
+      if (whisperTimerRef.current) clearTimeout(whisperTimerRef.current);
+      whisperTimerRef.current = setTimeout(() => {
+        setWhisper({ section, ...w });
+        setTimeout(() => setWhisper(null), 7000);
+      }, 800);
+    };
+    const clearHandler = () => {
+      if (whisperTimerRef.current) clearTimeout(whisperTimerRef.current);
+    };
+    window.addEventListener("jctm:hover-enter", handler);
+    window.addEventListener("jctm:hover-leave", clearHandler);
+    return () => {
+      window.removeEventListener("jctm:hover-enter", handler);
+      window.removeEventListener("jctm:hover-leave", clearHandler);
+      if (whisperTimerRef.current) clearTimeout(whisperTimerRef.current);
+    };
+  }, [isOpen, showToast]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
@@ -112,6 +160,7 @@ export function TempleBots() {
     setIsOpen(true);
     setNotification(null);
     setShowToast(false);
+    setWhisper(null);
     setSearchExpanded(false);
     setSearchVal("");
     if (initialMessage) {
@@ -140,7 +189,7 @@ export function TempleBots() {
     chatMutation.mutate(
       { data: { message: text, sessionId } },
       {
-        onSuccess: (data) => {
+        onSuccess: (data: { sessionId?: string; reply: string; sources?: string[] }) => {
           if (data.sessionId) setSessionId(data.sessionId);
           setMessages(prev => [...prev, { id: Date.now().toString(), role: "bot", content: data.reply, sources: data.sources }]);
         },
@@ -162,6 +211,52 @@ export function TempleBots() {
 
   return (
     <>
+      {/* Predictive hover whisper */}
+      <AnimatePresence>
+        {whisper && !isOpen && !showToast && (
+          <motion.div
+            initial={{ opacity: 0, x: 50, scale: 0.92 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 50, scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 320, damping: 26 }}
+            className="fixed bottom-[5.5rem] right-6 z-50 max-w-[260px] cursor-pointer"
+            onClick={() => handleOpen(whisper.cta)}
+          >
+            <div
+              className="rounded-2xl p-3.5 shadow-2xl border border-accent/20"
+              style={{
+                background: "rgba(255, 254, 248, 0.97)",
+                backdropFilter: "blur(24px)",
+                boxShadow: "0 8px 40px rgba(0,51,102,0.18), 0 0 0 1px rgba(56,189,248,0.12)",
+              }}
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-accent to-[#0284C7] flex items-center justify-center shrink-0 mt-0.5 shadow-md">
+                  <Sparkles className="h-3.5 w-3.5 text-white" />
+                </div>
+                <div>
+                  <p className="text-primary font-semibold text-[11px] mb-0.5">TempleBots whispers…</p>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">{whisper.message}</p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleOpen(whisper.cta); }}
+                    className="mt-2 text-accent text-[10px] font-bold hover:underline flex items-center gap-0.5"
+                  >
+                    {whisper.cta} <ChevronRight className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              </div>
+              {/* Auto-dismiss timer bar */}
+              <motion.div
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0 }}
+                transition={{ duration: 7, ease: "linear" }}
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent to-[#0284C7] origin-left rounded-b-2xl"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Smart notification toast */}
       <AnimatePresence>
         {showToast && notification && !isOpen && (
@@ -184,12 +279,12 @@ export function TempleBots() {
         )}
       </AnimatePresence>
 
-      {/* Floating widget — morphs from circle to search bar past the hero */}
+      {/* Floating widget */}
       <AnimatePresence>
         {!isOpen && (
           <LayoutGroup>
             <div className="fixed bottom-6 right-6 z-50 flex items-center justify-end">
-              {/* Search/Ask pill — shown when scrolled past hero */}
+              {/* Search pill */}
               <AnimatePresence>
                 {scrolledPastHero && searchExpanded && (
                   <motion.form
@@ -218,7 +313,7 @@ export function TempleBots() {
                 )}
               </AnimatePresence>
 
-              {/* Pill label — shown when scrolled past hero but search not expanded */}
+              {/* Ask pill */}
               <AnimatePresence>
                 {scrolledPastHero && !searchExpanded && (
                   <motion.button
@@ -241,6 +336,14 @@ export function TempleBots() {
                     <motion.div animate={{ scale: [1, 1.35, 1], opacity: [0.4, 0, 0.4] }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.3 }} className="absolute inset-0 rounded-full bg-accent" />
                   </>
                 )}
+                {whisper && !notification && (
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "rgba(56,189,248,0.4)" }}
+                  />
+                )}
                 <Button
                   onClick={() => {
                     if (searchExpanded) { setSearchExpanded(false); return; }
@@ -253,7 +356,7 @@ export function TempleBots() {
                   <img src="/jctm-logo.jpeg" alt="TempleBots" className="h-14 w-14 rounded-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   <Bot className="h-6 w-6 text-white hidden absolute" />
                 </Button>
-                {notification && (
+                {(notification || whisper) && (
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
                     <span className="text-white text-[8px] font-bold">1</span>
                   </motion.div>

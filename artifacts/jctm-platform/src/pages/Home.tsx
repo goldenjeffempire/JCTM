@@ -21,6 +21,8 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GlobalAltar } from "@/components/GlobalAltar";
+import { MandateMap } from "@/components/MandateMap";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -1608,6 +1610,18 @@ function GlobalReach() {
           ))}
         </motion.div>
 
+        {/* Interactive Mandate Map */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ type: "spring", stiffness: 60, damping: 18 }}
+          className="mb-14"
+        >
+          <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Interactive Ministry Map — Hover to explore</p>
+          <MandateMap />
+        </motion.div>
+
         {/* Regions */}
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 70 }} className="text-center">
           <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-6 font-medium">Nations & Regions Reached</p>
@@ -1653,7 +1667,12 @@ function GivingBand() {
   ];
 
   return (
-    <section ref={ref} className="py-28 relative overflow-hidden">
+    <section
+      ref={ref}
+      className="py-28 relative overflow-hidden"
+      onMouseEnter={() => window.dispatchEvent(new CustomEvent("jctm:hover-enter", { detail: "giving" }))}
+      onMouseLeave={() => window.dispatchEvent(new CustomEvent("jctm:hover-leave"))}
+    >
       {/* Background */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #001020 0%, #002a5c 45%, #001020 100%)" }} />
       <motion.div style={{ x: bgX }} className="absolute inset-0 pointer-events-none">
@@ -1856,6 +1875,75 @@ function TimelineTeaser() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// GLOBAL ALTAR — Live Worshipper Counter
+// ═══════════════════════════════════════════════════════════════════════════
+function GlobalAltarSection() {
+  const ref = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: false, margin: "-20% 0px -20% 0px" });
+  useEffect(() => {
+    if (inView) window.dispatchEvent(new CustomEvent("jctm:section-enter", { detail: "altar" }));
+  }, [inView]);
+
+  return (
+    <section
+      ref={ref}
+      className="py-24 relative overflow-hidden"
+      style={{ background: "linear-gradient(135deg, #020b18 0%, #001225 50%, #020b18 100%)" }}
+      onMouseEnter={() => window.dispatchEvent(new CustomEvent("jctm:hover-enter", { detail: "altar" }))}
+      onMouseLeave={() => window.dispatchEvent(new CustomEvent("jctm:hover-leave"))}
+    >
+      {/* Background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(56,189,248,0.08) 0%, transparent 70%)" }} />
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle, rgba(56,189,248,0.6) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+      </div>
+
+      <div className="container mx-auto px-4 relative z-10">
+        <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="text-center mb-12">
+          <motion.span variants={fadeUp} className="inline-flex items-center gap-2 border border-accent/30 text-accent px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 bg-accent/10">
+            <Radio className="h-3 w-3" /> Global Altar
+          </motion.span>
+          <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
+            One Altar,{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-[#7DD3FC]">Every Nation</span>
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-white/50 text-lg max-w-xl mx-auto">
+            Join believers worshipping in real-time from across the globe — the Digital Sanctuary never sleeps.
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ type: "spring", stiffness: 80, damping: 18 }}
+          className="max-w-md mx-auto"
+        >
+          <div
+            className="rounded-3xl p-10 text-center border border-white/8"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              backdropFilter: "blur(20px)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 0 60px rgba(56,189,248,0.08)",
+            }}
+          >
+            <GlobalAltar />
+          </div>
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-white/25 text-[11px] uppercase tracking-widest mt-8 font-medium"
+        >
+          Real-time · Updates every few seconds · Powered by Digital Sanctuary
+        </motion.p>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PAGE ASSEMBLY
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Home() {
@@ -1873,6 +1961,7 @@ export default function Home() {
       <ScriptureFeature />
       <EventsSection />
       <GlobalReach />
+      <GlobalAltarSection />
       <GivingBand />
       <NewcomerSection />
       <ConnectSection />
