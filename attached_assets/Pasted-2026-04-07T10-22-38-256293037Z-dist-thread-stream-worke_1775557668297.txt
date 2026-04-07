@@ -1,0 +1,50 @@
+2026-04-07T10:22:38.256293037Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-07T10:22:38.256295047Z 
+2026-04-07T10:22:38.256297977Z ⚡ Done in 535ms
+2026-04-07T10:22:42.592156115Z ==> Uploading build...
+2026-04-07T10:22:56.943078395Z ==> Uploaded in 8.8s. Compression took 5.6s
+2026-04-07T10:22:57.026751258Z ==> Build successful 🎉
+2026-04-07T10:22:59.286177204Z ==> Deploying...
+2026-04-07T10:22:59.356262851Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-04-07T10:23:42.706680453Z ==> Running 'pnpm --filter @workspace/api-server run start'
+2026-04-07T10:23:43.206953011Z 
+2026-04-07T10:23:43.206976341Z > @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+2026-04-07T10:23:43.206980841Z > node --enable-source-maps ./dist/index.mjs
+2026-04-07T10:23:43.206982611Z 
+2026-04-07T10:23:43.521989125Z /opt/render/project/src/lib/integrations-openai-ai-server/src/image/client.ts:6
+2026-04-07T10:23:43.522013006Z   throw new Error(
+2026-04-07T10:23:43.522015166Z         ^
+2026-04-07T10:23:43.522016815Z 
+2026-04-07T10:23:43.522019466Z Error: AI_INTEGRATIONS_OPENAI_BASE_URL must be set. Did you forget to provision the OpenAI AI integration?
+2026-04-07T10:23:43.522022006Z     at <anonymous> (/opt/render/project/src/lib/integrations-openai-ai-server/src/image/client.ts:6:9)
+2026-04-07T10:23:43.522023886Z     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+2026-04-07T10:23:43.522027686Z     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+2026-04-07T10:23:43.522029546Z     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+2026-04-07T10:23:43.522031146Z 
+2026-04-07T10:23:43.522034166Z Node.js v22.22.0
+2026-04-07T10:23:43.547847961Z /opt/render/project/src/artifacts/api-server:
+2026-04-07T10:23:43.547861421Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `node --enable-source-maps ./dist/index.mjs`
+2026-04-07T10:23:43.547865851Z Exit status 1
+2026-04-07T10:23:51.155751141Z ==> Exited with status 1
+2026-04-07T10:23:51.157954046Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+2026-04-07T10:23:51.65159819Z ==> Running 'pnpm --filter @workspace/api-server run start'
+2026-04-07T10:23:52.033237871Z 
+2026-04-07T10:23:52.033266292Z > @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+2026-04-07T10:23:52.033272222Z > node --enable-source-maps ./dist/index.mjs
+2026-04-07T10:23:52.033275362Z 
+2026-04-07T10:23:52.341458926Z /opt/render/project/src/lib/integrations-openai-ai-server/src/image/client.ts:6
+2026-04-07T10:23:52.341485607Z   throw new Error(
+2026-04-07T10:23:52.341493017Z         ^
+2026-04-07T10:23:52.341495257Z 
+2026-04-07T10:23:52.341498177Z Error: AI_INTEGRATIONS_OPENAI_BASE_URL must be set. Did you forget to provision the OpenAI AI integration?
+2026-04-07T10:23:52.341502327Z     at <anonymous> (/opt/render/project/src/lib/integrations-openai-ai-server/src/image/client.ts:6:9)
+2026-04-07T10:23:52.341505247Z     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+2026-04-07T10:23:52.341508157Z     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+2026-04-07T10:23:52.341510208Z     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+2026-04-07T10:23:52.341512248Z 
+2026-04-07T10:23:52.341514328Z Node.js v22.22.0
+2026-04-07T10:23:52.365775528Z /opt/render/project/src/artifacts/api-server:
+2026-04-07T10:23:52.365801349Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `node --enable-source-maps ./dist/index.mjs`
+2026-04-07T10:23:52.365805629Z Exit status 1
+2026-04-07T10:24:03.518417741Z ==> No open ports detected, continuing to scan...
+2026-04-07T10:24:03.605359982Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
