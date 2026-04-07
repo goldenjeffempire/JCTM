@@ -1,0 +1,51 @@
+2026-04-07T10:34:11.242409508Z 
+2026-04-07T10:34:11.24244516Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-04-07T10:34:11.24245067Z > node ./build.mjs
+2026-04-07T10:34:11.242454481Z 
+2026-04-07T10:34:11.787329821Z 
+2026-04-07T10:34:11.787362383Z   dist/index.mjs                       2.4mb ⚠️
+2026-04-07T10:34:11.787369953Z   dist/pino-worker.mjs               153.4kb
+2026-04-07T10:34:11.787376284Z   dist/pino-file.mjs                 142.1kb
+2026-04-07T10:34:11.787380524Z   dist/pino-pretty.mjs               114.6kb
+2026-04-07T10:34:11.787384054Z   dist/thread-stream-worker.mjs        7.3kb
+2026-04-07T10:34:11.787387604Z   dist/index.mjs.map                   5.4mb
+2026-04-07T10:34:11.787401665Z   dist/pino-worker.mjs.map           256.9kb
+2026-04-07T10:34:11.787403995Z   dist/pino-file.mjs.map             229.0kb
+2026-04-07T10:34:11.787406166Z   dist/pino-pretty.mjs.map           203.9kb
+2026-04-07T10:34:11.787408286Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-07T10:34:11.787410326Z 
+2026-04-07T10:34:11.787413256Z ⚡ Done in 480ms
+2026-04-07T10:34:13.429913583Z ==> Uploading build...
+2026-04-07T10:34:30.580956763Z ==> Uploaded in 10.8s. Compression took 6.3s
+2026-04-07T10:34:30.656354399Z ==> Build successful 🎉
+2026-04-07T10:34:39.99652835Z ==> Deploying...
+2026-04-07T10:34:40.054592755Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-04-07T10:34:58.866496562Z ==> Running 'pnpm --filter @workspace/api-server run start'
+2026-04-07T10:34:59.335795471Z 
+2026-04-07T10:34:59.335825922Z > @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+2026-04-07T10:34:59.335831992Z > node --enable-source-maps ./dist/index.mjs
+2026-04-07T10:34:59.335834522Z 
+2026-04-07T10:34:59.560492051Z {"level":30,"time":1775558099559,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","port":10000,"msg":"Server listening"}
+2026-04-07T10:34:59.568610773Z (node:83) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-04-07T10:34:59.568623543Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-04-07T10:34:59.568625603Z 
+2026-04-07T10:34:59.568628243Z To prepare for this change:
+2026-04-07T10:34:59.568630593Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-04-07T10:34:59.568632373Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-04-07T10:34:59.568633933Z 
+2026-04-07T10:34:59.568636193Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-04-07T10:34:59.568637873Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-07T10:34:59.569392391Z {"level":30,"time":1775558099560,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","intervalMs":1800000,"msg":"Starting YouTube sync cron (30-minute interval)"}
+2026-04-07T10:34:59.569400282Z {"level":30,"time":1775558099560,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","msg":"REPLIT_DEV_DOMAIN not set — WebSub subscription skipped in this environment"}
+2026-04-07T10:34:59.991664938Z {"level":30,"time":1775558099991,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","msg":"Starting incremental YouTube sync"}
+2026-04-07T10:35:00.337263809Z {"level":30,"time":1775558100336,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":404},"responseTime":5,"msg":"request completed"}
+2026-04-07T10:35:02.928190403Z ==> Your service is live 🎉
+2026-04-07T10:35:03.082083895Z ==> 
+2026-04-07T10:35:03.086370658Z ==> ///////////////////////////////////////////////////////////
+2026-04-07T10:35:03.091132399Z ==> 
+2026-04-07T10:35:03.097447383Z ==> Available at your primary URL https://jctm.onrender.com
+2026-04-07T10:35:03.099266349Z ==> 
+2026-04-07T10:35:03.10091095Z ==> ///////////////////////////////////////////////////////////
+2026-04-07T10:35:06.59417157Z {"level":30,"time":1775558106593,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","synced":97,"featured":16,"live":5,"msg":"Incremental sync complete"}
+2026-04-07T10:35:06.594411386Z {"level":30,"time":1775558106594,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","synced":97,"featured":16,"live":5,"message":"Synced 97 sermons (16 featured, 5 live)","msg":"YouTube sync complete"}
+2026-04-07T10:35:18.865785457Z {"level":30,"time":1775558118865,"pid":83,"hostname":"srv-d7adi5dm5p6s73ev8vig-555cc4546d-vblkn","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":404},"responseTime":2,"msg":"request completed"}

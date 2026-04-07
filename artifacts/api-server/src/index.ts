@@ -28,13 +28,25 @@ app.listen(port, (err) => {
   // Start the 30-minute YouTube sync cron
   startCron(logger);
 
-  // Register WebSub subscription with YouTube's PubSubHubbub hub
-  // Only in production or when REPLIT_DEV_DOMAIN is available
-  const domain = process.env.REPLIT_DEV_DOMAIN;
-  if (domain) {
-    const callbackUrl = `https://${domain}/api/sermons/websub`;
-    subscribeToWebSub(callbackUrl, logger);
+  // Register WebSub subscription with YouTube's PubSubHubbub hub.
+  // Supports Replit (REPLIT_DEV_DOMAIN), Render (RENDER_EXTERNAL_URL), and
+  // any other platform via PUBLIC_URL.
+  const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+  const renderUrl = process.env.RENDER_EXTERNAL_URL;
+  const publicUrl = process.env.PUBLIC_URL;
+
+  let callbackBase: string | undefined;
+  if (replitDomain) {
+    callbackBase = `https://${replitDomain}`;
+  } else if (renderUrl) {
+    callbackBase = renderUrl.replace(/\/$/, "");
+  } else if (publicUrl) {
+    callbackBase = publicUrl.replace(/\/$/, "");
+  }
+
+  if (callbackBase) {
+    subscribeToWebSub(`${callbackBase}/api/sermons/websub`, logger);
   } else {
-    logger.info("REPLIT_DEV_DOMAIN not set — WebSub subscription skipped in this environment");
+    logger.info("No public domain env var set — WebSub subscription skipped");
   }
 });
