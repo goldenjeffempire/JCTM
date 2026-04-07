@@ -425,70 +425,98 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     const hasName = name.trim().length > 0;
     const hasPhoto = !!photo;
 
-    const photoCY = 430; // centre of photo circle
-    const photoR = 160;  // radius
+    // Square photo dimensions — centred horizontally
+    const photoSize = 380;           // side length of the square
+    const photoX = (W - photoSize) / 2;
+    const photoY = 228;              // top edge of the photo
+    const photoBottom = photoY + photoSize; // = 608
 
     if (hasPhoto) {
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          // Gold glow ring behind photo
-          const glow = ctx.createRadialGradient(W / 2, photoCY, photoR - 10, W / 2, photoCY, photoR + 60);
-          glow.addColorStop(0, "rgba(212,160,23,0.35)");
-          glow.addColorStop(1, "rgba(212,160,23,0)");
-          ctx.fillStyle = glow;
-          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR + 60, 0, Math.PI * 2); ctx.fill();
+          // Soft gold shadow/glow behind the square
+          ctx.shadowColor = "rgba(212,160,23,0.55)";
+          ctx.shadowBlur = 48;
+          ctx.fillStyle = "rgba(212,160,23,0.18)";
+          ctx.beginPath();
+          ctx.roundRect(photoX - 10, photoY - 10, photoSize + 20, photoSize + 20, 28);
+          ctx.fill();
+          ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
 
-          // Circular clip
+          // Square clip with slightly rounded corners
           ctx.save();
-          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR, 0, Math.PI * 2); ctx.clip();
-          const s = Math.min(img.width, img.height);
-          ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s,
-            W / 2 - photoR, photoCY - photoR, photoR * 2, photoR * 2);
+          ctx.beginPath();
+          ctx.roundRect(photoX, photoY, photoSize, photoSize, 18);
+          ctx.clip();
+          // cover-fit: crop image to fill the square
+          const scale = Math.max(photoSize / img.width, photoSize / img.height);
+          const sw = photoSize / scale, sh = photoSize / scale;
+          const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+          ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoSize, photoSize);
           ctx.restore();
 
-          // Gold rings
-          ctx.strokeStyle = goldLight; ctx.lineWidth = 8;
-          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR + 8, 0, Math.PI * 2); ctx.stroke();
+          // Bold gold border — outer
+          ctx.strokeStyle = goldLight; ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.roundRect(photoX - 5, photoY - 5, photoSize + 10, photoSize + 10, 22);
+          ctx.stroke();
+          // Inner accent border
           ctx.strokeStyle = gold; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR + 20, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath();
+          ctx.roundRect(photoX - 18, photoY - 18, photoSize + 36, photoSize + 36, 30);
+          ctx.stroke();
+
           resolve();
         };
         img.onerror = () => resolve();
         img.src = photo!;
       });
     } else {
-      // Placeholder circle when no photo
-      const grad = ctx.createRadialGradient(W / 2, photoCY, 0, W / 2, photoCY, photoR);
-      grad.addColorStop(0, "rgba(30,80,180,0.6)");
-      grad.addColorStop(1, "rgba(10,26,107,0.3)");
-      ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "rgba(212,160,23,0.4)"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.font = `120px sans-serif`;
-      ctx.fillText("🙏", W / 2, photoCY + 44);
+      // Placeholder square when no photo
+      ctx.fillStyle = "rgba(30,60,160,0.45)";
+      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.fill();
+      ctx.strokeStyle = "rgba(212,160,23,0.4)"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.font = `110px sans-serif`;
+      ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 40);
     }
 
-    // Name below photo
+    // ── Bold name block below photo ──────────────────────────────
+    let nameBlockBottom = photoBottom;
+
     if (hasName) {
-      ctx.fillStyle = "#ffffff"; ctx.font = `bold 52px serif`;
-      ctx.fillText(name.toUpperCase(), W / 2, photoCY + photoR + 76);
-      // "I will attend" tag
-      ctx.fillStyle = "rgba(212,160,23,0.25)";
-      ctx.beginPath(); ctx.roundRect(W / 2 - 280, photoCY + photoR + 100, 560, 50, 25); ctx.fill();
-      ctx.fillStyle = goldLight; ctx.font = `bold 22px sans-serif`;
-      ctx.fillText("🙋  I WILL BE ATTENDING — JOIN ME!", W / 2, photoCY + photoR + 133);
-    } else {
-      // No name — just the badge
-      ctx.fillStyle = "rgba(212,160,23,0.22)";
-      ctx.beginPath(); ctx.roundRect(W / 2 - 280, photoCY + photoR + 24, 560, 50, 25); ctx.fill();
-      ctx.fillStyle = goldLight; ctx.font = `bold 22px sans-serif`;
-      ctx.fillText("🙋  I WILL BE ATTENDING — JOIN ME!", W / 2, photoCY + photoR + 57);
+      nameBlockBottom = photoBottom + 14;
+
+      // Bold dark backing panel for the name
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.beginPath();
+      ctx.roundRect(photoX - 5, nameBlockBottom, photoSize + 10, 74, 0);
+      ctx.fill();
+
+      // Gold top stripe on the name panel
+      ctx.fillStyle = gold;
+      ctx.fillRect(photoX - 5, nameBlockBottom, photoSize + 10, 6);
+
+      // Name text — large, bold, white
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `900 54px serif`;
+      ctx.fillText(name.toUpperCase(), W / 2, nameBlockBottom + 56);
+
+      nameBlockBottom += 88;
     }
+
+    // "I will be attending" badge
+    const badgeY = nameBlockBottom + 18;
+    ctx.fillStyle = "rgba(212,160,23,0.28)";
+    ctx.beginPath(); ctx.roundRect(W / 2 - 300, badgeY, 600, 54, 27); ctx.fill();
+    ctx.strokeStyle = gold; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(W / 2 - 300, badgeY, 600, 54, 27); ctx.stroke();
+    ctx.fillStyle = goldLight; ctx.font = `bold 23px sans-serif`;
+    ctx.fillText("🙋  I WILL BE ATTENDING — JOIN ME!", W / 2, badgeY + 36);
 
     // Divider into bottom section
-    const midEnd = hasName ? photoCY + photoR + 168 : photoCY + photoR + 88;
+    const midEnd = badgeY + 72;
     ctx.strokeStyle = gold; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(120, midEnd); ctx.lineTo(W - 120, midEnd); ctx.stroke();
 
