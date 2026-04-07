@@ -855,7 +855,6 @@ function AddToCalendar() {
         )}
       </AnimatePresence>
     </div>
-    </>
   );
 }
 
