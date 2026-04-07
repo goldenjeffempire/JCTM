@@ -1022,7 +1022,15 @@ function ProphetSection() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const yImg = useTransform(scrollYProgress, [0, 1], [-30, 30]);
   const yImg2 = useTransform(scrollYProgress, [0, 1], [20, -20]);
-  const [activePhoto, setActivePhoto] = useState<"portrait" | "preaching">("portrait");
+  const founderPhotos = [
+    { key: "photo1", src: "/founder/DSC_0615.jpg", label: "Photo 1" },
+    { key: "photo2", src: "/founder/DSC_0649.jpg", label: "Photo 2" },
+    { key: "photo3", src: "/founder/DSC1657.jpg", label: "Photo 3" },
+    { key: "photo4", src: "/founder/DSC1671.jpg", label: "Photo 4" },
+    { key: "photo5", src: "/founder/DSC1743.jpg", label: "Photo 5" },
+    { key: "photo6", src: "/founder/DSC1774.jpg", label: "Photo 6" },
+  ];
+  const [activePhoto, setActivePhoto] = useState("photo1");
 
   const credentials = [
     { icon: Award, label: "13+ Years in Ministry", color: "from-amber-400 to-orange-500" },
@@ -1046,12 +1054,11 @@ function ProphetSection() {
           {/* Background base photo */}
           <motion.div style={{ y: yImg }} className="absolute inset-0 scale-110">
             <AnimatePresence mode="wait">
-              {activePhoto === "portrait" ? (
-                <motion.img key="portrait" src="/founder/prophet-portrait.jpg" alt="Prophet Amos Evomobor" className="w-full h-full object-cover object-top absolute inset-0"
-                  initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} />
-              ) : (
-                <motion.img key="preaching" src="/founder/prophet-preaching.jpg" alt="Prophet Amos preaching" className="w-full h-full object-cover object-top absolute inset-0"
-                  initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} />
+              {founderPhotos.map((photo) =>
+                activePhoto === photo.key ? (
+                  <motion.img key={photo.key} src={photo.src} alt="Prophet Amos Evomobor" className="w-full h-full object-cover object-top absolute inset-0"
+                    initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} />
+                ) : null
               )}
             </AnimatePresence>
           </motion.div>
@@ -1068,10 +1075,7 @@ function ProphetSection() {
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ delay: 0.5 }}
           >
-            {[
-              { key: "portrait" as const, src: "/founder/prophet-portrait.jpg", label: "Portrait" },
-              { key: "preaching" as const, src: "/founder/prophet-preaching.jpg", label: "Preaching" },
-            ].map(({ key, src, label }) => (
+            {founderPhotos.map(({ key, src, label }) => (
               <motion.button
                 key={key}
                 onClick={() => setActivePhoto(key)}
