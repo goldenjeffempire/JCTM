@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import Cropper from "react-easy-crop";
+import type { Point, Area } from "react-easy-crop";
 import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -339,12 +341,88 @@ function AdCopySection() {
   );
 }
 
+async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string> {
+  const image = new Image();
+  image.src = imageSrc;
+  await new Promise<void>((res) => { image.onload = () => res(); });
+  const canvas = document.createElement("canvas");
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: string) => void; onCancel: () => void }) {
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
+  const onCropComplete = useCallback((_: Area, pixels: Area) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleDone = async () => {
+    if (!croppedAreaPixels) return;
+    const cropped = await getCroppedImg(src, croppedAreaPixels);
+    onDone(cropped);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-4">
+      <div className="w-full max-w-sm bg-[#0a1030] rounded-2xl overflow-hidden shadow-2xl border border-cyan-500/30">
+        <div className="px-4 pt-4 pb-2">
+          <p className="text-white font-bold text-center text-sm">Crop Your Photo</p>
+          <p className="text-white/50 text-xs text-center mt-0.5">Drag to reposition · Pinch or use slider to zoom</p>
+        </div>
+        <div className="relative w-full" style={{ height: 300 }}>
+          <Cropper
+            image={src}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+          />
+        </div>
+        <div className="px-5 py-3">
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="w-full accent-cyan-400"
+          />
+        </div>
+        <div className="flex gap-3 px-4 pb-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDone}
+            className="flex-1 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-bold transition-colors"
+          >
+            Use This Crop
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initialName?: string; initialPhoto?: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initialName);
   const [photo, setPhoto] = useState<string | null>(initialPhoto);
   const [generated, setGenerated] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   useEffect(() => { if (initialName) setName(initialName); }, [initialName]);
   useEffect(() => { if (initialPhoto) setPhoto(initialPhoto); }, [initialPhoto]);
@@ -354,8 +432,9 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { toast.error("Photo must be under 10 MB."); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => { setPhoto(ev.target?.result as string); setGenerated(false); };
+    reader.onload = (ev) => { setCropSrc(ev.target?.result as string); };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const generate = useCallback(async () => {
@@ -618,6 +697,14 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
   };
 
   return (
+    <>
+    {cropSrc && (
+      <CropModal
+        src={cropSrc}
+        onDone={(cropped) => { setPhoto(cropped); setGenerated(false); setCropSrc(null); }}
+        onCancel={() => { setCropSrc(null); }}
+      />
+    )}
     <div className="rounded-3xl overflow-hidden border border-yellow-400/20" style={{ background: "rgba(10,26,74,0.7)" }}>
       <div className="p-6 border-b border-yellow-400/10">
         <div className="flex items-center gap-3 mb-2">
@@ -697,6 +784,7 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -767,6 +855,7 @@ function AddToCalendar() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }
 
@@ -852,6 +941,7 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -860,8 +950,9 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { toast.error("Photo must be under 10 MB."); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => setPhoto(ev.target?.result as string);
+    reader.onload = (ev) => { setCropSrc(ev.target?.result as string); };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -887,6 +978,14 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
 
   if (done) {
     return (
+      <>
+      {cropSrc && (
+        <CropModal
+          src={cropSrc}
+          onDone={(cropped) => { setPhoto(cropped); setCropSrc(null); }}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-8">
         {photo ? (
           <div className="flex justify-center mb-4">
@@ -901,10 +1000,19 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
         <p className="text-yellow-400 text-sm">See you at Ighogbadu Primary School on April 30th.</p>
         <p className="text-white/50 text-xs mt-2">Scroll down to generate your personalised invite card.</p>
       </motion.div>
+      </>
     );
   }
 
   return (
+    <>
+    {cropSrc && (
+      <CropModal
+        src={cropSrc}
+        onDone={(cropped) => { setPhoto(cropped); setCropSrc(null); }}
+        onCancel={() => setCropSrc(null)}
+      />
+    )}
     <form onSubmit={submit} className="space-y-3">
       {/* Photo upload */}
       <div className="flex flex-col items-center gap-2">
@@ -985,6 +1093,7 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
         {loading ? "Registering…" : "✋ I Will Attend!"}
       </motion.button>
     </form>
+    </>
   );
 }
 
