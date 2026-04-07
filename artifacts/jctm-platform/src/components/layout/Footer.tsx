@@ -18,11 +18,19 @@ const SOCIAL = [
   },
   {
     label: "Email",
-    href: "mailto:jesuschristtempleministryng@gmail.com",
+    href: "mailto:info@jctm.org.ng",
     icon: Mail,
     color: "hover:text-[#003366]",
     bg: "hover:bg-[#003366]/10",
   },
+];
+
+const EMAILS = [
+  { label: "General Enquiries", address: "info@jctm.org.ng" },
+  { label: "Ministry Office", address: "jesuschristtempleministry@jctm.org.ng" },
+  { label: "New Members", address: "joinus@jctm.org.ng" },
+  { label: "Support", address: "support@jctm.org.ng" },
+  { label: "Prophet Amos", address: "prophetamos@jctm.org.ng" },
 ];
 
 export function SocialChips({ className = "" }: { className?: string }) {
@@ -89,14 +97,23 @@ export function Footer() {
             </address>
 
             <div className="mt-6">
-              <h4 className="font-bold mb-2">Contact</h4>
-              <a
-                href="mailto:jesuschristtempleministryng@gmail.com"
-                className="text-sm text-muted-foreground hover:text-[#003366] transition-colors flex items-center gap-1.5"
-              >
-                <Mail className="h-3.5 w-3.5 shrink-0" />
-                <span className="break-all">jesuschristtempleministryng@gmail.com</span>
-              </a>
+              <h4 className="font-bold mb-3">Contact</h4>
+              <ul className="space-y-2">
+                {EMAILS.map(({ label, address }) => (
+                  <li key={address}>
+                    <a
+                      href={`mailto:${address}`}
+                      className="group flex flex-col text-sm text-muted-foreground hover:text-[#003366] transition-colors"
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 group-hover:text-[#003366]/60">{label}</span>
+                      <span className="flex items-center gap-1.5 break-all">
+                        <Mail className="h-3 w-3 shrink-0" />
+                        {address}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
 

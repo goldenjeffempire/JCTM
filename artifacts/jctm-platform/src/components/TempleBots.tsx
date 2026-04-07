@@ -68,7 +68,7 @@ const HOVER_WHISPERS: Record<string, { message: string; cta: string }> = {
 const REACH_US = [
   { label: "Facebook", href: "https://www.facebook.com/templetvjctm", icon: Facebook, color: "#1877F2", bg: "hover:bg-[#1877F2]/10 hover:border-[#1877F2]/30", hint: "templetvjctm" },
   { label: "Temple TV", href: "https://www.youtube.com/templetvjctm", icon: Youtube, color: "#FF0000", bg: "hover:bg-[#FF0000]/10 hover:border-[#FF0000]/30", hint: "youtube.com/templetvjctm" },
-  { label: "Email", href: "mailto:jesuschristtempleministryng@gmail.com", icon: Mail, color: "#003366", bg: "hover:bg-[#003366]/10 hover:border-[#003366]/30", hint: "Write to us" },
+  { label: "Email", href: "mailto:info@jctm.org.ng", icon: Mail, color: "#003366", bg: "hover:bg-[#003366]/10 hover:border-[#003366]/30", hint: "info@jctm.org.ng" },
 ];
 
 export function TempleBots() {

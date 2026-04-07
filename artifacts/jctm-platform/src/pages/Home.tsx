@@ -1950,7 +1950,7 @@ function ConnectSection() {
   const channels = [
     { name: "Temple TV", sub: "youtube.com/templetvjctm", icon: Youtube, color: "#FF0000", bg: "from-red-50 to-rose-50", border: "border-red-100", href: "https://www.youtube.com/templetvjctm" },
     { name: "Facebook", sub: "facebook.com/templetvjctm", icon: Facebook, color: "#1877F2", bg: "from-blue-50 to-indigo-50", border: "border-blue-100", href: "https://www.facebook.com/templetvjctm" },
-    { name: "Email Us", sub: "jesuschristtempleministryng@gmail.com", icon: Mail, color: "#003366", bg: "from-sky-50 to-blue-50", border: "border-sky-100", href: "mailto:jesuschristtempleministryng@gmail.com" },
+    { name: "Email Us", sub: "info@jctm.org.ng", icon: Mail, color: "#003366", bg: "from-sky-50 to-blue-50", border: "border-sky-100", href: "mailto:info@jctm.org.ng" },
   ];
 
   return (
