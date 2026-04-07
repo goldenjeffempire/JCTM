@@ -349,7 +349,8 @@ export default function About() {
                 <div className="space-y-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Enquiries</p>
-                    <a href="tel:+2348081313111" className="hover:text-accent transition-colors">+234 (0) 808 131 3111</a>
+                    <a href="tel:+2348081313111" className="hover:text-accent transition-colors block">+234 (0) 808 131 3111</a>
+                    <a href="tel:07082009777" className="hover:text-accent transition-colors block">07082009777</a>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Temple TV</p>
@@ -359,8 +360,8 @@ export default function About() {
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Website</p>
-                    <a href="https://www.jctmng.org" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                      www.jctmng.org
+                    <a href="https://www.jctm.org.ng" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      www.jctm.org.ng
                     </a>
                   </div>
                   <div>

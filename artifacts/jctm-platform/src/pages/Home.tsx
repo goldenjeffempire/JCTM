@@ -1498,7 +1498,7 @@ function ScriptureFeature() {
 // CRUSADE INVITE BANNER — Warri City Crusade 2026
 // ═══════════════════════════════════════════════════════════════════════════
 const CRUSADE_YT = "oJUkSAZu0y0";
-const CRUSADE_SHARE = encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"\n\nThursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State\n\n📞 +234(0)8081313111\n🌐 www.jctmng.org\n\n#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`);
+const CRUSADE_SHARE = encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"\n\nThursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State\n\n📞 +234(0)8081313111\n🌐 www.jctm.org.ng\n\n#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`);
 
 function CrusadeInviteSection() {
   const [, setTick] = useState(0);

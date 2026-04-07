@@ -139,7 +139,7 @@ Subscribe to JCTM Digital Sanctuary for live crusade updates, sermons, and testi
 };
 
 function FlyerShowcase() {
-  const shareText = encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State\n\n📞 ${CONTACT}\n🌐 www.jctmng.org\n\n#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`);
+  const shareText = encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State\n\n📞 ${CONTACT}\n🌐 www.jctm.org.ng\n\n#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`);
   const shareUrl = encodeURIComponent("https://jctm.church/crusade");
   const platforms = [
     { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${shareText}` },

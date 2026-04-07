@@ -80,7 +80,7 @@ ${event.description ? event.description.replace(/\|/g, "\n").split("\n").slice(0
 This is a divine invitation — come expecting miracles, healing, and a fresh encounter with God!
 
 📞 Enquiries: +234(0)8081313111
-🌐 www.jctmng.org
+🌐 www.jctm.org.ng
 
 Share this post and tag someone who needs to be there. Free entry for ALL!
 
@@ -106,7 +106,7 @@ Share this post. Print it out. Tag your friends and family. Send it in your What
 WATCH LIVE:
 Follow us on YouTube: youtube.com/@JesusChristTempleMinistry
 Facebook: facebook.com/TEMPLETV
-Website: www.jctmng.org
+Website: www.jctm.org.ng
 
 📞 For enquiries: +234(0)8081313111
 
