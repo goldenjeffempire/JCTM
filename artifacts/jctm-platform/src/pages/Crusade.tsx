@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, MapPin, Clock, Phone, Share2, Download, Copy, Check,
   Bell, BellOff, Users, ChevronDown, ExternalLink, Sparkles, Flame,
-  Facebook, Instagram, Youtube, X
+  Facebook, Instagram, Youtube, X, Camera, ImagePlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -337,12 +337,26 @@ function AdCopySection() {
   );
 }
 
-function InviteCardGenerator() {
+function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initialName?: string; initialPhoto?: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [name, setName] = useState("");
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(initialName);
+  const [photo, setPhoto] = useState<string | null>(initialPhoto);
   const [generated, setGenerated] = useState(false);
 
-  const generate = useCallback(() => {
+  useEffect(() => { if (initialName) setName(initialName); }, [initialName]);
+  useEffect(() => { if (initialPhoto) setPhoto(initialPhoto); }, [initialPhoto]);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => { setPhoto(ev.target?.result as string); setGenerated(false); };
+    reader.readAsDataURL(file);
+  };
+
+  const generate = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -382,7 +396,6 @@ function InviteCardGenerator() {
     ctx.lineWidth = 2;
     ctx.strokeRect(44, 44, W - 88, H - 88);
 
-    const cornerSize = 40;
     [[50, 50], [W - 50, 50], [50, H - 50], [W - 50, H - 50]].forEach(([cx, cy]) => {
       ctx.fillStyle = goldLight;
       ctx.beginPath();
@@ -391,13 +404,12 @@ function InviteCardGenerator() {
     });
 
     ctx.fillStyle = goldLight;
-    ctx.font = `bold ${cornerSize}px serif`;
+    ctx.font = `bold 40px serif`;
     ctx.textAlign = "center";
     ctx.fillText("✦", W / 2, 110);
 
     ctx.fillStyle = "#ffffff";
     ctx.font = `bold 52px serif`;
-    ctx.textAlign = "center";
     ctx.fillText("JESUS CHRIST TEMPLE MINISTRY", W / 2, 175);
 
     ctx.fillStyle = gold;
@@ -414,9 +426,7 @@ function InviteCardGenerator() {
     ctx.fillStyle = gold;
     ctx.font = `italic 26px serif`;
     const themeLines = ["\"Be Ready For Rapture:", "Tribulation Is Coming!", "Run For Your Soul!\""];
-    themeLines.forEach((line, i) => {
-      ctx.fillText(line, W / 2, 465 + i * 36);
-    });
+    themeLines.forEach((line, i) => { ctx.fillText(line, W / 2, 465 + i * 36); });
 
     ctx.strokeStyle = gold;
     ctx.lineWidth = 2;
@@ -441,29 +451,77 @@ function InviteCardGenerator() {
     ctx.fillText("📍 Ighogbadu Primary School, Obodo,", W / 2, 742);
     ctx.fillText("Okumagba Avenue, Warri South, Delta State", W / 2, 772);
 
-    if (name.trim()) {
-      ctx.fillStyle = "rgba(212,160,23,0.18)";
-      ctx.beginPath();
-      ctx.roundRect(80, 814, W - 160, 86, 16);
-      ctx.fill();
-      ctx.fillStyle = goldLight;
-      ctx.font = `bold 24px sans-serif`;
-      ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 848);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `bold 32px serif`;
-      ctx.fillText(name.toUpperCase(), W / 2, 886);
+    const hasName = name.trim().length > 0;
+    const hasPhoto = !!photo;
+
+    if (hasName || hasPhoto) {
+      if (hasPhoto) {
+        // Expanded attendance box with photo circle
+        ctx.fillStyle = "rgba(212,160,23,0.18)";
+        ctx.beginPath();
+        ctx.roundRect(80, 806, W - 160, 170, 16);
+        ctx.fill();
+
+        // Draw circular photo
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const cx = W / 2, cy = 893, r = 56;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.clip();
+            const s = Math.min(img.width, img.height);
+            ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, cx - r, cy - r, r * 2, r * 2);
+            ctx.restore();
+            // Gold ring
+            ctx.strokeStyle = goldLight;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = photo!;
+        });
+
+        ctx.fillStyle = goldLight;
+        ctx.font = `bold 22px sans-serif`;
+        ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 832);
+        if (hasName) {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `bold 30px serif`;
+          ctx.fillText(name.toUpperCase(), W / 2, 965);
+        }
+      } else {
+        // No photo — original compact box
+        ctx.fillStyle = "rgba(212,160,23,0.18)";
+        ctx.beginPath();
+        ctx.roundRect(80, 814, W - 160, 86, 16);
+        ctx.fill();
+        ctx.fillStyle = goldLight;
+        ctx.font = `bold 24px sans-serif`;
+        ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 848);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `bold 32px serif`;
+        ctx.fillText(name.toUpperCase(), W / 2, 886);
+      }
     }
+
+    const contactY = (hasName || hasPhoto) && hasPhoto ? 1006 : 960;
+    const websiteY = contactY + 40;
 
     ctx.fillStyle = gold;
     ctx.font = `bold 22px sans-serif`;
-    ctx.fillText(`📞 ${CONTACT}`, W / 2, 960);
+    ctx.fillText(`📞 ${CONTACT}`, W / 2, contactY);
 
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.font = `20px sans-serif`;
-    ctx.fillText("jctm.church  ·  #WarriCrusade2026", W / 2, 1000);
+    ctx.fillText("jctm.church  ·  #WarriCrusade2026", W / 2, websiteY);
 
     setGenerated(true);
-  }, [name]);
+  }, [name, photo]);
 
   const download = () => {
     const canvas = canvasRef.current;
@@ -500,24 +558,60 @@ function InviteCardGenerator() {
           <Share2 className="h-5 w-5 text-yellow-400" />
           <h3 className="font-serif font-bold text-white text-xl">Generate Shareable Invite Card</h3>
         </div>
-        <p className="text-white/60 text-sm">Add your name and create a personalised digital invite to share on WhatsApp and Instagram.</p>
+        <p className="text-white/60 text-sm">Add your name and photo to create a personalised digital invite to share on WhatsApp and Instagram.</p>
       </div>
       <div className="p-6 space-y-4">
-        <div className="flex gap-3">
-          <Input
-            placeholder="Your full name (optional)"
-            value={name}
-            onChange={(e) => { setName(e.target.value); setGenerated(false); }}
-            className="bg-white/10 border-yellow-400/30 text-white placeholder:text-white/40 rounded-xl"
-          />
-          <Button
-            onClick={generate}
-            className="rounded-xl shrink-0 font-bold"
-            style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}
+        {/* Photo + Name row */}
+        <div className="flex items-center gap-4">
+          <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            className="relative group shrink-0 transition-all duration-200"
+            title="Upload your photo"
           >
-            Generate
-          </Button>
+            {photo ? (
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400 shadow-lg group-hover:border-yellow-300 transition-all">
+                  <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                </div>
+                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Camera className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full border-2 border-dashed border-yellow-400/40 flex flex-col items-center justify-center gap-0.5 bg-white/5 group-hover:bg-white/10 group-hover:border-yellow-400 transition-all">
+                <Camera className="h-5 w-5 text-yellow-400/60 group-hover:text-yellow-400" />
+                <span className="text-[8px] text-yellow-400/50 group-hover:text-yellow-400 font-bold uppercase">Photo</span>
+              </div>
+            )}
+          </button>
+          <div className="flex-1 flex gap-2">
+            <Input
+              placeholder="Your full name (optional)"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setGenerated(false); }}
+              className="bg-white/10 border-yellow-400/30 text-white placeholder:text-white/40 rounded-xl"
+            />
+            <Button
+              onClick={generate}
+              className="rounded-xl shrink-0 font-bold"
+              style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}
+            >
+              Generate
+            </Button>
+          </div>
         </div>
+
+        {photo && (
+          <button
+            type="button"
+            onClick={() => { setPhoto(null); setGenerated(false); if (photoRef.current) photoRef.current.value = ""; }}
+            className="text-xs text-white/40 hover:text-red-400 transition-colors block"
+          >
+            Remove photo
+          </button>
+        )}
 
         <canvas
           ref={canvasRef}
@@ -687,11 +781,22 @@ function NotificationManager() {
   );
 }
 
-function RSVPForm({ onSuccess }: { onSuccess: (name: string) => void }) {
+function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | null) => void }) {
   const [form, setForm] = useState({ fullName: "", email: "", phone: "", city: "" });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setPhoto(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -705,7 +810,7 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string) => void }) {
       });
       if (!res.ok) throw new Error();
       setDone(true);
-      onSuccess(form.fullName);
+      onSuccess(form.fullName, photo);
       toast.success(`Thank you, ${form.fullName.split(" ")[0]}! Your attendance has been registered. See you at the crusade! 🔥`);
     } catch {
       toast.error("Registration failed. Please try again.");
@@ -717,15 +822,66 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string) => void }) {
   if (done) {
     return (
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-8">
-        <div className="text-5xl mb-4">🙌</div>
+        {photo ? (
+          <div className="flex justify-center mb-4">
+            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-yellow-400 shadow-xl">
+              <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+            </div>
+          </div>
+        ) : (
+          <div className="text-5xl mb-4">🙌</div>
+        )}
         <h4 className="font-serif font-bold text-white text-2xl mb-2">You&apos;re Registered!</h4>
         <p className="text-yellow-400 text-sm">See you at Ighogbadu Primary School on April 30th.</p>
+        <p className="text-white/50 text-xs mt-2">Scroll down to generate your personalised invite card.</p>
       </motion.div>
     );
   }
 
   return (
     <form onSubmit={submit} className="space-y-3">
+      {/* Photo upload */}
+      <div className="flex flex-col items-center gap-2">
+        <input
+          ref={photoRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
+        <button
+          type="button"
+          onClick={() => photoRef.current?.click()}
+          className="relative group transition-all duration-200"
+        >
+          {photo ? (
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-yellow-400 shadow-xl group-hover:border-yellow-300 transition-all">
+                <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Camera className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          ) : (
+            <div className="w-24 h-24 rounded-full border-2 border-dashed border-yellow-400/50 flex flex-col items-center justify-center gap-1 bg-white/5 group-hover:bg-white/10 group-hover:border-yellow-400 transition-all">
+              <ImagePlus className="h-6 w-6 text-yellow-400/70 group-hover:text-yellow-400" />
+              <span className="text-[10px] text-yellow-400/60 group-hover:text-yellow-400 font-semibold uppercase tracking-wide">Add Photo</span>
+            </div>
+          )}
+        </button>
+        {photo && (
+          <button
+            type="button"
+            onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
+            className="text-xs text-white/40 hover:text-red-400 transition-colors"
+          >
+            Remove photo
+          </button>
+        )}
+        <p className="text-xs text-white/40 text-center">Optional · Your photo appears on your invite card</p>
+      </div>
+
       <Input
         required
         placeholder="Full Name *"
