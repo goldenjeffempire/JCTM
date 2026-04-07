@@ -1,0 +1,52 @@
+2026-04-07T10:54:07.436075978Z 
+2026-04-07T10:54:07.436132539Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-04-07T10:54:07.436139209Z > node ./build.mjs
+2026-04-07T10:54:07.436141739Z 
+2026-04-07T10:54:08.009415283Z 
+2026-04-07T10:54:08.009439094Z   dist/index.mjs                       2.4mb ⚠️
+2026-04-07T10:54:08.009442714Z   dist/pino-worker.mjs               153.4kb
+2026-04-07T10:54:08.009445054Z   dist/pino-file.mjs                 142.1kb
+2026-04-07T10:54:08.009447394Z   dist/pino-pretty.mjs               114.6kb
+2026-04-07T10:54:08.009449514Z   dist/thread-stream-worker.mjs        7.3kb
+2026-04-07T10:54:08.009451664Z   dist/index.mjs.map                   5.4mb
+2026-04-07T10:54:08.009464404Z   dist/pino-worker.mjs.map           256.9kb
+2026-04-07T10:54:08.009466834Z   dist/pino-file.mjs.map             229.0kb
+2026-04-07T10:54:08.009469025Z   dist/pino-pretty.mjs.map           203.9kb
+2026-04-07T10:54:08.009471145Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-07T10:54:08.009473114Z 
+2026-04-07T10:54:08.009476105Z ⚡ Done in 503ms
+2026-04-07T10:54:09.357688069Z ==> Uploading build...
+2026-04-07T10:54:25.311050716Z ==> Uploaded in 10.2s. Compression took 5.7s
+2026-04-07T10:54:25.398905419Z ==> Build successful 🎉
+2026-04-07T10:54:30.389741912Z ==> Deploying...
+2026-04-07T10:54:30.470488124Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-04-07T10:54:48.882575811Z ==> Running 'pnpm --filter @workspace/api-server run start'
+2026-04-07T10:54:49.337418727Z 
+2026-04-07T10:54:49.337444818Z > @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+2026-04-07T10:54:49.337450208Z > node --enable-source-maps ./dist/index.mjs
+2026-04-07T10:54:49.337452138Z 
+2026-04-07T10:54:49.56228578Z {"level":30,"time":1775559289561,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","port":10000,"msg":"Server listening"}
+2026-04-07T10:54:49.600550126Z (node:82) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-04-07T10:54:49.600571447Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-04-07T10:54:49.600574117Z 
+2026-04-07T10:54:49.600577357Z To prepare for this change:
+2026-04-07T10:54:49.600580177Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-04-07T10:54:49.600582307Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-04-07T10:54:49.600584227Z 
+2026-04-07T10:54:49.600586847Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-04-07T10:54:49.600588967Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-07T10:54:49.601246043Z {"level":30,"time":1775559289562,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","intervalMs":1800000,"msg":"Starting YouTube sync cron (30-minute interval)"}
+2026-04-07T10:54:49.798649345Z {"level":30,"time":1775559289798,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":404},"responseTime":5,"msg":"request completed"}
+2026-04-07T10:54:50.015536209Z {"level":30,"time":1775559290015,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","callbackUrl":"https://jctm.onrender.com/api/sermons/websub","msg":"WebSub subscription submitted successfully"}
+2026-04-07T10:54:50.060999845Z {"level":30,"time":1775559290060,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","msg":"Starting incremental YouTube sync"}
+2026-04-07T10:54:52.288737589Z ==> Your service is live 🎉
+2026-04-07T10:54:52.412134562Z ==> 
+2026-04-07T10:54:52.414193706Z ==> ///////////////////////////////////////////////////////////
+2026-04-07T10:54:52.4179707Z ==> 
+2026-04-07T10:54:52.422079268Z ==> Available at your primary URL https://jctm.onrender.com
+2026-04-07T10:54:52.428041388Z ==> 
+2026-04-07T10:54:52.43075731Z ==> ///////////////////////////////////////////////////////////
+2026-04-07T10:54:56.751197087Z {"level":30,"time":1775559296750,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","synced":97,"featured":16,"live":5,"msg":"Incremental sync complete"}
+2026-04-07T10:54:56.751405012Z {"level":30,"time":1775559296751,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","synced":97,"featured":16,"live":5,"message":"Synced 97 sermons (16 featured, 5 live)","msg":"YouTube sync complete"}
+2026-04-07T10:56:32.661124196Z {"level":30,"time":1775559392660,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":404},"responseTime":2,"msg":"request completed"}
+2026-04-07T10:56:32.97308609Z {"level":30,"time":1775559392972,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-f47bd4565-vswjk","req":{"id":3,"method":"GET","url":"/favicon.ico"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
