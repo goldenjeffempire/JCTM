@@ -403,122 +403,132 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
       ctx.fill();
     });
 
-    ctx.fillStyle = goldLight;
-    ctx.font = `bold 40px serif`;
     ctx.textAlign = "center";
-    ctx.fillText("✦", W / 2, 110);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 52px serif`;
-    ctx.fillText("JESUS CHRIST TEMPLE MINISTRY", W / 2, 175);
-
-    ctx.fillStyle = gold;
-    ctx.font = `bold 30px sans-serif`;
-    ctx.fillText("PRESENTS", W / 2, 215);
-
-    ctx.fillStyle = goldLight;
-    ctx.font = `bold 80px serif`;
-    ctx.fillText("WARRI CITY", W / 2, 320);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 72px serif`;
-    ctx.fillText("CRUSADE 2026", W / 2, 400);
-
-    ctx.fillStyle = gold;
-    ctx.font = `italic 26px serif`;
-    const themeLines = ["\"Be Ready For Rapture:", "Tribulation Is Coming!", "Run For Your Soul!\""];
-    themeLines.forEach((line, i) => { ctx.fillText(line, W / 2, 465 + i * 36); });
-
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(120, 578);
-    ctx.lineTo(W - 120, 578);
-    ctx.stroke();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 34px sans-serif`;
-    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, 630);
-    ctx.fillStyle = gold;
-    ctx.font = `28px sans-serif`;
-    ctx.fillText("⏰  6:00 PM Daily  ·  WAT", W / 2, 678);
-
-    ctx.fillStyle = "rgba(255,255,255,0.12)";
-    ctx.beginPath();
-    ctx.roundRect(80, 706, W - 160, 90, 16);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `22px sans-serif`;
-    ctx.fillText("📍 Ighogbadu Primary School, Obodo,", W / 2, 742);
-    ctx.fillText("Okumagba Avenue, Warri South, Delta State", W / 2, 772);
 
     const hasName = name.trim().length > 0;
     const hasPhoto = !!photo;
 
-    if (hasName || hasPhoto) {
-      if (hasPhoto) {
-        // Expanded attendance box with photo circle
-        ctx.fillStyle = "rgba(212,160,23,0.18)";
-        ctx.beginPath();
-        ctx.roundRect(80, 806, W - 160, 170, 16);
-        ctx.fill();
+    // ── TOP: Photo + Name ──────────────────────────────────────────
+    if (hasPhoto) {
+      // "I will attend" badge above photo
+      ctx.fillStyle = "rgba(212,160,23,0.22)";
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 270, 68, 540, 46, 23);
+      ctx.fill();
+      ctx.fillStyle = goldLight;
+      ctx.font = `bold 22px sans-serif`;
+      ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 98);
 
-        // Draw circular photo
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            const cx = W / 2, cy = 893, r = 56;
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.clip();
-            const s = Math.min(img.width, img.height);
-            ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, cx - r, cy - r, r * 2, r * 2);
-            ctx.restore();
-            // Gold ring
-            ctx.strokeStyle = goldLight;
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
-            ctx.stroke();
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = photo!;
-        });
+      // Large circular photo
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const cx = W / 2, cy = 225, r = 100;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.clip();
+          const s = Math.min(img.width, img.height);
+          ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, cx - r, cy - r, r * 2, r * 2);
+          ctx.restore();
+          // Double gold ring
+          ctx.strokeStyle = goldLight;
+          ctx.lineWidth = 7;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r + 7, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = gold;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r + 16, 0, Math.PI * 2);
+          ctx.stroke();
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = photo!;
+      });
 
-        ctx.fillStyle = goldLight;
-        ctx.font = `bold 22px sans-serif`;
-        ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 832);
-        if (hasName) {
-          ctx.fillStyle = "#ffffff";
-          ctx.font = `bold 30px serif`;
-          ctx.fillText(name.toUpperCase(), W / 2, 965);
-        }
-      } else {
-        // No photo — original compact box
-        ctx.fillStyle = "rgba(212,160,23,0.18)";
-        ctx.beginPath();
-        ctx.roundRect(80, 814, W - 160, 86, 16);
-        ctx.fill();
-        ctx.fillStyle = goldLight;
-        ctx.font = `bold 24px sans-serif`;
-        ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 848);
+      if (hasName) {
         ctx.fillStyle = "#ffffff";
-        ctx.font = `bold 32px serif`;
-        ctx.fillText(name.toUpperCase(), W / 2, 886);
+        ctx.font = `bold 40px serif`;
+        ctx.fillText(name.toUpperCase(), W / 2, 372);
       }
+    } else if (hasName) {
+      // Name-only badge at top
+      ctx.fillStyle = "rgba(212,160,23,0.2)";
+      ctx.beginPath();
+      ctx.roundRect(80, 68, W - 160, 88, 16);
+      ctx.fill();
+      ctx.fillStyle = goldLight;
+      ctx.font = `bold 22px sans-serif`;
+      ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 100);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `bold 36px serif`;
+      ctx.fillText(name.toUpperCase(), W / 2, 142);
     }
 
-    const contactY = (hasName || hasPhoto) && hasPhoto ? 1006 : 960;
-    const websiteY = contactY + 40;
+    // ── MIDDLE: Ministry + Event Title + Theme ────────────────────
+    const mid = hasPhoto ? 415 : hasName ? 185 : 130;
+
+    ctx.fillStyle = goldLight;
+    ctx.font = `bold 28px serif`;
+    ctx.fillText("✦", W / 2, mid);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold 38px serif`;
+    ctx.fillText("JESUS CHRIST TEMPLE MINISTRY", W / 2, mid + 48);
 
     ctx.fillStyle = gold;
     ctx.font = `bold 22px sans-serif`;
-    ctx.fillText(`📞 ${CONTACT}`, W / 2, contactY);
+    ctx.fillText("PRESENTS", W / 2, mid + 80);
+
+    ctx.fillStyle = goldLight;
+    ctx.font = `bold 64px serif`;
+    ctx.fillText("WARRI CITY", W / 2, mid + 160);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold 56px serif`;
+    ctx.fillText("CRUSADE 2026", W / 2, mid + 222);
+
+    ctx.fillStyle = gold;
+    ctx.font = `italic 21px serif`;
+    const themeLines = ["\"Be Ready For Rapture:", "Tribulation Is Coming!", "Run For Your Soul!\""];
+    themeLines.forEach((line, i) => { ctx.fillText(line, W / 2, mid + 268 + i * 30); });
+
+    // Gold divider
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(120, mid + 366);
+    ctx.lineTo(W - 120, mid + 366);
+    ctx.stroke();
+
+    // ── BOTTOM: Event Details ─────────────────────────────────────
+    const bot = mid + 366;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold 28px sans-serif`;
+    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, bot + 46);
+
+    ctx.fillStyle = gold;
+    ctx.font = `23px sans-serif`;
+    ctx.fillText("⏰  6:00 PM Daily  ·  WAT", W / 2, bot + 84);
+
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.beginPath();
+    ctx.roundRect(80, bot + 104, W - 160, 74, 14);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `20px sans-serif`;
+    ctx.fillText("📍 Ighogbadu Primary School, Obodo,", W / 2, bot + 136);
+    ctx.fillText("Okumagba Avenue, Warri South, Delta State", W / 2, bot + 162);
+
+    ctx.fillStyle = gold;
+    ctx.font = `bold 19px sans-serif`;
+    ctx.fillText(`📞 ${CONTACT}`, W / 2, bot + 202);
 
     ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.font = `20px sans-serif`;
-    ctx.fillText("jctm.church  ·  #WarriCrusade2026", W / 2, websiteY);
+    ctx.font = `17px sans-serif`;
+    ctx.fillText("jctm.church  ·  #WarriCrusade2026", W / 2, bot + 228);
 
     setGenerated(true);
   }, [name, photo]);
