@@ -1,0 +1,43 @@
+You are a Principal Creative Technologist and Lead Experience Architect.
+
+Objective: Perform a deep-layer enhancement, structural expansion, and hyper-modernization of the JCTM platform. Transition from a standard website into a High-Fidelity Immersive Ecosystem that blends "The Primitive Word" with "The Future of Tech."
+
+1. Spatial UI & Immersive Layouts (Next-Gen Visuals):
+
+Bento-Dynamic Grid: Replace standard rows with a Fluid Bento Architecture. Use a 12-column responsive grid where cards (Sermons, Testimonies, Giving) have "Depth-Based Shadows" and soft-corner radii (24px).
+
+Glass-Refractive Materials: Implement Refractive Glassmorphism. Use a real-time backdrop-filter that blurs and slightly distorts the high-definition mountain/dove background (image_0.png) as the user scrolls.
+
+Micro-Typography: Use a variable font system (e.g., Inter or Geist) with "Optical Sizing" to ensure the mandate: "The Bible Is Our Standard" is perfectly legible from 4K monitors down to small mobile screens.
+
+2. High-Fidelity Interaction Physics:
+
+Magnetic & Elastic Motion: All CTA buttons (Watch, Give, Join) must feature Magnetic Cursor Tracking (pulling toward the mouse) and Elastic Spring Physics (snapping back into place when the mouse leaves).
+
+Seamless Page Transitions: Implement Shared Element Transitions. When a user clicks a YouTube sermon, the thumbnail should physically "grow" and transition smoothly into the Video Player view without a hard page refresh.
+
+Haptic-Ready Micro-Feedbacks: Integrate subtle "scale-down" animations on every touch-point to simulate physical button presses for the mobile app version.
+
+3. AI-Personalized "Sanctuary" Experience:
+
+Contextual TempleBots: The AI should not be a static bubble. Integrate "Predictive Assistance." If a user hovers over the Giving section, TempleBots should whisper a soft tooltip: "Would you like to see the spiritual benefits of seed-sowing?"
+
+Smart Sermon Summaries: Use AI to generate "TL;DR" bullet points for the 20 latest YouTube videos so users can grasp the "Correction" message instantly before watching.
+
+4. Functional Expansion (Deep Modules):
+
+The "Global Altar" (Live Interaction): A real-time, WebSocket-powered counter showing how many people are "Worshipping Now" globally.
+
+Digital Testimony Reel: A TikTok-style vertical scroll feed for short-form video testimonies, optimized for mobile thumb-scrolling.
+
+Interactive Mandate Map: A futuristic, interactive world map showing the reach of JCTM, with "Glow Points" on Warri and other global hubs.
+
+5. Performance & "App Store Elite" Hardening:
+
+Zero-Latency Data Fetching: Implement SWR (Stale-While-Revalidate) for the YouTube API sync, so the latest videos appear instantly from cache while updating in the background.
+
+Edge Optimization: Deploy all static assets to a Global Edge CDN, ensuring the site loads in under 1.2 seconds for users in Delta State and worldwide.
+
+Biometric-Ready Security: Ensure the "Member Portal" and "Giving" sections are architected to support FaceID/Fingerprint unlock on native iOS/Android builds.
+
+Execution: Re-initialize the layout with these high-end specifications. Focus on the "Ivory & Temple Blue" theme. Ensure every pixel reflects the excellence of the JCTM vision.
