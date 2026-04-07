@@ -58,10 +58,12 @@ export default function Members() {
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="glass-panel rounded-2xl p-5 animate-pulse text-center">
-                <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-3" />
-                <div className="h-4 bg-muted rounded w-3/4 mx-auto mb-2" />
-                <div className="h-3 bg-muted rounded w-1/2 mx-auto" />
+              <div key={i} className="glass-panel rounded-2xl overflow-hidden animate-pulse text-center">
+                <div className="aspect-square w-full bg-muted" />
+                <div className="px-3 pt-3 pb-4">
+                  <div className="h-4 bg-muted rounded w-3/4 mx-auto mb-2" />
+                  <div className="h-3 bg-muted rounded w-1/2 mx-auto" />
+                </div>
               </div>
             ))}
           </div>
@@ -73,20 +75,23 @@ export default function Members() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.05 }}
-                className="glass-panel rounded-2xl p-5 text-center hover:shadow-lg transition-all duration-300 group"
+                className="glass-panel rounded-2xl overflow-hidden text-center hover:shadow-lg transition-all duration-300 group"
               >
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3 group-hover:bg-accent/10 transition-colors">
+                <div className="aspect-square w-full bg-primary/10 group-hover:bg-accent/10 transition-colors relative">
                   {member.avatarUrl ? (
                     <img
                       src={member.avatarUrl}
                       alt={`${member.firstName} ${member.lastName}`}
-                      className="w-full h-full object-cover rounded-full"
+                      className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="h-7 w-7 text-primary group-hover:text-accent transition-colors" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <User className="h-12 w-12 text-primary group-hover:text-accent transition-colors" />
+                    </div>
                   )}
                 </div>
-                <h3 className="font-semibold text-primary text-sm leading-tight mb-1">
+                <div className="px-3 pt-3 pb-4">
+                <h3 className="font-bold text-primary text-sm leading-tight mb-1 text-center">
                   {member.firstName} {member.lastName}
                 </h3>
                 <span className={`inline-block text-xs border rounded-full px-2.5 py-0.5 mb-2 ${ROLE_COLORS[member.role] ?? "bg-muted text-muted-foreground border-border"}`}>
@@ -100,6 +105,7 @@ export default function Members() {
                     {member.bio}
                   </p>
                 )}
+                </div>
               </motion.div>
             ))}
           </div>
