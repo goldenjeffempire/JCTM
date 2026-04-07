@@ -1,0 +1,20 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "_dO3sfoZkItttj35HBzlu"
+uri = "file://README.md"
+type = "text"
+title = "JCTM Digital Sanctuary — Main README"
+
+[[outputs]]
+id = "eCVuD50wfCamc7zZsPhbg"
+uri = "file://artifacts/api-server/README.md"
+type = "text"
+title = "API Server — Developer Reference"
+
+[[outputs]]
+id = "934ZNMs3DmD4K5qmTyo69"
+uri = "file://artifacts/jctm-platform/README.md"
+type = "text"
+title = "Frontend Platform — Developer Reference"
