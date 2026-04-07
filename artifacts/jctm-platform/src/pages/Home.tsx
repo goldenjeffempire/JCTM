@@ -86,8 +86,8 @@ function useNextService() {
       const now = new Date();
       const d = new Date(now);
       const dow = now.getDay();
-      d.setDate(now.getDate() + (dow === 0 ? (now.getHours() >= 9 ? 7 : 0) : 7 - dow));
-      d.setHours(9, 0, 0, 0);
+      d.setDate(now.getDate() + (dow === 0 ? (now.getHours() >= 8 ? 7 : 0) : 7 - dow));
+      d.setHours(8, 0, 0, 0);
       return d;
     };
     const tick = () => {
@@ -1674,7 +1674,7 @@ function SundayServiceCard() {
             <p className="text-white/60 text-xs mb-4 leading-relaxed">Join us every Sunday for corporate worship, prayer, and the Word of God.</p>
 
             <div className="space-y-2 mb-5 text-sm text-white/75 flex-1">
-              <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />9:00 AM WAT every Sunday</div>
+              <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />8:00 AM WAT every Sunday</div>
               <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><span className="leading-snug">Main Sanctuary, Ebrumede, Warri, Delta State</span></div>
             </div>
 
