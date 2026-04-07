@@ -447,7 +447,7 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     ctx.beginPath(); ctx.moveTo(80, 318); ctx.lineTo(W - 80, 318); ctx.stroke();
 
     // ── PHOTO ────────────────────────────────────────────────────────
-    const photoSize   = 460;
+    const photoSize   = 340;
     const photoX      = (W - photoSize) / 2;   // 310
     const photoY      = 338;
     const photoBottom = photoY + photoSize;     // 798
