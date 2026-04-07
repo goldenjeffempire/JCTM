@@ -1712,6 +1712,7 @@ function EventsSection() {
   return (
     <section className="py-28 bg-gradient-to-b from-[#f0f6ff] to-white">
       <div className="container mx-auto px-4">
+        {/* Section header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-14 gap-6">
           <div>
             <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-3"><span className="h-px w-6 bg-accent inline-block" />Gatherings</span>
@@ -1720,70 +1721,101 @@ function EventsSection() {
           </div>
           <Link href="/events"><Button variant="outline" className="rounded-full px-7 group border-primary/20">Browse Calendar <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" /></Button></Link>
         </div>
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-br from-[#003366] to-[#0284C7] rounded-3xl p-8 shadow-xl border border-white/10">
-              <Skeleton className="h-16 w-20 rounded-2xl mb-6 bg-white/20" />
-              <Skeleton className="h-6 w-full mb-3 bg-white/20" />
-              <Skeleton className="h-4 w-3/4 mb-2 bg-white/20" />
-              <Skeleton className="h-10 w-full rounded-xl bg-white/20" />
-            </div>
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="bg-white rounded-3xl p-8 shadow-sm border border-border"><Skeleton className="h-16 w-20 rounded-2xl mb-6" /><Skeleton className="h-6 w-full mb-3" /><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-4 w-1/2 mb-6" /><Skeleton className="h-10 w-full rounded-xl" /></div>)}
+
+        {/* ── Weekly Sunday Service ── */}
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="h-px flex-1 bg-border/60" />
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Radio className="h-3.5 w-3.5 text-accent" /> Weekly Service
+            </span>
+            <span className="h-px flex-1 bg-border/60" />
           </div>
-        ) : (
-          <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }}>
             <SundayServiceCard />
-            {events && events.length > 0 && events.slice(0, 3).map((event) => {
-              const date = new Date(event.startDate);
-              return (
-                <motion.div key={event.id} variants={fadeUp}>
-                  <TiltCard>
-                    <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full flex flex-col">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                      {event.imageUrl ? (
-                        <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-3 left-3">
-                            <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="p-6 flex flex-col flex-1">
-                        {!event.imageUrl && (
-                          <div className="flex justify-between items-start mb-5">
-                            <div className="bg-gradient-to-br from-accent to-[#0284C7] p-4 rounded-2xl text-center min-w-[70px] text-white shadow-lg shadow-accent/20">
-                              <span className="block text-white/80 font-bold text-[10px] uppercase">{format(date, "MMM")}</span>
-                              <span className="block font-serif font-bold text-4xl leading-none">{format(date, "dd")}</span>
+          </motion.div>
+        </div>
+
+        {/* ── Upcoming Special Events ── */}
+        <div>
+          <div className="flex items-center gap-3 mb-6">
+            <span className="h-px flex-1 bg-border/60" />
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-accent" /> Upcoming Events
+            </span>
+            <span className="h-px flex-1 bg-border/60" />
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-border">
+                  <Skeleton className="w-full h-48" />
+                  <div className="p-6 space-y-3">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : events && events.length > 0 ? (
+            <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {events.slice(0, 6).map((event) => {
+                const date = new Date(event.startDate);
+                return (
+                  <motion.div key={event.id} variants={fadeUp}>
+                    <TiltCard>
+                      <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full flex flex-col">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                        {event.imageUrl ? (
+                          <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <div className="absolute bottom-3 left-3">
+                              <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>
                             </div>
-                            <Badge variant="secondary" className="rounded-full text-xs">{event.eventType}</Badge>
+                          </div>
+                        ) : (
+                          <div className="bg-gradient-to-br from-accent/10 to-primary/10 flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
+                            <Calendar className="h-12 w-12 text-accent/30" />
                           </div>
                         )}
-                        {event.imageUrl && (
+                        <div className="p-6 flex flex-col flex-1">
                           <div className="flex items-center gap-2 mb-3">
                             <div className="bg-gradient-to-br from-accent to-[#0284C7] rounded-xl px-3 py-1.5 text-white text-center">
                               <span className="block font-bold text-xs leading-none uppercase">{format(date, "MMM d")}</span>
                             </div>
                             <Badge variant="secondary" className="rounded-full text-xs">{event.eventType}</Badge>
                           </div>
-                        )}
-                        <h3 className="text-lg font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{event.title}</h3>
-                        <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
-                          <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-accent shrink-0" />{format(date, "EEEE, h:mm a")} WAT</div>
-                          <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" /><span className="leading-snug">{event.location || "Main Sanctuary, Warri"}</span></div>
+                          <h3 className="text-lg font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{event.title}</h3>
+                          <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
+                            <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-accent shrink-0" />{format(date, "EEEE, MMMM d, yyyy")}</div>
+                            <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-accent shrink-0" />{format(date, "h:mm a")} WAT</div>
+                            <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" /><span className="leading-snug">{event.location || "Main Sanctuary, Warri"}</span></div>
+                          </div>
+                          <Link href="/events"><Button className="w-full rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white border-none shadow-none transition-all duration-200">View Details</Button></Link>
                         </div>
-                        <Link href="/events"><Button className="w-full rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white border-none shadow-none transition-all duration-200">View Details</Button></Link>
                       </div>
-                    </div>
-                  </TiltCard>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-        {!isLoading && (!events || events.length === 0) && (
-          <p className="text-center text-muted-foreground text-sm mt-8">No upcoming special events scheduled. Check back soon.</p>
-        )}
+                    </TiltCard>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="rounded-3xl border border-dashed border-border bg-white/60 py-14 px-8 text-center">
+              <Calendar className="h-10 w-10 mx-auto mb-4 text-muted-foreground/30" />
+              <p className="font-semibold text-primary mb-1">No upcoming events scheduled</p>
+              <p className="text-muted-foreground text-sm mb-5">Check back soon — new events are added regularly. You can also subscribe on YouTube to get notified of live broadcasts.</p>
+              <a href="https://www.youtube.com/@JesusChristTempleMinistry" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="rounded-full gap-2 border-accent/30 text-accent hover:bg-accent hover:text-white">
+                  <Youtube className="h-4 w-4" /> Subscribe on YouTube
+                </Button>
+              </a>
+            </motion.div>
+          )}
+        </div>
       </div>
     </section>
   );
