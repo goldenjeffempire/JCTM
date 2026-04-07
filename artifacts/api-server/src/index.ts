@@ -17,7 +17,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
+const server = app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
@@ -51,3 +51,26 @@ app.listen(port, (err) => {
 
   subscribeToWebSub(`${callbackBase}/api/sermons/websub`, logger);
 });
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────
+// Render (and most platforms) send SIGTERM before replacing the process.
+// We stop accepting new connections, let in-flight requests finish (up to
+// 10 s), then exit cleanly so the platform can immediately start the next
+// instance — giving users zero visible downtime.
+function shutdown(signal: string) {
+  logger.info({ signal }, "Graceful shutdown initiated");
+
+  server.close(() => {
+    logger.info("All connections closed — exiting cleanly");
+    process.exit(0);
+  });
+
+  // Force-exit if connections don't drain within 10 seconds
+  setTimeout(() => {
+    logger.warn("Shutdown timeout reached — forcing exit");
+    process.exit(1);
+  }, 10_000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));
