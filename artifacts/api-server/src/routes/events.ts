@@ -43,7 +43,7 @@ router.get("/events/upcoming", async (req, res): Promise<void> => {
     .from(eventsTable)
     .where(gte(eventsTable.startDate, now))
     .orderBy(asc(eventsTable.startDate))
-    .limit(3);
+    .limit(4);
 
   const serialized = events.map(e => ({
     ...e,

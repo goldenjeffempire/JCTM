@@ -1633,12 +1633,12 @@ function EventsSection() {
           <Link href="/events"><Button variant="outline" className="rounded-full px-7 group border-primary/20">Browse Calendar <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" /></Button></Link>
         </div>
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="bg-white rounded-3xl p-8 shadow-sm border border-border"><Skeleton className="h-16 w-20 rounded-2xl mb-6" /><Skeleton className="h-6 w-full mb-3" /><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-4 w-1/2 mb-6" /><Skeleton className="h-10 w-full rounded-xl" /></div>)}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-white rounded-3xl p-8 shadow-sm border border-border"><Skeleton className="h-16 w-20 rounded-2xl mb-6" /><Skeleton className="h-6 w-full mb-3" /><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-4 w-1/2 mb-6" /><Skeleton className="h-10 w-full rounded-xl" /></div>)}
           </div>
         ) : events && events.length > 0 ? (
-          <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {events.slice(0, 3).map((event) => {
+          <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            {events.slice(0, 4).map((event) => {
               const date = new Date(event.startDate);
               return (
                 <motion.div key={event.id} variants={fadeUp}>
