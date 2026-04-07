@@ -11,7 +11,9 @@ function getCount(): number {
 }
 
 function broadcast(): void {
-  const payload = JSON.stringify({ count: getCount(), timestamp: Date.now() });
+  // Include ghostClients so the broadcast count is consistent with the initial
+  // payload and the /altar/count endpoint.
+  const payload = JSON.stringify({ count: getCount() + ghostClients, timestamp: Date.now() });
   for (const res of clients) {
     try {
       res.write(`data: ${payload}\n\n`);

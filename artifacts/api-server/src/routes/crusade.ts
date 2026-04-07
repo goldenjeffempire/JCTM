@@ -12,7 +12,15 @@ router.post("/crusade/register", async (req, res) => {
       .insert(crusadeRegistrationsTable)
       .values(body)
       .returning();
-    res.json({ success: true, registration });
+    res.json({
+      success: true,
+      registration: {
+        ...registration,
+        createdAt: registration.createdAt instanceof Date
+          ? registration.createdAt.toISOString()
+          : registration.createdAt,
+      },
+    });
   } catch (err: unknown) {
     const e = err as { issues?: unknown; name?: string };
     if (e?.issues || e?.name === "ZodError") {

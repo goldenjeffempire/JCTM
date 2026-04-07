@@ -53,7 +53,10 @@ router.post("/members", async (req, res): Promise<void> => {
     .values(parsed.data)
     .returning();
 
-  res.status(201).json(member);
+  res.status(201).json({
+    ...member,
+    joinedAt: member.joinedAt instanceof Date ? member.joinedAt.toISOString() : member.joinedAt,
+  });
 });
 
 export default router;

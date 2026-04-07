@@ -35,15 +35,10 @@ router.get("/giving/stats", async (_req, res): Promise<void> => {
     .from(givingLogsTable)
     .where(eq(givingLogsTable.status, "success"));
 
-  const recentCount = await db
-    .select({ count: count(givingLogsTable.id) })
-    .from(givingLogsTable)
-    .where(eq(givingLogsTable.status, "success"));
-
   res.json(GetGivingStatsResponse.parse({
     totalAmount: parseFloat(String(stats?.totalAmount ?? 0)),
     totalDonations: stats?.totalDonations ?? 0,
-    recentCount: recentCount[0]?.count ?? 0,
+    recentCount: stats?.totalDonations ?? 0,
   }));
 });
 

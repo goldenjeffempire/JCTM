@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "path";
@@ -91,5 +91,24 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }
+
+// 404 handler — catches any request that fell through all routes
+app.use((_req: Request, res: Response): void => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Global JSON error handler — must be defined last, after all routes and middleware.
+// Express 5 automatically forwards async errors here; no try/catch needed in routes.
+app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction): void => {
+  const status = err.status ?? err.statusCode ?? 500;
+  logger.error({ err, status }, "Unhandled error");
+  if (!res.headersSent) {
+    res.status(status).json({
+      error: process.env.NODE_ENV === "production" && status >= 500
+        ? "Internal server error"
+        : err.message,
+    });
+  }
+});
 
 export default app;

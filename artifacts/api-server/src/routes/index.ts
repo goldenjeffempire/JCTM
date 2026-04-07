@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import healthRouter from "./health";
 import sermonsRouter from "./sermons";
 import websubRouter from "./websub";
@@ -15,8 +15,10 @@ import crusadeRouter from "./crusade";
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(sermonsRouter);
+// websubRouter must come before sermonsRouter — otherwise GET /sermons/websub
+// is captured by the /sermons/:id wildcard route in sermonsRouter.
 router.use(websubRouter);
+router.use(sermonsRouter);
 router.use(testimoniesRouter);
 router.use(eventsRouter);
 router.use(givingRouter);
@@ -26,5 +28,10 @@ router.use(chatRouter);
 router.use(livestreamRouter);
 router.use(altarRouter);
 router.use(crusadeRouter);
+
+// API 404 — any /api/* path that matched no route above returns JSON, never HTML
+router.use((_req: Request, res: Response): void => {
+  res.status(404).json({ error: "API endpoint not found" });
+});
 
 export default router;

@@ -70,7 +70,12 @@ router.post("/events", async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(event);
+  res.status(201).json({
+    ...event,
+    startDate: event.startDate instanceof Date ? event.startDate.toISOString() : event.startDate,
+    endDate: event.endDate instanceof Date ? event.endDate.toISOString() : event.endDate,
+    createdAt: event.createdAt instanceof Date ? event.createdAt.toISOString() : event.createdAt,
+  });
 });
 
 export default router;

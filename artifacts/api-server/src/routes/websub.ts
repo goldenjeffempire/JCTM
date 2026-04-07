@@ -38,7 +38,16 @@ router.get("/sermons/websub", (req, res): void => {
 router.post("/sermons/websub", async (req, res): Promise<void> => {
   const apiKey = process.env.YOUTUBE_API_KEY;
 
-  // Acknowledge receipt immediately (hub expects 2xx)
+  // Read the raw XML body first. express.json/urlencoded skip non-matching
+  // content types, so the stream is still in paused mode and safe to consume here.
+  const rawBody = await new Promise<string>((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk: Buffer) => { data += chunk.toString(); });
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+
+  // Acknowledge receipt — hub expects 2xx before timing out
   res.status(200).send("OK");
 
   if (!apiKey) {
@@ -46,49 +55,44 @@ router.post("/sermons/websub", async (req, res): Promise<void> => {
     return;
   }
 
-  // Parse the Atom XML payload to extract the video ID
-  let body = "";
-  req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
-  req.on("end", async () => {
-    try {
-      const videoIdMatch = body.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
-      if (!videoIdMatch) {
-        req.log.warn({ body: body.slice(0, 300) }, "WebSub: no videoId found in payload");
-        return;
-      }
-
-      const videoId = videoIdMatch[1];
-      req.log.info({ videoId }, "WebSub: received push notification");
-
-      await syncSingleVideo(apiKey, videoId, req.log);
-
-      // Broadcast the new sermon to all connected SSE clients
-      const [newSermon] = await db
-        .select()
-        .from(sermonsTable)
-        .orderBy(desc(sermonsTable.createdAt))
-        .limit(1);
-
-      if (newSermon) {
-        sseBroadcaster.broadcast({
-          type: "new_sermon",
-          data: {
-            id: newSermon.id,
-            videoId: newSermon.videoId,
-            title: newSermon.title,
-            thumbnailUrl: newSermon.thumbnailUrl,
-            isFeatured: newSermon.isFeatured,
-            isLive: newSermon.isLive,
-            publishedAt: newSermon.publishedAt instanceof Date
-              ? newSermon.publishedAt.toISOString()
-              : newSermon.publishedAt,
-          },
-        });
-      }
-    } catch (err) {
-      req.log.error({ err }, "WebSub: failed to process notification");
+  try {
+    const videoIdMatch = rawBody.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
+    if (!videoIdMatch) {
+      req.log.warn({ body: rawBody.slice(0, 300) }, "WebSub: no videoId found in payload");
+      return;
     }
-  });
+
+    const videoId = videoIdMatch[1];
+    req.log.info({ videoId }, "WebSub: received push notification, syncing");
+
+    await syncSingleVideo(apiKey, videoId, req.log);
+
+    // Broadcast the new sermon to any connected SSE clients
+    const [newSermon] = await db
+      .select()
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.createdAt))
+      .limit(1);
+
+    if (newSermon) {
+      sseBroadcaster.broadcast({
+        type: "new_sermon",
+        data: {
+          id: newSermon.id,
+          videoId: newSermon.videoId,
+          title: newSermon.title,
+          thumbnailUrl: newSermon.thumbnailUrl,
+          isFeatured: newSermon.isFeatured,
+          isLive: newSermon.isLive,
+          publishedAt: newSermon.publishedAt instanceof Date
+            ? newSermon.publishedAt.toISOString()
+            : newSermon.publishedAt,
+        },
+      });
+    }
+  } catch (err) {
+    req.log.error({ err }, "WebSub: failed to process notification");
+  }
 });
 
 export default router;
