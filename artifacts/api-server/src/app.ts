@@ -56,10 +56,9 @@ app.use(
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Root ping — Render's port-detection probe sends HEAD / before routing to
-// healthCheckPath. Respond immediately so the instance is marked live without
-// delay. Must be registered before static-file middleware.
-app.route("/").get((_req, res) => res.status(200).end()).head((_req, res) => res.status(200).end());
+// Render's port-detection probe sends HEAD / before routing to healthCheckPath.
+// Handle HEAD only so GET / falls through to the SPA static handler in production.
+app.head("/", (_req, res) => res.status(200).end());
 
 app.use("/api", router);
 
@@ -91,7 +90,9 @@ if (process.env.NODE_ENV === "production") {
     }),
   );
 
-  app.get("/*splat", (_req, res) => {
+  // Express 5: "/*splat" requires ≥1 character after the slash, so GET /
+  // falls through.  Use "/{*splat}" (optional group) to also match the root.
+  app.get("/{*splat}", (_req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.join(staticDir, "index.html"));
   });
