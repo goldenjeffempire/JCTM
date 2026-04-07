@@ -453,10 +453,6 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     const photoBottom = photoY + photoSize;     // 798
 
     const drawPhoto = async () => {
-      // Dark backing behind frame
-      ctx.fillStyle = "#060e2a";
-      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.fill();
-
       if (photo) {
         await new Promise<void>((resolve) => {
           const img = new Image();
@@ -499,7 +495,9 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
           img.src = photo;
         });
       } else {
-        // Placeholder
+        // Placeholder — dark backing only shown when no photo
+        ctx.fillStyle = "#060e2a";
+        ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.fill();
         ctx.shadowColor = "rgba(77,200,255,0.6)"; ctx.shadowBlur = 40;
         ctx.strokeStyle = cyan; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 30); ctx.stroke();
