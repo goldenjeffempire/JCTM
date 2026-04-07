@@ -350,7 +350,7 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB."); return; }
+    if (file.size > 20 * 1024 * 1024) { toast.error("Photo must be under 20 MB."); return; }
     const reader = new FileReader();
     reader.onload = (ev) => { setPhoto(ev.target?.result as string); setGenerated(false); };
     reader.readAsDataURL(file);
@@ -792,7 +792,7 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB."); return; }
+    if (file.size > 20 * 1024 * 1024) { toast.error("Photo must be under 20 MB."); return; }
     const reader = new FileReader();
     reader.onload = (ev) => setPhoto(ev.target?.result as string);
     reader.readAsDataURL(file);
