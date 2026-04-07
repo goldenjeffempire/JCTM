@@ -1499,21 +1499,42 @@ function EventsSection() {
               return (
                 <motion.div key={event.id} variants={fadeUp}>
                   <TiltCard>
-                    <div className="bg-white rounded-3xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="bg-gradient-to-br from-accent to-[#0284C7] p-4 rounded-2xl text-center min-w-[70px] text-white shadow-lg shadow-accent/20">
-                          <span className="block text-white/80 font-bold text-[10px] uppercase">{format(date, "MMM")}</span>
-                          <span className="block font-serif font-bold text-4xl leading-none">{format(date, "dd")}</span>
+                    <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full flex flex-col">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                      {/* Flyer image */}
+                      {event.imageUrl ? (
+                        <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-3 left-3">
+                            <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>
+                          </div>
                         </div>
-                        <Badge variant="secondary" className="rounded-full text-xs">{event.eventType}</Badge>
+                      ) : null}
+                      <div className="p-6 flex flex-col flex-1">
+                        {!event.imageUrl && (
+                          <div className="flex justify-between items-start mb-5">
+                            <div className="bg-gradient-to-br from-accent to-[#0284C7] p-4 rounded-2xl text-center min-w-[70px] text-white shadow-lg shadow-accent/20">
+                              <span className="block text-white/80 font-bold text-[10px] uppercase">{format(date, "MMM")}</span>
+                              <span className="block font-serif font-bold text-4xl leading-none">{format(date, "dd")}</span>
+                            </div>
+                            <Badge variant="secondary" className="rounded-full text-xs">{event.eventType}</Badge>
+                          </div>
+                        )}
+                        {event.imageUrl && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-gradient-to-br from-accent to-[#0284C7] rounded-xl px-3 py-1.5 text-white text-center">
+                              <span className="block font-bold text-xs leading-none uppercase">{format(date, "MMM d")}</span>
+                            </div>
+                          </div>
+                        )}
+                        <h3 className="text-lg font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{event.title}</h3>
+                        <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
+                          <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-accent shrink-0" />{format(date, "EEEE, h:mm a")} WAT</div>
+                          <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" /><span className="leading-snug">{event.location || "Main Sanctuary, Warri"}</span></div>
+                        </div>
+                        <Link href="/events"><Button className="w-full rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white border-none shadow-none transition-all duration-200">View Details</Button></Link>
                       </div>
-                      <h3 className="text-xl font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{event.title}</h3>
-                      <div className="space-y-2 mb-6 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-accent" />{format(date, "EEEE, h:mm a")}</div>
-                        <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-accent" />{event.location || "Main Sanctuary, Warri"}</div>
-                      </div>
-                      <Button className="w-full rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white border-none shadow-none transition-all duration-200">Event Details</Button>
                     </div>
                   </TiltCard>
                 </motion.div>
