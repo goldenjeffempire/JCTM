@@ -565,9 +565,56 @@ export default function Events() {
             )}
 
             {upcoming.length === 0 && (
-              <div className="text-center py-16">
-                <Calendar className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                <p className="text-muted-foreground">No upcoming events scheduled. Check back soon or subscribe on YouTube for live broadcasts.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="glass-panel rounded-2xl overflow-hidden border border-yellow-400/40 hover:shadow-xl transition-all duration-300 group"
+                  style={{ boxShadow: "0 0 32px 4px rgba(212,160,23,0.13)" }}
+                >
+                  <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                    <img
+                      src="/warri-crusade-flyer2.jpeg"
+                      alt="Warri City Crusade 2026"
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    <div className="absolute top-3 right-3">
+                      <span className="bg-yellow-500 text-[#0a1a4a] text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">Crusade</span>
+                    </div>
+                    <div className="absolute bottom-4 left-4">
+                      <Countdown target="2026-04-30T18:00:00+01:00" />
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="font-serif font-bold text-primary text-lg leading-tight mb-3 group-hover:text-accent transition-colors">
+                      Warri City Crusade 2026 — Prophet Amos Global Crusade
+                    </h3>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 text-accent shrink-0" />
+                        <span>Thursday 30th April & Friday 1st May, 2026</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5 text-accent shrink-0" />
+                        <span>6:00 PM Daily WAT</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" />
+                        <span>Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic mb-4 border-t border-border/50 pt-3 line-clamp-2">
+                      "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"
+                    </p>
+                    <a href="/crusade">
+                      <Button className="w-full rounded-xl bg-yellow-500 hover:bg-yellow-600 text-[#0a1a4a] font-bold gap-2">
+                        Register to Attend
+                      </Button>
+                    </a>
+                  </div>
+                </motion.div>
               </div>
             )}
 

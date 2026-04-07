@@ -1760,9 +1760,42 @@ function EventsSection() {
                 </div>
               ))}
             </div>
-          ) : events && events.length > 0 ? (
+          ) : (
             <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {events.slice(0, 6).map((event) => {
+              {/* ── Warri City Crusade 2026 — Always Featured ── */}
+              <motion.div variants={fadeUp}>
+                <TiltCard>
+                  <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border-2 border-yellow-400/50 group relative overflow-hidden h-full flex flex-col"
+                    style={{ boxShadow: "0 0 36px 6px rgba(212,160,23,0.18), 0 4px 24px rgba(0,0,0,0.08)" }}>
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 z-10" />
+                    <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                      <img src="/warri-crusade-flyer2.jpeg" alt="Warri City Crusade 2026" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
+                      <div className="absolute top-3 right-3">
+                        <span className="bg-yellow-500 text-[#0a1a4a] text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">Crusade</span>
+                      </div>
+                    </div>
+                    <div className="p-6 flex flex-col flex-1">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl px-3 py-1.5 text-[#0a1a4a] text-center">
+                          <span className="block font-bold text-xs leading-none uppercase">Apr 30</span>
+                        </div>
+                        <Badge className="rounded-full text-xs bg-yellow-50 text-yellow-700 border-yellow-200">Upcoming</Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-primary mb-1 leading-tight group-hover:text-accent transition-colors">Warri City Crusade 2026</h3>
+                      <p className="text-xs italic text-muted-foreground mb-3 line-clamp-2">"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"</p>
+                      <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
+                        <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-accent shrink-0" />Thu 30 Apr & Fri 1 May, 2026</div>
+                        <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-accent shrink-0" />6:00 PM Daily WAT</div>
+                        <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" /><span className="leading-snug">Ighogbadu Primary School, Warri</span></div>
+                      </div>
+                      <Link href="/crusade"><Button className="w-full rounded-xl bg-yellow-500 hover:bg-yellow-600 text-[#0a1a4a] font-bold border-none shadow-none transition-all duration-200">Register to Attend</Button></Link>
+                    </div>
+                  </div>
+                </TiltCard>
+              </motion.div>
+              {/* ── Dynamic DB events ── */}
+              {events && events.slice(0, 5).map((event) => {
                 const date = new Date(event.startDate);
                 return (
                   <motion.div key={event.id} variants={fadeUp}>
@@ -1802,17 +1835,6 @@ function EventsSection() {
                   </motion.div>
                 );
               })}
-            </motion.div>
-          ) : (
-            <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="rounded-3xl border border-dashed border-border bg-white/60 py-14 px-8 text-center">
-              <Calendar className="h-10 w-10 mx-auto mb-4 text-muted-foreground/30" />
-              <p className="font-semibold text-primary mb-1">No upcoming events scheduled</p>
-              <p className="text-muted-foreground text-sm mb-5">Check back soon — new events are added regularly. You can also subscribe on YouTube to get notified of live broadcasts.</p>
-              <a href="https://www.youtube.com/@JesusChristTempleMinistry" target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="rounded-full gap-2 border-accent/30 text-accent hover:bg-accent hover:text-white">
-                  <Youtube className="h-4 w-4" /> Subscribe on YouTube
-                </Button>
-              </a>
             </motion.div>
           )}
         </div>

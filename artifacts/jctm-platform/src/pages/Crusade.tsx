@@ -364,7 +364,7 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const W = 1080, H = 1080;
+    const W = 1080, H = 1440;
     canvas.width = W;
     canvas.height = H;
 
@@ -372,165 +372,170 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     const gold = "#D4A017";
     const goldLight = "#FFD700";
 
+    // ── Full background ─────────────────────────────────────────────
     ctx.fillStyle = royal;
     ctx.fillRect(0, 0, W, H);
 
-    const radial = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, H * 0.65);
-    radial.addColorStop(0, "rgba(30,80,180,0.6)");
+    const radial = ctx.createRadialGradient(W / 2, H * 0.5, 0, W / 2, H * 0.5, H * 0.7);
+    radial.addColorStop(0, "rgba(30,80,180,0.5)");
     radial.addColorStop(1, "rgba(10,26,107,0)");
     ctx.fillStyle = radial;
     ctx.fillRect(0, 0, W, H);
 
-    for (let i = 0; i < 60; i++) {
+    // Stars across full card
+    for (let i = 0; i < 80; i++) {
       ctx.beginPath();
-      const x = Math.random() * W;
-      const y = Math.random() * H;
-      const r = Math.random() * 1.5 + 0.5;
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,220,60,${Math.random() * 0.5 + 0.1})`;
+      ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 1.5 + 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,220,60,${Math.random() * 0.45 + 0.08})`;
       ctx.fill();
     }
 
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 8;
-    ctx.strokeRect(30, 30, W - 60, H - 60);
-    ctx.strokeStyle = goldLight;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(44, 44, W - 88, H - 88);
-
+    // Outer gold border
+    ctx.strokeStyle = gold; ctx.lineWidth = 8;
+    ctx.strokeRect(28, 28, W - 56, H - 56);
+    ctx.strokeStyle = goldLight; ctx.lineWidth = 2;
+    ctx.strokeRect(42, 42, W - 84, H - 84);
+    // Corner dots
     [[50, 50], [W - 50, 50], [50, H - 50], [W - 50, H - 50]].forEach(([cx, cy]) => {
       ctx.fillStyle = goldLight;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
     });
 
     ctx.textAlign = "center";
 
+    // ════════════════════════════════════════════════════════════════
+    // SECTION 1 — TOP: "JCTM PRESENTS" (Y: 0–220)
+    // ════════════════════════════════════════════════════════════════
+    ctx.fillStyle = goldLight; ctx.font = `bold 20px sans-serif`;
+    ctx.fillText("✦  ✦  ✦", W / 2, 82);
+
+    ctx.fillStyle = "#ffffff"; ctx.font = `bold 44px serif`;
+    ctx.fillText("JESUS CHRIST TEMPLE MINISTRY", W / 2, 142);
+
+    ctx.fillStyle = gold; ctx.font = `bold 28px sans-serif`;
+    ctx.fillText("P  R  E  S  E  N  T  S", W / 2, 186);
+
+    // Divider
+    ctx.strokeStyle = gold; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(120, 210); ctx.lineTo(W - 120, 210); ctx.stroke();
+
+    // ════════════════════════════════════════════════════════════════
+    // SECTION 2 — MIDDLE: Photo + Name (Y: 220–740)
+    // ════════════════════════════════════════════════════════════════
     const hasName = name.trim().length > 0;
     const hasPhoto = !!photo;
 
-    // ── TOP: Photo + Name ──────────────────────────────────────────
-    if (hasPhoto) {
-      // "I will attend" badge above photo
-      ctx.fillStyle = "rgba(212,160,23,0.22)";
-      ctx.beginPath();
-      ctx.roundRect(W / 2 - 270, 68, 540, 46, 23);
-      ctx.fill();
-      ctx.fillStyle = goldLight;
-      ctx.font = `bold 22px sans-serif`;
-      ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 98);
+    const photoCY = 430; // centre of photo circle
+    const photoR = 160;  // radius
 
-      // Large circular photo
+    if (hasPhoto) {
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          const cx = W / 2, cy = 225, r = 100;
+          // Gold glow ring behind photo
+          const glow = ctx.createRadialGradient(W / 2, photoCY, photoR - 10, W / 2, photoCY, photoR + 60);
+          glow.addColorStop(0, "rgba(212,160,23,0.35)");
+          glow.addColorStop(1, "rgba(212,160,23,0)");
+          ctx.fillStyle = glow;
+          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR + 60, 0, Math.PI * 2); ctx.fill();
+
+          // Circular clip
           ctx.save();
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.clip();
+          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR, 0, Math.PI * 2); ctx.clip();
           const s = Math.min(img.width, img.height);
-          ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, cx - r, cy - r, r * 2, r * 2);
+          ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s,
+            W / 2 - photoR, photoCY - photoR, photoR * 2, photoR * 2);
           ctx.restore();
-          // Double gold ring
-          ctx.strokeStyle = goldLight;
-          ctx.lineWidth = 7;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r + 7, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.strokeStyle = gold;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r + 16, 0, Math.PI * 2);
-          ctx.stroke();
+
+          // Gold rings
+          ctx.strokeStyle = goldLight; ctx.lineWidth = 8;
+          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR + 8, 0, Math.PI * 2); ctx.stroke();
+          ctx.strokeStyle = gold; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR + 20, 0, Math.PI * 2); ctx.stroke();
           resolve();
         };
         img.onerror = () => resolve();
         img.src = photo!;
       });
-
-      if (hasName) {
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `bold 40px serif`;
-        ctx.fillText(name.toUpperCase(), W / 2, 372);
-      }
-    } else if (hasName) {
-      // Name-only badge at top
-      ctx.fillStyle = "rgba(212,160,23,0.2)";
-      ctx.beginPath();
-      ctx.roundRect(80, 68, W - 160, 88, 16);
-      ctx.fill();
-      ctx.fillStyle = goldLight;
-      ctx.font = `bold 22px sans-serif`;
-      ctx.fillText("🙋 I WILL BE ATTENDING — JOIN ME!", W / 2, 100);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `bold 36px serif`;
-      ctx.fillText(name.toUpperCase(), W / 2, 142);
+    } else {
+      // Placeholder circle when no photo
+      const grad = ctx.createRadialGradient(W / 2, photoCY, 0, W / 2, photoCY, photoR);
+      grad.addColorStop(0, "rgba(30,80,180,0.6)");
+      grad.addColorStop(1, "rgba(10,26,107,0.3)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(212,160,23,0.4)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(W / 2, photoCY, photoR, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.font = `120px sans-serif`;
+      ctx.fillText("🙏", W / 2, photoCY + 44);
     }
 
-    // ── MIDDLE: Ministry + Event Title + Theme ────────────────────
-    const mid = hasPhoto ? 415 : hasName ? 185 : 130;
+    // Name below photo
+    if (hasName) {
+      ctx.fillStyle = "#ffffff"; ctx.font = `bold 52px serif`;
+      ctx.fillText(name.toUpperCase(), W / 2, photoCY + photoR + 76);
+      // "I will attend" tag
+      ctx.fillStyle = "rgba(212,160,23,0.25)";
+      ctx.beginPath(); ctx.roundRect(W / 2 - 280, photoCY + photoR + 100, 560, 50, 25); ctx.fill();
+      ctx.fillStyle = goldLight; ctx.font = `bold 22px sans-serif`;
+      ctx.fillText("🙋  I WILL BE ATTENDING — JOIN ME!", W / 2, photoCY + photoR + 133);
+    } else {
+      // No name — just the badge
+      ctx.fillStyle = "rgba(212,160,23,0.22)";
+      ctx.beginPath(); ctx.roundRect(W / 2 - 280, photoCY + photoR + 24, 560, 50, 25); ctx.fill();
+      ctx.fillStyle = goldLight; ctx.font = `bold 22px sans-serif`;
+      ctx.fillText("🙋  I WILL BE ATTENDING — JOIN ME!", W / 2, photoCY + photoR + 57);
+    }
 
-    ctx.fillStyle = goldLight;
-    ctx.font = `bold 28px serif`;
-    ctx.fillText("✦", W / 2, mid);
+    // Divider into bottom section
+    const midEnd = hasName ? photoCY + photoR + 168 : photoCY + photoR + 88;
+    ctx.strokeStyle = gold; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(120, midEnd); ctx.lineTo(W - 120, midEnd); ctx.stroke();
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 38px serif`;
-    ctx.fillText("JESUS CHRIST TEMPLE MINISTRY", W / 2, mid + 48);
+    // ════════════════════════════════════════════════════════════════
+    // SECTION 3 — BOTTOM: Crusade Info (Y: midEnd – H)
+    // ════════════════════════════════════════════════════════════════
+    let y = midEnd + 58;
 
-    ctx.fillStyle = gold;
-    ctx.font = `bold 22px sans-serif`;
-    ctx.fillText("PRESENTS", W / 2, mid + 80);
+    ctx.fillStyle = goldLight; ctx.font = `bold 66px serif`;
+    ctx.fillText("WARRI CITY", W / 2, y);
+    y += 72;
 
-    ctx.fillStyle = goldLight;
-    ctx.font = `bold 64px serif`;
-    ctx.fillText("WARRI CITY", W / 2, mid + 160);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 56px serif`;
-    ctx.fillText("CRUSADE 2026", W / 2, mid + 222);
+    ctx.fillStyle = "#ffffff"; ctx.font = `bold 58px serif`;
+    ctx.fillText("CRUSADE 2026", W / 2, y);
+    y += 50;
 
-    ctx.fillStyle = gold;
-    ctx.font = `italic 21px serif`;
-    const themeLines = ["\"Be Ready For Rapture:", "Tribulation Is Coming!", "Run For Your Soul!\""];
-    themeLines.forEach((line, i) => { ctx.fillText(line, W / 2, mid + 268 + i * 30); });
+    ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.font = `italic 24px serif`;
+    ctx.fillText("Prophet Amos Global Crusade", W / 2, y);
+    y += 48;
 
-    // Gold divider
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(120, mid + 366);
-    ctx.lineTo(W - 120, mid + 366);
-    ctx.stroke();
+    ctx.fillStyle = gold; ctx.font = `italic 22px serif`;
+    ["\u201cBe Ready For Rapture:", "Tribulation Is Coming!", "Run For Your Soul!\u201d"].forEach((line) => {
+      ctx.fillText(line, W / 2, y); y += 30;
+    });
+    y += 14;
 
-    // ── BOTTOM: Event Details ─────────────────────────────────────
-    const bot = mid + 366;
+    // Details panel
+    ctx.fillStyle = "rgba(255,255,255,0.07)";
+    ctx.beginPath(); ctx.roundRect(80, y, W - 160, 168, 16); ctx.fill();
+    ctx.strokeStyle = "rgba(212,160,23,0.25)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(80, y, W - 160, 168, 16); ctx.stroke();
+    y += 36;
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 28px sans-serif`;
-    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, bot + 46);
+    ctx.fillStyle = "#ffffff"; ctx.font = `bold 28px sans-serif`;
+    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, y); y += 38;
 
-    ctx.fillStyle = gold;
-    ctx.font = `23px sans-serif`;
-    ctx.fillText("⏰  6:00 PM Daily  ·  WAT", W / 2, bot + 84);
+    ctx.fillStyle = gold; ctx.font = `24px sans-serif`;
+    ctx.fillText("⏰  6:00 PM Daily  ·  WAT", W / 2, y); y += 34;
 
-    ctx.fillStyle = "rgba(255,255,255,0.1)";
-    ctx.beginPath();
-    ctx.roundRect(80, bot + 104, W - 160, 74, 14);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `20px sans-serif`;
-    ctx.fillText("📍 Ighogbadu Primary School, Obodo,", W / 2, bot + 136);
-    ctx.fillText("Okumagba Avenue, Warri South, Delta State", W / 2, bot + 162);
+    ctx.fillStyle = "#ffffff"; ctx.font = `21px sans-serif`;
+    ctx.fillText("📍 Ighogbadu Primary School, Okumagba Ave, Warri", W / 2, y); y += 34;
 
-    ctx.fillStyle = gold;
-    ctx.font = `bold 19px sans-serif`;
-    ctx.fillText(`📞 ${CONTACT}`, W / 2, bot + 202);
+    ctx.fillStyle = gold; ctx.font = `bold 20px sans-serif`;
+    ctx.fillText(`📞 ${CONTACT}  ·  jctm.church`, W / 2, y); y += 36;
 
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.font = `17px sans-serif`;
-    ctx.fillText("jctm.church  ·  #WarriCrusade2026", W / 2, bot + 228);
+    ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `18px sans-serif`;
+    ctx.fillText("#WarriCrusade2026  ·  #ProphetAmos  ·  Free Admission", W / 2, H - 50);
 
     setGenerated(true);
   }, [name, photo]);
