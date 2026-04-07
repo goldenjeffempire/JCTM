@@ -7,6 +7,8 @@
  */
 
 export * from "./authResponse";
+export * from "./chatMessage";
+export * from "./chatMessageRole";
 export * from "./chatRequest";
 export * from "./chatResponse";
 export * from "./createEventBody";

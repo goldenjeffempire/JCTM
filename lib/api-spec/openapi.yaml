@@ -919,6 +919,18 @@ components:
         - lastName
         - role
 
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+
     ChatRequest:
       type: object
       properties:
@@ -926,6 +938,11 @@ components:
           type: string
         sessionId:
           type: ["string", "null"]
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+          description: Previous turns in the conversation (last N messages for context)
       required:
         - message
 

@@ -185,19 +185,32 @@ export function TempleBots() {
   const sendMessage = useCallback((text: string) => {
     if (!text.trim() || chatMutation.isPending) return;
     setInput("");
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: text }]);
-    chatMutation.mutate(
-      { data: { message: text, sessionId } },
-      {
-        onSuccess: (data: { sessionId?: string; reply: string; sources?: string[] }) => {
-          if (data.sessionId) setSessionId(data.sessionId);
-          setMessages(prev => [...prev, { id: Date.now().toString(), role: "bot", content: data.reply, sources: data.sources }]);
-        },
-        onError: () => {
-          setMessages(prev => [...prev, { id: Date.now().toString(), role: "bot", content: "Sorry, I am having trouble connecting right now. Please try again." }]);
-        },
-      }
-    );
+
+    // Capture snapshot of current messages for history BEFORE adding the new user turn.
+    setMessages(prev => {
+      const updated = [...prev, { id: Date.now().toString(), role: "user" as const, content: text }];
+
+      // Build history for the API — map bot messages to "assistant" role, cap at 20 turns.
+      const history = prev
+        .filter(m => m.role === "user" || m.role === "bot")
+        .slice(-20)
+        .map(m => ({ role: m.role === "bot" ? "assistant" as const : "user" as const, content: m.content }));
+
+      chatMutation.mutate(
+        { data: { message: text, sessionId, history } },
+        {
+          onSuccess: (data: { sessionId?: string; reply: string; sources?: string[] }) => {
+            if (data.sessionId) setSessionId(data.sessionId);
+            setMessages(curr => [...curr, { id: Date.now().toString(), role: "bot", content: data.reply, sources: data.sources }]);
+          },
+          onError: () => {
+            setMessages(curr => [...curr, { id: Date.now().toString(), role: "bot", content: "Sorry, I am having trouble connecting right now. Please try again." }]);
+          },
+        }
+      );
+
+      return updated;
+    });
   }, [chatMutation, sessionId]);
 
   const handleSend = (e: React.FormEvent) => {
@@ -412,8 +425,22 @@ export function TempleBots() {
                     <p className="text-sm leading-relaxed">{msg.content}</p>
                   </motion.div>
                   {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {msg.sources.map((s, i) => (<span key={i} className="text-[10px] text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-full">{s}</span>))}
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {msg.sources.map((s, i) => {
+                        const label = s.match(/v=([\w-]+)/)?.[1] ?? `Source ${i + 1}`;
+                        return (
+                          <a
+                            key={i}
+                            href={s}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-accent bg-accent/10 hover:bg-accent/20 border border-accent/20 px-2 py-0.5 rounded-full transition-colors"
+                          >
+                            <Youtube className="h-2.5 w-2.5" />
+                            {label}
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

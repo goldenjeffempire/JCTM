@@ -218,10 +218,25 @@ export interface CreateMemberBody {
   bio?: string | null;
 }
 
+export type ChatMessageRole =
+  (typeof ChatMessageRole)[keyof typeof ChatMessageRole];
+
+export const ChatMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export interface ChatMessage {
+  role: ChatMessageRole;
+  content: string;
+}
+
 export interface ChatRequest {
   message: string;
   /** @nullable */
   sessionId?: string | null;
+  /** Previous turns in the conversation (last N messages for context) */
+  history?: ChatMessage[];
 }
 
 export interface ChatResponse {

@@ -350,6 +350,17 @@ export const CreateMemberBody = zod.object({
 export const ChatWithTempleBotsBody = zod.object({
   message: zod.string(),
   sessionId: zod.string().nullish(),
+  history: zod
+    .array(
+      zod.object({
+        role: zod.enum(["user", "assistant"]),
+        content: zod.string(),
+      }),
+    )
+    .optional()
+    .describe(
+      "Previous turns in the conversation (last N messages for context)",
+    ),
 });
 
 export const ChatWithTempleBotsResponse = zod.object({
