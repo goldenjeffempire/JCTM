@@ -426,10 +426,10 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
     const hasPhoto = !!photo;
 
     // Square photo dimensions — centred horizontally
-    const photoSize = 380;           // side length of the square
+    const photoSize = 500;           // side length of the square
     const photoX = (W - photoSize) / 2;
-    const photoY = 228;              // top edge of the photo
-    const photoBottom = photoY + photoSize; // = 608
+    const photoY = 220;              // top edge of the photo
+    const photoBottom = photoY + photoSize;
 
     if (hasPhoto) {
       await new Promise<void>((resolve) => {
@@ -454,13 +454,13 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
           ctx.roundRect(photoX, photoY, photoSize, photoSize, 20);
           ctx.clip();
 
-          // Cover-fit: scale so the shortest side fills the square,
-          // then centre — works for any image size or aspect ratio.
-          const scale = Math.max(photoSize / iw, photoSize / ih);
-          const dw = iw * scale;   // drawn width  (≥ photoSize)
-          const dh = ih * scale;   // drawn height (≥ photoSize)
-          const dx = photoX + (photoSize - dw) / 2;  // may be slightly left of photoX
-          const dy = photoY + (photoSize - dh) / 2;  // may be slightly above photoY
+          // Contain-fit: scale so the longest side fits inside the square,
+          // then centre — the full image is always visible, never cropped.
+          const scale = Math.min(photoSize / iw, photoSize / ih);
+          const dw = iw * scale;   // drawn width  (≤ photoSize)
+          const dh = ih * scale;   // drawn height (≤ photoSize)
+          const dx = photoX + (photoSize - dw) / 2;  // centred horizontally
+          const dy = photoY + (photoSize - dh) / 2;  // centred vertically
           ctx.drawImage(img, dx, dy, dw, dh);
 
           ctx.restore();
