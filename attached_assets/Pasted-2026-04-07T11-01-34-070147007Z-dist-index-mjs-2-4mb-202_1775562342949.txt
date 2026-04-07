@@ -1,0 +1,50 @@
+2026-04-07T11:01:34.070147007Z   dist/index.mjs                       2.4mb ⚠️
+2026-04-07T11:01:34.070150247Z   dist/pino-worker.mjs               153.4kb
+2026-04-07T11:01:34.070152058Z   dist/pino-file.mjs                 142.1kb
+2026-04-07T11:01:34.070154027Z   dist/pino-pretty.mjs               114.6kb
+2026-04-07T11:01:34.070155718Z   dist/thread-stream-worker.mjs        7.3kb
+2026-04-07T11:01:34.070157378Z   dist/index.mjs.map                   5.4mb
+2026-04-07T11:01:34.070167468Z   dist/pino-worker.mjs.map           256.9kb
+2026-04-07T11:01:34.070169338Z   dist/pino-file.mjs.map             229.0kb
+2026-04-07T11:01:34.070171028Z   dist/pino-pretty.mjs.map           203.9kb
+2026-04-07T11:01:34.070172808Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-07T11:01:34.070174408Z 
+2026-04-07T11:01:34.070176828Z ⚡ Done in 571ms
+2026-04-07T11:01:36.12629121Z ==> Uploading build...
+2026-04-07T11:01:53.781191685Z ==> Uploaded in 10.3s. Compression took 7.4s
+2026-04-07T11:01:53.882109715Z ==> Build successful 🎉
+2026-04-07T11:01:56.876795983Z ==> Deploying...
+2026-04-07T11:01:56.948466558Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-04-07T11:02:14.866939754Z ==> Running 'pnpm --filter @workspace/api-server run start'
+2026-04-07T11:02:15.388966918Z 
+2026-04-07T11:02:15.388994499Z > @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+2026-04-07T11:02:15.388998439Z > node --enable-source-maps ./dist/index.mjs
+2026-04-07T11:02:15.389000259Z 
+2026-04-07T11:02:15.602536593Z {"level":30,"time":1775559735601,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","port":10000,"msg":"Server listening"}
+2026-04-07T11:02:15.637615695Z (node:82) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-04-07T11:02:15.637634366Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-04-07T11:02:15.637636986Z 
+2026-04-07T11:02:15.637639956Z To prepare for this change:
+2026-04-07T11:02:15.637643226Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-04-07T11:02:15.637645396Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-04-07T11:02:15.637647356Z 
+2026-04-07T11:02:15.637650316Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-04-07T11:02:15.637652437Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-07T11:02:15.638323396Z {"level":30,"time":1775559735602,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","intervalMs":1800000,"msg":"Starting YouTube sync cron (30-minute interval)"}
+2026-04-07T11:02:16.093323943Z {"level":30,"time":1775559736093,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","msg":"Starting incremental YouTube sync"}
+2026-04-07T11:02:16.106856066Z {"level":30,"time":1775559736106,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":404},"responseTime":6,"msg":"request completed"}
+2026-04-07T11:02:16.130799284Z {"level":30,"time":1775559736130,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","callbackUrl":"https://jctm.onrender.com/api/sermons/websub","msg":"WebSub subscription submitted successfully"}
+2026-04-07T11:02:19.21120986Z ==> Your service is live 🎉
+2026-04-07T11:02:19.402676048Z ==> 
+2026-04-07T11:02:19.404950224Z ==> ///////////////////////////////////////////////////////////
+2026-04-07T11:02:19.406866536Z ==> 
+2026-04-07T11:02:19.409438796Z ==> Available at your primary URL https://jctm.onrender.com
+2026-04-07T11:02:19.411451569Z ==> 
+2026-04-07T11:02:19.413395991Z ==> ///////////////////////////////////////////////////////////
+2026-04-07T11:02:23.097905445Z {"level":30,"time":1775559743097,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","synced":97,"featured":16,"live":5,"msg":"Incremental sync complete"}
+2026-04-07T11:02:23.098117771Z {"level":30,"time":1775559743097,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","synced":97,"featured":16,"live":5,"message":"Synced 97 sermons (16 featured, 5 live)","msg":"YouTube sync complete"}
+2026-04-07T11:07:23.632713654Z ==> Detected service running on port 10000
+2026-04-07T11:07:23.701733573Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-04-07T11:32:16.602904192Z {"level":30,"time":1775561536602,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","msg":"Starting incremental YouTube sync"}
+2026-04-07T11:32:23.648353482Z {"level":30,"time":1775561543648,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","synced":97,"featured":16,"live":5,"msg":"Incremental sync complete"}
+2026-04-07T11:32:23.64863282Z {"level":30,"time":1775561543648,"pid":82,"hostname":"srv-d7adi5dm5p6s73ev8vig-7d7bf5595-cpkrt","synced":97,"featured":16,"live":5,"message":"Synced 97 sermons (16 featured, 5 live)","msg":"YouTube sync complete"}

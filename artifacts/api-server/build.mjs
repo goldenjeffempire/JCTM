@@ -28,6 +28,13 @@ async function buildAll() {
     // - uses native modules and loads them dynamically (e.g. sharp)
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
+      // Large runtime packages — installed by pnpm during the Render build so they
+      // are present in node_modules at server start. Externalising them shrinks
+      // dist/index.mjs well below esbuild's 1 MB warning threshold.
+      "openai",   // openai SDK v6 is >1 MB on its own
+      "express",  // Express 5 + its deps
+      "pg",       // node-postgres
+      "ws",       // WebSocket server
       "*.node",
       "sharp",
       "better-sqlite3",

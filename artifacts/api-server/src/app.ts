@@ -56,6 +56,11 @@ app.use(
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Root ping — Render's port-detection probe sends HEAD / before routing to
+// healthCheckPath. Respond immediately so the instance is marked live without
+// delay. Must be registered before static-file middleware.
+app.route("/").get((_req, res) => res.status(200).end()).head((_req, res) => res.status(200).end());
+
 app.use("/api", router);
 
 if (process.env.NODE_ENV === "production") {

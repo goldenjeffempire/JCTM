@@ -18,6 +18,8 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "openai": "^6.27.0",
+    "pg": "^8.13.0",
     "pino": "^9",
     "pino-http": "^10",
     "ws": "^8.20.0"
