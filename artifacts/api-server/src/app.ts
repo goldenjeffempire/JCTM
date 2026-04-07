@@ -63,7 +63,7 @@ if (process.env.NODE_ENV === "production") {
     }),
   );
 
-  app.get("*", (_req, res) => {
+  app.get("/*splat", (_req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.join(staticDir, "index.html"));
   });
