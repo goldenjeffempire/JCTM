@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
 import { useListEvents, useGetFeaturedSermon, getGetFeaturedSermonQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
-import { motion } from "framer-motion";
-import { Calendar, MapPin, Clock, Youtube, Radio, Play, ExternalLink, Phone, Globe } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Calendar, MapPin, Clock, Youtube, Radio, Play, ExternalLink, Phone,
+  Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download
+} from "lucide-react";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 function Countdown({ target }: { target: string }) {
   const [, setTick] = useState(0);
@@ -46,9 +50,269 @@ type EventItem = {
   createdAt: string;
 };
 
+function generateAdCopy(event: EventItem) {
+  const dateStr = format(new Date(event.startDate), "MMMM d, yyyy");
+  const endDateStr = event.endDate ? ` – ${format(new Date(event.endDate), "MMMM d, yyyy")}` : "";
+  const timeStr = format(new Date(event.startDate), "h:mm a");
+  const location = event.location ?? "Venue TBA";
+  const title = event.title;
+
+  const short = `🔥 ${title.toUpperCase()}
+
+📅 ${dateStr}${endDateStr}
+⏰ ${timeStr} Daily
+📍 ${location}
+
+Don't miss this! Free entry for all. Bring someone!
+
+#JCTM #ProphetAmos #${event.eventType.replace(/\s+/g, "")}2026`;
+
+  const medium = `🙏 ${title}
+
+Join us for a life-changing gathering hosted by Jesus Christ Temple Ministry!
+
+📅 Date: ${dateStr}${endDateStr}
+⏰ Time: ${timeStr} WAT
+📍 Venue: ${location}
+
+${event.description ? event.description.replace(/\|/g, "\n").split("\n").slice(0, 3).join("\n") : ""}
+
+This is a divine invitation — come expecting miracles, healing, and a fresh encounter with God!
+
+📞 Enquiries: +234(0)8081313111
+🌐 www.jctmng.org
+
+Share this post and tag someone who needs to be there. Free entry for ALL!
+
+#JCTM #JesusChristTempleMinistry #ProphetAmos #${event.eventType}2026 #Warri #DeltaState #Revival`;
+
+  const long = `📢 ${title.toUpperCase()} — OFFICIAL ANNOUNCEMENT
+
+Jesus Christ Temple Ministry (JCTM) is pleased to announce an anointed gathering that promises to be a turning point for many lives.
+
+EVENT DETAILS:
+• Event: ${title}
+• Date: ${dateStr}${endDateStr}
+• Time: ${timeStr} Daily (West Africa Time)
+• Venue: ${location}
+
+${event.description ? event.description.replace(/\|/g, "\n") : ""}
+
+This gathering is for everyone — the saved, the backslidden, and the seeking. There will be powerful ministry, miracles, healings, and life-changing testimonies.
+
+SPREAD THE WORD:
+Share this post. Print it out. Tag your friends and family. Send it in your WhatsApp groups. This is not just an event — it is a divine appointment.
+
+WATCH LIVE:
+Follow us on YouTube: youtube.com/@JesusChristTempleMinistry
+Facebook: facebook.com/TEMPLETV
+Website: www.jctmng.org
+
+📞 For enquiries: +234(0)8081313111
+
+FREE ENTRY FOR ALL. Come as you are.
+
+#JCTM #JesusChristTempleMinistry #ProphetAmos #${event.eventType}2026 #Warri #DeltaState #Nigeria #Revival #Christianity #Church`;
+
+  return { short, medium, long };
+}
+
+function EventAdKit({ event }: { event: EventItem }) {
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"short" | "medium" | "long">("medium");
+  const [copied, setCopied] = useState(false);
+  const adCopy = generateAdCopy(event);
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const shareText = encodeURIComponent(adCopy.short);
+  const shareTitle = encodeURIComponent(event.title);
+  const shareUrl = encodeURIComponent(`${window.location.origin}${base}/events`);
+
+  const platforms = [
+    {
+      label: "WhatsApp",
+      emoji: "💬",
+      bg: "#25D366",
+      href: `https://wa.me/?text=${shareText}`,
+    },
+    {
+      label: "Facebook",
+      emoji: "👍",
+      bg: "#1877F2",
+      href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}&quote=${shareText}`,
+    },
+    {
+      label: "X / Twitter",
+      emoji: "𝕏",
+      bg: "#000000",
+      href: `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`,
+    },
+    {
+      label: "Telegram",
+      emoji: "✈️",
+      bg: "#0088CC",
+      href: `https://t.me/share/url?url=${shareUrl}&text=${shareText}`,
+    },
+    {
+      label: "YouTube Community",
+      emoji: "▶",
+      bg: "#FF0000",
+      href: `https://studio.youtube.com/channel/UCPFFvkE-KGpR37qJgvYriJg/community`,
+    },
+    {
+      label: "Instagram Bio",
+      emoji: "📷",
+      bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)",
+      href: `https://www.instagram.com/templetv.jctm/`,
+    },
+  ];
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(adCopy[activeTab]);
+    setCopied(true);
+    toast.success("Ad copy copied! Paste it to your platform.");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadFlyer = () => {
+    if (!event.imageUrl) return;
+    const link = document.createElement("a");
+    link.href = event.imageUrl.startsWith("/") ? event.imageUrl : `/${event.imageUrl}`;
+    link.download = `${event.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-flyer.jpeg`;
+    link.click();
+    toast.success("Flyer downloaded! Use it in your ads.");
+  };
+
+  return (
+    <div className="border-t border-border/50">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-accent hover:bg-accent/5 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Megaphone className="h-4 w-4" />
+          Share & Promote on Social Media
+        </span>
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-5 space-y-4">
+
+              {/* Platform share buttons */}
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-2">Share on Platforms</p>
+                <div className="flex flex-wrap gap-2">
+                  {platforms.map(p => (
+                    <a
+                      key={p.label}
+                      href={p.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all hover:scale-105 hover:shadow-lg"
+                      style={{ background: p.bg }}
+                      title={p.label}
+                    >
+                      <span>{p.emoji}</span>
+                      <span className="hidden sm:inline">{p.label}</span>
+                    </a>
+                  ))}
+                  {event.imageUrl && (
+                    <button
+                      onClick={handleDownloadFlyer}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:scale-105 border border-border text-muted-foreground hover:text-primary hover:border-primary/40"
+                    >
+                      <Download className="h-3 w-3" />
+                      <span className="hidden sm:inline">Download Flyer</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Ad copy generator */}
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-2">Auto-Generated Ad Copy</p>
+                <div className="rounded-xl overflow-hidden border border-border/60">
+                  {/* Tabs */}
+                  <div className="flex border-b border-border/50 bg-muted/30">
+                    {(["short", "medium", "long"] as const).map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+                          activeTab === tab
+                            ? "text-accent bg-accent/10 border-b-2 border-accent"
+                            : "text-muted-foreground hover:text-primary"
+                        }`}
+                      >
+                        {tab === "short" ? "Short (Stories)" : tab === "medium" ? "Medium (Feed)" : "Long (YouTube)"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Copy area */}
+                  <div className="relative bg-background">
+                    <pre className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed font-sans p-4 max-h-48 overflow-y-auto">
+                      {adCopy[activeTab]}
+                    </pre>
+                    <button
+                      onClick={handleCopy}
+                      className="absolute top-3 right-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-accent bg-background border border-border/50 rounded-lg px-2 py-1 transition-colors"
+                    >
+                      {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* YouTube Ads note */}
+                <div className="mt-3 rounded-xl bg-red-50/60 border border-red-200/50 p-3 flex gap-2.5">
+                  <Youtube className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-700 mb-0.5">Running YouTube Ads?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Use the <strong>Long</strong> version above as your YouTube video description. To run a paid YouTube ad campaign, go to{" "}
+                      <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">Google Ads</a>, select "Video campaign", choose your JCTM YouTube channel, and target Nigeria → Warri/Delta State for best reach.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Meta Ads note */}
+                <div className="mt-2 rounded-xl bg-blue-50/60 border border-blue-200/50 p-3 flex gap-2.5">
+                  <Facebook className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700 mb-0.5">Running Facebook & Instagram Ads?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Use the <strong>Medium</strong> copy for feed ads and <strong>Short</strong> for Stories/Reels. Go to{" "}
+                      <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Meta Business Suite</a>, create an event promotion campaign, upload the flyer image, target Nigeria → Delta State.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function EventCard({ event, index }: { event: EventItem; index: number }) {
   const start = new Date(event.startDate);
   const past = isPast(start);
+  const imageUrl = event.imageUrl?.startsWith("/")
+    ? event.imageUrl
+    : event.imageUrl
+    ? `/${event.imageUrl}`
+    : null;
 
   return (
     <motion.div
@@ -57,22 +321,20 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
       transition={{ duration: 0.5, delay: index * 0.08 }}
       className={`glass-panel rounded-2xl overflow-hidden border border-border/50 hover:shadow-xl transition-all duration-300 group ${past ? "opacity-75 hover:opacity-100" : ""}`}
     >
-      {/* Flyer image — shown prominently when available */}
-      {event.imageUrl && (
+      {/* Flyer image */}
+      {imageUrl && (
         <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
           <img
-            src={event.imageUrl}
+            src={imageUrl}
             alt={event.title}
             className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-          {/* Countdown overlay for upcoming events */}
           {!past && (
             <div className="absolute bottom-4 left-4">
               <Countdown target={event.startDate} />
             </div>
           )}
-          {/* Event type badge */}
           <div className="absolute top-3 right-3">
             <span className="bg-accent text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">
               {event.eventType}
@@ -87,9 +349,8 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
       )}
 
       {/* Card body */}
-      <div className={`${event.imageUrl ? "p-5" : "p-6"}`}>
-        {/* Date badge + type (shown when no image) */}
-        {!event.imageUrl && (
+      <div className={`${imageUrl ? "p-5" : "p-6"}`}>
+        {!imageUrl && (
           <div className="flex items-start justify-between mb-4">
             <div className="bg-gradient-to-br from-accent to-[#0284C7] p-3 rounded-2xl text-center min-w-[60px] text-white shadow-lg shadow-accent/20">
               <span className="block text-white/80 font-bold text-[9px] uppercase">{format(start, "MMM")}</span>
@@ -109,15 +370,14 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
         <div className="space-y-2 mb-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-3.5 w-3.5 text-accent shrink-0" />
-            <span>{format(start, "EEEE, MMMM d, yyyy")}</span>
+            <span>
+              {format(start, "EEEE, MMMM d, yyyy")}
+              {event.endDate ? ` – ${format(new Date(event.endDate), "MMMM d, yyyy")}` : ""}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-3.5 w-3.5 text-accent shrink-0" />
-            <span>
-              {format(start, "h:mm a")}
-              {event.endDate ? ` – ${format(new Date(event.endDate), "h:mm a")}` : ""}
-              {" WAT"}
-            </span>
+            <span>{format(start, "h:mm a")} Daily WAT</span>
           </div>
           {event.location && (
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -128,19 +388,21 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
         </div>
 
         {event.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-3 border-t border-border/50 pt-3">
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-2 border-t border-border/50 pt-3">
             {event.description.replace(/\|/g, " · ")}
           </p>
         )}
 
-        {/* Countdown for cards without a flyer image */}
-        {!past && !event.imageUrl && (
+        {!past && !imageUrl && (
           <div className="mb-4">
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">Starts In</p>
             <Countdown target={event.startDate} />
           </div>
         )}
       </div>
+
+      {/* Social Ads Kit */}
+      {!past && <EventAdKit event={event} />}
     </motion.div>
   );
 }
@@ -167,7 +429,7 @@ export default function Events() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-12">
           <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry Calendar</span>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
-          <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online for these anointed gatherings of the Jesus Christ Temple Ministry.</p>
+          <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
         </motion.div>
 
         {/* Latest Sermon */}
@@ -188,13 +450,13 @@ export default function Events() {
                     src={`https://www.youtube.com/embed/${latestYtId}?autoplay=1&mute=1&controls=1&rel=0`}
                     allow="autoplay; fullscreen"
                     allowFullScreen
-                    title={latestSermon.title}
+                    title={(latestSermon as { title?: string })?.title ?? "Latest Sermon"}
                   />
                 ) : (
                   <>
                     <img
-                      src={latestSermon.thumbnailUrl}
-                      alt={latestSermon.title}
+                      src={(latestSermon as { thumbnailUrl?: string })?.thumbnailUrl}
+                      alt={(latestSermon as { title?: string })?.title ?? "Latest Sermon"}
                       className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-700"
                       onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${latestYtId}/maxresdefault.jpg`; }}
                     />
@@ -208,14 +470,14 @@ export default function Events() {
                       <span className="text-red-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2">
                         <span className="h-1.5 w-1.5 bg-red-400 rounded-full animate-pulse" /> Just Uploaded
                       </span>
-                      <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{latestSermon.title}</h3>
-                      <p className="text-white/50 text-xs mt-1.5">Hover to preview · <span className="text-accent">{formatDistanceToNow(new Date(latestSermon.publishedAt), { addSuffix: true })}</span></p>
+                      <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{(latestSermon as { title?: string })?.title}</h3>
+                      <p className="text-white/50 text-xs mt-1.5">Hover to preview · <span className="text-accent">{formatDistanceToNow(new Date((latestSermon as { publishedAt?: string })?.publishedAt ?? new Date()), { addSuffix: true })}</span></p>
                     </div>
                   </>
                 )}
               </div>
               <div className="p-4 flex items-center justify-between bg-primary border-t border-white/10">
-                <span className="text-white/60 text-sm">{latestSermon.title}</span>
+                <span className="text-white/60 text-sm">{(latestSermon as { title?: string })?.title}</span>
                 <a href={`https://www.youtube.com/watch?v=${latestYtId}`} target="_blank" rel="noopener noreferrer">
                   <Button size="sm" className="rounded-full bg-red-600 hover:bg-red-700 text-white text-xs h-8 px-4 gap-1.5">
                     <ExternalLink className="h-3 w-3" /> Watch on YouTube
@@ -296,7 +558,7 @@ export default function Events() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
                   {upcoming.map((event, i) => (
-                    <EventCard key={event.id} event={event} index={i} />
+                    <EventCard key={event.id} event={event as EventItem} index={i} />
                   ))}
                 </div>
               </>
@@ -314,7 +576,7 @@ export default function Events() {
                 <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">Past Events</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {past.slice(0, 6).map((event, i) => (
-                    <EventCard key={event.id} event={event} index={i} />
+                    <EventCard key={event.id} event={event as EventItem} index={i} />
                   ))}
                 </div>
               </>
