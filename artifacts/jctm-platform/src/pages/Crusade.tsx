@@ -435,36 +435,48 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          // Soft gold shadow/glow behind the square
-          ctx.shadowColor = "rgba(212,160,23,0.55)";
-          ctx.shadowBlur = 48;
-          ctx.fillStyle = "rgba(212,160,23,0.18)";
-          ctx.beginPath();
-          ctx.roundRect(photoX - 10, photoY - 10, photoSize + 20, photoSize + 20, 28);
-          ctx.fill();
-          ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+          const iw = img.naturalWidth  || img.width  || 1;
+          const ih = img.naturalHeight || img.height || 1;
 
-          // Square clip with slightly rounded corners
+          // ── Gold glow halo behind the square ──────────────────────
+          ctx.shadowColor = "rgba(212,160,23,0.6)";
+          ctx.shadowBlur = 52;
+          ctx.fillStyle = "rgba(212,160,23,0.15)";
+          ctx.beginPath();
+          ctx.roundRect(photoX - 12, photoY - 12, photoSize + 24, photoSize + 24, 30);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.shadowColor = "transparent";
+
+          // ── Square clip (rounded corners) ─────────────────────────
           ctx.save();
           ctx.beginPath();
-          ctx.roundRect(photoX, photoY, photoSize, photoSize, 18);
+          ctx.roundRect(photoX, photoY, photoSize, photoSize, 20);
           ctx.clip();
-          // cover-fit: crop image to fill the square
-          const scale = Math.max(photoSize / img.width, photoSize / img.height);
-          const sw = photoSize / scale, sh = photoSize / scale;
-          const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
-          ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoSize, photoSize);
+
+          // Cover-fit: scale so the shortest side fills the square,
+          // then centre — works for any image size or aspect ratio.
+          const scale = Math.max(photoSize / iw, photoSize / ih);
+          const dw = iw * scale;   // drawn width  (≥ photoSize)
+          const dh = ih * scale;   // drawn height (≥ photoSize)
+          const dx = photoX + (photoSize - dw) / 2;  // may be slightly left of photoX
+          const dy = photoY + (photoSize - dh) / 2;  // may be slightly above photoY
+          ctx.drawImage(img, dx, dy, dw, dh);
+
           ctx.restore();
 
-          // Bold gold border — outer
-          ctx.strokeStyle = goldLight; ctx.lineWidth = 10;
+          // ── Bold outer gold border ────────────────────────────────
+          ctx.strokeStyle = goldLight;
+          ctx.lineWidth = 12;
           ctx.beginPath();
-          ctx.roundRect(photoX - 5, photoY - 5, photoSize + 10, photoSize + 10, 22);
+          ctx.roundRect(photoX - 6, photoY - 6, photoSize + 12, photoSize + 12, 24);
           ctx.stroke();
-          // Inner accent border
-          ctx.strokeStyle = gold; ctx.lineWidth = 3;
+
+          // ── Thin accent border further out ───────────────────────
+          ctx.strokeStyle = gold;
+          ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.roundRect(photoX - 18, photoY - 18, photoSize + 36, photoSize + 36, 30);
+          ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 32);
           ctx.stroke();
 
           resolve();
@@ -473,12 +485,12 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
         img.src = photo!;
       });
     } else {
-      // Placeholder square when no photo
+      // Placeholder square when no photo uploaded
       ctx.fillStyle = "rgba(30,60,160,0.45)";
-      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.fill();
-      ctx.strokeStyle = "rgba(212,160,23,0.4)"; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 18); ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.font = `110px sans-serif`;
+      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.fill();
+      ctx.strokeStyle = "rgba(212,160,23,0.45)"; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.font = `110px sans-serif`;
       ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 40);
     }
 
