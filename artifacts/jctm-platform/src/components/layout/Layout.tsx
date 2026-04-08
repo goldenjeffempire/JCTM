@@ -1,5 +1,6 @@
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
+import { BackToTop } from "./BackToTop";
 import { TempleBots } from "../TempleBots";
 import { LiveBanner } from "../LiveBanner";
 import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
@@ -19,6 +20,7 @@ export function Layout({ children }: LayoutProps) {
       <Footer />
       <TempleBots />
       <LanguageSuggestionBanner />
+      <BackToTop />
     </div>
   );
 }
