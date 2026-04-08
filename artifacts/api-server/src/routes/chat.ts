@@ -215,41 +215,88 @@ function getClientIp(req: Request): string {
   );
 }
 
-// ── RAG: Retrieve relevant knowledge chunks via pgvector cosine similarity ─────
-async function getRelevantKnowledge(query: string): Promise<string> {
-  const client = getEmbeddingsClient();
-  if (!client) return "";
-
+// ── RAG: keyword fallback when no embeddings are stored ───────────────────────
+async function keywordKnowledgeFallback(query: string): Promise<string> {
   try {
-    const embeddingResponse = await client.embeddings.create({
-      model: "text-embedding-3-small",
-      input: query,
-    });
-    const queryVector = embeddingResponse.data[0].embedding;
-    const vectorStr = `[${queryVector.join(",")}]`;
+    // Extract meaningful words (≥4 chars) from the query for ILIKE matching
+    const words = query
+      .split(/\s+/)
+      .map((w) => w.replace(/[^a-zA-Z]/g, ""))
+      .filter((w) => w.length >= 4)
+      .slice(0, 5);
 
-    const result = await ragPool.query<{ content: string; source: string; similarity: number }>(
-      `SELECT content, source, 1 - (embedding <=> $1::vector) AS similarity
-       FROM knowledge_chunks
-       WHERE embedding IS NOT NULL
-       ORDER BY embedding <=> $1::vector
+    if (words.length === 0) {
+      // No useful keywords — return all text-only chunks
+      const result = await ragPool.query<{ content: string; source: string }>(
+        `SELECT content, source FROM knowledge_chunks WHERE embedding IS NULL LIMIT 4`,
+      );
+      if (result.rows.length === 0) return "";
+      return (
+        "\n\n## JCTM KNOWLEDGE (keyword search):\n" +
+        result.rows.map((r) => `[${r.source}] ${r.content}`).join("\n\n")
+      );
+    }
+
+    const conditions = words.map((w, i) => `content ILIKE $${i + 1}`).join(" OR ");
+    const params = words.map((w) => `%${w}%`);
+
+    const result = await ragPool.query<{ content: string; source: string }>(
+      `SELECT content, source FROM knowledge_chunks
+       WHERE embedding IS NULL AND (${conditions})
        LIMIT 4`,
-      [vectorStr],
+      params,
     );
 
     if (result.rows.length === 0) return "";
-
-    const chunks = result.rows
-      .filter((r) => r.similarity > 0.3)
-      .map((r) => `[${r.source}] ${r.content}`)
-      .join("\n\n");
-
-    return chunks
-      ? `\n\n## MOST RELEVANT JCTM KNOWLEDGE (from semantic search):\n${chunks}`
-      : "";
+    return (
+      "\n\n## JCTM KNOWLEDGE (keyword search):\n" +
+      result.rows.map((r) => `[${r.source}] ${r.content}`).join("\n\n")
+    );
   } catch {
     return "";
   }
+}
+
+// ── RAG: Retrieve relevant knowledge chunks via pgvector cosine similarity ─────
+async function getRelevantKnowledge(query: string): Promise<string> {
+  const client = getEmbeddingsClient();
+
+  // Try vector search first (requires OpenAI embeddings key)
+  if (client) {
+    try {
+      const embeddingResponse = await client.embeddings.create({
+        model: "text-embedding-3-small",
+        input: query,
+      });
+      const queryVector = embeddingResponse.data[0].embedding;
+      const vectorStr = `[${queryVector.join(",")}]`;
+
+      const result = await ragPool.query<{ content: string; source: string; similarity: number }>(
+        `SELECT content, source, 1 - (embedding <=> $1::vector) AS similarity
+         FROM knowledge_chunks
+         WHERE embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector
+         LIMIT 4`,
+        [vectorStr],
+      );
+
+      if (result.rows.length > 0) {
+        const chunks = result.rows
+          .filter((r) => r.similarity > 0.3)
+          .map((r) => `[${r.source}] ${r.content}`)
+          .join("\n\n");
+
+        if (chunks) {
+          return `\n\n## MOST RELEVANT JCTM KNOWLEDGE (from semantic search):\n${chunks}`;
+        }
+      }
+    } catch {
+      // Vector search failed — fall through to keyword search
+    }
+  }
+
+  // Fallback: keyword search over text-only chunks (stored when quota is exhausted)
+  return keywordKnowledgeFallback(query);
 }
 
 // ── Recent sermon context ──────────────────────────────────────────────────────

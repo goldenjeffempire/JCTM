@@ -2,8 +2,13 @@
  * JCTM Knowledge Ingestion
  *
  * Runs at server startup (non-blocking) to populate the knowledge_chunks
- * table with JCTM-specific content embedded via text-embedding-3-small.
- * Only ingests if the table is empty or explicitly forced.
+ * table with JCTM-specific content.
+ *
+ * Strategy:
+ *  - Embeddings via text-embedding-3-small when the OPENAI_API_KEY quota allows.
+ *  - If quota is exhausted (429), chunks are stored as plain text (embedding = NULL)
+ *    so TempleBots can still keyword-search them. The ingestion is marked complete
+ *    so we don't retry on every restart.
  */
 
 import OpenAI from "openai";
@@ -65,14 +70,24 @@ const JCTM_KNOWLEDGE = [
   },
 ];
 
+function isQuotaError(err: unknown): boolean {
+  if (err && typeof err === "object") {
+    const status = (err as { status?: number }).status;
+    const code = (err as { code?: string }).code;
+    return status === 429 || code === "insufficient_quota";
+  }
+  return false;
+}
+
 export async function ingestKnowledgeIfEmpty(
   openai: OpenAI,
   log: Logger,
 ): Promise<void> {
   const client = await pool.connect();
   try {
+    // Count ALL chunks (embedded or text-only) to avoid re-ingesting on every restart
     const countResult = await client.query<{ count: string }>(
-      "SELECT COUNT(*) FROM knowledge_chunks WHERE embedding IS NOT NULL",
+      "SELECT COUNT(*) FROM knowledge_chunks",
     );
     const count = parseInt(countResult.rows[0].count, 10);
 
@@ -85,8 +100,21 @@ export async function ingestKnowledgeIfEmpty(
 
     await client.query("DELETE FROM knowledge_chunks");
 
+    let quotaExhausted = false;
+
     for (let i = 0; i < JCTM_KNOWLEDGE.length; i++) {
       const chunk = JCTM_KNOWLEDGE[i];
+
+      if (quotaExhausted) {
+        // Store remaining chunks as text-only so keyword search still works
+        await client.query(
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+           VALUES ($1, $2, $3, NULL)`,
+          [chunk.content, chunk.source, i],
+        );
+        continue;
+      }
+
       try {
         const embeddingResponse = await openai.embeddings.create({
           model: "text-embedding-3-small",
@@ -107,14 +135,41 @@ export async function ingestKnowledgeIfEmpty(
           await new Promise((r) => setTimeout(r, 300));
         }
       } catch (err) {
-        log.warn({ err, source: chunk.source }, "Failed to embed chunk — skipping");
+        if (isQuotaError(err)) {
+          // OpenAI quota exhausted — store this and remaining chunks as text-only
+          quotaExhausted = true;
+          log.info(
+            { source: chunk.source },
+            "OpenAI quota exhausted — storing knowledge as text-only for keyword search fallback",
+          );
+          await client.query(
+            `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+             VALUES ($1, $2, $3, NULL)`,
+            [chunk.content, chunk.source, i],
+          );
+        } else {
+          log.warn({ err, source: chunk.source }, "Failed to embed chunk — storing as text-only");
+          await client.query(
+            `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+             VALUES ($1, $2, $3, NULL)`,
+            [chunk.content, chunk.source, i],
+          );
+        }
       }
     }
 
     const finalCount = await client.query<{ count: string }>(
+      "SELECT COUNT(*) FROM knowledge_chunks",
+    );
+    const embeddedCount = await client.query<{ count: string }>(
       "SELECT COUNT(*) FROM knowledge_chunks WHERE embedding IS NOT NULL",
     );
-    log.info({ embedded: finalCount.rows[0].count }, "JCTM knowledge base ingestion complete");
+    log.info(
+      { total: finalCount.rows[0].count, withEmbeddings: embeddedCount.rows[0].count },
+      quotaExhausted
+        ? "JCTM knowledge base stored as text-only (keyword search active, vector search unavailable)"
+        : "JCTM knowledge base ingestion complete",
+    );
   } catch (err) {
     log.error({ err }, "Knowledge ingestion failed — TempleBots will work without RAG context");
   } finally {
