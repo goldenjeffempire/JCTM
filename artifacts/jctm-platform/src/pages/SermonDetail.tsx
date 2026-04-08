@@ -8,11 +8,14 @@ import { format } from "date-fns";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { CrusadeAdBanner } from "@/pages/Crusade";
+import { DualStreamToggle, useStreamQuality, buildYouTubeUrl } from "@/components/DualStreamToggle";
+import { LiveChat } from "@/components/LiveChat";
 
 export default function SermonDetail() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id ?? "0", 10);
   const [audioMode, setAudioMode] = useState(false);
+  const { quality, toggle: toggleQuality } = useStreamQuality();
 
   const { data: sermon, isLoading } = useGetSermon(id, {
     query: { enabled: !!id && !isNaN(id), queryKey: getGetSermonQueryKey(id) }
@@ -65,14 +68,17 @@ export default function SermonDetail() {
             <h1 className="text-2xl md:text-3xl font-serif font-bold text-primary leading-tight flex-1">
               {sermon.title}
             </h1>
-            <Button
-              variant={audioMode ? "default" : "outline"}
-              onClick={() => setAudioMode(!audioMode)}
-              className={`flex items-center gap-2 rounded-full ${audioMode ? "bg-accent text-white border-accent" : "text-primary border-primary/30"}`}
-            >
-              {audioMode ? <Volume2 className="h-4 w-4" /> : <VideoIcon className="h-4 w-4" />}
-              {audioMode ? "Audio Mode Active" : "Switch to Audio Only"}
-            </Button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <DualStreamToggle quality={quality} onToggle={toggleQuality} />
+              <Button
+                variant={audioMode ? "default" : "outline"}
+                onClick={() => setAudioMode(!audioMode)}
+                className={`flex items-center gap-2 rounded-full ${audioMode ? "bg-accent text-white border-accent" : "text-primary border-primary/30"}`}
+              >
+                {audioMode ? <Volume2 className="h-4 w-4" /> : <VideoIcon className="h-4 w-4" />}
+                {audioMode ? "Audio Mode" : "Audio Only"}
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-4 text-sm text-muted-foreground mb-6 flex-wrap">
@@ -119,7 +125,7 @@ export default function SermonDetail() {
                 <iframe
                   width="100%"
                   height="100%"
-                  src={`https://www.youtube.com/embed/${sermon.videoId}`}
+                  src={buildYouTubeUrl(sermon.videoId, quality)}
                   title={sermon.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -148,6 +154,7 @@ export default function SermonDetail() {
           </div>
         </motion.div>
       </div>
+      <LiveChat isLive={sermon.isLive ?? false} />
     </Layout>
   );
 }

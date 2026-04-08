@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
+import { GlobalAltar3D } from "@/components/GlobalAltar3D";
 import { MandateMap } from "@/components/MandateMap";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 
@@ -2380,6 +2381,17 @@ function GlobalAltarSection() {
           <motion.p variants={fadeUp} className="text-white/50 text-lg max-w-xl mx-auto">
             Join believers worshipping in real-time from across the globe — the Digital Sanctuary never sleeps.
           </motion.p>
+        </motion.div>
+
+        {/* 3D WebGL Global Altar */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1 }}
+          className="mb-8"
+        >
+          <GlobalAltar3D />
         </motion.div>
 
         <motion.div

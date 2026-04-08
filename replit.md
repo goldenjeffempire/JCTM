@@ -28,6 +28,16 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Project: JCTM Digital Sanctuary
 
+### New Features Added (April 2026 — Vision 2030 Sprint 3 — Major Upgrade)
+- **3D Global Altar** (`GlobalAltar3D.tsx`) — React Three Fiber animated sphere with distort material, particle worshippers, 3 orbiting rings, light beams, and stars. `WebGLErrorBoundary` + CSS-based `AltarFallback` for environments where WebGL fails. Integrated into `GlobalAltarSection` on homepage.
+- **AI Sermon Assistant** (`/sermon-assistant`) — Full RAG chat interface; backend at `GET /api/sermon-assistant` (SSE streaming), sidebar with suggested questions, conversation history. System prompt grounded in JCTM doctrine.
+- **Netflix-Style Sermon Hub** (`/sermons`) — Dark gradient hero header with "TEMPLE TV LIBRARY" badge, DualStreamToggle in header, 10 animated category tabs (All Sermons, Correction Mandate, Holiness, Primitive Christianity, Prophecy, Water Baptism, Prayer, End Times, Family, Healing), 4-column responsive grid with `AnimatePresence` transitions, category section headers with sermon count, animated empty state messages.
+- **Live Chat** (`LiveChat.tsx`) — SSE-based real-time moderated chat with reactions. Visible on sermon detail pages when `isLive=true`.
+- **Multi-Language Engine** — `LanguageContext.tsx` + `LanguageSelector.tsx` with 17 languages displayed (50+ via AI translation), backend at `POST /api/translate` using OpenAI. `LanguageProvider` wraps entire app in `App.tsx`.
+- **Dual-Stream Mode Toggle** (`DualStreamToggle.tsx`) — `useStreamQuality` hook + `buildYouTubeUrl` quality-aware URL builder. Shown on Sermons hub header and individual sermon pages.
+- **Leadership & Transparency Page** (`/leadership`) — Prophet Amos Evomobor bio, 5 Corrections the church preaches, ministry values card grid, transparency statement. Route in `App.tsx`.
+- **Navbar Updated** — Added 🤖 Ask AI (purple), Leadership, Language Selector, all cross-device.
+
 ### New Features Added (April 2026 — Vision 2030 Sprint 2)
 - **Temple Moments** (`/moments`) — TikTok/Reels-style vertical video feed pulling from the sermon library. Swipe/arrow-key navigation, progress dots, share button with native Web Share API, gradient dark themes per card. 25 messages loaded on init.
 - **Spiritual Growth Tracker** (`/growth`) — Gamified dashboard tracking sermons watched, devotions completed, prayers generated. XP system with 7 levels (New Believer → Mandate Bearer), week heatmap, active streak counter, 13 achievement badges (unlockable), XP progress bar with animated fill. All data persisted in localStorage.

@@ -4,17 +4,19 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/sermons", label: "Sermons" },
+  { href: "/sermon-assistant", label: "🤖 Ask AI", aiHighlight: true },
   { href: "/moments", label: "🎬 Moments", momentsHighlight: true },
   { href: "/testimonies", label: "Testimonies" },
   { href: "/events", label: "Events" },
   { href: "/crusade", label: "🔥 Crusade", highlight: true },
   { href: "/give", label: "Give" },
   { href: "/prayer", label: "✦ Prayer", prayerHighlight: true },
-  { href: "/join", label: "Join" },
+  { href: "/leadership", label: "Leadership" },
   { href: "/about", label: "About" },
 ];
 
@@ -132,6 +134,17 @@ export function Navbar() {
                 >
                   {item.label}
                 </div>
+              ) : item.aiHighlight ? (
+                <div
+                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
+                  style={{
+                    background: location === item.href ? "rgba(139,92,246,0.25)" : "rgba(139,92,246,0.1)",
+                    color: "#8b5cf6",
+                    border: "1px solid rgba(139,92,246,0.35)",
+                  }}
+                >
+                  {item.label}
+                </div>
               ) : (
                 <div className={`relative text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${location === item.href ? "text-accent" : "text-primary/80"}`}>
                   {item.label}
@@ -145,6 +158,8 @@ export function Navbar() {
               )}
             </Link>
           ))}
+
+          <LanguageSelector />
 
           <motion.button
             onClick={toggle}

@@ -6,10 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw, ExternalLink, Zap, Star, Radio, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, Volume2, Play, RefreshCw, ExternalLink, Zap, Star, Radio, Loader2, Bot, Link as LinkIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { Link } from "wouter";
+import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
+
+const CATEGORIES = [
+  { id: "all", label: "All Sermons", emoji: "📖" },
+  { id: "correction", label: "Correction Mandate", emoji: "⚡" },
+  { id: "holiness", label: "Holiness", emoji: "✨" },
+  { id: "primitive", label: "Primitive Christianity", emoji: "🕊️" },
+  { id: "prophecy", label: "Prophecy", emoji: "🔥" },
+  { id: "baptism", label: "Water Baptism", emoji: "💧" },
+  { id: "prayer", label: "Prayer", emoji: "🙏" },
+  { id: "endtimes", label: "End Times", emoji: "⏳" },
+  { id: "family", label: "Family & Marriage", emoji: "❤️" },
+  { id: "healing", label: "Healing & Miracles", emoji: "🌟" },
+];
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  correction: ["correction", "mandate", "error", "false", "prosperity", "apostle", "prophet"],
+  holiness: ["holiness", "holy", "sanctif", "separated", "consecrat"],
+  primitive: ["primitive", "original", "apostolic", "first century", "restoration"],
+  prophecy: ["prophec", "prophetic", "revelation", "vision", "end time"],
+  baptism: ["baptism", "baptize", "water", "immersion"],
+  prayer: ["prayer", "pray", "intercession", "fasting"],
+  endtimes: ["rapture", "end time", "second coming", "antichrist", "revelation"],
+  family: ["family", "marriage", "husband", "wife", "children"],
+  healing: ["healing", "miracle", "deliver", "sick", "restoration"],
+};
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PAGE_SIZE = 50;
@@ -46,8 +73,10 @@ export default function Sermons() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isHarvesting, setIsHarvesting] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("all");
   const loaderRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { quality, toggle: toggleQuality } = useStreamQuality();
 
   const { data: stats, refetch: refetchStats } = useGetSermonStats({
     query: { queryKey: getGetSermonStatsQueryKey() }
@@ -192,21 +221,50 @@ export default function Sermons() {
 
   const liveSermons = sermons.filter(s => s.isLive);
 
+  const filteredSermons = activeCategory === "all"
+    ? sermons
+    : sermons.filter(s => {
+        const keywords = CATEGORY_KEYWORDS[activeCategory] ?? [];
+        const text = `${s.title} ${s.description ?? ""}`.toLowerCase();
+        return keywords.some(kw => text.includes(kw));
+      });
+
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-12"
-        >
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">
-            Sermon Hub
-          </h1>
-          <p className="text-muted-foreground text-lg mb-8">
-            All messages from Temple TV — teachings of Prophet Amos Evomobor on Primitive Christianity, Holiness, and Doctrinal Correction.
-          </p>
+      {/* Netflix-style dark hero header */}
+      <div className="bg-gradient-to-b from-primary via-primary/90 to-background pt-24 pb-8 px-4 mb-0">
+        <div className="container mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6"
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-1.5 h-8 bg-sky-400 rounded-full inline-block" />
+                <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">Temple TV Library</span>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-2">
+                Sermon Hub
+              </h1>
+              <p className="text-white/60 text-sm max-w-xl">
+                Teachings of Prophet Amos Evomobor — Primitive Christianity, Holiness &amp; the Correction Mandate
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <DualStreamToggle quality={quality} onToggle={toggleQuality} />
+              <Link href="/sermon-assistant">
+                <Button className="gap-2 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-300 rounded-xl">
+                  <Bot className="w-4 h-4" /> Ask AI
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
 
           {/* Live banner */}
           {liveSermons.length > 0 && (
@@ -236,39 +294,62 @@ export default function Sermons() {
             </motion.div>
           )}
 
-          {/* Stats */}
-          <div className="flex flex-wrap gap-4 mb-8">
+          {/* Stats row */}
+          <div className="flex flex-wrap gap-3 mb-6">
             {stats && (
               <>
-                <div className="glass-panel px-5 py-3 rounded-xl">
-                  <span className="text-2xl font-bold text-primary">{stats.total}</span>
-                  <span className="text-sm text-muted-foreground ml-2">sermons in library</span>
+                <div className="glass-panel px-4 py-2.5 rounded-xl">
+                  <span className="text-xl font-bold text-primary">{stats.total}</span>
+                  <span className="text-xs text-muted-foreground ml-2">sermons</span>
                 </div>
                 {stats.totalViews && (
-                  <div className="glass-panel px-5 py-3 rounded-xl">
-                    <span className="text-2xl font-bold text-primary">{stats.totalViews.toLocaleString()}</span>
-                    <span className="text-sm text-muted-foreground ml-2">total views</span>
+                  <div className="glass-panel px-4 py-2.5 rounded-xl">
+                    <span className="text-xl font-bold text-primary">{stats.totalViews.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground ml-2">views</span>
                   </div>
                 )}
               </>
             )}
             {!isLoading && sermons.length > 0 && (
-              <div className="glass-panel px-5 py-3 rounded-xl">
-                <span className="text-2xl font-bold text-accent">{sermons.length}</span>
-                <span className="text-sm text-muted-foreground ml-2">loaded</span>
+              <div className="glass-panel px-4 py-2.5 rounded-xl">
+                <span className="text-xl font-bold text-accent">{filteredSermons.length}</span>
+                <span className="text-xs text-muted-foreground ml-2">showing</span>
               </div>
             )}
           </div>
 
+          {/* Netflix-style category tabs */}
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 mb-6">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  activeCategory === cat.id
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <span>{cat.emoji}</span>
+                <span>{cat.label}</span>
+                {activeCategory === cat.id && cat.id !== "all" && (
+                  <span className="bg-white/20 text-white text-[10px] px-1.5 rounded-full ml-1">
+                    {filteredSermons.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           {/* Controls */}
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap mb-8">
             <div className="relative flex-1 min-w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search sermons…"
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 border-border bg-white"
+                className="pl-10 border-border bg-background"
               />
             </div>
             <Button
@@ -278,7 +359,7 @@ export default function Sermons() {
               className="flex items-center gap-2 text-primary"
             >
               <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-              Sync Latest
+              Sync
             </Button>
             <Button
               variant="outline"
@@ -286,17 +367,14 @@ export default function Sermons() {
               disabled={syncMutation.isPending || isHarvesting}
               className="flex items-center gap-2 text-primary"
             >
-              {isHarvesting
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Zap className="h-4 w-4" />}
+              {isHarvesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
               {isHarvesting ? "Harvesting…" : "Harvest All"}
             </Button>
           </div>
-        </motion.div>
 
         {/* Skeleton on first load */}
         {isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className="glass-panel rounded-2xl overflow-hidden">
                 <Skeleton className="aspect-video w-full" />
@@ -312,20 +390,51 @@ export default function Sermons() {
         {/* Sermon grid */}
         {!isLoading && (
           <>
-            {sermons.length === 0 ? (
+            {/* Category section header */}
+            {activeCategory !== "all" && (
+              <motion.div
+                key={activeCategory}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-3 mb-5"
+              >
+                <span className="text-2xl">{CATEGORIES.find(c => c.id === activeCategory)?.emoji}</span>
+                <div>
+                  <h2 className="text-xl font-serif font-bold text-primary">
+                    {CATEGORIES.find(c => c.id === activeCategory)?.label}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {filteredSermons.length} sermons in this category
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {filteredSermons.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-muted-foreground text-lg">
                   {debouncedSearch
                     ? `No sermons match "${debouncedSearch}"`
+                    : activeCategory !== "all"
+                    ? `No sermons found in this category yet. Try "All Sermons".`
                     : 'No sermons found. Click "Harvest All" to load the full Temple TV library.'}
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sermons.map((sermon, i) => (
-                  <SermonCard key={sermon.id} sermon={sermon} index={i} />
-                ))}
-              </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeCategory}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+                >
+                  {filteredSermons.map((sermon, i) => (
+                    <SermonCard key={sermon.id} sermon={sermon} index={i} />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             )}
 
             {/* Infinite scroll sentinel */}

@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -23,6 +24,8 @@ const Crusade = lazy(() => import("@/pages/Crusade"));
 const ViewingCentres = lazy(() => import("@/pages/ViewingCentres"));
 const Prayer = lazy(() => import("@/pages/Prayer"));
 const Moments = lazy(() => import("@/pages/Moments"));
+const SermonAssistant = lazy(() => import("@/pages/SermonAssistant"));
+const Leadership = lazy(() => import("@/pages/Leadership"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -68,6 +71,8 @@ function Router() {
         <Route path="/viewing-centres" component={ViewingCentres} />
         <Route path="/prayer" component={Prayer} />
         <Route path="/moments" component={Moments} />
+        <Route path="/sermon-assistant" component={SermonAssistant} />
+        <Route path="/leadership" component={Leadership} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -77,6 +82,7 @@ function Router() {
 function App() {
   return (
     <ThemeProvider>
+      <LanguageProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ErrorBoundary>
@@ -99,6 +105,7 @@ function App() {
           />
         </TooltipProvider>
       </QueryClientProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }
