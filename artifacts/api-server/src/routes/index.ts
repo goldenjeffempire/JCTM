@@ -17,6 +17,7 @@ import sermonAssistantRouter from "./sermon-assistant";
 import livechatRouter from "./livechat";
 import translateRouter from "./translate";
 import geoRouter from "./geo";
+import visitorsRouter from "./visitors";
 
 const router: IRouter = Router();
 
@@ -40,6 +41,7 @@ router.use(sermonAssistantRouter);
 router.use(livechatRouter);
 router.use(translateRouter);
 router.use(geoRouter);
+router.use(visitorsRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

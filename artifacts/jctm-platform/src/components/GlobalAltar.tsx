@@ -1,13 +1,23 @@
 import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence, useSpring, useMotionValue, animate } from "framer-motion";
-import { Users, Radio, Flame, Globe } from "lucide-react";
+import { motion, AnimatePresence, useSpring, useMotionValue } from "framer-motion";
+import { Users, Flame } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// Generate or retrieve a stable visitor ID for this browser
+function getOrCreateVisitorId(): string {
+  const key = "jctm-visitor-id";
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const id = `v-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  localStorage.setItem(key, id);
+  return id;
+}
 
 function AnimatedNumber({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const motionVal = useMotionValue(value);
-  const spring = useSpring(motionVal, { stiffness: 80, damping: 18 });
+  const spring = useSpring(motionVal, { stiffness: 60, damping: 16 });
 
   useEffect(() => {
     motionVal.set(value);
@@ -23,27 +33,54 @@ function AnimatedNumber({ value }: { value: number }) {
 }
 
 export function GlobalAltar() {
-  const [count, setCount] = useState(54);
-  const [trend, setTrend] = useState<"up" | "down" | null>(null);
-  const prevRef = useRef(54);
+  const [total, setTotal] = useState(0);
+  const [trend, setTrend] = useState<"up" | null>(null);
+  const prevRef = useRef(0);
+  const trackedRef = useRef(false);
 
+  // Register this visitor once on mount
+  useEffect(() => {
+    if (trackedRef.current) return;
+    trackedRef.current = true;
+
+    const visitorId = getOrCreateVisitorId();
+
+    fetch(`${BASE}/api/visitors/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { total: number } | null) => {
+        if (data?.total) {
+          const prev = prevRef.current;
+          if (data.total > prev) setTrend("up");
+          prevRef.current = data.total;
+          setTotal(data.total);
+          setTimeout(() => setTrend(null), 2200);
+        }
+      })
+      .catch(() => null);
+  }, []);
+
+  // Subscribe to live updates via SSE
   useEffect(() => {
     let es: EventSource;
     let retryTimer: ReturnType<typeof setTimeout>;
 
     const connect = () => {
-      es = new EventSource(`${BASE}/api/altar/stream`);
+      es = new EventSource(`${BASE}/api/visitors/stream`);
 
       es.onmessage = (e) => {
         try {
-          const { count: c } = JSON.parse(e.data) as { count: number };
+          const { total: t } = JSON.parse(e.data) as { total: number };
           const prev = prevRef.current;
-          if (c !== prev) {
-            setTrend(c > prev ? "up" : "down");
+          if (t > prev) {
+            setTrend("up");
             setTimeout(() => setTrend(null), 2200);
           }
-          prevRef.current = c;
-          setCount(c);
+          prevRef.current = t;
+          setTotal(t);
         } catch {}
       };
 
@@ -76,50 +113,50 @@ export function GlobalAltar() {
           />
         ))}
         <div className="relative z-10 h-14 w-14 rounded-full bg-gradient-to-br from-accent to-[#0284C7] flex items-center justify-center shadow-xl shadow-accent/40">
-          <Flame className="h-6 w-6 text-white" />
+          <Users className="h-6 w-6 text-white" />
         </div>
       </div>
 
       {/* Live badge */}
-      <div className="flex items-center gap-1.5 bg-red-500/15 border border-red-400/30 rounded-full px-3 py-1 mb-3">
+      <div className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-400/30 rounded-full px-3 py-1 mb-3">
         <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
         </span>
-        <span className="text-red-400 text-[10px] font-bold uppercase tracking-widest">Live</span>
+        <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Live Count</span>
       </div>
 
       {/* Counter */}
       <div className="text-center">
         <div className="flex items-end justify-center gap-2">
           <motion.div
-            key={count}
+            key={total}
             className="text-5xl md:text-6xl font-serif font-bold text-white leading-none"
           >
-            <AnimatedNumber value={count} />
+            <AnimatedNumber value={total} />
           </motion.div>
           <AnimatePresence>
             {trend && (
               <motion.span
-                key={trend}
-                initial={{ opacity: 0, y: trend === "up" ? 8 : -8 }}
+                key="up"
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className={`text-xl font-bold mb-1 ${trend === "up" ? "text-emerald-400" : "text-red-400"}`}
+                className="text-xl font-bold mb-1 text-emerald-400"
               >
-                {trend === "up" ? "↑" : "↓"}
+                ↑
               </motion.span>
             )}
           </AnimatePresence>
         </div>
         <p className="text-white/50 text-xs uppercase tracking-[0.2em] mt-2 font-medium">
-          Worshipping Now · Globally
+          Total Visitors · Worldwide
         </p>
       </div>
 
-      {/* User avatars row */}
+      {/* Flag row */}
       <div className="flex items-center justify-center mt-4 gap-1">
-        {Array.from({ length: 7 }).map((_, i) => (
+        {["🇳🇬", "🇬🇧", "🇺🇸", "🇨🇦", "🇰🇪", "🇬🇭", "🌍"].map((flag, i) => (
           <motion.div
             key={i}
             initial={{ scale: 0 }}
@@ -140,20 +177,22 @@ export function GlobalAltar() {
               zIndex: 7 - i,
             }}
           >
-            {["🇳🇬", "🇬🇧", "🇺🇸", "🇨🇦", "🇰🇪", "🇬🇭", "🌍"][i]}
+            {flag}
           </motion.div>
         ))}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.6, type: "spring" }}
-          className="h-7 px-2 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center text-white/70 text-[10px] font-bold ml-[-8px] z-0"
-        >
-          +{Math.max(0, count - 7)}
-        </motion.div>
+        {total > 7 && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.6, type: "spring" }}
+            className="h-7 px-2 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center text-white/70 text-[10px] font-bold ml-[-8px] z-0"
+          >
+            +{(total - 7).toLocaleString()}
+          </motion.div>
+        )}
       </div>
 
-      {/* Region indicators */}
+      {/* Region chips */}
       <div className="flex flex-wrap justify-center gap-2 mt-5 max-w-xs">
         {[
           { flag: "🇳🇬", label: "Nigeria" },
