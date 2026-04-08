@@ -232,7 +232,7 @@ function MomentCard({
 export default function Moments() {
   const [moments, setMoments] = useState<MomentItem[]>([]);
   const [current, setCurrent] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const touchStartY = useRef<number | null>(null);
 
