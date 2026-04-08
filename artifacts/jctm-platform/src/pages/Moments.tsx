@@ -268,60 +268,11 @@ export default function Moments() {
       */}
       <div className="flex h-[calc(100dvh-64px)] max-h-screen overflow-hidden">
 
-        {/* ── Left sidebar — desktop only ── */}
-        <div className="hidden lg:flex flex-col gap-4 w-72 p-6 border-r border-border/40 flex-shrink-0 overflow-y-auto">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow">
-              <Flame className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-serif font-bold text-primary">Temple Moments</h1>
-              <p className="text-xs text-muted-foreground">Temple TV · JCTM</p>
-            </div>
-          </div>
-          {moments.length > 0 && (
-            <Badge className="bg-primary/5 text-primary border-primary/10 text-xs w-fit">
-              <BookOpen className="h-3 w-3 mr-1" />{moments.length} clips
-            </Badge>
-          )}
-          <p className="text-xs text-muted-foreground">
-            ↑ ↓ Arrow keys · Click arrows · Press M to mute
-          </p>
-
-          {/* Desktop nav arrows */}
-          <div className="flex gap-2 mt-2">
-            <button onClick={goPrev} disabled={current === 0}
-              className="flex-1 h-10 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 transition-colors">
-              <ChevronUp className="h-4 w-4" />
-            </button>
-            <button onClick={goNext} disabled={current === moments.length - 1}
-              className="flex-1 h-10 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 transition-colors">
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Progress list — shows nearby clips */}
-          {moments.length > 0 && (
-            <div className="space-y-1.5 mt-2 flex-1 overflow-y-auto">
-              {moments.map((m, i) => (
-                <button key={m.videoId} onClick={() => jumpTo(i)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
-                    i === current
-                      ? "bg-accent/15 text-accent font-semibold border border-accent/25"
-                      : "text-muted-foreground hover:bg-muted/40"
-                  }`}>
-                  {i + 1}. {m.title}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* ── Video feed ── */}
         <div className="flex-1 relative flex flex-col min-w-0">
 
-          {/* Mobile header strip */}
-          <div className="lg:hidden flex items-center justify-between px-4 py-2 border-b border-border/20 flex-shrink-0">
+          {/* Header strip */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border/20 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-red-500" />
               <span className="text-sm font-bold text-primary">Temple Moments</span>
@@ -376,8 +327,8 @@ export default function Moments() {
                 ))}
               </div>
 
-              {/* Mobile nav arrows — float over the video, right side */}
-              <div className="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+              {/* Nav arrows — float over the video, right side */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
                 <button onClick={goPrev} disabled={current === 0}
                   className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
                   <ChevronUp className="h-5 w-5" />
@@ -388,8 +339,8 @@ export default function Moments() {
                 </button>
               </div>
 
-              {/* Mobile progress dots */}
-              <div className="lg:hidden absolute left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1">
+              {/* Progress dots */}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1">
                 {moments.slice(0, 15).map((_, i) => (
                   <button key={i} onClick={() => jumpTo(i)}
                     className={`rounded-full transition-all duration-300 ${
