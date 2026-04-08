@@ -28,6 +28,12 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Project: JCTM Digital Sanctuary
 
+### New Features Added (April 2026 — Vision 2030 Upgrade)
+- **Dark/Light Theme Toggle ("Midnight Mandate" / "Ivory Sanctuary")** — `ThemeContext.tsx` manages theme state with localStorage persistence + OS preference detection. Navbar shows moon/sun toggle. `.dark` class applied to `<html>` element, CSS vars fully defined in `index.css`.
+- **AI Prayer Generator** — `/prayer` page with SSE streaming, 10 prayer categories (healing, deliverance, guidance, peace, provision, family, protection, salvation, strength, general), real-time prayer text reveal, copy-to-clipboard. Backend: `routes/prayer.ts` with dedicated system prompt grounded in JCTM doctrine.
+- **Daily Devotion AI Feed** — `GET /api/devotion/daily` generates a scripture-based devotion each morning (in-memory cache, refreshes daily). Homepage `DailyDevotionSection` shows title, scripture, 2-3 paragraphs of reflection, prayer focus, and bold faith declaration. Backend: `routes/devotion.ts`.
+- **Enhanced TempleBots Emotional Intelligence** — System prompt now has explicit EI protocols for: anxiety/fear/worry → scripture + personalized prayer; grief/depression/suicidal ideation → compassion-first + comfort scriptures; anger/injustice → validation + biblical perspective; spiritual crisis/doubt → non-preachy, Correction Mandate story, gentle guidance.
+
 ### New Features Added (April 2026 Enhancement Sprint)
 - **Global Altar SSE Counter** — `/api/altar/stream` SSE endpoint tracks live worshippers; `GlobalAltar.tsx` component with animated spring counter, region flags, pulsing rings, trend arrows
 - **Interactive Mandate Map** — `MandateMap.tsx` SVG-based world map with 11 glow points (Warri HQ + global hubs), travelling pulse animations, connection lines, hover tooltips showing flag + reach stats

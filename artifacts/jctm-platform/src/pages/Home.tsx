@@ -2186,6 +2186,173 @@ function TimelineTeaser() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// DAILY DEVOTION — AI-Generated Fresh Word
+// ═══════════════════════════════════════════════════════════════════════════
+interface Devotion {
+  date: string;
+  title: string;
+  scripture: string;
+  reference: string;
+  reflection: string;
+  prayerFocus: string;
+  declaration: string;
+}
+
+function DailyDevotionSection() {
+  const [devotion, setDevotion] = useState<Devotion | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-10% 0px" });
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${BASE}/api/devotion/daily`);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+        if (!cancelled) setDevotion(data.devotion);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  return (
+    <section ref={ref} className="py-20 relative overflow-hidden bg-background">
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(56,189,248,0.05) 0%, transparent 70%)" }}
+      />
+      <div className="container mx-auto px-4 max-w-4xl relative">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate={inView ? "show" : "hidden"}
+          className="text-center mb-10"
+        >
+          <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border mb-5" style={{ background: "rgba(56,189,248,0.07)", borderColor: "rgba(56,189,248,0.22)", color: "hsl(var(--accent))" }}>
+            <Sparkles className="h-3 w-3" /> Daily Devotion · {today}
+          </motion.span>
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-serif font-bold text-primary mb-3">
+            Today's Word for You
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground max-w-md mx-auto">
+            A fresh devotion generated every morning — rooted in sound doctrine and the Word of God.
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+          transition={{ delay: 0.2, type: "spring", stiffness: 70 }}
+        >
+          {loading && (
+            <div className="glass-panel rounded-3xl p-8 space-y-4 animate-pulse">
+              <div className="h-5 w-48 bg-muted rounded-full" />
+              <div className="h-8 w-3/4 bg-muted rounded-xl" />
+              <div className="space-y-2 mt-4">
+                {[95, 80, 70, 88, 60].map((w, i) => (
+                  <div key={i} className="h-4 bg-muted rounded-full" style={{ width: `${w}%` }} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="glass-panel rounded-3xl p-8 text-center">
+              <BookOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">
+                "Thy word is a lamp unto my feet, and a light unto my path." — Psalm 119:105
+              </p>
+            </div>
+          )}
+
+          {devotion && !loading && (
+            <div className="glass-panel rounded-3xl overflow-hidden">
+              <div
+                className="px-8 py-6 flex items-center gap-4 border-b"
+                style={{
+                  background: "linear-gradient(135deg, rgba(0,51,102,0.04) 0%, rgba(56,189,248,0.04) 100%)",
+                  borderColor: "hsl(var(--border))",
+                }}
+              >
+                <div className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(56,189,248,0.1)" }}>
+                  <BookOpen className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <p className="font-serif font-bold text-primary text-lg leading-tight">{devotion.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Jesus Christ Temple Ministry · Digital Sanctuary</p>
+                </div>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div
+                  className="rounded-2xl p-5"
+                  style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.05))" }}
+                >
+                  <p className="text-primary font-serif italic text-lg leading-relaxed">
+                    "{devotion.scripture}"
+                  </p>
+                  <p className="text-accent text-sm font-semibold mt-2">— {devotion.reference}</p>
+                </div>
+
+                <div className="prose prose-sm max-w-none text-foreground/80 leading-relaxed space-y-3">
+                  {devotion.reflection.split("\n\n").map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-2xl border p-4" style={{ borderColor: "hsl(var(--border))", background: "rgba(56,189,248,0.03)" }}>
+                    <p className="text-xs font-bold text-accent uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Heart className="h-3 w-3" /> Prayer Focus
+                    </p>
+                    <p className="text-sm text-foreground/80 leading-relaxed">{devotion.prayerFocus}</p>
+                  </div>
+                  <div className="rounded-2xl border p-4" style={{ borderColor: "hsl(var(--border))", background: "rgba(0,51,102,0.03)" }}>
+                    <p className="text-xs font-bold text-primary uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Zap className="h-3 w-3" /> Today's Declaration
+                    </p>
+                    <p className="text-sm text-foreground/80 leading-relaxed italic">"{devotion.declaration}"</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <Link href="/prayer">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-10 rounded-xl font-semibold"
+                      style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))", color: "white", border: "none" }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-2" />
+                      Generate Personal Prayer
+                    </Button>
+                  </Link>
+                  <Link href="/sermons">
+                    <Button variant="outline" size="sm" className="flex-1 h-10 rounded-xl font-semibold">
+                      <Play className="h-3.5 w-3.5 mr-2" />
+                      Watch Today's Sermon
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // GLOBAL ALTAR — Live Worshipper Counter
 // ═══════════════════════════════════════════════════════════════════════════
 function GlobalAltarSection() {
@@ -2262,6 +2429,7 @@ export default function Home() {
     <Layout>
       <HeroSection />
       <PlatformBar />
+      <DailyDevotionSection />
       <BentoGrid />
       <TestimoniesMarquee />
       <ProphetSection />

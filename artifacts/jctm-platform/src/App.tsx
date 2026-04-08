@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -20,6 +21,7 @@ const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Crusade = lazy(() => import("@/pages/Crusade"));
 const ViewingCentres = lazy(() => import("@/pages/ViewingCentres"));
+const Prayer = lazy(() => import("@/pages/Prayer"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -63,6 +65,7 @@ function Router() {
         <Route path="/terms" component={Terms} />
         <Route path="/crusade" component={Crusade} />
         <Route path="/viewing-centres" component={ViewingCentres} />
+        <Route path="/prayer" component={Prayer} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -71,28 +74,30 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ErrorBoundary>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-        </ErrorBoundary>
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            classNames: {
-              toast: "glass-panel border border-border font-sans text-primary",
-              title: "font-semibold text-primary",
-              description: "text-muted-foreground",
-              success: "border-accent/40",
-              error: "border-destructive/40",
-            },
-          }}
-          richColors
-        />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ErrorBoundary>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+          </ErrorBoundary>
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              classNames: {
+                toast: "glass-panel border border-border font-sans text-primary",
+                title: "font-semibold text-primary",
+                description: "text-muted-foreground",
+                success: "border-accent/40",
+                error: "border-destructive/40",
+              },
+            }}
+            richColors
+          />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

@@ -1,0 +1,49 @@
+You are a Visionary CTO, Lead Experience Architect, and Senior AI Engineer.
+
+Objective: Build the definitive, 2030-ready digital ecosystem for Jesus Christ Temple Ministry. The platform must be a hyper-modern, immersive, and high-performance sanctuary that scales globally while remaining optimized for Nigerian data conditions.
+
+1. Visual Architecture & Immersive Design:
+
+Design System: Implement a hybrid Glassmorphism/Neumorphism UI. Use "Ivory Sanctuary" (Light) as the default theme, with a smooth adaptive toggle to "Midnight Mandate" (Dark).
+
+3.D & Motion: Integrate Three.js/WebGL to render a subtle, interactive 3D model of the Ebrumede Temple or a glowing "Global Altar" on the homepage. Use Framer Motion for Apple-style, scroll-based storytelling that reveals the "Correction Mandate" as the user scrolls.
+
+The Hero: Build a full-screen, cinematic Hero section with a dynamic "Join Live Service" button. Constraint: This button must remain inactive or "Grayed Out" unless the YouTube API detects an active live broadcast from @TEMPLETVJCTM.
+
+2. The "Temple AI" Core (Powered by OpenAI GPT-4o):
+
+AI Sermon Assistant: A RAG-driven chat interface where users ask questions and get answers directly from Prophet Amos’s transcribed sermons.
+
+AI Prayer Generator: A specialized module that generates personalized, scriptural prayers based on user-inputted needs (e.g., healing, deliverance, guidance).
+
+Spiritual Growth Tracker: A "Gamified" dashboard that tracks user engagement (Sermons watched, Bible chapters read, Daily Devotions completed).
+
+Emotional Intelligence: If a user types "I feel anxious," the AI must instantly provide: (1) A specific JCTM sermon clip, (2) Three grounding scriptures, and (3) A personalized prayer.
+
+3. High-Fidelity Media & Content Hub:
+
+Netflix-Style Library: A categorised "Sermon Replay" grid with AI-driven recommendations based on user behavior analytics.
+
+Short-Form "Moments": A vertical-video feed (TikTok/Reels style) pulling the latest 60-second "clips" from the YouTube channel.
+
+Dual-Stream Mode: Implement a "Low-Data/High-Definition" toggle specifically for the Nigerian congregation to ensure accessibility in all network conditions.
+
+Podcast & Devotion: A dedicated audio section for commuters and a "Daily Devotion AI Feed" that pushes a new word every morning.
+
+4. Global Logistics & Scalability (2030 Standards):
+
+Geo-Targeting: Detect user IP to show local service times (WAT vs. GMT/EST) and relevant crusade updates (e.g., "Warri City Crusade 2026").
+
+Multi-Language Engine: Use AI to translate the entire platform interface and TempleBots responses into 50+ languages instantly.
+
+Event RSVP System: A professional booking module for crusades and special services with automated SMS/Email reminders.
+
+5. Security & Infrastructure (Render.com + Supabase):
+
+Production Hardening: SSL encryption, verified ministry badges, and a transparent "Leadership" page featuring Prophet Amos.
+
+Uptime & Speed: Deploy via Global Edge CDN with 99.99% uptime monitoring and heavy caching for 1.2s page loads.
+
+Live Chat: A real-time, moderated chat interface active during live sermons.
+
+Execute the complete platform architecture, rebuild the components, and prepare for immediate deployment.

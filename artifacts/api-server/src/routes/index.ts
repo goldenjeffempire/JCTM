@@ -11,6 +11,8 @@ import chatRouter from "./chat";
 import livestreamRouter from "./livestream";
 import altarRouter from "./altar";
 import crusadeRouter from "./crusade";
+import prayerRouter from "./prayer";
+import devotionRouter from "./devotion";
 
 const router: IRouter = Router();
 
@@ -28,6 +30,8 @@ router.use(chatRouter);
 router.use(livestreamRouter);
 router.use(altarRouter);
 router.use(crusadeRouter);
+router.use(prayerRouter);
+router.use(devotionRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {
