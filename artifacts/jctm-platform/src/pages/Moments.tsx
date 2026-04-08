@@ -55,9 +55,11 @@ function MomentCard({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
   const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
+  // loop=1 repeats the video; playlist must equal videoId for single-video looping
   const embedSrc =
     `https://www.youtube.com/embed/${moment.videoId}` +
-    `?autoplay=1&mute=${muted ? 1 : 0}&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+    `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
+    `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
 
   // Pump volume to 100 via IFrame API after player loads
   const handleLoad = () => {
@@ -368,7 +370,7 @@ export default function Moments() {
                       total={moments.length}
                       muted={muted}
                       onToggleMute={toggleMute}
-                      renderPlayer={Math.abs(i - current) <= 1}
+                      renderPlayer={i === current}
                     />
                   </div>
                 ))}
