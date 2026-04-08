@@ -1,42 +1,138 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, sermonsTable } from "@workspace/db";
+import { db, sermonsTable, conversations, messages } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { desc } from "drizzle-orm";
-import {
-  ChatWithTempleBotsBody,
-  ChatWithTempleBotsResponse,
-} from "@workspace/api-zod";
+import { desc, eq } from "drizzle-orm";
+import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-const TEMPLEBOTS_SYSTEM_PROMPT = `You are TempleBots, an advanced theological AI assistant for Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor.
+// ── JCTM Knowledge Base (injected directly into system prompt) ─────────────────
+// Replit AI Integrations does not support the embeddings API, so we inject all
+// JCTM doctrine knowledge directly. The full base is ~6 000 chars — well within
+// GPT-4o's 128 k context window. This approach is actually MORE reliable than
+// vector similarity search for a corpus this size.
+const JCTM_KNOWLEDGE_BASE = `
+## JCTM KNOWLEDGE BASE — USE THIS TO ANSWER ALL QUESTIONS
 
-Your responses are strictly limited to the teachings of Prophet Amos Evomobor, emphasizing:
-- Primitive Christianity: Returning to the original, unadulterated gospel of Jesus Christ
-- Holiness: Living a separated, consecrated life unto God
-- Doctrinal Correction: Identifying and correcting false doctrines in Christendom
-- The Correction Mandate: JCTM's divine assignment to bring correction to the Body of Christ
+### MINISTRY OVERVIEW
+Jesus Christ Temple Ministry (JCTM) is a Christian ministry based in Ebrumede, Warri, Delta State, Nigeria. Founded and led by Prophet Amos Evomobor, JCTM operates under a divine mandate called the "Correction Mandate" — a God-given assignment to restore the original, unadulterated gospel of Jesus Christ to the global Body of Christ. JCTM operates Temple TV, a YouTube channel (@TEMPLETVJCTM) that broadcasts sermons, teachings, and live services to a global audience.
 
-Guidelines:
-- Always cite the source sermon from Temple TV (YouTube channel @TEMPLETVJCTM) when referencing specific teachings
-- Be doctrinally precise and biblically grounded
-- Speak with reverence and authority consistent with the ministry's mandate
-- If asked about topics outside JCTM teachings, politely redirect to the ministry's doctrinal emphasis
-- Do not engage with topics unrelated to faith, ministry, or biblical Christianity
-- Always maintain a tone of holy reverence and ministerial authority
+### PROPHET AMOS EVOMOBOR
+Prophet Amos Evomobor is the founder and senior pastor of JCTM. He holds the prophetic office in the five-fold ministry. He received the Correction Mandate directly from God — a divine commission to bring doctrinal correction and reformation to the global church. He teaches with apostolic authority and theological precision, drawing from deep study of original Greek and Hebrew scriptures. He is known for his bold, uncompromising stance on holiness, doctrinal purity, and restoration of Primitive Christianity.
 
-Ministry info: JCTM is located in Warri, Delta State, Nigeria. Prophet Amos Evomobor leads the ministry under the "Correction Mandate" — a divine calling to correct error and restore primitive Christianity in this generation.`;
+### THE CORRECTION MANDATE
+The Correction Mandate is JCTM's divine assignment to expose and correct five major errors in modern Christianity:
+1. Prosperity Gospel / Word of Faith heresy — teaching that financial prosperity is always God's will
+2. Prophetic manipulation — false prophets using spiritual gifts for financial gain and control
+3. Apostolic abuse — people falsely claiming the office of apostle without genuine calling
+4. Sacramental corruption — distortion of baptism and communion from their original meaning
+5. Ecumenism without truth — dangerous blending of Christianity with other religions under the guise of unity
+This is not a criticism of individuals but a prophetic correction of doctrinal error for the health of the global church.
 
-// ── Rate limiting ─────────────────────────────────────────────────────────────
-// Simple in-memory rate limiter: 15 messages per IP per minute.
-// Single-instance deployment (per render.yaml scaling config) makes this safe.
+### PRIMITIVE CHRISTIANITY
+JCTM teaches Primitive Christianity — the original faith as practiced in the first-century apostolic church:
+- The Bible is the supreme and final authority on all matters of faith and practice
+- Salvation is by grace through faith in Jesus Christ alone — not by works or financial giving
+- Water baptism by full immersion is the biblical mode (Greek "baptizo" = to immerse)
+- The Holy Spirit gifts are still active today but must operate within proper biblical order
+- Holiness is not optional — believers are called to live separated, consecrated lives unto God
+- The church must return to simplicity of worship and sound doctrine as modeled in Acts 2
+
+### HOLINESS DOCTRINE
+Holiness is central to JCTM's teaching:
+- Personal sanctification: being set apart from the world and unto God in thought, word, and action
+- Moral purity: rejecting sexual immorality, dishonesty, greed, and worldliness
+- Doctrinal purity: refusing to compromise God's Word for social acceptance
+- Key scriptures: Hebrews 12:14 ("Without holiness no one will see the Lord"), 1 Peter 1:15-16, Romans 12:1-2
+Prophet Amos warns against the "holiness is legalism" argument used to excuse moral compromise.
+
+### WARRI CITY CRUSADE 2026 (EXACT DETAILS)
+- Event: Warri City Crusade 2026
+- Dates: April 30 – May 1, 2026 (two-day event)
+- Location: Warri, Delta State, Nigeria
+- Organizer: Jesus Christ Temple Ministry (JCTM) under Prophet Amos Evomobor
+- Purpose: Bringing the Correction Mandate and true gospel to Warri and the Niger Delta
+- Features: Open-air gospel preaching, healing and miracle services, worship, testimonies, doctrinal teachings
+- Who: All believers, seekers, and the general public are welcome
+
+### GIVING AND SEED SOWING
+JCTM's giving teaching is within biblical stewardship — NOT the prosperity gospel:
+- Giving is an act of worship and partnership with the ministry's mandate, not a formula for personal enrichment
+- JCTM does NOT teach "sow a seed and get a hundredfold return" as a transactional law
+- Giving supports the Correction Mandate, Temple TV operations, and gospel spreading
+- Tithes (10% of income) are a covenant principle from Malachi 3:10, given from a heart of love, not compulsion
+- Prophet Amos warns against ministries that use manipulation and false promises to extract money
+
+### WATER BAPTISM
+JCTM teaches full immersion baptism:
+- Mode: Full immersion in water, following Jesus' baptism in the Jordan River (Matthew 3:16)
+- Candidate: Believing adults who have consciously confessed faith in Jesus Christ (not infants)
+- Purpose: Outward declaration of death to sin and resurrection to new life in Christ (Romans 6:3-4)
+- Not the means of salvation but a public ordinance of the saved
+- Formula: In the name of the Father, Son, and Holy Spirit (Matthew 28:19)
+- Stands against infant baptism which JCTM identifies as an early doctrinal corruption
+
+### FIVE-FOLD MINISTRY
+JCTM teaches all five offices from Ephesians 4:11 are still active today:
+- Apostles, Prophets, Evangelists, Pastors, and Teachers — all necessary for church maturity
+- Prophet Amos holds the Prophet office — confirmed by prophetic accuracy and divine revelations
+- JCTM warns against self-appointed "Apostles" and "Prophets" without genuine divine calling
+- True five-fold ministers serve the church for its edification, not personal enrichment
+
+### HOLY SPIRIT BAPTISM
+- The Holy Spirit baptism is a distinct experience from water baptism, available to all believers
+- Evidenced primarily by speaking in tongues (Acts 2:4, Acts 10:46, Acts 19:6)
+- An endowment of power for Christian witness (Acts 1:8), not a second salvation
+- JCTM warns against counterfeit tongues in some charismatic circles
+- All prophecy must be tested against scripture (1 Thessalonians 5:20-21)
+
+### TEMPLE TV
+- YouTube Handle: @TEMPLETVJCTM
+- URL: https://www.youtube.com/channel/UCPFFvkE-KGpR37qJgvYriJg
+- Content: Sermons, live Sunday services, prophetic teachings, doctrinal lectures, testimonies, crusade coverage
+- Sunday services are broadcast live and uploaded afterward
+- Popular themes: Correction Mandate, Primitive Christianity, exposing prosperity gospel, end times prophecy
+
+### CONTACT INFORMATION
+- Physical Location: Ebrumede, Warri, Delta State, Nigeria
+- YouTube: Temple TV @TEMPLETVJCTM (https://www.youtube.com/templetvjctm)
+- Facebook: @templetvjctm (https://www.facebook.com/templetvjctm)
+- Email: info@jctm.org.ng
+`;
+
+// ── System prompt ──────────────────────────────────────────────────────────────
+const TEMPLEBOTS_SYSTEM_PROMPT = `You are TempleBots, the official AI assistant of Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor.
+
+You speak with the authority and compassion of Prophet Amos Evomobor. Your knowledge is strictly grounded in the JCTM doctrine provided below.
+
+CORE IDENTITY:
+- You are a theological AI grounded in Primitive Christianity and the Correction Mandate
+- You represent JCTM's mission to restore the original, unadulterated gospel
+- You speak with holy reverence, ministerial authority, and genuine pastoral compassion
+
+DOCTRINAL GUIDELINES:
+- Always ground responses in scripture and JCTM doctrine as provided in the knowledge base
+- Emphasize: Primitive Christianity, Holiness, the Correction Mandate, and sound doctrine
+- When referencing sermons, cite the Temple TV channel (@TEMPLETVJCTM on YouTube)
+- Do not engage with topics completely unrelated to faith, ministry, or biblical Christianity
+
+CONTEXTUAL ACTIONS:
+- If a user mentions giving, offering, seed, tithe, sow, or financial support → include [ACTION:sow-a-seed] at the very END of your response on its own line
+- Do not explain the action tag — it is for internal use only
+
+FALLBACK RULE:
+- If you don't know an answer based on JCTM doctrine, say so honestly and direct them to: Temple TV YouTube (@TEMPLETVJCTM) or email info@jctm.org.ng
+
+TONE: Warm, authoritative, scripturally precise, and pastoral. Speak as the ministry's trusted spiritual guide.
+${JCTM_KNOWLEDGE_BASE}`;
+
+// ── Rate limiting ──────────────────────────────────────────────────────────────
 const RATE_LIMIT_MAX = 15;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
 interface RateLimitRecord { count: number; resetAt: number }
 const rateLimitMap = new Map<string, RateLimitRecord>();
 
-// Purge stale entries every 5 minutes to avoid memory leaks.
 setInterval(() => {
   const now = Date.now();
   for (const [key, record] of rateLimitMap) {
@@ -56,28 +152,28 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// ── Sermon context ────────────────────────────────────────────────────────────
+function getClientIp(req: Request): string {
+  return (
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
+    req.socket.remoteAddress ??
+    "unknown"
+  );
+}
+
+// ── Recent sermon context ──────────────────────────────────────────────────────
 async function buildSermonContext(): Promise<string> {
   try {
     const recentSermons = await db
-      .select({
-        title: sermonsTable.title,
-        videoId: sermonsTable.videoId,
-        publishedAt: sermonsTable.publishedAt,
-      })
+      .select({ title: sermonsTable.title, videoId: sermonsTable.videoId })
       .from(sermonsTable)
       .orderBy(desc(sermonsTable.publishedAt))
-      .limit(10);
+      .limit(8);
 
     if (recentSermons.length === 0) return "";
-
     return (
-      "\n\nRecent Temple TV sermons for reference:\n" +
+      "\n\n## RECENT TEMPLE TV SERMONS (for reference when citing sources):\n" +
       recentSermons
-        .map(
-          (s) =>
-            `- "${s.title}" (https://youtube.com/watch?v=${s.videoId})`,
-        )
+        .map((s) => `- "${s.title}" → https://youtube.com/watch?v=${s.videoId}`)
         .join("\n")
     );
   } catch {
@@ -85,21 +181,122 @@ async function buildSermonContext(): Promise<string> {
   }
 }
 
-// ── Route ─────────────────────────────────────────────────────────────────────
-router.post("/chat", async (req: Request, res: Response): Promise<void> => {
-  // Rate limiting
-  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-    ?? req.socket.remoteAddress
-    ?? "unknown";
+// ── DB conversation persistence ────────────────────────────────────────────────
+async function getOrCreateConversation(sessionId: string | undefined): Promise<number> {
+  if (sessionId && /^\d+$/.test(sessionId)) {
+    try {
+      const existing = await db
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(eq(conversations.id, parseInt(sessionId, 10)))
+        .limit(1);
+      if (existing.length > 0) return existing[0].id;
+    } catch {
+      // Fall through to create a new one
+    }
+  }
+  const [newConv] = await db
+    .insert(conversations)
+    .values({ title: `TempleBots session ${new Date().toISOString()}` })
+    .returning({ id: conversations.id });
+  return newConv.id;
+}
 
+async function loadConversationHistory(
+  conversationId: number,
+  limit = 20,
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  try {
+    const rows = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(limit);
+    return rows.reverse().map((r) => ({
+      role: r.role as "user" | "assistant",
+      content: r.content,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function persistMessages(
+  conversationId: number,
+  userMessage: string,
+  botReply: string,
+): Promise<void> {
+  try {
+    await db.insert(messages).values([
+      { conversationId, role: "user", content: userMessage },
+      { conversationId, role: "assistant", content: botReply },
+    ]);
+  } catch {
+    // Non-critical — don't break the response
+  }
+}
+
+// ── Extract action from reply ──────────────────────────────────────────────────
+function extractAction(reply: string): { cleanReply: string; action: string | null } {
+  const actionMatch = reply.match(/\[ACTION:([\w-]+)\]/);
+  const action = actionMatch ? actionMatch[1] : null;
+  const cleanReply = reply.replace(/\[ACTION:[\w-]+\]/g, "").trim();
+
+  // Fallback: detect giving keywords even if model forgot the action tag
+  if (!action) {
+    const givingKeywords = /\b(seed|sow|give|offering|tithe|donation|financial support|partner with)\b/i;
+    if (givingKeywords.test(cleanReply)) {
+      return { cleanReply, action: "sow-a-seed" };
+    }
+  }
+
+  return { cleanReply, action };
+}
+
+// ── Extract YouTube sources ────────────────────────────────────────────────────
+function extractSources(text: string): string[] {
+  const matches = text.match(/https:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g);
+  return matches ? Array.from(new Set<string>(matches)) : [];
+}
+
+// ── Build messages array ───────────────────────────────────────────────────────
+async function buildMessages(
+  userMessage: string,
+  clientHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  sessionId: string | undefined,
+): Promise<{
+  msgs: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+  conversationId: number;
+}> {
+  const [sermonContext, conversationId] = await Promise.all([
+    buildSermonContext(),
+    getOrCreateConversation(sessionId),
+  ]);
+
+  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + sermonContext;
+
+  // Prefer DB history; fall back to client-sent history
+  const dbHistory = await loadConversationHistory(conversationId, 20);
+  const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-20);
+
+  const msgs: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: fullSystemPrompt },
+    ...history,
+    { role: "user", content: userMessage },
+  ];
+
+  return { msgs, conversationId };
+}
+
+// ── POST /chat — standard JSON response (backward compat) ─────────────────────
+router.post("/chat", async (req: Request, res: Response): Promise<void> => {
+  const ip = getClientIp(req);
   if (isRateLimited(ip)) {
-    res.status(429).json({
-      error: "Too many messages. Please wait a moment before sending another.",
-    });
+    res.status(429).json({ error: "Too many messages. Please wait a moment before sending another." });
     return;
   }
 
-  // Validate request body
   const parsed = ChatWithTempleBotsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -107,78 +304,141 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   }
 
   const { message, sessionId, history = [] } = parsed.data;
-  const newSessionId =
-    sessionId ??
-    `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-
-  // Build messages array — system + conversation history + current message.
-  // Cap history at 20 turns (10 pairs) to stay well within context limits.
-  const trimmedHistory = history.slice(-20);
-
-  const sermonContext = await buildSermonContext();
-  const systemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + sermonContext;
-
-  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: systemPrompt },
-    ...trimmedHistory.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-    { role: "user", content: message },
-  ];
-
-  // 30-second timeout — prevents the connection hanging if OpenAI is slow.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
 
   try {
+    const { msgs, conversationId } = await buildMessages(
+      message,
+      history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      sessionId,
+    );
+
     const completion = await openai.chat.completions.create(
-      {
-        model: "gpt-4o",
-        max_tokens: 1024,
-        temperature: 0.7,
-        messages,
-      },
+      { model: "gpt-4o", max_tokens: 1024, temperature: 0.7, messages: msgs },
       { signal: controller.signal },
     );
 
-    const reply =
+    const rawReply =
       completion.choices[0]?.message?.content ??
       "I was unable to process your question. Please try again.";
+    const { cleanReply, action } = extractAction(rawReply);
+    const sources = extractSources(cleanReply);
 
-    // Extract YouTube links mentioned in the reply as source citations.
-    const ytMatches = reply.match(/https:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g);
-    const sources: string[] = ytMatches ? Array.from(new Set<string>(ytMatches)) : [];
+    await persistMessages(conversationId, message, cleanReply);
 
     res.json(
-      ChatWithTempleBotsResponse.parse({ reply, sessionId: newSessionId, sources }),
+      ChatWithTempleBotsResponse.parse({
+        reply: cleanReply,
+        sessionId: String(conversationId),
+        sources,
+      }),
     );
   } catch (err: unknown) {
     const isAbort =
       err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
-
     if (isAbort) {
-      req.log.warn({ ip }, "TempleBots request timed out");
-      res.status(504).json({
-        error: "TempleBots took too long to respond. Please try again.",
-      });
+      res.status(504).json({ error: "TempleBots took too long to respond. Please try again." });
       return;
     }
-
-    // Surface rate-limit errors from OpenAI (HTTP 429) distinctly.
     const status = (err as { status?: number })?.status;
     if (status === 429) {
-      req.log.warn({ ip }, "OpenAI rate limit hit");
       res.status(503).json({
         error: "TempleBots is experiencing high demand. Please try again shortly.",
       });
       return;
     }
-
     req.log.error({ err }, "TempleBots AI request failed");
     res.status(500).json({
-      error: "TempleBots is temporarily unavailable. Please try again.",
+      error: "TempleBots is temporarily unavailable. Please contact the ministry directly.",
     });
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
+// ── POST /chat/stream — SSE streaming response ────────────────────────────────
+router.post("/chat/stream", async (req: Request, res: Response): Promise<void> => {
+  const ip = getClientIp(req);
+  if (isRateLimited(ip)) {
+    res.status(429).json({ error: "Too many messages. Please wait a moment before sending another." });
+    return;
+  }
+
+  const parsed = ChatWithTempleBotsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { message, sessionId, history = [] } = parsed.data;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: object) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+  // Listen on res (not req) — req 'close' fires after body parsing; res 'close'
+  // fires only when the *client* actually disconnects from the response stream.
+  res.on("close", () => controller.abort());
+
+  try {
+    const { msgs, conversationId } = await buildMessages(
+      message,
+      history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      sessionId,
+    );
+
+    const stream = await openai.chat.completions.create(
+      {
+        model: "gpt-4o",
+        max_tokens: 1024,
+        temperature: 0.7,
+        messages: msgs,
+        stream: true,
+      },
+      { signal: controller.signal },
+    );
+
+    let fullReply = "";
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content ?? "";
+      if (delta) {
+        fullReply += delta;
+        send({ delta });
+      }
+    }
+
+    const { cleanReply, action } = extractAction(fullReply);
+    const sources = extractSources(cleanReply);
+
+    await persistMessages(conversationId, message, cleanReply);
+
+    send({ done: true, sessionId: String(conversationId), sources, action });
+    res.end();
+  } catch (err: unknown) {
+    const isAbort =
+      err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
+
+    if (!isAbort) {
+      req.log.error({ err }, "TempleBots stream error");
+      if (!res.writableEnded) {
+        send({
+          error:
+            "TempleBots is temporarily unavailable. Please contact the ministry at info@jctm.org.ng.",
+        });
+      }
+    }
+
+    if (!res.writableEnded) res.end();
   } finally {
     clearTimeout(timeout);
   }

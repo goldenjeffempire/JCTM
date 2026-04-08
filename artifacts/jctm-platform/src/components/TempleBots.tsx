@@ -1,16 +1,24 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone, Bell, Search, ChevronRight, Sparkles } from "lucide-react";
+import {
+  MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone,
+  Bell, Search, ChevronRight, Sparkles, Heart, ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useChatWithTempleBots } from "@workspace/api-client-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { useLocation } from "wouter";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const STREAM_URL = `${BASE}/api/chat/stream`;
 
 interface Message {
   id: string;
   role: "user" | "bot";
   content: string;
   sources?: string[];
+  action?: string | null;
+  isStreaming?: boolean;
+  isError?: boolean;
 }
 
 const QUICK_LINKS = [
@@ -45,7 +53,6 @@ const SMART_NOTIFICATIONS: Record<string, string> = {
   testimonies: "✨ Exploring testimonies? I can share more stories of God's faithfulness through JCTM.",
 };
 
-// Hover-triggered predictive whispers per section
 const HOVER_WHISPERS: Record<string, { message: string; cta: string }> = {
   giving: {
     message: "Would you like to see the spiritual benefits of seed-sowing according to scripture?",
@@ -71,12 +78,15 @@ const REACH_US = [
   { label: "Email", href: "mailto:info@jctm.org.ng", icon: Mail, color: "#003366", bg: "hover:bg-[#003366]/10 hover:border-[#003366]/30", hint: "info@jctm.org.ng" },
 ];
 
+type HistoryEntry = { role: "user" | "assistant"; content: string };
+
 export function TempleBots() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [sessionId, setSessionId] = useState<string>();
+  const [sessionId, setSessionId] = useState<string | undefined>();
+  const [isStreaming, setIsStreaming] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
@@ -86,17 +96,27 @@ export function TempleBots() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const chatMutation = useChatWithTempleBots();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const historyRef = useRef<HistoryEntry[]>([]);
 
-  // Detect scroll past hero
+  // Track conversation history for context
+  useEffect(() => {
+    const entries: HistoryEntry[] = messages
+      .filter((m) => !m.isStreaming && !m.isError)
+      .map((m) => ({
+        role: m.role === "bot" ? "assistant" : "user",
+        content: m.content,
+      }));
+    historyRef.current = entries.slice(-20);
+  }, [messages]);
+
   useEffect(() => {
     const onScroll = () => setScrolledPastHero(window.scrollY > window.innerHeight * 0.65);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Focus search input when expanded
   useEffect(() => {
     if (searchExpanded && searchInputRef.current) {
       setTimeout(() => searchInputRef.current?.focus(), 150);
@@ -106,9 +126,9 @@ export function TempleBots() {
   useEffect(() => {
     setMessages([{ id: "1", role: "bot", content: getContextualGreeting(location) }]);
     setSessionId(undefined);
+    historyRef.current = [];
   }, [location]);
 
-  // Smart scroll-based notifications
   useEffect(() => {
     const handler = (e: Event) => {
       const section = (e as CustomEvent<string>).detail;
@@ -127,7 +147,6 @@ export function TempleBots() {
     };
   }, [isOpen]);
 
-  // Predictive hover whispers
   useEffect(() => {
     const handler = (e: Event) => {
       const section = (e as CustomEvent<string>).detail;
@@ -164,9 +183,7 @@ export function TempleBots() {
     setSearchExpanded(false);
     setSearchVal("");
     if (initialMessage) {
-      setTimeout(() => {
-        setInput(initialMessage);
-      }, 300);
+      setTimeout(() => setInput(initialMessage), 300);
     }
   }, []);
 
@@ -176,51 +193,138 @@ export function TempleBots() {
     const q = searchVal.trim();
     setSearchVal("");
     handleOpen(q);
-    setTimeout(() => {
-      if (!q) return;
-      sendMessage(q);
-    }, 500);
+    setTimeout(() => sendMessage(q), 500);
   };
 
-  const sendMessage = useCallback((text: string) => {
-    if (!text.trim() || chatMutation.isPending) return;
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || isStreaming) return;
     setInput("");
 
-    // Capture snapshot of current messages for history BEFORE adding the new user turn.
-    setMessages(prev => {
-      const updated = [...prev, { id: Date.now().toString(), role: "user" as const, content: text }];
+    const userMsgId = Date.now().toString();
+    const botMsgId = `${userMsgId}-bot`;
 
-      // Build history for the API — map bot messages to "assistant" role, cap at 20 turns.
-      const history = prev
-        .filter(m => m.role === "user" || m.role === "bot")
-        .slice(-20)
-        .map(m => ({ role: m.role === "bot" ? "assistant" as const : "user" as const, content: m.content }));
+    setMessages((prev) => [
+      ...prev,
+      { id: userMsgId, role: "user", content: text },
+      { id: botMsgId, role: "bot", content: "", isStreaming: true },
+    ]);
+    setIsStreaming(true);
 
-      chatMutation.mutate(
-        { data: { message: text, sessionId, history } },
-        {
-          onSuccess: (data: { sessionId?: string; reply: string; sources?: string[] }) => {
-            if (data.sessionId) setSessionId(data.sessionId);
-            setMessages(curr => [...curr, { id: Date.now().toString(), role: "bot", content: data.reply, sources: data.sources }]);
-          },
-          onError: () => {
-            setMessages(curr => [...curr, { id: Date.now().toString(), role: "bot", content: "Sorry, I am having trouble connecting right now. Please try again." }]);
-          },
+    // Abort any previous stream
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const response = await fetch(STREAM_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          sessionId,
+          history: historyRef.current,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalSessionId: string | undefined;
+      let finalSources: string[] = [];
+      let finalAction: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          let json: Record<string, unknown>;
+          try {
+            json = JSON.parse(line.slice(5).trim());
+          } catch {
+            continue;
+          }
+
+          if (typeof json.delta === "string") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === botMsgId
+                  ? { ...m, content: m.content + json.delta }
+                  : m,
+              ),
+            );
+          }
+
+          if (json.done) {
+            finalSessionId = json.sessionId as string | undefined;
+            finalSources = (json.sources as string[]) ?? [];
+            finalAction = (json.action as string | null) ?? null;
+          }
+
+          if (typeof json.error === "string") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === botMsgId
+                  ? { ...m, content: json.error as string, isStreaming: false, isError: true }
+                  : m,
+              ),
+            );
+            setIsStreaming(false);
+            return;
+          }
         }
-      );
+      }
 
-      return updated;
-    });
-  }, [chatMutation, sessionId]);
+      if (finalSessionId) setSessionId(finalSessionId);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === botMsgId
+            ? {
+                ...m,
+                isStreaming: false,
+                sources: finalSources,
+                action: finalAction,
+              }
+            : m,
+        ),
+      );
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === botMsgId
+            ? {
+                ...m,
+                content: "TempleBots is temporarily unavailable. Please contact the ministry directly.",
+                isStreaming: false,
+                isError: true,
+              }
+            : m,
+        ),
+      );
+    } finally {
+      setIsStreaming(false);
+    }
+  }, [isStreaming, sessionId]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     sendMessage(input);
   };
 
-  const handleQuickLink = (q: string) => {
-    sendMessage(q);
-  };
+  const handleQuickLink = (q: string) => sendMessage(q);
 
   return (
     <>
@@ -258,7 +362,6 @@ export function TempleBots() {
                   </button>
                 </div>
               </div>
-              {/* Auto-dismiss timer bar */}
               <motion.div
                 initial={{ scaleX: 1 }}
                 animate={{ scaleX: 0 }}
@@ -419,11 +522,24 @@ export function TempleBots() {
                 <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                   <motion.div
                     initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.2 }}
-                    className={`max-w-[88%] rounded-2xl px-4 py-2.5 ${msg.role === "user" ? "bg-accent text-white rounded-tr-sm shadow-sm" : "text-primary rounded-tl-sm border border-border/60 shadow-sm"}`}
-                    style={msg.role === "bot" ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" } : {}}
+                    className={`max-w-[88%] rounded-2xl px-4 py-2.5 ${
+                      msg.role === "user"
+                        ? "bg-accent text-white rounded-tr-sm shadow-sm"
+                        : msg.isError
+                        ? "text-red-700 bg-red-50 border border-red-200 rounded-tl-sm"
+                        : "text-primary rounded-tl-sm border border-border/60 shadow-sm"
+                    }`}
+                    style={msg.role === "bot" && !msg.isError ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" } : {}}
                   >
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {msg.content}
+                      {msg.isStreaming && (
+                        <span className="inline-block w-0.5 h-3.5 bg-accent ml-0.5 align-middle animate-pulse rounded-full" />
+                      )}
+                    </p>
                   </motion.div>
+
+                  {/* Source citations */}
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {msg.sources.map((s, i) => {
@@ -443,10 +559,53 @@ export function TempleBots() {
                       })}
                     </div>
                   )}
+
+                  {/* Contextual action: Sow a Seed */}
+                  {msg.action === "sow-a-seed" && !msg.isStreaming && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                      className="mt-2"
+                    >
+                      <a
+                        href={`${BASE}/give`}
+                        className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+                      >
+                        <Heart className="h-3.5 w-3.5" />
+                        Sow a Seed
+                        <ExternalLink className="h-3 w-3 opacity-80" />
+                      </a>
+                    </motion.div>
+                  )}
+
+                  {/* Error fallback: Contact Ministry */}
+                  {msg.isError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                      className="mt-2 flex gap-2"
+                    >
+                      <a
+                        href="mailto:info@jctm.org.ng"
+                        className="inline-flex items-center gap-1.5 text-[10px] text-primary bg-white border border-border/50 px-3 py-1.5 rounded-full hover:bg-primary/5 transition-colors shadow-sm"
+                      >
+                        <Mail className="h-3 w-3" />
+                        Contact Ministry
+                      </a>
+                      <a
+                        href="https://www.youtube.com/templetvjctm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[10px] text-red-600 bg-white border border-red-200 px-3 py-1.5 rounded-full hover:bg-red-50 transition-colors shadow-sm"
+                      >
+                        <Youtube className="h-3 w-3" />
+                        Temple TV
+                      </a>
+                    </motion.div>
+                  )}
                 </div>
               ))}
 
-              {chatMutation.isPending && (
+              {/* Thinking indicator while waiting for first delta */}
+              {isStreaming && messages[messages.length - 1]?.content === "" && (
                 <div className="flex items-start">
                   <div className="bg-white/85 backdrop-blur-sm text-primary rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1 border border-border/60 shadow-sm">
                     <span className="w-1.5 h-1.5 bg-accent rounded-full animate-bounce" />
@@ -484,7 +643,7 @@ export function TempleBots() {
                     key={i}
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                     onClick={() => handleQuickLink(q)}
-                    disabled={chatMutation.isPending}
+                    disabled={isStreaming}
                     className="shrink-0 text-[10px] font-medium text-accent bg-accent/8 hover:bg-accent/15 border border-accent/20 px-3 py-1.5 rounded-full whitespace-nowrap transition-colors disabled:opacity-50"
                   >
                     {q}
@@ -500,9 +659,9 @@ export function TempleBots() {
                   value={input} onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about doctrine, giving, JCTM..."
                   className="flex-1 bg-white/80 border-border/40 focus-visible:ring-1 focus-visible:ring-accent min-h-[44px] rounded-xl text-sm placeholder:text-muted-foreground/60"
-                  disabled={chatMutation.isPending}
+                  disabled={isStreaming}
                 />
-                <Button type="submit" size="icon" disabled={!input.trim() || chatMutation.isPending}
+                <Button type="submit" size="icon" disabled={!input.trim() || isStreaming}
                   className="bg-accent hover:bg-accent/90 text-white shrink-0 min-h-[44px] min-w-[44px] rounded-xl shadow-md shadow-accent/25"
                   aria-label="Send message"
                 >
