@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, X, Users, Heart, Flame, Dove, Star, Zap, ThumbsUp } from "lucide-react";
+import { MessageSquare, Send, X, Users, Heart, Flame, Bird, Star, Zap, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,7 +26,7 @@ interface SSEData {
 const REACTIONS = ["🙏", "🔥", "❤️", "🕊️", "💯", "⚡", "👏"];
 
 const REACTION_ICONS: Record<string, typeof Heart> = {
-  "❤️": Heart, "🔥": Flame, "🕊️": Dove, "💯": Star, "⚡": Zap, "👏": ThumbsUp,
+  "❤️": Heart, "🔥": Flame, "🕊️": Bird, "💯": Star, "⚡": Zap, "👏": ThumbsUp,
 };
 
 function getStoredUsername(): string {

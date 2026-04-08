@@ -1,0 +1,46 @@
+2026-04-08T11:29:12.035002431Z ==> Downloading cache...
+2026-04-08T11:29:12.077353988Z ==> Cloning from https://github.com/goldenjeffempire/JCTM
+2026-04-08T11:29:14.539628754Z ==> Checking out commit 845cefd7ae5cac366107bfd5f1fb9880783555a4 in branch main
+2026-04-08T11:29:24.045146931Z ==> Downloaded 184MB in 3s. Extraction took 8s.
+2026-04-08T11:29:31.483133576Z ==> Using Node.js version 22.22.0 (default)
+2026-04-08T11:29:31.508429263Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-04-08T11:29:31.645718728Z ==> Running build command 'npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build && pnpm --filter @workspace/api-server run build'...
+2026-04-08T11:29:32.696957298Z 
+2026-04-08T11:29:32.696978778Z changed 1 package in 979ms
+2026-04-08T11:29:32.696990039Z 
+2026-04-08T11:29:32.697001169Z 1 package is looking for funding
+2026-04-08T11:29:32.697009039Z   run `npm fund` for details
+2026-04-08T11:29:34.80342099Z 
+2026-04-08T11:29:34.803447241Z > @workspace/jctm-platform@0.0.0 build /opt/render/project/src/artifacts/jctm-platform
+2026-04-08T11:29:34.803451311Z > vite build --config vite.config.ts
+2026-04-08T11:29:34.803453791Z 
+2026-04-08T11:29:35.148289054Z vite v7.3.1 building client environment for production...
+2026-04-08T11:29:35.216870079Z transforming...
+2026-04-08T11:29:40.231584749Z ✓ 3074 modules transformed.
+2026-04-08T11:29:40.233477662Z ✗ Build failed in 5.05s
+2026-04-08T11:29:40.233521133Z error during build:
+2026-04-08T11:29:40.233529253Z src/components/LiveChat.tsx (3:54): "Dove" is not exported by "../../node_modules/.pnpm/lucide-react@0.545.0_react@19.1.0/node_modules/lucide-react/dist/esm/lucide-react.js", imported by "src/components/LiveChat.tsx".
+2026-04-08T11:29:40.233533323Z file: /opt/render/project/src/artifacts/jctm-platform/src/components/LiveChat.tsx:3:54
+2026-04-08T11:29:40.233535693Z 
+2026-04-08T11:29:40.233538683Z 1: import { useState, useEffect, useRef, useCallback } from "react";
+2026-04-08T11:29:40.233541743Z 2: import { motion, AnimatePresence } from "framer-motion";
+2026-04-08T11:29:40.233544823Z 3: import { MessageSquare, Send, X, Users, Heart, Flame, Dove, Star, Zap, ThumbsUp } from "lucide-react";
+2026-04-08T11:29:40.233547254Z                                                          ^
+2026-04-08T11:29:40.233549643Z 4: import { Button } from "@/components/ui/button";
+2026-04-08T11:29:40.233552083Z 5: import { Badge } from "@/components/ui/badge";
+2026-04-08T11:29:40.233554394Z 
+2026-04-08T11:29:40.233557664Z     at getRollupError (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+2026-04-08T11:29:40.233560124Z     at error (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+2026-04-08T11:29:40.233562524Z     at Module.error (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:17040:16)
+2026-04-08T11:29:40.233565744Z     at Module.traceVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:17452:29)
+2026-04-08T11:29:40.233568204Z     at ModuleScope.findVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:15070:39)
+2026-04-08T11:29:40.233570594Z     at Identifier.bind (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:5447:40)
+2026-04-08T11:29:40.233586684Z     at Property.bind (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:2829:23)
+2026-04-08T11:29:40.233589395Z     at ObjectExpression.bind (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:2825:28)
+2026-04-08T11:29:40.233591864Z     at VariableDeclarator.bind (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:2829:23)
+2026-04-08T11:29:40.233594295Z     at VariableDeclaration.bind (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:2825:28)
+2026-04-08T11:29:40.34376404Z /opt/render/project/src/artifacts/jctm-platform:
+2026-04-08T11:29:40.34378729Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/jctm-platform@0.0.0 build: `vite build --config vite.config.ts`
+2026-04-08T11:29:40.34379396Z Exit status 1
+2026-04-08T11:29:40.410993425Z ==> Build failed 😞
+2026-04-08T11:29:40.411017155Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
