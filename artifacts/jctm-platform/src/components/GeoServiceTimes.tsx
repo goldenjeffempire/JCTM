@@ -6,10 +6,8 @@ import { Link } from "wouter";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const SERVICES = [
-  { day: "Sunday",    label: "Sunday Service",      timeWAT: { h: 9,  m: 0  }, timeWATEnd: { h: 12, m: 0  }, type: "main" },
-  { day: "Sunday",    label: "Evening Service",      timeWAT: { h: 17, m: 0  }, timeWATEnd: { h: 19, m: 0  }, type: "main" },
-  { day: "Wednesday", label: "Mid-Week Teaching",    timeWAT: { h: 17, m: 30 }, timeWATEnd: { h: 19, m: 30 }, type: "midweek" },
-  { day: "Friday",    label: "Night Vigil (Monthly)",timeWAT: { h: 22, m: 0  }, timeWATEnd: { h: 2,  m: 0  }, type: "special" },
+  { day: "Sunday",    label: "Sunday Service",       timeWAT: { h: 8, m: 0 }, timeWATEnd: { h: 11, m: 0 }, type: "main",    pending: false },
+  { day: "Wednesday", label: "Deliverance Service",  timeWAT: { h: 0, m: 0 }, timeWATEnd: { h: 0,  m: 0 }, type: "midweek", pending: true  },
 ];
 
 const WAT_OFFSET = 1; // UTC+1
@@ -59,6 +57,7 @@ function isNearbyService(): { isNear: boolean; service: typeof SERVICES[0] | nul
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   for (const svc of SERVICES) {
+    if (svc.pending) continue;
     const svcDayIdx = days.indexOf(svc.day);
     if (svcDayIdx === localDow) {
       const watDate = new Date(Date.UTC(
@@ -259,8 +258,10 @@ export function GeoServiceTimes() {
       {/* Service list */}
       <div className="space-y-3">
         {SERVICES.map((svc, i) => {
-          const localStart = watToLocal(svc.timeWAT.h, svc.timeWAT.m);
-          const watStartStr = `${String(svc.timeWAT.h).padStart(2, "0")}:${String(svc.timeWAT.m).padStart(2, "0")}`;
+          const localStart = !svc.pending ? watToLocal(svc.timeWAT.h, svc.timeWAT.m) : null;
+          const watStartStr = !svc.pending
+            ? `${String(svc.timeWAT.h).padStart(2, "0")}:${String(svc.timeWAT.m).padStart(2, "0")} WAT (Warri)`
+            : "Time to be announced";
 
           return (
             <motion.div
@@ -268,23 +269,35 @@ export function GeoServiceTimes() {
               initial={{ opacity: 0, x: -20 }}
               animate={inView ? { opacity: 1, x: 0 } : {}}
               transition={{ delay: i * 0.08 + 0.25 }}
-              className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 rounded-2xl bg-primary/3 hover:bg-primary/5 border border-primary/8 transition-colors"
+              className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 rounded-2xl border transition-colors ${
+                svc.pending
+                  ? "bg-muted/40 border-border/50 opacity-75"
+                  : "bg-primary/3 hover:bg-primary/5 border-primary/8"
+              }`}
             >
               <div className="flex items-center gap-3 flex-1">
                 <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground min-w-[70px]">{svc.day}</div>
                 <div>
                   <p className="font-semibold text-primary text-sm">{svc.label}</p>
-                  <p className="text-xs text-muted-foreground">{watStartStr} WAT (Warri)</p>
+                  <p className="text-xs text-muted-foreground">{watStartStr}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${typeColors[svc.type] ?? ""}`}>
-                  {svc.type === "main" ? "Main Service" : svc.type === "midweek" ? "Teaching" : "Night Vigil"}
-                </div>
-                {tz && (
-                  <div className="px-3 py-1 rounded-full text-xs font-bold bg-accent/8 text-accent border border-accent/15">
-                    🕐 {localStart} your time
+                {svc.pending ? (
+                  <div className="px-3 py-1 rounded-full text-xs font-semibold border bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300/50 dark:border-amber-700/40">
+                    🕓 Pending
                   </div>
+                ) : (
+                  <>
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${typeColors[svc.type] ?? ""}`}>
+                      {svc.type === "main" ? "Main Service" : "Deliverance"}
+                    </div>
+                    {tz && localStart && (
+                      <div className="px-3 py-1 rounded-full text-xs font-bold bg-accent/8 text-accent border border-accent/15">
+                        🕐 {localStart} your time
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </motion.div>
