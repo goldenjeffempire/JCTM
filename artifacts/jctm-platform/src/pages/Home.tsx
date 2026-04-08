@@ -1469,25 +1469,72 @@ function MinistryPillars() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SCRIPTURE FEATURE — Full-width typographic section
+// SCRIPTURE FEATURE — Daily Scripture section
 // ═══════════════════════════════════════════════════════════════════════════
+const DAILY_SCRIPTURES = [
+  { verse: "Stand ye in the ways, and see, and ask for the old paths, where is the good way, and walk therein.", ref: "Jeremiah 6:16" },
+  { verse: "Sanctify them through thy truth: thy word is truth.", ref: "John 17:17" },
+  { verse: "Contend earnestly for the faith which was once delivered unto the saints.", ref: "Jude 1:3" },
+  { verse: "Buy the truth, and sell it not; also wisdom, and instruction, and understanding.", ref: "Proverbs 23:23" },
+  { verse: "Follow peace with all men, and holiness, without which no man shall see the Lord.", ref: "Hebrews 12:14" },
+  { verse: "All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness.", ref: "2 Timothy 3:16" },
+  { verse: "Beloved, believe not every spirit, but try the spirits whether they are of God: because many false prophets are gone out into the world.", ref: "1 John 4:1" },
+  { verse: "Study to shew thyself approved unto God, a workman that needeth not to be ashamed, rightly dividing the word of truth.", ref: "2 Timothy 2:15" },
+  { verse: "Thus saith the LORD, Let not the wise man glory in his wisdom, neither let the mighty man glory in his might, let not the rich man glory in his riches: but let him that glorieth glory in this, that he understandeth and knoweth me.", ref: "Jeremiah 9:23–24" },
+  { verse: "For the time will come when they will not endure sound doctrine; but after their own lusts shall they heap to themselves teachers, having itching ears.", ref: "2 Timothy 4:3" },
+  { verse: "Preach the word; be instant in season, out of season; reprove, rebuke, exhort with all longsuffering and doctrine.", ref: "2 Timothy 4:2" },
+  { verse: "The entrance of thy words giveth light; it giveth understanding unto the simple.", ref: "Psalm 119:130" },
+  { verse: "Thy word is a lamp unto my feet, and a light unto my path.", ref: "Psalm 119:105" },
+  { verse: "Heaven and earth shall pass away, but my words shall not pass away.", ref: "Matthew 24:35" },
+  { verse: "If ye continue in my word, then are ye my disciples indeed; and ye shall know the truth, and the truth shall make you free.", ref: "John 8:31–32" },
+  { verse: "For I testify unto every man that heareth the words of the prophecy of this book, if any man shall add unto these things, God shall add unto him the plagues that are written in this book.", ref: "Revelation 22:18" },
+  { verse: "To the law and to the testimony: if they speak not according to this word, it is because there is no light in them.", ref: "Isaiah 8:20" },
+  { verse: "Beware of false prophets, which come to you in sheep's clothing, but inwardly they are ravening wolves.", ref: "Matthew 7:15" },
+  { verse: "Now I beseech you, brethren, mark them which cause divisions and offences contrary to the doctrine which ye have learned; and avoid them.", ref: "Romans 16:17" },
+  { verse: "But though we, or an angel from heaven, preach any other gospel unto you than that which we have preached unto you, let him be accursed.", ref: "Galatians 1:8" },
+  { verse: "Prove all things; hold fast that which is good.", ref: "1 Thessalonians 5:21" },
+  { verse: "Not every one that saith unto me, Lord, Lord, shall enter into the kingdom of heaven; but he that doeth the will of my Father which is in heaven.", ref: "Matthew 7:21" },
+  { verse: "For there shall arise false Christs, and false prophets, and shall shew great signs and wonders; insomuch that, if it were possible, they shall deceive the very elect.", ref: "Matthew 24:24" },
+  { verse: "But speak thou the things which become sound doctrine.", ref: "Titus 2:1" },
+  { verse: "Holding fast the faithful word as he hath been taught, that he may be able by sound doctrine both to exhort and to convince the gainsayers.", ref: "Titus 1:9" },
+  { verse: "So shall my word be that goeth forth out of my mouth: it shall not return unto me void, but it shall accomplish that which I please.", ref: "Isaiah 55:11" },
+  { verse: "The grass withereth, the flower fadeth: but the word of our God shall stand for ever.", ref: "Isaiah 40:8" },
+  { verse: "For the word of God is quick, and powerful, and sharper than any twoedged sword.", ref: "Hebrews 4:12" },
+  { verse: "Man shall not live by bread alone, but by every word that proceedeth out of the mouth of God.", ref: "Matthew 4:4" },
+  { verse: "Let the word of Christ dwell in you richly in all wisdom; teaching and admonishing one another in psalms and hymns and spiritual songs.", ref: "Colossians 3:16" },
+  { verse: "Ye shall not add unto the word which I command you, neither shall ye diminish ought from it.", ref: "Deuteronomy 4:2" },
+];
+
+function getDailyScripture() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return DAILY_SCRIPTURES[dayOfYear % DAILY_SCRIPTURES.length];
+}
+
 function ScriptureFeature() {
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], [-30, 30]);
+  const daily = getDailyScripture();
+  const today = new Date().toLocaleDateString("en-NG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   return (
     <section ref={ref} className="relative py-32 overflow-hidden bg-gradient-to-br from-[#001830] via-[#003366] to-[#001830]">
       <motion.div style={{ y, backgroundImage: "radial-gradient(circle, rgba(56,189,248,0.4) 1px, transparent 1px)", backgroundSize: "48px 48px" }} className="absolute inset-0 opacity-10" />
       <div className="container mx-auto px-4 relative z-10 text-center">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.8 }}>
+          <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent/70 border border-accent/20 rounded-full px-4 py-1.5 mb-6">
+            Daily Scripture · {today}
+          </span>
           <div className="text-accent/40 text-[120px] font-serif leading-none -mb-8 select-none">"</div>
           <blockquote className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-white leading-tight max-w-4xl mx-auto">
-            Stand ye in the ways, and see, and ask for the old paths, where is the good way, and walk therein.
+            {daily.verse}
           </blockquote>
           <div className="text-accent/40 text-[120px] font-serif leading-none -mt-8 select-none rotate-180">"</div>
-          <p className="text-accent font-semibold text-lg mt-2">Jeremiah 6:16</p>
-          <p className="text-white/40 text-sm mt-2">The foundational scripture of the Correction Mandate</p>
+          <p className="text-accent font-semibold text-lg mt-2">{daily.ref}</p>
+          <p className="text-white/40 text-sm mt-2">A fresh word for today from the Word of God</p>
           <div className="flex justify-center mt-8">
             <div className="h-px w-16 bg-accent/40" />
           </div>
