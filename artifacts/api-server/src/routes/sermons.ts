@@ -59,6 +59,39 @@ router.get("/sermons", async (req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
+// GET /sermons/shorts  — YouTube Shorts / Reels-style clips
+// Searches for videos with "#shorts", "short", "#short" or "clip" in title.
+// Falls back to latest 25 sermons if none found.
+// ──────────────────────────────────────────────────────
+router.get("/sermons/shorts", async (_req, res): Promise<void> => {
+  const keywords = ["%#shorts%", "%#short%", "% short %", "%clip%", "% reel%"];
+  const conditions = keywords.map(k => ilike(sermonsTable.title, k));
+
+  let shorts = await db
+    .select()
+    .from(sermonsTable)
+    .where(or(...conditions))
+    .orderBy(desc(sermonsTable.publishedAt))
+    .limit(50);
+
+  // Fallback: return latest 25 if channel has no labelled shorts yet
+  if (shorts.length === 0) {
+    shorts = await db
+      .select()
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.publishedAt))
+      .limit(25);
+  }
+
+  const serialized = shorts.map(s => ({
+    ...s,
+    publishedAt: s.publishedAt instanceof Date ? s.publishedAt.toISOString() : s.publishedAt,
+    createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
+  }));
+  res.json(ListSermonsResponse.parse(serialized));
+});
+
+// ──────────────────────────────────────────────────────
 // GET /sermons/featured  — latest / featured sermon
 // ──────────────────────────────────────────────────────
 router.get("/sermons/featured", async (req, res): Promise<void> => {
