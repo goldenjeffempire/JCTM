@@ -14,7 +14,6 @@ const navItems = [
   { href: "/crusade", label: "🔥 Crusade", highlight: true },
   { href: "/give", label: "Give" },
   { href: "/prayer", label: "✦ Prayer", prayerHighlight: true },
-  { href: "/growth", label: "📈 Growth", growthHighlight: true },
   { href: "/join", label: "Join" },
   { href: "/about", label: "About" },
 ];
