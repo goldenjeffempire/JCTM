@@ -4,85 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
-
-const flatNavItems = [
-  { href: "/", label: "Home" },
-  { href: "/sermons", label: "Sermons" },
-  { href: "/moments", label: "🎬 Moments", momentsHighlight: true },
-  { href: "/crusade", label: "🔥 Crusade", highlight: true },
-  { href: "/prayer", label: "✦ Prayer", prayerHighlight: true },
-];
-
-const resourcesItems = [
-  { href: "/testimonies", label: "Testimonies", description: "Stories of God's faithfulness" },
-  { href: "/events", label: "Events", description: "Upcoming services & programmes" },
-  { href: "/give", label: "Give", description: "Support the Correction Mandate" },
-];
-
-const aboutItems = [
-  { href: "/about", label: "About JCTM", description: "Our mission and history" },
-  { href: "/leadership", label: "Leadership", description: "Prophet Amos & ministry team" },
-  { href: "/sermon-assistant", label: "🤖 Ask AI", description: "Chat with our sermon AI", aiHighlight: true },
-];
-
-interface DropdownMenuProps {
-  label: string;
-  items: { href: string; label: string; description: string; aiHighlight?: boolean }[];
-  isDark: boolean;
-  onClose: () => void;
-  isActive: boolean;
-}
-
-function DropdownMenu({ label, items, isDark, onClose, isActive }: DropdownMenuProps) {
-  const [location] = useLocation();
-  const hasActive = items.some(i => i.href === location);
-
-  return (
-    <AnimatePresence>
-      {isActive && (
-        <motion.div
-          initial={{ opacity: 0, y: -6, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -6, scale: 0.97 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
-          className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-52 rounded-2xl border shadow-xl overflow-hidden z-50"
-          style={{
-            background: isDark ? "rgba(0,10,26,0.97)" : "rgba(255,254,248,0.98)",
-            backdropFilter: "blur(20px)",
-            borderColor: isDark ? "rgba(56,189,248,0.15)" : "rgba(0,51,102,0.1)",
-          }}
-        >
-          <div className="py-2">
-            {items.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <div
-                  onClick={onClose}
-                  className={`flex flex-col px-4 py-2.5 cursor-pointer transition-colors hover:bg-accent/8 ${
-                    location === item.href ? "bg-accent/10" : ""
-                  }`}
-                >
-                  <span
-                    className={`text-sm font-semibold ${
-                      item.aiHighlight
-                        ? "text-purple-500"
-                        : location === item.href
-                        ? "text-accent"
-                        : "text-primary"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground mt-0.5">{item.description}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
 
 export function Navbar() {
   const [location] = useLocation();
@@ -91,6 +14,7 @@ export function Navbar() {
   const [scrollY, setScrollY] = useState(0);
   const [openDropdown, setOpenDropdown] = useState<"resources" | "about" | null>(null);
   const { theme, toggle, isDark } = useTheme();
+  const { t } = useLanguage();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -127,8 +51,32 @@ export function Navbar() {
     setOpenDropdown(prev => prev === name ? null : name);
   };
 
-  const resourcesActive = resourcesItems.some(i => i.href === location);
-  const aboutActive = aboutItems.some(i => i.href === location) || location === "/about";
+  // Derived: does current path belong to a dropdown?
+  const resourcesHrefs = ["/testimonies", "/events", "/give"];
+  const aboutHrefs = ["/about", "/leadership", "/sermon-assistant"];
+  const resourcesActive = resourcesHrefs.includes(location);
+  const aboutActive = aboutHrefs.includes(location);
+
+  // ── Nav data (re-evaluated every render so t() picks up language changes) ─
+  const flatNavItems = [
+    { href: "/", label: t("Home") },
+    { href: "/sermons", label: t("Sermons") },
+    { href: "/moments", label: `🎬 ${t("Moments")}`, momentsHighlight: true },
+    { href: "/crusade", label: `🔥 ${t("Crusade")}`, highlight: true },
+    { href: "/prayer", label: `✦ ${t("Prayer")}`, prayerHighlight: true },
+  ];
+
+  const resourcesItems = [
+    { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
+    { href: "/events", label: t("Events"), description: t("Upcoming services & programmes") },
+    { href: "/give", label: t("Give"), description: t("Support the Correction Mandate") },
+  ];
+
+  const aboutItems = [
+    { href: "/about", label: t("About JCTM"), description: t("Our mission and history") },
+    { href: "/leadership", label: t("Leadership"), description: t("Prophet Amos & ministry team") },
+    { href: "/sermon-assistant", label: `🤖 ${t("Ask AI")}`, description: t("Chat with our sermon AI"), aiHighlight: true },
+  ];
 
   return (
     <motion.nav
@@ -147,11 +95,12 @@ export function Navbar() {
       }}
     >
       <div ref={dropdownRef} className={`container mx-auto px-4 ${navHeight} flex items-center justify-between transition-all duration-500`}>
+        {/* Logo */}
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
             <motion.img
               src="/jctm-logo-sm.jpeg"
-              alt="JCTM — Jesus Christ Temple Ministry"
+              alt="JCTM"
               animate={{ height: scrolled ? 32 : 40, width: scrolled ? 32 : 40 }}
               transition={{ duration: 0.3 }}
               className="rounded-full object-cover shadow ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all duration-200"
@@ -211,10 +160,7 @@ export function Navbar() {
                 <div className={`relative text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${location === item.href ? "text-accent" : "text-primary/80"}`}>
                   {item.label}
                   {location === item.href && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
-                    />
+                    <motion.div layoutId="nav-indicator" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full" />
                   )}
                 </div>
               )}
@@ -225,72 +171,41 @@ export function Navbar() {
           <div className="relative">
             <button
               onClick={() => toggle_dropdown("resources")}
-              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${
-                resourcesActive || openDropdown === "resources" ? "text-accent" : "text-primary/80"
-              }`}
+              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 relative ${resourcesActive || openDropdown === "resources" ? "text-accent" : "text-primary/80"}`}
             >
-              Resources
-              <motion.span
-                animate={{ rotate: openDropdown === "resources" ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              {t("Resources")}
+              <motion.span animate={{ rotate: openDropdown === "resources" ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 <ChevronDown className="w-3.5 h-3.5" />
               </motion.span>
-              {resourcesActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
-                />
-              )}
+              {resourcesActive && <motion.div layoutId="nav-indicator" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full" />}
             </button>
-            <DropdownMenu
-              label="Resources"
-              items={resourcesItems}
-              isDark={isDark}
-              isActive={openDropdown === "resources"}
-              onClose={() => setOpenDropdown(null)}
-            />
+            <DropdownPanel items={resourcesItems} isActive={openDropdown === "resources"} isDark={isDark} onClose={() => setOpenDropdown(null)} location={location} />
           </div>
 
           {/* About dropdown */}
           <div className="relative">
             <button
               onClick={() => toggle_dropdown("about")}
-              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${
-                aboutActive || openDropdown === "about" ? "text-accent" : "text-primary/80"
-              }`}
+              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 relative ${aboutActive || openDropdown === "about" ? "text-accent" : "text-primary/80"}`}
             >
-              About
-              <motion.span
-                animate={{ rotate: openDropdown === "about" ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              {t("About")}
+              <motion.span animate={{ rotate: openDropdown === "about" ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 <ChevronDown className="w-3.5 h-3.5" />
               </motion.span>
-              {aboutActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
-                />
-              )}
+              {aboutActive && <motion.div layoutId="nav-indicator" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full" />}
             </button>
-            <DropdownMenu
-              label="About"
-              items={aboutItems}
-              isDark={isDark}
-              isActive={openDropdown === "about"}
-              onClose={() => setOpenDropdown(null)}
-            />
+            <DropdownPanel items={aboutItems} isActive={openDropdown === "about"} isDark={isDark} onClose={() => setOpenDropdown(null)} location={location} />
           </div>
 
           <LanguageSelector />
 
+          {/* Theme toggle — icon only */}
           <motion.button
             onClick={toggle}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label={isDark ? "Switch to Ivory Sanctuary (light)" : "Switch to Midnight Mandate (dark)"}
-            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-300 cursor-pointer"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-300 cursor-pointer"
             style={{
               background: isDark ? "rgba(56,189,248,0.12)" : "rgba(0,51,102,0.06)",
               borderColor: isDark ? "rgba(56,189,248,0.3)" : "rgba(0,51,102,0.15)",
@@ -306,10 +221,9 @@ export function Navbar() {
                 transition={{ duration: 0.2 }}
                 className="flex items-center"
               >
-                {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </motion.span>
             </AnimatePresence>
-            <span className="hidden lg:inline">{isDark ? "Ivory" : "Midnight"}</span>
           </motion.button>
         </div>
 
@@ -319,7 +233,7 @@ export function Navbar() {
             onClick={toggle}
             whileTap={{ scale: 0.9 }}
             aria-label="Toggle theme"
-            className="p-2 rounded-full border transition-all cursor-pointer"
+            className="w-8 h-8 flex items-center justify-center rounded-full border transition-all cursor-pointer"
             style={{
               background: isDark ? "rgba(56,189,248,0.1)" : "rgba(0,51,102,0.05)",
               borderColor: isDark ? "rgba(56,189,248,0.25)" : "rgba(0,51,102,0.12)",
@@ -334,10 +248,7 @@ export function Navbar() {
                 transition={{ duration: 0.15 }}
                 className="flex"
               >
-                {isDark
-                  ? <Sun className="h-4 w-4 text-accent" />
-                  : <Moon className="h-4 w-4 text-primary" />
-                }
+                {isDark ? <Sun className="h-4 w-4 text-accent" /> : <Moon className="h-4 w-4 text-primary" />}
               </motion.span>
             </AnimatePresence>
           </motion.button>
@@ -375,12 +286,7 @@ export function Navbar() {
           >
             <div className="flex flex-col px-4 py-4 space-y-1">
               {flatNavItems.map((item, i) => (
-                <motion.div
-                  key={item.href}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                >
+                <motion.div key={item.href} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}>
                   <Link href={item.href}>
                     <div
                       className="text-sm font-medium transition-colors cursor-pointer py-3 px-3 rounded-lg"
@@ -403,16 +309,11 @@ export function Navbar() {
                 </motion.div>
               ))}
 
-              {/* Mobile Resources group */}
+              {/* Mobile Resources */}
               <div className="pt-2 border-t border-border/40">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">Resources</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">{t("Resources")}</p>
                 {resourcesItems.map((item, i) => (
-                  <motion.div
-                    key={item.href}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: (flatNavItems.length + i) * 0.04 }}
-                  >
+                  <motion.div key={item.href} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: (flatNavItems.length + i) * 0.04 }}>
                     <Link href={item.href}>
                       <div
                         className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
@@ -427,16 +328,11 @@ export function Navbar() {
                 ))}
               </div>
 
-              {/* Mobile About group */}
+              {/* Mobile About */}
               <div className="pt-2 border-t border-border/40">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">About</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">{t("About")}</p>
                 {aboutItems.map((item, i) => (
-                  <motion.div
-                    key={item.href}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: (flatNavItems.length + resourcesItems.length + i) * 0.04 }}
-                  >
+                  <motion.div key={item.href} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: (flatNavItems.length + resourcesItems.length + i) * 0.04 }}>
                     <Link href={item.href}>
                       <div
                         className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
@@ -465,5 +361,51 @@ export function Navbar() {
         )}
       </AnimatePresence>
     </motion.nav>
+  );
+}
+
+// ── Dropdown panel ────────────────────────────────────────────────────────────
+interface DropdownPanelProps {
+  items: { href: string; label: string; description: string; aiHighlight?: boolean }[];
+  isActive: boolean;
+  isDark: boolean;
+  onClose: () => void;
+  location: string;
+}
+
+function DropdownPanel({ items, isActive, isDark, onClose, location }: DropdownPanelProps) {
+  return (
+    <AnimatePresence>
+      {isActive && (
+        <motion.div
+          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-56 rounded-2xl border shadow-xl overflow-hidden z-50"
+          style={{
+            background: isDark ? "rgba(0,10,26,0.97)" : "rgba(255,254,248,0.98)",
+            backdropFilter: "blur(20px)",
+            borderColor: isDark ? "rgba(56,189,248,0.15)" : "rgba(0,51,102,0.1)",
+          }}
+        >
+          <div className="py-2">
+            {items.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <div
+                  onClick={onClose}
+                  className={`flex flex-col px-4 py-2.5 cursor-pointer transition-colors hover:bg-accent/5 ${location === item.href ? "bg-accent/10" : ""}`}
+                >
+                  <span className={`text-sm font-semibold ${item.aiHighlight ? "text-purple-500" : location === item.href ? "text-accent" : "text-primary"}`}>
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">{item.description}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

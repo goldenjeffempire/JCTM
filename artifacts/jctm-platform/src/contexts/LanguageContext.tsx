@@ -1,30 +1,34 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { uiString } from "@/i18n/ui";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export const LANGUAGES: Record<string, { name: string; nativeName: string; flag: string }> = {
-  en: { name: "English", nativeName: "English", flag: "🇬🇧" },
-  yo: { name: "Yoruba", nativeName: "Yorùbá", flag: "🇳🇬" },
-  ig: { name: "Igbo", nativeName: "Igbo", flag: "🇳🇬" },
-  ha: { name: "Hausa", nativeName: "Hausa", flag: "🇳🇬" },
-  fr: { name: "French", nativeName: "Français", flag: "🇫🇷" },
-  es: { name: "Spanish", nativeName: "Español", flag: "🇪🇸" },
-  pt: { name: "Portuguese", nativeName: "Português", flag: "🇵🇹" },
-  de: { name: "German", nativeName: "Deutsch", flag: "🇩🇪" },
-  ar: { name: "Arabic", nativeName: "العربية", flag: "🇸🇦" },
-  zh: { name: "Chinese", nativeName: "中文", flag: "🇨🇳" },
-  hi: { name: "Hindi", nativeName: "हिन्दी", flag: "🇮🇳" },
-  sw: { name: "Swahili", nativeName: "Kiswahili", flag: "🇰🇪" },
-  ru: { name: "Russian", nativeName: "Русский", flag: "🇷🇺" },
-  it: { name: "Italian", nativeName: "Italiano", flag: "🇮🇹" },
-  ko: { name: "Korean", nativeName: "한국어", flag: "🇰🇷" },
-  ja: { name: "Japanese", nativeName: "日本語", flag: "🇯🇵" },
-  id: { name: "Indonesian", nativeName: "Bahasa Indonesia", flag: "🇮🇩" },
+  en: { name: "English",    nativeName: "English",           flag: "🇬🇧" },
+  yo: { name: "Yoruba",     nativeName: "Yorùbá",            flag: "🇳🇬" },
+  ig: { name: "Igbo",       nativeName: "Igbo",              flag: "🇳🇬" },
+  ha: { name: "Hausa",      nativeName: "Hausa",             flag: "🇳🇬" },
+  fr: { name: "French",     nativeName: "Français",          flag: "🇫🇷" },
+  es: { name: "Spanish",    nativeName: "Español",           flag: "🇪🇸" },
+  pt: { name: "Portuguese", nativeName: "Português",         flag: "🇵🇹" },
+  de: { name: "German",     nativeName: "Deutsch",           flag: "🇩🇪" },
+  ar: { name: "Arabic",     nativeName: "العربية",           flag: "🇸🇦" },
+  zh: { name: "Chinese",    nativeName: "中文",               flag: "🇨🇳" },
+  hi: { name: "Hindi",      nativeName: "हिन्दी",            flag: "🇮🇳" },
+  sw: { name: "Swahili",    nativeName: "Kiswahili",         flag: "🇰🇪" },
+  ru: { name: "Russian",    nativeName: "Русский",           flag: "🇷🇺" },
+  it: { name: "Italian",    nativeName: "Italiano",          flag: "🇮🇹" },
+  ko: { name: "Korean",     nativeName: "한국어",             flag: "🇰🇷" },
+  ja: { name: "Japanese",   nativeName: "日本語",             flag: "🇯🇵" },
+  id: { name: "Indonesian", nativeName: "Bahasa Indonesia",  flag: "🇮🇩" },
 };
 
 interface LanguageContextValue {
   language: string;
   setLanguage: (lang: string) => void;
+  /** Instant lookup from pre-built translation table */
+  t: (key: string) => string;
+  /** Async AI translation for arbitrary dynamic text */
   translate: (text: string) => Promise<string>;
   translateBatch: (texts: string[]) => Promise<string[]>;
   isTranslating: boolean;
@@ -43,8 +47,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const handleSetLanguage = useCallback((lang: string) => {
     setLanguage(lang);
     localStorage.setItem("jctm-language", lang);
+    // Set dir attribute for RTL languages
+    document.documentElement.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+    document.documentElement.setAttribute("lang", lang);
   }, []);
 
+  // Apply dir/lang on mount
+  useEffect(() => {
+    document.documentElement.setAttribute("dir", language === "ar" ? "rtl" : "ltr");
+    document.documentElement.setAttribute("lang", language);
+  }, [language]);
+
+  /** Instant lookup — uses pre-built translation table */
+  const t = useCallback((key: string): string => {
+    return uiString(key, language);
+  }, [language]);
+
+  /** Async AI translation for arbitrary text */
   const translate = useCallback(async (text: string): Promise<string> => {
     if (language === "en" || !text.trim()) return text;
     const cacheKey = `${language}:${text}`;
@@ -88,7 +107,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, translate, translateBatch, isTranslating }}>
+    <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t, translate, translateBatch, isTranslating }}>
       {children}
     </LanguageContext.Provider>
   );

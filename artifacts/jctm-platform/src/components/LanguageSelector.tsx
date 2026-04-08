@@ -4,7 +4,7 @@ import { Globe, Check, Loader2, ChevronDown } from "lucide-react";
 import { useLanguage, LANGUAGES } from "@/contexts/LanguageContext";
 
 export function LanguageSelector() {
-  const { language, setLanguage, isTranslating } = useLanguage();
+  const { language, setLanguage, isTranslating, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   const current = LANGUAGES[language] ?? LANGUAGES.en;
@@ -14,7 +14,7 @@ export function LanguageSelector() {
       <button
         onClick={() => setIsOpen(o => !o)}
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-muted/50"
-        title="Change language"
+        title={t("Select Language")}
       >
         {isTranslating ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -40,7 +40,7 @@ export function LanguageSelector() {
             >
               <div className="p-2">
                 <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5 border-b border-border mb-1">
-                  Select Language
+                  {t("Select Language")}
                 </div>
                 {Object.entries(LANGUAGES).map(([code, lang]) => (
                   <button
@@ -61,7 +61,7 @@ export function LanguageSelector() {
               </div>
               <div className="px-3 py-2 border-t border-border">
                 <p className="text-[10px] text-muted-foreground text-center">
-                  50+ languages via AI translation
+                  {t("50+ languages via AI translation")}
                 </p>
               </div>
             </motion.div>
