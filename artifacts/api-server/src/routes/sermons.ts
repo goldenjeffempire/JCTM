@@ -10,7 +10,7 @@ import {
   GetSermonStatsResponse,
   SyncSermonsResponse,
 } from "@workspace/api-zod";
-import { syncIncremental, harvestAll } from "../lib/youtube-sync.js";
+import { syncIncremental, harvestAll, iso8601ToSeconds } from "../lib/youtube-sync.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
 
@@ -59,28 +59,30 @@ router.get("/sermons", async (req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
-// GET /sermons/shorts  — YouTube Shorts / Reels-style clips
-// Searches for videos with "#shorts", "short", "#short" or "clip" in title.
-// Falls back to latest 25 sermons if none found.
+// GET /sermons/shorts  — Videos up to 30 minutes long (Moments / Reels feed)
+// Fetches a large pool, filters by duration ≤ 1800 s in JS (ISO 8601 stored).
+// Falls back to the latest 50 sermons if none have duration metadata.
 // ──────────────────────────────────────────────────────
 router.get("/sermons/shorts", async (_req, res): Promise<void> => {
-  const keywords = ["%#shorts%", "%#short%", "% short %", "%clip%", "% reel%"];
-  const conditions = keywords.map(k => ilike(sermonsTable.title, k));
+  const MAX_SECONDS = 30 * 60; // 30 minutes
 
-  let shorts = await db
+  // Pull a large pool ordered newest-first
+  const pool = await db
     .select()
     .from(sermonsTable)
-    .where(or(...conditions))
     .orderBy(desc(sermonsTable.publishedAt))
-    .limit(50);
+    .limit(200);
 
-  // Fallback: return latest 25 if channel has no labelled shorts yet
+  // Filter to those with duration metadata within the 30-min cap
+  let shorts = pool.filter(s => {
+    if (!s.duration) return false;
+    const secs = iso8601ToSeconds(s.duration);
+    return secs > 0 && secs <= MAX_SECONDS;
+  });
+
+  // Fallback: channel may not have duration populated yet — show latest 50
   if (shorts.length === 0) {
-    shorts = await db
-      .select()
-      .from(sermonsTable)
-      .orderBy(desc(sermonsTable.publishedAt))
-      .limit(25);
+    shorts = pool.slice(0, 50);
   }
 
   const serialized = shorts.map(s => ({
