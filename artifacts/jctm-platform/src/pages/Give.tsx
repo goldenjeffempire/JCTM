@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Heart, Shield, Star, CheckCircle, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { useGeo } from "@/contexts/GeoContext";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -18,7 +19,9 @@ const GIVING_TYPES = [
 ];
 
 export default function Give() {
+  const { geo, isNigeria, isLoading: geoLoading } = useGeo();
   const [currency, setCurrency] = useState<"NGN" | "USD">("NGN");
+  const [geoDetected, setGeoDetected] = useState(false);
   const [amount, setAmount] = useState("");
   const [givingType, setGivingType] = useState("offering");
   const [name, setName] = useState("");
@@ -31,6 +34,14 @@ export default function Give() {
   const symbol = currency === "NGN" ? "₦" : "$";
 
   useEffect(() => { document.title = "Give | JCTM Digital Sanctuary"; }, []);
+
+  useEffect(() => {
+    if (geoLoading || geoDetected) return;
+    if (geo) {
+      setCurrency(isNigeria ? "NGN" : "USD");
+      setGeoDetected(true);
+    }
+  }, [geo, geoLoading, isNigeria, geoDetected]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,13 +112,22 @@ export default function Give() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-5xl mx-auto">
           <div className="lg:col-span-3">
             <div className="glass-panel rounded-2xl p-8 border border-border/50">
-              <div className="flex gap-2 mb-6 p-1 bg-muted rounded-full">
-                {(["NGN", "USD"] as const).map(c => (
-                  <button key={c} onClick={() => { setCurrency(c); setAmount(""); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-full text-sm font-medium transition-all ${currency === c ? "bg-white shadow text-primary" : "text-muted-foreground hover:text-primary"}`}>
-                    {c === "NGN" ? "🇳🇬 Naira (NGN)" : "🌐 Dollar (USD)"}
-                  </button>
-                ))}
+              <div className="mb-6">
+                <div className="flex gap-2 p-1 bg-muted rounded-full">
+                  {(["NGN", "USD"] as const).map(c => (
+                    <button key={c} onClick={() => { setCurrency(c); setAmount(""); }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-full text-sm font-medium transition-all ${currency === c ? "bg-white shadow text-primary" : "text-muted-foreground hover:text-primary"}`}>
+                      {c === "NGN" ? "🇳🇬 Naira (NGN)" : "🌐 Dollar (USD)"}
+                    </button>
+                  ))}
+                </div>
+                {geoDetected && geo && (
+                  <p className="text-[11px] text-muted-foreground text-center mt-2">
+                    {isNigeria
+                      ? `🇳🇬 NGN auto-selected for ${geo.country} — switch to USD anytime`
+                      : `🌐 USD auto-selected for ${geo.country} — switch to NGN anytime`}
+                  </p>
+                )}
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">

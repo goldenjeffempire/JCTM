@@ -7,6 +7,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { GeoProvider } from "@/contexts/GeoContext";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -83,6 +84,7 @@ function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
+      <GeoProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ErrorBoundary>
@@ -105,6 +107,7 @@ function App() {
           />
         </TooltipProvider>
       </QueryClientProvider>
+      </GeoProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

@@ -3,8 +3,7 @@ import { motion, useInView } from "framer-motion";
 import { Clock, Globe, MapPin, Radio, ChevronRight, Flame, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { useGeo } from "@/contexts/GeoContext";
 
 const SERVICES = [
   { day: "Sunday",    label: "Sunday Service",       timeWAT: { h: 8, m: 0 }, timeWATEnd: { h: 11, m: 0 }, type: "main",    pending: false },
@@ -12,16 +11,6 @@ const SERVICES = [
 ];
 
 const WAT_OFFSET = 1; // UTC+1
-
-interface GeoInfo {
-  country: string;
-  countryCode: string;
-  city: string;
-  region: string;
-  timezone: string;
-  isNigeria: boolean;
-  isWarriRegion: boolean;
-}
 
 function watToLocal(h: number, m: number): string {
   const nowUtc = new Date();
@@ -93,10 +82,10 @@ function getCrusadeCountdown(): { days: number; hours: number; isLive: boolean; 
 }
 
 export function GeoServiceTimes() {
+  const { geo } = useGeo();
   const [tz, setTz] = useState("");
   const [localOffset, setLocalOffset] = useState("");
   const [nearService, setNearService] = useState<{ isNear: boolean; service: typeof SERVICES[0] | null }>({ isNear: false, service: null });
-  const [geo, setGeo] = useState<GeoInfo | null>(null);
   const [crusade, setCrusade] = useState(getCrusadeCountdown());
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
@@ -112,22 +101,14 @@ export function GeoServiceTimes() {
       setCrusade(getCrusadeCountdown());
     }, 60000);
 
-    // IP-based geolocation
-    fetch(`${BASE}/api/geo`)
-      .then(r => r.ok ? r.json() : null)
-      .then((data: GeoInfo | null) => {
-        if (data && data.country !== "Unknown") {
-          setGeo(data);
-          // If we got a timezone from the API, prefer it
-          if (data.timezone && data.timezone !== "UTC") {
-            setTz(data.timezone);
-          }
-        }
-      })
-      .catch(() => null);
-
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (geo?.timezone && geo.timezone !== "UTC") {
+      setTz(geo.timezone);
+    }
+  }, [geo]);
 
   const typeColors: Record<string, string> = {
     main:    "bg-accent/10 text-accent border-accent/20",

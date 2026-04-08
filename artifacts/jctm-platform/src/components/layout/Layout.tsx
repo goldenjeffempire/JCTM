@@ -2,6 +2,7 @@ import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { TempleBots } from "../TempleBots";
 import { LiveBanner } from "../LiveBanner";
+import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ export function Layout({ children }: LayoutProps) {
       </main>
       <Footer />
       <TempleBots />
+      <LanguageSuggestionBanner />
     </div>
   );
 }

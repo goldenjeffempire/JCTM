@@ -26,6 +26,7 @@ import { GlobalAltar } from "@/components/GlobalAltar";
 import { GlobalAltar3D } from "@/components/GlobalAltar3D";
 import { MandateMap } from "@/components/MandateMap";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
+import { GeoContentBanner } from "@/components/GeoContentBanner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -2229,8 +2230,13 @@ function ConnectSection() {
           ))}
         </div>
 
-        {/* Geo Service Times */}
+        {/* Geo-targeted content banner */}
         <div className="max-w-3xl mx-auto mt-8">
+          <GeoContentBanner />
+        </div>
+
+        {/* Geo Service Times */}
+        <div className="max-w-3xl mx-auto mt-6">
           <GeoServiceTimes />
         </div>
       </div>
