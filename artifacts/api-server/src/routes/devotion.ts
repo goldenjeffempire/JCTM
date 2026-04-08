@@ -48,49 +48,52 @@ router.get("/devotion/daily", async (_req: Request, res: Response): Promise<void
     return;
   }
 
+  const fallbackDevotion = (): DailyDevotion => ({
+    date: today,
+    title: "Walk in the Light of His Word",
+    scripture: "Your word is a lamp to my feet and a light to my path.",
+    reference: "Psalm 119:105",
+    reflection: "The Word of God is not merely a book — it is a living lamp that illuminates every step of our journey. In seasons of confusion, uncertainty, or spiritual warfare, the believer's anchor remains the unchanging truth of Scripture. Prophet Amos Evomobor often teaches that the Correction Mandate begins with returning to the Word — not tradition, not emotion, but the pure, uncompromised Word of God.\n\nToday, let this verse be more than a memory verse. Let it be a practice. Before making decisions, open the Word. Before speaking words of doubt, speak the Word. Before surrendering to fear, stand on the promises of God. His Word is a lamp — it gives light proportional to your need, one step at a time.\n\nWalk faithfully today. The path may be narrow, but it is lit by eternal truth.",
+    propheticWord: "I say to you this day: do not lean on the understanding of men, for My Word is sufficient. This is an hour of returning — returning to the simplicity of the Gospel, to the purity of truth. Open your heart and I will pour fresh light on your path. The ancient paths are still the right paths.",
+    prayerFocus: "Lord, illuminate my path today with Your Word. Let every decision I make be guided by Scripture, not by my own understanding.",
+    declaration: "I walk in the light of God's Word today — my steps are ordered, my path is clear, and His truth leads me.",
+  });
+
   try {
     const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
     const monthDay = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: DEVOTION_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Generate today's daily devotion for ${dayName}, ${monthDay}. 
+    let devotion: DailyDevotion;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: DEVOTION_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Generate today's daily devotion for ${dayName}, ${monthDay}. 
 Choose a scripture that is particularly meaningful and timely. 
 The devotion should feel fresh and specific to this day — not generic. 
 Focus on a theme of: ${getDayTheme(new Date().getDay())}.
 Include a bold, specific prophetic word for today that speaks directly to the hearts of believers.
 Return ONLY the raw JSON object, no markdown, no code blocks.`,
-        },
-      ],
-      temperature: 0.78,
-      max_tokens: 900,
-    });
+          },
+        ],
+        temperature: 0.78,
+        max_tokens: 900,
+      });
 
-    const raw = completion.choices[0]?.message?.content ?? "";
-    let devotion: DailyDevotion;
-
-    try {
+      const raw = completion.choices[0]?.message?.content ?? "";
       const cleaned = raw.replace(/^```(?:json)?\n?/i, "").replace(/```\s*$/m, "").trim();
-      devotion = JSON.parse(cleaned);
-      devotion.date = today;
-      if (!devotion.propheticWord) {
-        devotion.propheticWord = "This is a season of alignment. I am bringing My people back to the ancient paths — the paths of holiness, truth, and consecration. Do not grow weary, for I have not forgotten you. Walk faithfully and My glory will be your reward.";
+      const parsed = JSON.parse(cleaned) as DailyDevotion;
+      parsed.date = today;
+      if (!parsed.propheticWord) {
+        parsed.propheticWord = fallbackDevotion().propheticWord;
       }
+      devotion = parsed;
     } catch {
-      devotion = {
-        date: today,
-        title: "Walk in the Light of His Word",
-        scripture: "Your word is a lamp to my feet and a light to my path.",
-        reference: "Psalm 119:105",
-        reflection: "The Word of God is not merely a book — it is a living lamp that illuminates every step of our journey. In seasons of confusion, uncertainty, or spiritual warfare, the believer's anchor remains the unchanging truth of Scripture. Prophet Amos Evomobor often teaches that the Correction Mandate begins with returning to the Word — not tradition, not emotion, but the pure, uncompromised Word of God.\n\nToday, let this verse be more than a memory verse. Let it be a practice. Before making decisions, open the Word. Before speaking words of doubt, speak the Word. Before surrendering to fear, stand on the promises of God. His Word is a lamp — it gives light proportional to your need, one step at a time.\n\nWalk faithfully today. The path may be narrow, but it is lit by eternal truth.",
-        propheticWord: "I say to you this day: do not lean on the understanding of men, for My Word is sufficient. This is an hour of returning — returning to the simplicity of the Gospel, to the purity of truth. Open your heart and I will pour fresh light on your path. The ancient paths are still the right paths.",
-        prayerFocus: "Lord, illuminate my path today with Your Word. Let every decision I make be guided by Scripture, not by my own understanding.",
-        declaration: "I walk in the light of God's Word today — my steps are ordered, my path is clear, and His truth leads me.",
-      };
+      devotion = fallbackDevotion();
     }
 
     devotionCache.set(today, devotion);

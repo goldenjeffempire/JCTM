@@ -8,7 +8,7 @@
  * For static UI strings, use the t() function from useLanguage() instead —
  * it's instant and doesn't require a network call.
  */
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, type JSX } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TProps {
