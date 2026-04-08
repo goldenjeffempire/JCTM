@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
 import { MandateMap } from "@/components/MandateMap";
+import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -2128,19 +2129,10 @@ function ConnectSection() {
           ))}
         </div>
 
-        {/* Location card */}
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="max-w-md mx-auto">
-          <div className="bg-white border border-border rounded-2xl p-6 flex items-center gap-4 shadow-sm">
-            <div className="h-12 w-12 rounded-2xl bg-primary/8 flex items-center justify-center shrink-0"><MapPin className="h-6 w-6 text-primary" /></div>
-            <div>
-              <p className="text-primary font-bold text-sm">Headquarters</p>
-              <p className="text-muted-foreground text-xs leading-relaxed">Ebrumede, Warri, Delta State, Nigeria<br />Sunday Services · 8:00 AM WAT</p>
-            </div>
-            <a href="https://maps.google.com/?q=Warri,+Delta+State,+Nigeria" target="_blank" rel="noopener noreferrer" className="ml-auto">
-              <Button size="sm" variant="outline" className="rounded-full text-xs border-primary/20 min-h-[44px]">Directions</Button>
-            </a>
-          </div>
-        </motion.div>
+        {/* Geo Service Times */}
+        <div className="max-w-3xl mx-auto mt-8">
+          <GeoServiceTimes />
+        </div>
       </div>
     </section>
   );

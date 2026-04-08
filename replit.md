@@ -28,6 +28,13 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Project: JCTM Digital Sanctuary
 
+### New Features Added (April 2026 — Vision 2030 Sprint 2)
+- **Temple Moments** (`/moments`) — TikTok/Reels-style vertical video feed pulling from the sermon library. Swipe/arrow-key navigation, progress dots, share button with native Web Share API, gradient dark themes per card. 25 messages loaded on init.
+- **Spiritual Growth Tracker** (`/growth`) — Gamified dashboard tracking sermons watched, devotions completed, prayers generated. XP system with 7 levels (New Believer → Mandate Bearer), week heatmap, active streak counter, 13 achievement badges (unlockable), XP progress bar with animated fill. All data persisted in localStorage.
+- **Geo-Targeting Service Times** (`GeoServiceTimes.tsx`) — Detects browser timezone and converts JCTM WAT service schedule into local time for every visitor globally. Shows "Service Starting Soon" live alert when within 3 hours of a service. Added to homepage ConnectSection.
+- **YouTube API Live Auto-Detection** — `/api/livestream/status` now automatically polls YouTube Data API v3 (using `YOUTUBE_API_KEY`) for active broadcasts on @TEMPLETVJCTM channel. 60-second in-memory cache. Falls back to manual in-memory state when no API key is set. Hero "Join Live" button responds automatically.
+- **Navbar Updated** — Added 🎬 Moments (red) and 📈 Growth (green) links with distinct color-coded pill styling, both desktop and mobile.
+
 ### New Features Added (April 2026 — Vision 2030 Upgrade)
 - **Dark/Light Theme Toggle ("Midnight Mandate" / "Ivory Sanctuary")** — `ThemeContext.tsx` manages theme state with localStorage persistence + OS preference detection. Navbar shows moon/sun toggle. `.dark` class applied to `<html>` element, CSS vars fully defined in `index.css`.
 - **AI Prayer Generator** — `/prayer` page with SSE streaming, 10 prayer categories (healing, deliverance, guidance, peace, provision, family, protection, salvation, strength, general), real-time prayer text reveal, copy-to-clipboard. Backend: `routes/prayer.ts` with dedicated system prompt grounded in JCTM doctrine.

@@ -8,12 +8,13 @@ import { useTheme } from "@/contexts/ThemeContext";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/sermons", label: "Sermons" },
+  { href: "/moments", label: "🎬 Moments", momentsHighlight: true },
   { href: "/testimonies", label: "Testimonies" },
-  { href: "/correction-timeline", label: "Timeline" },
   { href: "/events", label: "Events" },
   { href: "/crusade", label: "🔥 Crusade", highlight: true },
   { href: "/give", label: "Give" },
   { href: "/prayer", label: "✦ Prayer", prayerHighlight: true },
+  { href: "/growth", label: "📈 Growth", growthHighlight: true },
   { href: "/join", label: "Join" },
   { href: "/about", label: "About" },
 ];
@@ -103,11 +104,31 @@ export function Navbar() {
                 <div
                   className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
                   style={{
-                    background: location === item.href
-                      ? "rgba(56,189,248,0.25)"
-                      : "rgba(56,189,248,0.08)",
-                    color: location === item.href ? "hsl(var(--accent))" : "hsl(var(--accent))",
+                    background: location === item.href ? "rgba(56,189,248,0.25)" : "rgba(56,189,248,0.08)",
+                    color: "hsl(var(--accent))",
                     border: "1px solid rgba(56,189,248,0.3)",
+                  }}
+                >
+                  {item.label}
+                </div>
+              ) : item.momentsHighlight ? (
+                <div
+                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
+                  style={{
+                    background: location === item.href ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.08)",
+                    color: "#ef4444",
+                    border: "1px solid rgba(239,68,68,0.3)",
+                  }}
+                >
+                  {item.label}
+                </div>
+              ) : item.growthHighlight ? (
+                <div
+                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
+                  style={{
+                    background: location === item.href ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.08)",
+                    color: "#10b981",
+                    border: "1px solid rgba(16,185,129,0.3)",
                   }}
                 >
                   {item.label}
@@ -226,21 +247,19 @@ export function Navbar() {
                 >
                   <Link href={item.href}>
                     <div
-                      className={`text-sm font-medium transition-colors cursor-pointer py-3 px-3 rounded-lg ${
-                        item.highlight
-                          ? "font-bold"
-                          : item.prayerHighlight
-                          ? "font-semibold"
-                          : location === item.href
-                          ? "text-accent bg-accent/5"
-                          : "text-primary hover:text-accent hover:bg-primary/5"
-                      }`}
+                      className="text-sm font-medium transition-colors cursor-pointer py-3 px-3 rounded-lg"
                       style={
                         item.highlight
-                          ? { color: "#D4A017", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.3)" }
+                          ? { color: "#D4A017", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.3)", fontWeight: 700 }
                           : item.prayerHighlight
                           ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.25)" }
-                          : undefined
+                          : item.momentsHighlight
+                          ? { color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }
+                          : item.growthHighlight
+                          ? { color: "#10b981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }
+                          : location === item.href
+                          ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" }
+                          : { color: "hsl(var(--primary))" }
                       }
                       onClick={() => setIsOpen(false)}
                     >

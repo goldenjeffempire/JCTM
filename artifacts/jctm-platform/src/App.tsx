@@ -22,6 +22,8 @@ const Terms = lazy(() => import("@/pages/Terms"));
 const Crusade = lazy(() => import("@/pages/Crusade"));
 const ViewingCentres = lazy(() => import("@/pages/ViewingCentres"));
 const Prayer = lazy(() => import("@/pages/Prayer"));
+const Moments = lazy(() => import("@/pages/Moments"));
+const Growth = lazy(() => import("@/pages/Growth"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -66,6 +68,8 @@ function Router() {
         <Route path="/crusade" component={Crusade} />
         <Route path="/viewing-centres" component={ViewingCentres} />
         <Route path="/prayer" component={Prayer} />
+        <Route path="/moments" component={Moments} />
+        <Route path="/growth" component={Growth} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
