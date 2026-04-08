@@ -370,6 +370,33 @@ export const ChatWithTempleBotsResponse = zod.object({
 });
 
 /**
+ * Returns a text/event-stream SSE response. Each event is JSON with either a `delta` string (token chunk), or a final `done` event with `sessionId`, `sources`, and `action`.
+ * @summary Stream a message to TempleBots AI via Server-Sent Events
+ */
+export const StreamChatWithTempleBotsBody = zod.object({
+  message: zod.string(),
+  sessionId: zod.string().nullish(),
+  history: zod
+    .array(
+      zod.object({
+        role: zod.enum(["user", "assistant"]),
+        content: zod.string(),
+      }),
+    )
+    .optional()
+    .describe(
+      "Previous turns in the conversation (last N messages for context)",
+    ),
+});
+
+/**
+ * @summary Trigger re-ingestion of JCTM knowledge base into vector store
+ */
+export const IngestTempleBotsKnowledgeResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
  * @summary Get current livestream status
  */
 export const GetLivestreamStatusResponse = zod.object({

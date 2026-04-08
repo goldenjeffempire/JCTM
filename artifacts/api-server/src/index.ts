@@ -2,6 +2,8 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startCron } from "./lib/cron.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
+import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
+import OpenAI from "openai";
 
 const rawPort = process.env["PORT"];
 
@@ -28,12 +30,7 @@ const server = app.listen(port, (err) => {
   // Start the 30-minute YouTube sync cron
   startCron(logger);
 
-  // Register WebSub subscription with YouTube's PubSubHubbub hub.
-  // Resolves the public base URL in order of preference:
-  //   1. REPLIT_DEV_DOMAIN  — Replit dev environment
-  //   2. RENDER_EXTERNAL_URL — automatically set by Render
-  //   3. PUBLIC_URL          — any other platform override
-  //   4. https://jctm.org.ng — production custom domain (final fallback)
+  // Resolve public base URL for WebSub callback
   const replitDomain = process.env.REPLIT_DEV_DOMAIN;
   const renderUrl = process.env.RENDER_EXTERNAL_URL;
   const publicUrl = process.env.PUBLIC_URL;
@@ -50,13 +47,25 @@ const server = app.listen(port, (err) => {
   }
 
   subscribeToWebSub(`${callbackBase}/api/sermons/websub`, logger);
+
+  // ── Populate JCTM knowledge base into pgvector store (non-blocking) ──────────
+  // Uses the direct OPENAI_API_KEY (not the Replit proxy) because the embeddings
+  // API is not available through the Replit AI Integrations proxy.
+  const openAiApiKey = process.env.OPENAI_API_KEY;
+  if (openAiApiKey) {
+    const embeddingsClient = new OpenAI({
+      apiKey: openAiApiKey,
+      baseURL: "https://api.openai.com/v1",
+    });
+    ingestKnowledgeIfEmpty(embeddingsClient, logger).catch((err) => {
+      logger.warn({ err }, "Knowledge ingestion failed at startup — TempleBots will fall back to inline knowledge base");
+    });
+  } else {
+    logger.warn("OPENAI_API_KEY not set — skipping knowledge base ingestion. TempleBots will use inline knowledge base only.");
+  }
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────
-// Render (and most platforms) send SIGTERM before replacing the process.
-// We stop accepting new connections, let in-flight requests finish (up to
-// 10 s), then exit cleanly so the platform can immediately start the next
-// instance — giving users zero visible downtime.
 function shutdown(signal: string) {
   logger.info({ signal }, "Graceful shutdown initiated");
 
@@ -65,7 +74,6 @@ function shutdown(signal: string) {
     process.exit(0);
   });
 
-  // Force-exit if connections don't drain within 10 seconds
   setTimeout(() => {
     logger.warn("Shutdown timeout reached — forcing exit");
     process.exit(1);

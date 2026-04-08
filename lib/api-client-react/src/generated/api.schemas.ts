@@ -294,3 +294,7 @@ export type ListMembersParams = {
    */
   search?: string | null;
 };
+
+export type IngestTempleBotsKnowledge200 = {
+  message: string;
+};

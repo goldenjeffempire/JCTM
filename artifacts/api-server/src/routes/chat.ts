@@ -3,14 +3,31 @@ import { db, sermonsTable, conversations, messages } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { desc, eq } from "drizzle-orm";
 import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
+import OpenAI from "openai";
+import pg from "pg";
+
+const { Pool } = pg;
 
 const router: IRouter = Router();
 
-// ── JCTM Knowledge Base (injected directly into system prompt) ─────────────────
-// Replit AI Integrations does not support the embeddings API, so we inject all
-// JCTM doctrine knowledge directly. The full base is ~6 000 chars — well within
-// GPT-4o's 128 k context window. This approach is actually MORE reliable than
-// vector similarity search for a corpus this size.
+// ── Direct OpenAI client for embeddings (bypasses Replit AI proxy) ─────────────
+// The Replit AI Integrations proxy does not support the embeddings API.
+// We use the real OpenAI API key directly for embedding queries only.
+let _embeddingsClient: OpenAI | null = null;
+function getEmbeddingsClient(): OpenAI | null {
+  if (_embeddingsClient) return _embeddingsClient;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  _embeddingsClient = new OpenAI({ apiKey, baseURL: "https://api.openai.com/v1" });
+  return _embeddingsClient;
+}
+
+// ── pgvector pool (RAG similarity search) ─────────────────────────────────────
+const ragPool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// ── JCTM Knowledge Base (fallback — used when DB/embeddings not available) ────
+// This inline corpus (~6k chars) is injected as context of last resort so the
+// bot always has core ministry data even when RAG is unavailable.
 const JCTM_KNOWLEDGE_BASE = `
 ## JCTM KNOWLEDGE BASE — USE THIS TO ANSWER ALL QUESTIONS
 
@@ -110,6 +127,11 @@ CORE IDENTITY:
 - You represent JCTM's mission to restore the original, unadulterated gospel
 - You speak with holy reverence, ministerial authority, and genuine pastoral compassion
 
+MEMORY GUIDELINES:
+- If the user tells you their name, address them by name in subsequent responses
+- If the user shares a prayer request or personal need, acknowledge it and carry that context forward
+- Maintain awareness of what the user has shared so they feel heard and remembered
+
 DOCTRINAL GUIDELINES:
 - Always ground responses in scripture and JCTM doctrine as provided in the knowledge base
 - Emphasize: Primitive Christianity, Holiness, the Correction Mandate, and sound doctrine
@@ -158,6 +180,43 @@ function getClientIp(req: Request): string {
     req.socket.remoteAddress ??
     "unknown"
   );
+}
+
+// ── RAG: Retrieve relevant knowledge chunks via pgvector cosine similarity ─────
+async function getRelevantKnowledge(query: string): Promise<string> {
+  const client = getEmbeddingsClient();
+  if (!client) return "";
+
+  try {
+    const embeddingResponse = await client.embeddings.create({
+      model: "text-embedding-3-small",
+      input: query,
+    });
+    const queryVector = embeddingResponse.data[0].embedding;
+    const vectorStr = `[${queryVector.join(",")}]`;
+
+    const result = await ragPool.query<{ content: string; source: string; similarity: number }>(
+      `SELECT content, source, 1 - (embedding <=> $1::vector) AS similarity
+       FROM knowledge_chunks
+       WHERE embedding IS NOT NULL
+       ORDER BY embedding <=> $1::vector
+       LIMIT 4`,
+      [vectorStr],
+    );
+
+    if (result.rows.length === 0) return "";
+
+    const chunks = result.rows
+      .filter((r) => r.similarity > 0.3)
+      .map((r) => `[${r.source}] ${r.content}`)
+      .join("\n\n");
+
+    return chunks
+      ? `\n\n## MOST RELEVANT JCTM KNOWLEDGE (from semantic search):\n${chunks}`
+      : "";
+  } catch {
+    return "";
+  }
 }
 
 // ── Recent sermon context ──────────────────────────────────────────────────────
@@ -269,12 +328,13 @@ async function buildMessages(
   msgs: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   conversationId: number;
 }> {
-  const [sermonContext, conversationId] = await Promise.all([
+  const [sermonContext, ragContext, conversationId] = await Promise.all([
     buildSermonContext(),
+    getRelevantKnowledge(userMessage),
     getOrCreateConversation(sessionId),
   ]);
 
-  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + sermonContext;
+  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + sermonContext + ragContext;
 
   // Prefer DB history; fall back to client-sent history
   const dbHistory = await loadConversationHistory(conversationId, 20);
@@ -385,8 +445,6 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
-  // Listen on res (not req) — req 'close' fires after body parsing; res 'close'
-  // fires only when the *client* actually disconnects from the response stream.
   res.on("close", () => controller.abort());
 
   try {
@@ -441,6 +499,30 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     if (!res.writableEnded) res.end();
   } finally {
     clearTimeout(timeout);
+  }
+});
+
+// ── POST /chat/knowledge/ingest — manually re-trigger knowledge ingestion ──────
+router.post("/chat/knowledge/ingest", async (req: Request, res: Response): Promise<void> => {
+  const ip = getClientIp(req);
+  if (isRateLimited(ip)) {
+    res.status(429).json({ error: "Rate limited." });
+    return;
+  }
+
+  try {
+    const embeddingsClient = getEmbeddingsClient();
+    if (!embeddingsClient) {
+      res.status(503).json({ error: "Embeddings API not available — OPENAI_API_KEY not configured." });
+      return;
+    }
+
+    const { ingestKnowledgeIfEmpty } = await import("../lib/knowledge-ingestion.js");
+    await ingestKnowledgeIfEmpty(embeddingsClient, req.log);
+    res.json({ message: "Knowledge base ingestion triggered successfully." });
+  } catch (err) {
+    req.log.error({ err }, "Manual knowledge ingestion failed");
+    res.status(500).json({ error: "Knowledge ingestion failed." });
   }
 });
 

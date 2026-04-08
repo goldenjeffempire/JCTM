@@ -492,6 +492,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /chat/stream:
+    post:
+      operationId: streamChatWithTempleBots
+      tags: [chat]
+      summary: Stream a message to TempleBots AI via Server-Sent Events
+      description: Returns a text/event-stream SSE response. Each event is JSON with either a `delta` string (token chunk), or a final `done` event with `sessionId`, `sources`, and `action`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: SSE stream of AI response tokens
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /chat/knowledge/ingest:
+    post:
+      operationId: ingestTempleBotsKnowledge
+      tags: [chat]
+      summary: Trigger re-ingestion of JCTM knowledge base into vector store
+      responses:
+        "200":
+          description: Ingestion triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                required:
+                  - message
+        "503":
+          description: Embeddings API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /livestream/status:
     get:
       operationId: getLivestreamStatus

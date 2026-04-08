@@ -22,6 +22,7 @@ export * from "./event";
 export * from "./givingLog";
 export * from "./givingStats";
 export * from "./healthStatus";
+export * from "./ingestTempleBotsKnowledge200";
 export * from "./likeResponse";
 export * from "./listEventsParams";
 export * from "./listMembersParams";

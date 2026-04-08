@@ -31,6 +31,7 @@ import type {
   GivingLog,
   GivingStats,
   HealthStatus,
+  IngestTempleBotsKnowledge200,
   LikeResponse,
   ListEventsParams,
   ListMembersParams,
@@ -1897,6 +1898,177 @@ export const useChatWithTempleBots = <
   TContext
 > => {
   return useMutation(getChatWithTempleBotsMutationOptions(options));
+};
+
+/**
+ * Returns a text/event-stream SSE response. Each event is JSON with either a `delta` string (token chunk), or a final `done` event with `sessionId`, `sources`, and `action`.
+ * @summary Stream a message to TempleBots AI via Server-Sent Events
+ */
+export const getStreamChatWithTempleBotsUrl = () => {
+  return `/api/chat/stream`;
+};
+
+export const streamChatWithTempleBots = async (
+  chatRequest: ChatRequest,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getStreamChatWithTempleBotsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(chatRequest),
+  });
+};
+
+export const getStreamChatWithTempleBotsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof streamChatWithTempleBots>>,
+    TError,
+    { data: BodyType<ChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof streamChatWithTempleBots>>,
+  TError,
+  { data: BodyType<ChatRequest> },
+  TContext
+> => {
+  const mutationKey = ["streamChatWithTempleBots"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof streamChatWithTempleBots>>,
+    { data: BodyType<ChatRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return streamChatWithTempleBots(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StreamChatWithTempleBotsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof streamChatWithTempleBots>>
+>;
+export type StreamChatWithTempleBotsMutationBody = BodyType<ChatRequest>;
+export type StreamChatWithTempleBotsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Stream a message to TempleBots AI via Server-Sent Events
+ */
+export const useStreamChatWithTempleBots = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof streamChatWithTempleBots>>,
+    TError,
+    { data: BodyType<ChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof streamChatWithTempleBots>>,
+  TError,
+  { data: BodyType<ChatRequest> },
+  TContext
+> => {
+  return useMutation(getStreamChatWithTempleBotsMutationOptions(options));
+};
+
+/**
+ * @summary Trigger re-ingestion of JCTM knowledge base into vector store
+ */
+export const getIngestTempleBotsKnowledgeUrl = () => {
+  return `/api/chat/knowledge/ingest`;
+};
+
+export const ingestTempleBotsKnowledge = async (
+  options?: RequestInit,
+): Promise<IngestTempleBotsKnowledge200> => {
+  return customFetch<IngestTempleBotsKnowledge200>(
+    getIngestTempleBotsKnowledgeUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getIngestTempleBotsKnowledgeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ingestTempleBotsKnowledge>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof ingestTempleBotsKnowledge>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["ingestTempleBotsKnowledge"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof ingestTempleBotsKnowledge>>,
+    void
+  > = () => {
+    return ingestTempleBotsKnowledge(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type IngestTempleBotsKnowledgeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof ingestTempleBotsKnowledge>>
+>;
+
+export type IngestTempleBotsKnowledgeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Trigger re-ingestion of JCTM knowledge base into vector store
+ */
+export const useIngestTempleBotsKnowledge = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ingestTempleBotsKnowledge>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof ingestTempleBotsKnowledge>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getIngestTempleBotsKnowledgeMutationOptions(options));
 };
 
 /**
