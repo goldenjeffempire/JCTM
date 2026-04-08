@@ -10,7 +10,7 @@ import {
   Radio, BookOpen, Heart, Sparkles, ChevronRight, Globe,
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
   Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
-  Tv, Award, TrendingUp, Zap, Radio as LiveIcon,
+  Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X,
 } from "lucide-react";
 import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
@@ -766,11 +766,11 @@ function BentoGrid() {
                     </div>
                     <div className="p-5 flex items-center justify-between bg-primary">
                       <Badge variant="secondary" className="text-[10px] rounded-full bg-white/10 text-white border-white/10">Featured Message</Badge>
-                      <a href={`https://www.youtube.com/watch?v=${ytId}`} target="_blank" rel="noopener noreferrer">
+                      <Link href="/sermons">
                         <Button size="sm" className="rounded-full bg-accent hover:bg-accent/90 text-white text-xs h-8 px-4">
-                          <ExternalLink className="h-3 w-3 mr-1.5" />Watch Full
+                          <Play className="h-3 w-3 mr-1.5 fill-white" />Watch Full
                         </Button>
-                      </a>
+                      </Link>
                     </div>
                   </>
                 ) : (
@@ -1353,6 +1353,56 @@ function SermonSpotlight() {
 // ═══════════════════════════════════════════════════════════════════════════
 // RECENT SERMONS CAROUSEL
 // ═══════════════════════════════════════════════════════════════════════════
+type RecentSermon = { id: number; videoId: string; title: string; thumbnailUrl: string; publishedAt: string; isFeatured?: boolean; isLive?: boolean };
+
+function RecentSermonCard({ sermon: s, index: i }: { sermon: RecentSermon; index: number }) {
+  const [playing, setPlaying] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+      transition={{ delay: i * 0.05, duration: 0.5 }}
+      className={`shrink-0 w-72 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300 snap-start group ${s.isLive ? "ring-2 ring-red-400" : s.isFeatured ? "ring-1 ring-accent/40" : ""}`}
+    >
+      <div className="relative aspect-video overflow-hidden">
+        {playing ? (
+          <>
+            <iframe
+              className="w-full h-full absolute inset-0"
+              src={`https://www.youtube.com/embed/${s.videoId}?autoplay=1&rel=0`}
+              allow="autoplay; fullscreen"
+              allowFullScreen
+              title={s.title}
+            />
+            <button
+              onClick={() => setPlaying(false)}
+              className="absolute top-2 right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </>
+        ) : (
+          <>
+            <img src={s.thumbnailUrl} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${s.videoId}/hqdefault.jpg`; }} loading="lazy" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            {s.isLive && <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full"><span className="h-1.5 w-1.5 bg-white rounded-full animate-ping inline-block" />LIVE</div>}
+            {!s.isLive && s.isFeatured && <div className="absolute top-2 left-2 flex items-center gap-1 bg-accent text-white text-[9px] font-bold px-2 py-0.5 rounded-full"><Star className="h-2.5 w-2.5 fill-white" />Featured</div>}
+            <button
+              onClick={() => setPlaying(true)}
+              className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-accent/90 hover:bg-accent flex items-center justify-center transition-all shadow-lg"
+            >
+              <Play className="h-4 w-4 text-white fill-white ml-0.5" />
+            </button>
+          </>
+        )}
+      </div>
+      <div className="p-4">
+        <p className="text-primary font-semibold text-sm line-clamp-2 leading-snug mb-2">{s.title}</p>
+        <p className="text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(s.publishedAt), { addSuffix: true })}</p>
+      </div>
+    </motion.div>
+  );
+}
+
 function RecentSermonsCarousel() {
   const [sermons, setSermons] = useState<{ id: number; videoId: string; title: string; thumbnailUrl: string; publishedAt: string; isFeatured?: boolean; isLive?: boolean; }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1381,22 +1431,7 @@ function RecentSermonsCarousel() {
         ) : (
           <div className="flex gap-5 overflow-x-auto pb-4 px-4 md:px-[calc((100vw-1280px)/2+1rem)] scrollbar-hide snap-x snap-mandatory">
             {sermons.map((s, i) => (
-              <motion.a key={s.id} href={`https://www.youtube.com/watch?v=${s.videoId}`} target="_blank" rel="noopener noreferrer"
-                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05, duration: 0.5 }} whileHover={{ y: -4 }}
-                className={`shrink-0 w-72 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300 snap-start group ${s.isLive ? "ring-2 ring-red-400" : s.isFeatured ? "ring-1 ring-accent/40" : ""}`}
-              >
-                <div className="relative aspect-video overflow-hidden">
-                  <img src={s.thumbnailUrl} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${s.videoId}/hqdefault.jpg`; }} loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                  {s.isLive && <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full"><span className="h-1.5 w-1.5 bg-white rounded-full animate-ping inline-block" />LIVE</div>}
-                  {!s.isLive && s.isFeatured && <div className="absolute top-2 left-2 flex items-center gap-1 bg-accent text-white text-[9px] font-bold px-2 py-0.5 rounded-full"><Star className="h-2.5 w-2.5 fill-white" />Featured</div>}
-                  <div className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-accent/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"><Play className="h-4 w-4 text-white fill-white ml-0.5" /></div>
-                </div>
-                <div className="p-4">
-                  <p className="text-primary font-semibold text-sm line-clamp-2 leading-snug mb-2">{s.title}</p>
-                  <p className="text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(s.publishedAt), { addSuffix: true })}</p>
-                </div>
-              </motion.a>
+              <RecentSermonCard key={s.id} sermon={s} index={i} />
             ))}
           </div>
         )}

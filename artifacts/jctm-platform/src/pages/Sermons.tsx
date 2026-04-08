@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw, ExternalLink, Zap, Star, Radio, Loader2, Bot, Link as LinkIcon } from "lucide-react";
+import { Search, Volume2, Play, RefreshCw, ExternalLink, Zap, Star, Radio, Loader2, Bot, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
 
 const CATEGORIES = [
@@ -74,9 +74,11 @@ export default function Sermons() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isHarvesting, setIsHarvesting] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
+  const [livePlaying, setLivePlaying] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { quality, toggle: toggleQuality } = useStreamQuality();
+  const [, navigate] = useLocation();
 
   const { data: stats, refetch: refetchStats } = useGetSermonStats({
     query: { queryKey: getGetSermonStatsQueryKey() }
@@ -198,7 +200,7 @@ export default function Sermons() {
             duration: 8000,
             action: {
               label: "Watch",
-              onClick: () => window.open(`https://www.youtube.com/watch?v=${data.videoId}`, "_blank"),
+              onClick: () => navigate("/sermons"),
             },
           }
         );
@@ -271,26 +273,36 @@ export default function Sermons() {
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="glass-panel rounded-2xl p-4 border border-red-400/30 bg-red-50/30 mb-6 flex items-center gap-3"
+              className="glass-panel rounded-2xl border border-red-400/30 bg-red-50/30 mb-6 overflow-hidden"
             >
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-              </span>
-              <Radio className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-semibold text-red-600">
-                Live Now — {liveSermons[0].title}
-              </span>
-              <a
-                href={`https://www.youtube.com/watch?v=${liveSermons[0].videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-auto"
-              >
-                <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white rounded-full text-xs gap-1">
-                  <Radio className="h-3 w-3" /> Join Live
+              <div className="p-4 flex items-center gap-3">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                </span>
+                <Radio className="h-4 w-4 text-red-500" />
+                <span className="text-sm font-semibold text-red-600">
+                  Live Now — {liveSermons[0].title}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => setLivePlaying(p => !p)}
+                  className={`ml-auto rounded-full text-xs gap-1 ${livePlaying ? "bg-gray-500 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600"} text-white`}
+                >
+                  {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Join Live</>}
                 </Button>
-              </a>
+              </div>
+              {livePlaying && (
+                <div className="w-full aspect-video">
+                  <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${liveSermons[0].videoId}?autoplay=1&rel=0`}
+                    allow="autoplay; fullscreen"
+                    allowFullScreen
+                    title={liveSermons[0].title}
+                  />
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -460,6 +472,7 @@ export default function Sermons() {
 
 function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
   const [audioMode, setAudioMode] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
   return (
     <motion.div
@@ -474,8 +487,25 @@ function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
           : "hover:shadow-accent/10"
       }`}
     >
-      <div className="relative aspect-video bg-muted overflow-hidden">
-        {audioMode ? (
+      <div className="relative bg-muted overflow-hidden" style={{ aspectRatio: "16/9" }}>
+        {playing ? (
+          <>
+            <iframe
+              className="w-full h-full absolute inset-0"
+              src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0`}
+              allow="autoplay; fullscreen"
+              allowFullScreen
+              title={sermon.title}
+            />
+            <button
+              onClick={() => setPlaying(false)}
+              className="absolute top-2 right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 transition-colors"
+              title="Close player"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ) : audioMode ? (
           <div className="absolute inset-0 bg-primary flex flex-col items-center justify-center gap-3">
             <Volume2 className="h-12 w-12 text-accent" />
             <p className="text-white text-sm font-medium px-4 text-center">{sermon.title}</p>
@@ -492,52 +522,51 @@ function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
             loading="lazy"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-        {/* Badges */}
-        {sermon.isLive && (
-          <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-            </span>
-            LIVE
-          </div>
-        )}
-        {!sermon.isLive && sermon.isFeatured && (
-          <div className="absolute top-2 left-2">
-            <Badge className="bg-accent text-white text-[10px] px-2 py-0.5 gap-1 rounded-full">
-              <Star className="h-2.5 w-2.5 fill-white" /> Featured
-            </Badge>
-          </div>
-        )}
+        {!playing && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
 
-        <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
-          <a
-            href={`https://www.youtube.com/watch?v=${sermon.videoId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button
-              size="sm"
-              className={`${
-                sermon.isLive ? "bg-red-500 hover:bg-red-600" : "bg-accent hover:bg-accent/90"
-              } text-white rounded-full text-xs gap-1`}
-            >
-              <Play className="h-3 w-3" />
-              {sermon.isLive ? "Join Live" : "Watch"}
-            </Button>
-          </a>
-          <button
-            onClick={() => setAudioMode(!audioMode)}
-            className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors ${
-              audioMode ? "bg-accent text-white" : "bg-white/20 text-white hover:bg-white/30"
-            }`}
-          >
-            <Volume2 className="h-3 w-3" />
-            {audioMode ? "Audio On" : "Audio Only"}
-          </button>
-        </div>
+            {sermon.isLive && (
+              <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                </span>
+                LIVE
+              </div>
+            )}
+            {!sermon.isLive && sermon.isFeatured && (
+              <div className="absolute top-2 left-2">
+                <Badge className="bg-accent text-white text-[10px] px-2 py-0.5 gap-1 rounded-full">
+                  <Star className="h-2.5 w-2.5 fill-white" /> Featured
+                </Badge>
+              </div>
+            )}
+
+            <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+              <Button
+                size="sm"
+                onClick={() => setPlaying(true)}
+                className={`${
+                  sermon.isLive ? "bg-red-500 hover:bg-red-600" : "bg-accent hover:bg-accent/90"
+                } text-white rounded-full text-xs gap-1`}
+              >
+                <Play className="h-3 w-3 fill-white" />
+                {sermon.isLive ? "Join Live" : "Watch"}
+              </Button>
+              <button
+                onClick={() => setAudioMode(!audioMode)}
+                className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors ${
+                  audioMode ? "bg-accent text-white" : "bg-white/20 text-white hover:bg-white/30"
+                }`}
+              >
+                <Volume2 className="h-3 w-3" />
+                {audioMode ? "Audio On" : "Audio Only"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="p-4">
@@ -552,10 +581,10 @@ function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
             href={`https://www.youtube.com/watch?v=${sermon.videoId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-accent hover:text-accent/80 flex items-center gap-1 transition-colors"
+            className="text-xs text-muted-foreground/60 hover:text-accent flex items-center gap-1 transition-colors"
+            title="Open in YouTube"
           >
             <ExternalLink className="h-3 w-3" />
-            YouTube
           </a>
         </div>
       </div>
