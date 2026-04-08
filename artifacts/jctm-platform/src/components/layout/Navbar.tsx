@@ -1,31 +1,97 @@
 import { Link, useLocation } from "wouter";
-import { Menu, X, Moon, Sun } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Menu, X, Moon, Sun, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
 
-const navItems = [
+const flatNavItems = [
   { href: "/", label: "Home" },
   { href: "/sermons", label: "Sermons" },
-  { href: "/sermon-assistant", label: "🤖 Ask AI", aiHighlight: true },
   { href: "/moments", label: "🎬 Moments", momentsHighlight: true },
-  { href: "/testimonies", label: "Testimonies" },
   { href: "/events", label: "Events" },
   { href: "/crusade", label: "🔥 Crusade", highlight: true },
-  { href: "/give", label: "Give" },
   { href: "/prayer", label: "✦ Prayer", prayerHighlight: true },
-  { href: "/leadership", label: "Leadership" },
-  { href: "/about", label: "About" },
 ];
+
+const resourcesItems = [
+  { href: "/testimonies", label: "Testimonies", description: "Stories of God's faithfulness" },
+  { href: "/give", label: "Give", description: "Support the Correction Mandate" },
+];
+
+const aboutItems = [
+  { href: "/about", label: "About JCTM", description: "Our mission and history" },
+  { href: "/leadership", label: "Leadership", description: "Prophet Amos & ministry team" },
+  { href: "/sermon-assistant", label: "🤖 Ask AI", description: "Chat with our sermon AI", aiHighlight: true },
+];
+
+interface DropdownMenuProps {
+  label: string;
+  items: { href: string; label: string; description: string; aiHighlight?: boolean }[];
+  isDark: boolean;
+  onClose: () => void;
+  isActive: boolean;
+}
+
+function DropdownMenu({ label, items, isDark, onClose, isActive }: DropdownMenuProps) {
+  const [location] = useLocation();
+  const hasActive = items.some(i => i.href === location);
+
+  return (
+    <AnimatePresence>
+      {isActive && (
+        <motion.div
+          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-52 rounded-2xl border shadow-xl overflow-hidden z-50"
+          style={{
+            background: isDark ? "rgba(0,10,26,0.97)" : "rgba(255,254,248,0.98)",
+            backdropFilter: "blur(20px)",
+            borderColor: isDark ? "rgba(56,189,248,0.15)" : "rgba(0,51,102,0.1)",
+          }}
+        >
+          <div className="py-2">
+            {items.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <div
+                  onClick={onClose}
+                  className={`flex flex-col px-4 py-2.5 cursor-pointer transition-colors hover:bg-accent/8 ${
+                    location === item.href ? "bg-accent/10" : ""
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-semibold ${
+                      item.aiHighlight
+                        ? "text-purple-500"
+                        : location === item.href
+                        ? "text-accent"
+                        : "text-primary"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">{item.description}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 export function Navbar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const [openDropdown, setOpenDropdown] = useState<"resources" | "about" | null>(null);
   const { theme, toggle, isDark } = useTheme();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,6 +103,16 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const navHeight = scrolled ? "h-12" : "h-16";
   const bgOpacity = Math.min(scrollY / 100, 1);
 
@@ -46,6 +122,13 @@ export function Navbar() {
   const navBorderColor = isDark
     ? `rgba(56, 189, 248, ${0.08 + bgOpacity * 0.06})`
     : `rgba(0, 51, 102, ${0.06 + bgOpacity * 0.06})`;
+
+  const toggle_dropdown = (name: "resources" | "about") => {
+    setOpenDropdown(prev => prev === name ? null : name);
+  };
+
+  const resourcesActive = resourcesItems.some(i => i.href === location);
+  const aboutActive = aboutItems.some(i => i.href === location) || location === "/about";
 
   return (
     <motion.nav
@@ -63,7 +146,7 @@ export function Navbar() {
           : "none",
       }}
     >
-      <div className={`container mx-auto px-4 ${navHeight} flex items-center justify-between transition-all duration-500`}>
+      <div ref={dropdownRef} className={`container mx-auto px-4 ${navHeight} flex items-center justify-between transition-all duration-500`}>
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
             <motion.img
@@ -87,8 +170,9 @@ export function Navbar() {
           </div>
         </Link>
 
+        {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-5">
-          {navItems.map((item) => (
+          {flatNavItems.map((item) => (
             <Link key={item.href} href={item.href}>
               {item.highlight ? (
                 <div
@@ -123,28 +207,6 @@ export function Navbar() {
                 >
                   {item.label}
                 </div>
-              ) : item.growthHighlight ? (
-                <div
-                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
-                  style={{
-                    background: location === item.href ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.08)",
-                    color: "#10b981",
-                    border: "1px solid rgba(16,185,129,0.3)",
-                  }}
-                >
-                  {item.label}
-                </div>
-              ) : item.aiHighlight ? (
-                <div
-                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
-                  style={{
-                    background: location === item.href ? "rgba(139,92,246,0.25)" : "rgba(139,92,246,0.1)",
-                    color: "#8b5cf6",
-                    border: "1px solid rgba(139,92,246,0.35)",
-                  }}
-                >
-                  {item.label}
-                </div>
               ) : (
                 <div className={`relative text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${location === item.href ? "text-accent" : "text-primary/80"}`}>
                   {item.label}
@@ -159,6 +221,68 @@ export function Navbar() {
             </Link>
           ))}
 
+          {/* Resources dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => toggle_dropdown("resources")}
+              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${
+                resourcesActive || openDropdown === "resources" ? "text-accent" : "text-primary/80"
+              }`}
+            >
+              Resources
+              <motion.span
+                animate={{ rotate: openDropdown === "resources" ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </motion.span>
+              {resourcesActive && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
+                />
+              )}
+            </button>
+            <DropdownMenu
+              label="Resources"
+              items={resourcesItems}
+              isDark={isDark}
+              isActive={openDropdown === "resources"}
+              onClose={() => setOpenDropdown(null)}
+            />
+          </div>
+
+          {/* About dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => toggle_dropdown("about")}
+              className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${
+                aboutActive || openDropdown === "about" ? "text-accent" : "text-primary/80"
+              }`}
+            >
+              About
+              <motion.span
+                animate={{ rotate: openDropdown === "about" ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </motion.span>
+              {aboutActive && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full"
+                />
+              )}
+            </button>
+            <DropdownMenu
+              label="About"
+              items={aboutItems}
+              isDark={isDark}
+              isActive={openDropdown === "about"}
+              onClose={() => setOpenDropdown(null)}
+            />
+          </div>
+
           <LanguageSelector />
 
           <motion.button
@@ -168,12 +292,8 @@ export function Navbar() {
             aria-label={isDark ? "Switch to Ivory Sanctuary (light)" : "Switch to Midnight Mandate (dark)"}
             className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-300 cursor-pointer"
             style={{
-              background: isDark
-                ? "rgba(56,189,248,0.12)"
-                : "rgba(0,51,102,0.06)",
-              borderColor: isDark
-                ? "rgba(56,189,248,0.3)"
-                : "rgba(0,51,102,0.15)",
+              background: isDark ? "rgba(56,189,248,0.12)" : "rgba(0,51,102,0.06)",
+              borderColor: isDark ? "rgba(56,189,248,0.3)" : "rgba(0,51,102,0.15)",
               color: isDark ? "hsl(var(--accent))" : "hsl(var(--primary))",
             }}
           >
@@ -193,6 +313,7 @@ export function Navbar() {
           </motion.button>
         </div>
 
+        {/* Mobile controls */}
         <div className="md:hidden flex items-center gap-2">
           <motion.button
             onClick={toggle}
@@ -237,6 +358,7 @@ export function Navbar() {
         </div>
       </div>
 
+      {/* Mobile menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -252,7 +374,7 @@ export function Navbar() {
             }}
           >
             <div className="flex flex-col px-4 py-4 space-y-1">
-              {navItems.map((item, i) => (
+              {flatNavItems.map((item, i) => (
                 <motion.div
                   key={item.href}
                   initial={{ opacity: 0, x: -20 }}
@@ -269,8 +391,6 @@ export function Navbar() {
                           ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.25)" }
                           : item.momentsHighlight
                           ? { color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }
-                          : item.growthHighlight
-                          ? { color: "#10b981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }
                           : location === item.href
                           ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" }
                           : { color: "hsl(var(--primary))" }
@@ -282,6 +402,64 @@ export function Navbar() {
                   </Link>
                 </motion.div>
               ))}
+
+              {/* Mobile Resources group */}
+              <div className="pt-2 border-t border-border/40">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">Resources</p>
+                {resourcesItems.map((item, i) => (
+                  <motion.div
+                    key={item.href}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: (flatNavItems.length + i) * 0.04 }}
+                  >
+                    <Link href={item.href}>
+                      <div
+                        className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
+                        style={location === item.href ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" } : { color: "hsl(var(--primary))" }}
+                        onClick={() => setIsOpen(false)}
+                      >
+                        {item.label}
+                        <span className="block text-[11px] text-muted-foreground">{item.description}</span>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Mobile About group */}
+              <div className="pt-2 border-t border-border/40">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">About</p>
+                {aboutItems.map((item, i) => (
+                  <motion.div
+                    key={item.href}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: (flatNavItems.length + resourcesItems.length + i) * 0.04 }}
+                  >
+                    <Link href={item.href}>
+                      <div
+                        className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
+                        style={
+                          item.aiHighlight
+                            ? { color: "#8b5cf6" }
+                            : location === item.href
+                            ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" }
+                            : { color: "hsl(var(--primary))" }
+                        }
+                        onClick={() => setIsOpen(false)}
+                      >
+                        {item.label}
+                        <span className="block text-[11px] text-muted-foreground">{item.description}</span>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <LanguageSelector />
+              </div>
             </div>
           </motion.div>
         )}
