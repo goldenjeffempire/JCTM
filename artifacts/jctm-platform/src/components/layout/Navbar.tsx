@@ -10,13 +10,13 @@ const flatNavItems = [
   { href: "/", label: "Home" },
   { href: "/sermons", label: "Sermons" },
   { href: "/moments", label: "🎬 Moments", momentsHighlight: true },
-  { href: "/events", label: "Events" },
   { href: "/crusade", label: "🔥 Crusade", highlight: true },
   { href: "/prayer", label: "✦ Prayer", prayerHighlight: true },
 ];
 
 const resourcesItems = [
   { href: "/testimonies", label: "Testimonies", description: "Stories of God's faithfulness" },
+  { href: "/events", label: "Events", description: "Upcoming services & programmes" },
   { href: "/give", label: "Give", description: "Support the Correction Mandate" },
 ];
 
