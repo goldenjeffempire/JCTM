@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { Tv, MapPin, Phone, Mail } from "lucide-react";
+import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
 const VIEWING_CENTRES = [
   { name: "Bro Adeniyi David",                      location: "Lagos",            phone: "08051366325" },
@@ -70,21 +71,17 @@ export default function ViewingCentres() {
             </div>
             <div className="flex-1">
               <p className="font-bold text-primary mb-0.5">Headquarters — Ebrumede Temple</p>
-              <p className="text-sm text-muted-foreground">
-                Km 1 East West Road, Patani Expressway, Ebrumede Roundabout, Effurun, Delta State, Nigeria
-              </p>
+              <ChurchAddressBlock variant="short" className="text-sm text-muted-foreground" showIcon />
               <p className="text-sm text-muted-foreground mt-1">
                 Sunday Services · <span className="font-medium text-primary">8:00 AM WAT</span>
               </p>
             </div>
-            <a
-              href="https://maps.google.com/?q=Ebrumede+Roundabout,+Effurun,+Delta+State,+Nigeria"
-              target="_blank"
-              rel="noopener noreferrer"
+            <ChurchAddressBlock
+              variant="inline"
+              showIcon
+              label="Get Directions"
               className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-primary/20 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
-            >
-              <MapPin className="h-4 w-4" /> Get Directions
-            </a>
+            />
           </div>
 
           {/* Directory table */}

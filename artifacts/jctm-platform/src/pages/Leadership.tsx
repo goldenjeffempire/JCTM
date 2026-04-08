@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
+import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Shield, BookOpen, Globe, Award, Star, Mic2, ChevronRight, CheckCircle2, Youtube, ExternalLink } from "lucide-react";
@@ -298,7 +299,7 @@ export default function Leadership() {
                 </p>
                 <div className="pt-2">
                   <div className="text-sm font-medium text-foreground mb-1">📍 Physical Address</div>
-                  <div className="text-sm">Ebrumede, Warri, Delta State, Nigeria</div>
+                  <ChurchAddressBlock variant="full" className="text-sm text-muted-foreground" showIcon />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-foreground mb-1">📧 Contact</div>

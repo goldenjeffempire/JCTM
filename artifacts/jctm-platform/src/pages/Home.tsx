@@ -19,6 +19,7 @@ import {
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
@@ -1677,7 +1678,7 @@ function SundayServiceCard() {
 
             <div className="space-y-2 mb-5 text-sm text-white/75 flex-1">
               <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />8:00 AM WAT every Sunday</div>
-              <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><span className="leading-snug">Main Sanctuary, Ebrumede, Warri, Delta State</span></div>
+              <div className="flex items-start gap-2 text-white/75"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><ChurchAddressBlock variant="inline" className="leading-snug text-sm text-white/75" /></div>
             </div>
 
             <div className="bg-white/10 rounded-2xl p-3 mb-4 border border-white/10">

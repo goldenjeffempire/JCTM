@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Clock, Globe, MapPin, Radio, ChevronRight, Flame, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
+import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -309,7 +310,8 @@ export function GeoServiceTimes() {
       <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-primary/8">
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1">
           <MapPin className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-          <span>Ebrumede, Warri, Delta State, Nigeria · All are welcome</span>
+          <ChurchAddressBlock variant="inline" className="text-xs text-muted-foreground" />
+          <span className="text-muted-foreground">· All are welcome</span>
         </div>
         <Link href="/events">
           <button className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80 transition-colors whitespace-nowrap">

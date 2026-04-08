@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
+import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 const prophetAmosImg = "/founder/prophet-portrait.jpg";
 
 const DOCTRINES = [
@@ -227,13 +228,7 @@ export default function About() {
                   <MapPin className="h-4 w-4 text-accent shrink-0" />
                   <p className="font-semibold text-primary">Church Address</p>
                 </div>
-                <address className="not-italic space-y-0.5 leading-relaxed">
-                  <p>Jesus Christ Temple Ministry</p>
-                  <p>Km 1 East West Road,</p>
-                  <p>Patani Expressway,</p>
-                  <p>Ebrumede Roundabout, Effurun,</p>
-                  <p>Delta State, Nigeria</p>
-                </address>
+                <ChurchAddressBlock showIcon />
               </div>
 
               <div>

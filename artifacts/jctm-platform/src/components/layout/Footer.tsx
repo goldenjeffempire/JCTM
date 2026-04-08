@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Facebook, Youtube, Mail } from "lucide-react";
+import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
 const SOCIAL = [
   {
@@ -89,14 +90,10 @@ export function Footer() {
           {/* Location */}
           <div>
             <h4 className="font-bold mb-4">Location</h4>
-            <address className="not-italic text-muted-foreground space-y-1 text-sm leading-relaxed">
-              <p className="font-semibold text-primary">Jesus Christ Temple Ministry</p>
-              <p>Land of Good News</p>
-              <p>Km 1 East West Road,</p>
-              <p>Patani Expressway,</p>
-              <p>Ebrumede Roundabout, Effurun,</p>
-              <p>Delta State, Nigeria</p>
-            </address>
+            <ChurchAddressBlock
+              className="text-muted-foreground text-sm"
+              showIcon
+            />
 
             <div className="mt-6">
               <h4 className="font-bold mb-3">Contact</h4>
