@@ -132,7 +132,7 @@ This crusade is for every soul — whether you are saved, backslidden, or search
 
 INVITE OTHERS: Share this post. Print flyers. Call your unsaved friends and family. The King is coming, and not a soul should be left behind.
 
-"Watch therefore, for you know neither the day nor the hour." — Matthew 25:13
+"Watch therefore, for you know neither the day nor the hour in which the Son of Man is coming." — Matthew 25:13
 
 Subscribe to JCTM Digital Sanctuary for live crusade updates, sermons, and testimonies.
 

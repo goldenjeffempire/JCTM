@@ -31,9 +31,9 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const SCRIPTURES = [
   { verse: "\"The Bible Is Our Standard.\"", ref: "JCTM Core Mandate" },
-  { verse: "\"Sanctify them through thy truth: thy word is truth.\"", ref: "John 17:17" },
-  { verse: "\"Beloved, believe not every spirit, but try the spirits whether they are of God.\"", ref: "1 John 4:1" },
-  { verse: "\"Stand ye in the ways, and see, and ask for the old paths, where is the good way.\"", ref: "Jeremiah 6:16" },
+  { verse: "\"Sanctify them by Your truth. Your word is truth.\"", ref: "John 17:17" },
+  { verse: "\"Beloved, do not believe every spirit, but test the spirits, whether they are of God.\"", ref: "1 John 4:1" },
+  { verse: "\"Stand in the ways and see, and ask for the old paths, where the good way is.\"", ref: "Jeremiah 6:16" },
 ];
 
 const FALLBACK_TESTIMONIES = [
@@ -669,11 +669,11 @@ function PlatformBar() {
 // BENTO KNOWLEDGE HUB — Elite 5-tile layout
 // ═══════════════════════════════════════════════════════════════════════════
 const PROPHETIC_WORDS = [
-  { verse: "\"Stand ye in the ways, and see, and ask for the old paths, where is the good way, and walk therein.\"", ref: "Jeremiah 6:16" },
-  { verse: "\"Sanctify them through thy truth: thy word is truth.\"", ref: "John 17:17" },
-  { verse: "\"Contend earnestly for the faith which was once delivered unto the saints.\"", ref: "Jude 1:3" },
-  { verse: "\"Buy the truth, and sell it not; also wisdom, and instruction, and understanding.\"", ref: "Proverbs 23:23" },
-  { verse: "\"Follow peace with all men, and holiness, without which no man shall see the Lord.\"", ref: "Hebrews 12:14" },
+  { verse: "\"Stand in the ways and see, and ask for the old paths, where the good way is; and walk in it.\"", ref: "Jeremiah 6:16" },
+  { verse: "\"Sanctify them by Your truth. Your word is truth.\"", ref: "John 17:17" },
+  { verse: "\"Contend earnestly for the faith which was once for all delivered to the saints.\"", ref: "Jude 1:3" },
+  { verse: "\"Buy the truth, and do not sell it, also wisdom and instruction and understanding.\"", ref: "Proverbs 23:23" },
+  { verse: "\"Pursue peace with all people, and holiness, without which no one will see the Lord.\"", ref: "Hebrews 12:14" },
 ];
 
 function BentoGrid() {
@@ -1412,12 +1412,12 @@ function MinistryPillars() {
   const [open, setOpen] = useState<number | null>(null);
 
   const pillars = [
-    { icon: BookOpen, title: "The Bible Is Our Standard", desc: "Every doctrine, every practice, every correction is measured strictly against the Word of God. No tradition can override Scripture.", gradient: "from-blue-600 to-[#003366]", scripture: "\"All scripture is given by inspiration of God...\" — 2 Tim 3:16" },
+    { icon: BookOpen, title: "The Bible Is Our Standard", desc: "Every doctrine, every practice, every correction is measured strictly against the Word of God. No tradition can override Scripture.", gradient: "from-blue-600 to-[#003366]", scripture: "\"All Scripture is given by inspiration of God...\" — 2 Tim 3:16" },
     { icon: ShieldCheck, title: "Doctrinal Correction", desc: "Standing against false doctrines — prosperity gospel, prophetic manipulation, and spiritual abuse — restoring the apostolic standard.", gradient: "from-[#38BDF8] to-[#0284C7]", scripture: "\"Contend earnestly for the faith...\" — Jude 1:3" },
-    { icon: Flame, title: "Holiness & Purity", desc: "We preach genuine holiness of heart, mind, and conduct, as set forth in the New Testament and modelled by the early church.", gradient: "from-orange-500 to-red-600", scripture: "\"Follow peace with all men, and holiness...\" — Heb 12:14" },
-    { icon: Mic2, title: "Prophetic Ministry", desc: "Prophet Amos Evomobor operates under a verified prophetic anointing, bringing divine messages and confirmatory signs.", gradient: "from-purple-600 to-violet-800", scripture: "\"Believe his prophets, so shall ye prosper.\" — 2 Chr 20:20" },
-    { icon: Radio, title: "Temple TV Broadcasts", desc: "Live and recorded services streamed globally via Temple TV on YouTube — making the Correction Mandate accessible worldwide.", gradient: "from-red-500 to-rose-700", scripture: "\"Go ye into all the world...\" — Mark 16:15" },
-    { icon: Heart, title: "Community & Welfare", desc: "We care for our members and community through prayer, fellowship, counselling, and practical support in Christ's name.", gradient: "from-emerald-500 to-teal-700", scripture: "\"Bear ye one another's burdens...\" — Gal 6:2" },
+    { icon: Flame, title: "Holiness & Purity", desc: "We preach genuine holiness of heart, mind, and conduct, as set forth in the New Testament and modelled by the early church.", gradient: "from-orange-500 to-red-600", scripture: "\"Pursue peace with all people, and holiness...\" — Heb 12:14" },
+    { icon: Mic2, title: "Prophetic Ministry", desc: "Prophet Amos Evomobor operates under a verified prophetic anointing, bringing divine messages and confirmatory signs.", gradient: "from-purple-600 to-violet-800", scripture: "\"Believe His prophets, and you shall prosper.\" — 2 Chr 20:20" },
+    { icon: Radio, title: "Temple TV Broadcasts", desc: "Live and recorded services streamed globally via Temple TV on YouTube — making the Correction Mandate accessible worldwide.", gradient: "from-red-500 to-rose-700", scripture: "\"Go into all the world and preach the gospel...\" — Mark 16:15" },
+    { icon: Heart, title: "Community & Welfare", desc: "We care for our members and community through prayer, fellowship, counselling, and practical support in Christ's name.", gradient: "from-emerald-500 to-teal-700", scripture: "\"Bear one another's burdens...\" — Gal 6:2" },
   ];
 
   return (
@@ -1472,37 +1472,37 @@ function MinistryPillars() {
 // SCRIPTURE FEATURE — Daily Scripture section
 // ═══════════════════════════════════════════════════════════════════════════
 const DAILY_SCRIPTURES = [
-  { verse: "Stand ye in the ways, and see, and ask for the old paths, where is the good way, and walk therein.", ref: "Jeremiah 6:16" },
-  { verse: "Sanctify them through thy truth: thy word is truth.", ref: "John 17:17" },
-  { verse: "Contend earnestly for the faith which was once delivered unto the saints.", ref: "Jude 1:3" },
-  { verse: "Buy the truth, and sell it not; also wisdom, and instruction, and understanding.", ref: "Proverbs 23:23" },
-  { verse: "Follow peace with all men, and holiness, without which no man shall see the Lord.", ref: "Hebrews 12:14" },
-  { verse: "All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness.", ref: "2 Timothy 3:16" },
-  { verse: "Beloved, believe not every spirit, but try the spirits whether they are of God: because many false prophets are gone out into the world.", ref: "1 John 4:1" },
-  { verse: "Study to shew thyself approved unto God, a workman that needeth not to be ashamed, rightly dividing the word of truth.", ref: "2 Timothy 2:15" },
-  { verse: "Thus saith the LORD, Let not the wise man glory in his wisdom, neither let the mighty man glory in his might, let not the rich man glory in his riches: but let him that glorieth glory in this, that he understandeth and knoweth me.", ref: "Jeremiah 9:23–24" },
-  { verse: "For the time will come when they will not endure sound doctrine; but after their own lusts shall they heap to themselves teachers, having itching ears.", ref: "2 Timothy 4:3" },
-  { verse: "Preach the word; be instant in season, out of season; reprove, rebuke, exhort with all longsuffering and doctrine.", ref: "2 Timothy 4:2" },
-  { verse: "The entrance of thy words giveth light; it giveth understanding unto the simple.", ref: "Psalm 119:130" },
-  { verse: "Thy word is a lamp unto my feet, and a light unto my path.", ref: "Psalm 119:105" },
-  { verse: "Heaven and earth shall pass away, but my words shall not pass away.", ref: "Matthew 24:35" },
-  { verse: "If ye continue in my word, then are ye my disciples indeed; and ye shall know the truth, and the truth shall make you free.", ref: "John 8:31–32" },
-  { verse: "For I testify unto every man that heareth the words of the prophecy of this book, if any man shall add unto these things, God shall add unto him the plagues that are written in this book.", ref: "Revelation 22:18" },
-  { verse: "To the law and to the testimony: if they speak not according to this word, it is because there is no light in them.", ref: "Isaiah 8:20" },
-  { verse: "Beware of false prophets, which come to you in sheep's clothing, but inwardly they are ravening wolves.", ref: "Matthew 7:15" },
-  { verse: "Now I beseech you, brethren, mark them which cause divisions and offences contrary to the doctrine which ye have learned; and avoid them.", ref: "Romans 16:17" },
-  { verse: "But though we, or an angel from heaven, preach any other gospel unto you than that which we have preached unto you, let him be accursed.", ref: "Galatians 1:8" },
-  { verse: "Prove all things; hold fast that which is good.", ref: "1 Thessalonians 5:21" },
-  { verse: "Not every one that saith unto me, Lord, Lord, shall enter into the kingdom of heaven; but he that doeth the will of my Father which is in heaven.", ref: "Matthew 7:21" },
-  { verse: "For there shall arise false Christs, and false prophets, and shall shew great signs and wonders; insomuch that, if it were possible, they shall deceive the very elect.", ref: "Matthew 24:24" },
-  { verse: "But speak thou the things which become sound doctrine.", ref: "Titus 2:1" },
-  { verse: "Holding fast the faithful word as he hath been taught, that he may be able by sound doctrine both to exhort and to convince the gainsayers.", ref: "Titus 1:9" },
-  { verse: "So shall my word be that goeth forth out of my mouth: it shall not return unto me void, but it shall accomplish that which I please.", ref: "Isaiah 55:11" },
-  { verse: "The grass withereth, the flower fadeth: but the word of our God shall stand for ever.", ref: "Isaiah 40:8" },
-  { verse: "For the word of God is quick, and powerful, and sharper than any twoedged sword.", ref: "Hebrews 4:12" },
-  { verse: "Man shall not live by bread alone, but by every word that proceedeth out of the mouth of God.", ref: "Matthew 4:4" },
-  { verse: "Let the word of Christ dwell in you richly in all wisdom; teaching and admonishing one another in psalms and hymns and spiritual songs.", ref: "Colossians 3:16" },
-  { verse: "Ye shall not add unto the word which I command you, neither shall ye diminish ought from it.", ref: "Deuteronomy 4:2" },
+  { verse: "Stand in the ways and see, and ask for the old paths, where the good way is; and walk in it.", ref: "Jeremiah 6:16" },
+  { verse: "Sanctify them by Your truth. Your word is truth.", ref: "John 17:17" },
+  { verse: "Contend earnestly for the faith which was once for all delivered to the saints.", ref: "Jude 1:3" },
+  { verse: "Buy the truth, and do not sell it, also wisdom and instruction and understanding.", ref: "Proverbs 23:23" },
+  { verse: "Pursue peace with all people, and holiness, without which no one will see the Lord.", ref: "Hebrews 12:14" },
+  { verse: "All Scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness.", ref: "2 Timothy 3:16" },
+  { verse: "Beloved, do not believe every spirit, but test the spirits, whether they are of God; because many false prophets have gone out into the world.", ref: "1 John 4:1" },
+  { verse: "Be diligent to present yourself approved to God, a worker who does not need to be ashamed, rightly dividing the word of truth.", ref: "2 Timothy 2:15" },
+  { verse: "Thus says the Lord: \"Let not the wise man glory in his wisdom, let not the mighty man glory in his might, nor let the rich man glory in his riches; but let him who glories glory in this, that he understands and knows Me.\"", ref: "Jeremiah 9:23–24" },
+  { verse: "For the time will come when they will not endure sound doctrine, but according to their own desires, because they have itching ears, they will heap up for themselves teachers.", ref: "2 Timothy 4:3" },
+  { verse: "Preach the word! Be ready in season and out of season. Convince, rebuke, exhort, with all longsuffering and teaching.", ref: "2 Timothy 4:2" },
+  { verse: "The entrance of Your words gives light; it gives understanding to the simple.", ref: "Psalm 119:130" },
+  { verse: "Your word is a lamp to my feet and a light to my path.", ref: "Psalm 119:105" },
+  { verse: "Heaven and earth will pass away, but My words will by no means pass away.", ref: "Matthew 24:35" },
+  { verse: "If you abide in My word, you are My disciples indeed. And you shall know the truth, and the truth shall make you free.", ref: "John 8:31–32" },
+  { verse: "For I testify to everyone who hears the words of the prophecy of this book: If anyone adds to these things, God will add to him the plagues that are written in this book.", ref: "Revelation 22:18" },
+  { verse: "To the law and to the testimony! If they do not speak according to this word, it is because there is no light in them.", ref: "Isaiah 8:20" },
+  { verse: "Beware of false prophets, who come to you in sheep's clothing, but inwardly they are ravenous wolves.", ref: "Matthew 7:15" },
+  { verse: "Now I urge you, brethren, note those who cause divisions and offenses, contrary to the doctrine which you learned, and avoid them.", ref: "Romans 16:17" },
+  { verse: "But even if we, or an angel from heaven, preach any other gospel to you than what we have preached to you, let him be accursed.", ref: "Galatians 1:8" },
+  { verse: "Test all things; hold fast what is good.", ref: "1 Thessalonians 5:21" },
+  { verse: "Not everyone who says to Me, 'Lord, Lord,' shall enter the kingdom of heaven, but he who does the will of My Father in heaven.", ref: "Matthew 7:21" },
+  { verse: "For false christs and false prophets will rise and show great signs and wonders to deceive, if possible, even the elect.", ref: "Matthew 24:24" },
+  { verse: "But as for you, speak the things which are proper for sound doctrine.", ref: "Titus 2:1" },
+  { verse: "Holding fast the faithful word as he has been taught, that he may be able, by sound doctrine, both to exhort and convict those who contradict.", ref: "Titus 1:9" },
+  { verse: "So shall My word be that goes forth from My mouth; it shall not return to Me void, but it shall accomplish what I please.", ref: "Isaiah 55:11" },
+  { verse: "The grass withers, the flower fades, but the word of our God stands forever.", ref: "Isaiah 40:8" },
+  { verse: "For the word of God is living and powerful, and sharper than any two-edged sword.", ref: "Hebrews 4:12" },
+  { verse: "Man shall not live by bread alone, but by every word that proceeds from the mouth of God.", ref: "Matthew 4:4" },
+  { verse: "Let the word of Christ dwell in you richly in all wisdom, teaching and admonishing one another in psalms and hymns and spiritual songs.", ref: "Colossians 3:16" },
+  { verse: "You shall not add to the word which I command you, nor take from it.", ref: "Deuteronomy 4:2" },
 ];
 
 function getDailyScripture() {

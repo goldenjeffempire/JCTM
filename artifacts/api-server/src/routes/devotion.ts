@@ -77,7 +77,7 @@ Return ONLY the raw JSON object, no markdown, no code blocks.`,
       devotion = {
         date: today,
         title: "Walk in the Light of His Word",
-        scripture: "Thy word is a lamp unto my feet, and a light unto my path.",
+        scripture: "Your word is a lamp to my feet and a light to my path.",
         reference: "Psalm 119:105",
         reflection: "The Word of God is not merely a book — it is a living lamp that illuminates every step of our journey. In seasons of confusion, uncertainty, or spiritual warfare, the believer's anchor remains the unchanging truth of Scripture. Prophet Amos Evomobor often teaches that the Correction Mandate begins with returning to the Word — not tradition, not emotion, but the pure, uncompromised Word of God.\n\nToday, let this verse be more than a memory verse. Let it be a practice. Before making decisions, open the Word. Before speaking words of doubt, speak the Word. Before surrendering to fear, stand on the promises of God. His Word is a lamp — it gives light proportional to your need, one step at a time.\n\nWalk faithfully today. The path may be narrow, but it is lit by eternal truth.",
         prayerFocus: "Lord, illuminate my path today with Your Word. Let every decision I make be guided by Scripture, not by my own understanding.",
