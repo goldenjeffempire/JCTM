@@ -584,9 +584,11 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
       </div>
 
       <div className="p-4">
-        <h3 className="font-semibold text-primary text-sm leading-snug mb-1 line-clamp-2">
-          {sermon.title}
-        </h3>
+        <Link href={`/sermons/${sermon.id}`}>
+          <h3 className="font-semibold text-primary text-sm leading-snug mb-1 line-clamp-2 hover:text-accent transition-colors cursor-pointer">
+            {sermon.title}
+          </h3>
+        </Link>
         <div className="flex items-center justify-between mt-1">
           <p className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}

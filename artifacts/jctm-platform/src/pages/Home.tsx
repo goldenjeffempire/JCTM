@@ -1402,7 +1402,9 @@ function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
         )}
       </div>
       <div className="p-4">
-        <p className="text-primary font-semibold text-sm line-clamp-2 leading-snug mb-2">{s.title}</p>
+        <Link href={`/sermons/${s.id}`}>
+          <p className="text-primary font-semibold text-sm line-clamp-2 leading-snug mb-2 hover:text-accent transition-colors cursor-pointer">{s.title}</p>
+        </Link>
         <p className="text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(s.publishedAt), { addSuffix: true })}</p>
       </div>
     </motion.div>
