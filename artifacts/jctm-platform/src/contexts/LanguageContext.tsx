@@ -4,24 +4,76 @@ import { uiString } from "@/i18n/ui";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export const LANGUAGES: Record<string, { name: string; nativeName: string; flag: string }> = {
-  en: { name: "English",    nativeName: "English",           flag: "🇬🇧" },
-  yo: { name: "Yoruba",     nativeName: "Yorùbá",            flag: "🇳🇬" },
-  ig: { name: "Igbo",       nativeName: "Igbo",              flag: "🇳🇬" },
-  ha: { name: "Hausa",      nativeName: "Hausa",             flag: "🇳🇬" },
-  fr: { name: "French",     nativeName: "Français",          flag: "🇫🇷" },
-  es: { name: "Spanish",    nativeName: "Español",           flag: "🇪🇸" },
-  pt: { name: "Portuguese", nativeName: "Português",         flag: "🇵🇹" },
-  de: { name: "German",     nativeName: "Deutsch",           flag: "🇩🇪" },
-  ar: { name: "Arabic",     nativeName: "العربية",           flag: "🇸🇦" },
-  zh: { name: "Chinese",    nativeName: "中文",               flag: "🇨🇳" },
-  hi: { name: "Hindi",      nativeName: "हिन्दी",            flag: "🇮🇳" },
-  sw: { name: "Swahili",    nativeName: "Kiswahili",         flag: "🇰🇪" },
-  ru: { name: "Russian",    nativeName: "Русский",           flag: "🇷🇺" },
-  it: { name: "Italian",    nativeName: "Italiano",          flag: "🇮🇹" },
-  ko: { name: "Korean",     nativeName: "한국어",             flag: "🇰🇷" },
-  ja: { name: "Japanese",   nativeName: "日本語",             flag: "🇯🇵" },
-  id: { name: "Indonesian", nativeName: "Bahasa Indonesia",  flag: "🇮🇩" },
+  // ── Major global languages ─────────────────────────────
+  en: { name: "English",       nativeName: "English",           flag: "🇬🇧" },
+  fr: { name: "French",        nativeName: "Français",          flag: "🇫🇷" },
+  es: { name: "Spanish",       nativeName: "Español",           flag: "🇪🇸" },
+  pt: { name: "Portuguese",    nativeName: "Português",         flag: "🇵🇹" },
+  de: { name: "German",        nativeName: "Deutsch",           flag: "🇩🇪" },
+  it: { name: "Italian",       nativeName: "Italiano",          flag: "🇮🇹" },
+  ru: { name: "Russian",       nativeName: "Русский",           flag: "🇷🇺" },
+  zh: { name: "Chinese",       nativeName: "中文",               flag: "🇨🇳" },
+  ja: { name: "Japanese",      nativeName: "日本語",             flag: "🇯🇵" },
+  ko: { name: "Korean",        nativeName: "한국어",             flag: "🇰🇷" },
+  ar: { name: "Arabic",        nativeName: "العربية",           flag: "🇸🇦" },
+  hi: { name: "Hindi",         nativeName: "हिन्दी",            flag: "🇮🇳" },
+  // ── Nigerian languages ─────────────────────────────────
+  yo: { name: "Yoruba",        nativeName: "Yorùbá",            flag: "🇳🇬" },
+  ig: { name: "Igbo",          nativeName: "Igbo",              flag: "🇳🇬" },
+  ha: { name: "Hausa",         flag: "🇳🇬",                     nativeName: "Hausa" },
+  // ── African languages ──────────────────────────────────
+  sw: { name: "Swahili",       nativeName: "Kiswahili",         flag: "🇰🇪" },
+  am: { name: "Amharic",       nativeName: "አማርኛ",             flag: "🇪🇹" },
+  so: { name: "Somali",        nativeName: "Soomaali",          flag: "🇸🇴" },
+  zu: { name: "Zulu",          nativeName: "isiZulu",           flag: "🇿🇦" },
+  xh: { name: "Xhosa",        nativeName: "isiXhosa",          flag: "🇿🇦" },
+  sn: { name: "Shona",        nativeName: "Shona",             flag: "🇿🇼" },
+  rw: { name: "Kinyarwanda",  nativeName: "Kinyarwanda",       flag: "🇷🇼" },
+  lg: { name: "Luganda",      nativeName: "Luganda",           flag: "🇺🇬" },
+  ny: { name: "Chichewa",     nativeName: "Chichewa",          flag: "🇲🇼" },
+  st: { name: "Sesotho",      nativeName: "Sesotho",           flag: "🇱🇸" },
+  mg: { name: "Malagasy",     nativeName: "Malagasy",          flag: "🇲🇬" },
+  // ── South & Southeast Asia ────────────────────────────
+  id: { name: "Indonesian",   nativeName: "Bahasa Indonesia",  flag: "🇮🇩" },
+  ms: { name: "Malay",        nativeName: "Bahasa Melayu",     flag: "🇲🇾" },
+  tl: { name: "Filipino",     nativeName: "Filipino",          flag: "🇵🇭" },
+  bn: { name: "Bengali",      nativeName: "বাংলা",             flag: "🇧🇩" },
+  ur: { name: "Urdu",         nativeName: "اردو",              flag: "🇵🇰" },
+  ta: { name: "Tamil",        nativeName: "தமிழ்",             flag: "🇮🇳" },
+  te: { name: "Telugu",       nativeName: "తెలుగు",            flag: "🇮🇳" },
+  mr: { name: "Marathi",      nativeName: "मराठी",             flag: "🇮🇳" },
+  vi: { name: "Vietnamese",   nativeName: "Tiếng Việt",        flag: "🇻🇳" },
+  th: { name: "Thai",         nativeName: "ภาษาไทย",           flag: "🇹🇭" },
+  km: { name: "Khmer",        nativeName: "ភាសាខ្មែរ",          flag: "🇰🇭" },
+  lo: { name: "Lao",          nativeName: "ລາວ",               flag: "🇱🇦" },
+  my: { name: "Burmese",      nativeName: "မြန်မာဘာသာ",        flag: "🇲🇲" },
+  // ── European languages ────────────────────────────────
+  nl: { name: "Dutch",        nativeName: "Nederlands",        flag: "🇳🇱" },
+  tr: { name: "Turkish",      nativeName: "Türkçe",            flag: "🇹🇷" },
+  pl: { name: "Polish",       nativeName: "Polski",            flag: "🇵🇱" },
+  ro: { name: "Romanian",     nativeName: "Română",            flag: "🇷🇴" },
+  hu: { name: "Hungarian",    nativeName: "Magyar",            flag: "🇭🇺" },
+  cs: { name: "Czech",        nativeName: "Čeština",           flag: "🇨🇿" },
+  sv: { name: "Swedish",      nativeName: "Svenska",           flag: "🇸🇪" },
+  da: { name: "Danish",       nativeName: "Dansk",             flag: "🇩🇰" },
+  fi: { name: "Finnish",      nativeName: "Suomi",             flag: "🇫🇮" },
+  no: { name: "Norwegian",    nativeName: "Norsk",             flag: "🇳🇴" },
+  uk: { name: "Ukrainian",    nativeName: "Українська",        flag: "🇺🇦" },
+  el: { name: "Greek",        nativeName: "Ελληνικά",          flag: "🇬🇷" },
+  bg: { name: "Bulgarian",    nativeName: "Български",         flag: "🇧🇬" },
+  sr: { name: "Serbian",      nativeName: "Српски",            flag: "🇷🇸" },
+  // ── Middle East & Central Asia ───────────────────────
+  fa: { name: "Persian",      nativeName: "فارسی",             flag: "🇮🇷" },
+  he: { name: "Hebrew",       nativeName: "עברית",             flag: "🇮🇱" },
+  ka: { name: "Georgian",     nativeName: "ქართული",           flag: "🇬🇪" },
+  hy: { name: "Armenian",     nativeName: "Հայերեն",           flag: "🇦🇲" },
+  az: { name: "Azerbaijani",  nativeName: "Azərbaycan",        flag: "🇦🇿" },
+  kk: { name: "Kazakh",       nativeName: "Қазақша",           flag: "🇰🇿" },
+  uz: { name: "Uzbek",        nativeName: "O'zbek",            flag: "🇺🇿" },
 };
+
+// Languages that use right-to-left script
+export const RTL_LANGUAGES = new Set(["ar", "ur", "fa", "he"]);
 
 interface LanguageContextValue {
   language: string;
@@ -47,14 +99,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const handleSetLanguage = useCallback((lang: string) => {
     setLanguage(lang);
     localStorage.setItem("jctm-language", lang);
-    // Set dir attribute for RTL languages
-    document.documentElement.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+    document.documentElement.setAttribute("dir", RTL_LANGUAGES.has(lang) ? "rtl" : "ltr");
     document.documentElement.setAttribute("lang", lang);
   }, []);
 
   // Apply dir/lang on mount
   useEffect(() => {
-    document.documentElement.setAttribute("dir", language === "ar" ? "rtl" : "ltr");
+    document.documentElement.setAttribute("dir", RTL_LANGUAGES.has(language) ? "rtl" : "ltr");
     document.documentElement.setAttribute("lang", language);
   }, [language]);
 

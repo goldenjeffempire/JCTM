@@ -1,13 +1,30 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Globe, Check, Loader2, ChevronDown } from "lucide-react";
+import { Globe, Check, Loader2, ChevronDown, Search } from "lucide-react";
 import { useLanguage, LANGUAGES } from "@/contexts/LanguageContext";
 
 export function LanguageSelector() {
   const { language, setLanguage, isTranslating, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const current = LANGUAGES[language] ?? LANGUAGES.en;
+
+  const filtered = query.trim()
+    ? Object.entries(LANGUAGES).filter(([code, lang]) =>
+        lang.name.toLowerCase().includes(query.toLowerCase()) ||
+        lang.nativeName.toLowerCase().includes(query.toLowerCase()) ||
+        code.toLowerCase().includes(query.toLowerCase())
+      )
+    : Object.entries(LANGUAGES);
+
+  useEffect(() => {
+    if (isOpen) {
+      setQuery("");
+      setTimeout(() => searchRef.current?.focus(), 80);
+    }
+  }, [isOpen]);
 
   return (
     <div className="relative">
@@ -35,31 +52,49 @@ export function LanguageSelector() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-1 z-50 glass-panel border border-border rounded-2xl shadow-xl overflow-hidden"
-              style={{ width: "220px", maxHeight: "380px", overflowY: "auto" }}
+              className="absolute right-0 top-full mt-1 z-50 glass-panel border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col"
+              style={{ width: "240px", maxHeight: "420px" }}
             >
-              <div className="p-2">
-                <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5 border-b border-border mb-1">
-                  {t("Select Language")}
+              {/* Search bar */}
+              <div className="p-2 border-b border-border shrink-0">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-muted/50 border border-border">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Search languages…"
+                    className="text-xs bg-transparent outline-none w-full text-foreground placeholder:text-muted-foreground/60"
+                  />
                 </div>
-                {Object.entries(LANGUAGES).map(([code, lang]) => (
-                  <button
-                    key={code}
-                    onClick={() => { setLanguage(code); setIsOpen(false); }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-muted/60 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{lang.flag}</span>
-                      <div>
-                        <div className="font-medium text-foreground">{lang.nativeName}</div>
-                        <div className="text-xs text-muted-foreground">{lang.name}</div>
-                      </div>
-                    </div>
-                    {language === code && <Check className="w-4 h-4 text-sky-500" />}
-                  </button>
-                ))}
               </div>
-              <div className="px-3 py-2 border-t border-border">
+
+              {/* Language list */}
+              <div className="overflow-y-auto flex-1 p-1.5">
+                {filtered.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No languages found</p>
+                ) : (
+                  filtered.map(([code, lang]) => (
+                    <button
+                      key={code}
+                      onClick={() => { setLanguage(code); setIsOpen(false); }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-muted/60 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="shrink-0">{lang.flag}</span>
+                        <div className="min-w-0">
+                          <div className="font-medium text-foreground text-xs truncate">{lang.nativeName}</div>
+                          <div className="text-[10px] text-muted-foreground">{lang.name}</div>
+                        </div>
+                      </div>
+                      {language === code && <Check className="w-3.5 h-3.5 text-sky-500 shrink-0 ml-1" />}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-3 py-2 border-t border-border shrink-0">
                 <p className="text-[10px] text-muted-foreground text-center">
                   {t("50+ languages via AI translation")}
                 </p>

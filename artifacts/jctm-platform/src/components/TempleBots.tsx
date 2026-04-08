@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { useLocation } from "wouter";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const STREAM_URL = `${BASE}/api/chat/stream`;
@@ -82,6 +83,7 @@ type HistoryEntry = { role: "user" | "assistant"; content: string };
 
 export function TempleBots() {
   const [location] = useLocation();
+  const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -223,6 +225,7 @@ export function TempleBots() {
           message: text,
           sessionId,
           history: historyRef.current,
+          language,
         }),
         signal: controller.signal,
       });
@@ -317,7 +320,7 @@ export function TempleBots() {
     } finally {
       setIsStreaming(false);
     }
-  }, [isStreaming, sessionId]);
+  }, [isStreaming, sessionId, language]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();

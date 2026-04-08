@@ -399,11 +399,27 @@ function extractSources(text: string): string[] {
   return matches ? Array.from(new Set<string>(matches)) : [];
 }
 
+const SUPPORTED_LANGUAGE_NAMES: Record<string, string> = {
+  en: "English", yo: "Yoruba", ig: "Igbo", ha: "Hausa", fr: "French",
+  es: "Spanish", pt: "Portuguese", de: "German", ar: "Arabic", zh: "Chinese (Simplified)",
+  hi: "Hindi", sw: "Swahili", ru: "Russian", it: "Italian", nl: "Dutch",
+  ko: "Korean", ja: "Japanese", tr: "Turkish", pl: "Polish", vi: "Vietnamese",
+  id: "Indonesian", th: "Thai", ro: "Romanian", hu: "Hungarian", cs: "Czech",
+  sv: "Swedish", da: "Danish", fi: "Finnish", no: "Norwegian", uk: "Ukrainian",
+  ur: "Urdu", bn: "Bengali", ta: "Tamil", te: "Telugu", mr: "Marathi",
+  am: "Amharic", so: "Somali", zu: "Zulu", xh: "Xhosa", sn: "Shona",
+  rw: "Kinyarwanda", lg: "Luganda", ny: "Chichewa", st: "Sesotho", mg: "Malagasy",
+  ms: "Malay", tl: "Filipino", km: "Khmer", lo: "Lao", my: "Burmese",
+  ka: "Georgian", az: "Azerbaijani", kk: "Kazakh", uz: "Uzbek", hy: "Armenian",
+  he: "Hebrew", fa: "Persian", el: "Greek", bg: "Bulgarian", sr: "Serbian",
+};
+
 // ── Build messages array ───────────────────────────────────────────────────────
 async function buildMessages(
   userMessage: string,
   clientHistory: Array<{ role: "user" | "assistant"; content: string }>,
   sessionId: string | undefined,
+  language = "en",
 ): Promise<{
   msgs: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   conversationId: number;
@@ -414,7 +430,12 @@ async function buildMessages(
     getOrCreateConversation(sessionId),
   ]);
 
-  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + sermonContext + ragContext;
+  const langName = SUPPORTED_LANGUAGE_NAMES[language] ?? "English";
+  const languageInstruction = language !== "en"
+    ? `\n\nLANGUAGE INSTRUCTION: The user's preferred language is ${langName}. You MUST respond entirely in ${langName}. Do not mix languages. Preserve all scripture references, ministry names (JCTM, Temple TV), and proper nouns (Prophet Amos Evomobor) in their original form.`
+    : "";
+
+  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + languageInstruction + sermonContext + ragContext;
 
   // Prefer DB history; fall back to client-sent history
   const dbHistory = await loadConversationHistory(conversationId, 20);
@@ -444,6 +465,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   }
 
   const { message, sessionId, history = [] } = parsed.data;
+  const language = typeof req.body?.language === "string" ? req.body.language : "en";
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
 
@@ -452,6 +474,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       message,
       history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       sessionId,
+      language,
     );
 
     const completion = await openai.chat.completions.create(
@@ -512,6 +535,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
   }
 
   const { message, sessionId, history = [] } = parsed.data;
+  const language = typeof req.body?.language === "string" ? req.body.language : "en";
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -532,6 +556,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
       message,
       history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       sessionId,
+      language,
     );
 
     const stream = await openai.chat.completions.create(
