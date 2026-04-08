@@ -75,6 +75,7 @@ export default function Sermons() {
   const [isHarvesting, setIsHarvesting] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
   const [livePlaying, setLivePlaying] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { quality, toggle: toggleQuality } = useStreamQuality();
@@ -286,7 +287,7 @@ export default function Sermons() {
                 </span>
                 <Button
                   size="sm"
-                  onClick={() => setLivePlaying(p => !p)}
+                  onClick={() => { setLivePlaying(p => !p); setPlayingId(null); }}
                   className={`ml-auto rounded-full text-xs gap-1 ${livePlaying ? "bg-gray-500 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600"} text-white`}
                 >
                   {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Join Live</>}
@@ -443,7 +444,14 @@ export default function Sermons() {
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
                 >
                   {filteredSermons.map((sermon, i) => (
-                    <SermonCard key={sermon.id} sermon={sermon} index={i} />
+                    <SermonCard
+                      key={sermon.id}
+                      sermon={sermon}
+                      index={i}
+                      playingId={playingId}
+                      onPlay={(id) => { setPlayingId(id); setLivePlaying(false); }}
+                      onClose={() => setPlayingId(null)}
+                    />
                   ))}
                 </motion.div>
               </AnimatePresence>
@@ -470,9 +478,15 @@ export default function Sermons() {
   );
 }
 
-function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
+function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
+  sermon: SermonItem;
+  index: number;
+  playingId: string | null;
+  onPlay: (id: string) => void;
+  onClose: () => void;
+}) {
   const [audioMode, setAudioMode] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const playing = playingId === sermon.videoId;
 
   return (
     <motion.div
@@ -498,7 +512,7 @@ function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
               title={sermon.title}
             />
             <button
-              onClick={() => setPlaying(false)}
+              onClick={() => onClose()}
               className="absolute top-2 right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 transition-colors"
               title="Close player"
             >
@@ -547,7 +561,7 @@ function SermonCard({ sermon, index }: { sermon: SermonItem; index: number }) {
             <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
               <Button
                 size="sm"
-                onClick={() => setPlaying(true)}
+                onClick={() => onPlay(sermon.videoId)}
                 className={`${
                   sermon.isLive ? "bg-red-500 hover:bg-red-600" : "bg-accent hover:bg-accent/90"
                 } text-white rounded-full text-xs gap-1`}

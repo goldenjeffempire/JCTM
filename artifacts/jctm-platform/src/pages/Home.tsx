@@ -1355,8 +1355,14 @@ function SermonSpotlight() {
 // ═══════════════════════════════════════════════════════════════════════════
 type RecentSermon = { id: number; videoId: string; title: string; thumbnailUrl: string; publishedAt: string; isFeatured?: boolean; isLive?: boolean };
 
-function RecentSermonCard({ sermon: s, index: i }: { sermon: RecentSermon; index: number }) {
-  const [playing, setPlaying] = useState(false);
+function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
+  sermon: RecentSermon;
+  index: number;
+  playingId: string | null;
+  onPlay: (id: string) => void;
+  onClose: () => void;
+}) {
+  const playing = playingId === s.videoId;
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -1374,7 +1380,7 @@ function RecentSermonCard({ sermon: s, index: i }: { sermon: RecentSermon; index
               title={s.title}
             />
             <button
-              onClick={() => setPlaying(false)}
+              onClick={() => onClose()}
               className="absolute top-2 right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 transition-colors"
             >
               <X className="h-3 w-3" />
@@ -1387,7 +1393,7 @@ function RecentSermonCard({ sermon: s, index: i }: { sermon: RecentSermon; index
             {s.isLive && <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full"><span className="h-1.5 w-1.5 bg-white rounded-full animate-ping inline-block" />LIVE</div>}
             {!s.isLive && s.isFeatured && <div className="absolute top-2 left-2 flex items-center gap-1 bg-accent text-white text-[9px] font-bold px-2 py-0.5 rounded-full"><Star className="h-2.5 w-2.5 fill-white" />Featured</div>}
             <button
-              onClick={() => setPlaying(true)}
+              onClick={() => onPlay(s.videoId)}
               className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-accent/90 hover:bg-accent flex items-center justify-center transition-all shadow-lg"
             >
               <Play className="h-4 w-4 text-white fill-white ml-0.5" />
@@ -1406,6 +1412,7 @@ function RecentSermonCard({ sermon: s, index: i }: { sermon: RecentSermon; index
 function RecentSermonsCarousel() {
   const [sermons, setSermons] = useState<{ id: number; videoId: string; title: string; thumbnailUrl: string; publishedAt: string; isFeatured?: boolean; isLive?: boolean; }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   useEffect(() => {
     fetch(`${BASE}/api/sermons?limit=12&offset=0`).then(r => r.json())
       .then(d => { setSermons(Array.isArray(d) ? d : []); setIsLoading(false); })
@@ -1431,7 +1438,14 @@ function RecentSermonsCarousel() {
         ) : (
           <div className="flex gap-5 overflow-x-auto pb-4 px-4 md:px-[calc((100vw-1280px)/2+1rem)] scrollbar-hide snap-x snap-mandatory">
             {sermons.map((s, i) => (
-              <RecentSermonCard key={s.id} sermon={s} index={i} />
+              <RecentSermonCard
+                key={s.id}
+                sermon={s}
+                index={i}
+                playingId={playingId}
+                onPlay={(id) => setPlayingId(id)}
+                onClose={() => setPlayingId(null)}
+              />
             ))}
           </div>
         )}
