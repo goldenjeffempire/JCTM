@@ -51,10 +51,26 @@ function MomentCard({
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
   const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Set volume to maximum once the iframe player is ready
+  const handleIframeLoad = () => {
+    const trySetVolume = (attempt: number) => {
+      if (!iframeRef.current) return;
+      iframeRef.current.contentWindow?.postMessage(
+        JSON.stringify({ event: "command", func: "setVolume", args: [100] }),
+        "*",
+      );
+      // Retry a few times — the player may not be ready immediately
+      if (attempt < 5) setTimeout(() => trySetVolume(attempt + 1), 800);
+    };
+    setTimeout(() => trySetVolume(0), 500);
+  };
+
   // Muted param reflects live toggle; key change forces iframe reload with new mute state
   const embedSrc =
     `https://www.youtube.com/embed/${moment.videoId}` +
-    `?autoplay=1&mute=${muted ? 1 : 0}&rel=0&modestbranding=1&playsinline=1`;
+    `?autoplay=1&mute=${muted ? 1 : 0}&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
 
   const handleShare = async () => {
     const shareData = { title: moment.title, text: `Watch: ${moment.title}`, url: ytUrl };
@@ -79,11 +95,13 @@ function MomentCard({
       <div className="absolute inset-0 z-0 rounded-3xl overflow-hidden bg-black">
         <iframe
           key={`${moment.videoId}-${muted}`}
+          ref={iframeRef}
           src={embedSrc}
           title={moment.title}
           className="w-full h-full border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          onLoad={handleIframeLoad}
         />
         {/* Bottom gradient so text stays legible over the video */}
         <div
