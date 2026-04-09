@@ -1022,44 +1022,38 @@ function TestimoniesMarquee() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PROPHET SECTION — Cinematic dual-photo editorial layout with interactive gallery
 // ═══════════════════════════════════════════════════════════════════════════
+const FOUNDER_PHOTOS = [
+  { key: "photo1", src: "/founder/DSC_0615.jpg", label: "Photo 1" },
+  { key: "photo2", src: "/founder/DSC_0649.jpg", label: "Photo 2" },
+  { key: "photo3", src: "/founder/DSC1657.jpg", label: "Photo 3" },
+  { key: "photo4", src: "/founder/DSC1671.jpg", label: "Photo 4" },
+  { key: "photo5", src: "/founder/DSC1743.jpg", label: "Photo 5" },
+  { key: "photo6", src: "/founder/DSC1774.jpg", label: "Photo 6" },
+];
+
 function ProphetSection() {
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { once: true, margin: "-10%" });
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const yImg = useTransform(scrollYProgress, [0, 1], [-30, 30]);
   const yImg2 = useTransform(scrollYProgress, [0, 1], [20, -20]);
-  const founderPhotos = [
-    { key: "photo1", src: "/founder/DSC_0615.jpg", label: "Photo 1" },
-    { key: "photo2", src: "/founder/DSC_0649.jpg", label: "Photo 2" },
-    { key: "photo3", src: "/founder/DSC1657.jpg", label: "Photo 3" },
-    { key: "photo4", src: "/founder/DSC1671.jpg", label: "Photo 4" },
-    { key: "photo5", src: "/founder/DSC1743.jpg", label: "Photo 5" },
-    { key: "photo6", src: "/founder/DSC1774.jpg", label: "Photo 6" },
-  ];
-  const [activePhoto, setActivePhoto] = useState("photo1");
+
+  const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-advance slideshow — cycles non-stop every 3 s
-  const startSlideshow = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      setActivePhoto(current => {
-        const idx = founderPhotos.findIndex(p => p.key === current);
-        return founderPhotos[(idx + 1) % founderPhotos.length]!.key;
-      });
-    }, 3000);
-  }, [founderPhotos]);
-
+  // Auto-advance: runs every 3 s, fully independent of renders
   useEffect(() => {
-    if (!isPaused) startSlideshow();
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isPaused, startSlideshow]);
+    if (isPaused) return;
+    const id = setInterval(() => {
+      setActiveIdx(i => (i + 1) % FOUNDER_PHOTOS.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isPaused]);
 
-  const handleThumbClick = (key: string) => {
-    setActivePhoto(key);
-    // Restart timer from this photo so it doesn't jump immediately
-    startSlideshow();
+  const activePhoto = FOUNDER_PHOTOS[activeIdx]!;
+
+  const handleThumbClick = (idx: number) => {
+    setActiveIdx(idx);
   };
 
   const credentials = [
@@ -1084,13 +1078,15 @@ function ProphetSection() {
           {/* Background base photo */}
           <motion.div style={{ y: yImg }} className="absolute inset-0 scale-110">
             <AnimatePresence mode="wait">
-              {founderPhotos.map((photo) =>
-                activePhoto === photo.key ? (
-                  <motion.img key={photo.key} src={photo.src} alt="Prophet Amos Evomobor" className="w-full h-full object-cover object-top absolute inset-0"
-                    initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                    loading="lazy" decoding="async" />
-                ) : null
-              )}
+              <motion.img
+                key={activePhoto.key}
+                src={activePhoto.src}
+                alt="Prophet Amos Evomobor"
+                className="w-full h-full object-cover object-top absolute inset-0"
+                initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                loading="lazy" decoding="async"
+              />
             </AnimatePresence>
           </motion.div>
 
@@ -1106,17 +1102,17 @@ function ProphetSection() {
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ delay: 0.5 }}
           >
-            {founderPhotos.map(({ key, src, label }) => (
+            {FOUNDER_PHOTOS.map(({ key, src, label }, i) => (
               <motion.button
                 key={key}
-                onClick={() => handleThumbClick(key)}
+                onClick={() => handleThumbClick(i)}
                 whileHover={{ scale: 1.08 } as never}
                 whileTap={{ scale: 0.95 } as never}
-                className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-lg ${activePhoto === key ? "border-accent shadow-accent/30" : "border-white/30 hover:border-white/60"}`}
+                className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-lg ${activeIdx === i ? "border-accent shadow-accent/30" : "border-white/30 hover:border-white/60"}`}
               >
                 <img src={src} alt={label} className="w-full h-full object-cover object-top" loading="lazy" decoding="async" />
-                <div className={`absolute inset-0 transition-opacity duration-300 ${activePhoto === key ? "opacity-0" : "opacity-40 bg-[#001830]"}`} />
-                {activePhoto === key && <div className="absolute top-1 right-1 h-2 w-2 bg-accent rounded-full animate-pulse" />}
+                <div className={`absolute inset-0 transition-opacity duration-300 ${activeIdx === i ? "opacity-0" : "opacity-40 bg-[#001830]"}`} />
+                {activeIdx === i && <div className="absolute top-1 right-1 h-2 w-2 bg-accent rounded-full animate-pulse" />}
               </motion.button>
             ))}
           </motion.div>
@@ -1159,11 +1155,11 @@ function ProphetSection() {
               <div className="flex items-center gap-3 mt-4">
                 {/* Dot indicators */}
                 <div className="flex items-center gap-1.5">
-                  {founderPhotos.map(p => (
+                  {FOUNDER_PHOTOS.map((p, i) => (
                     <button
                       key={p.key}
-                      onClick={() => handleThumbClick(p.key)}
-                      className={`rounded-full transition-all duration-300 ${activePhoto === p.key ? "w-5 h-2 bg-accent" : "w-2 h-2 bg-white/30 hover:bg-white/60"}`}
+                      onClick={() => handleThumbClick(i)}
+                      className={`rounded-full transition-all duration-300 ${activeIdx === i ? "w-5 h-2 bg-accent" : "w-2 h-2 bg-white/30 hover:bg-white/60"}`}
                     />
                   ))}
                 </div>
