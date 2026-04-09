@@ -3,7 +3,28 @@ import { logger } from "./lib/logger";
 import { startCron } from "./lib/cron.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
+import { pool } from "@workspace/db";
 import OpenAI from "openai";
+
+async function runStartupMigrations() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS daily_devotions (
+        date date PRIMARY KEY,
+        title text NOT NULL,
+        scripture text NOT NULL,
+        reference text NOT NULL,
+        reflection text NOT NULL,
+        prophetic_word text NOT NULL,
+        prayer_focus text NOT NULL,
+        declaration text NOT NULL
+      )
+    `);
+    logger.info("Startup migrations complete");
+  } catch (err) {
+    logger.error({ err }, "Startup migration failed — continuing anyway");
+  }
+}
 
 const rawPort = process.env["PORT"];
 
@@ -18,6 +39,8 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
+
+await runStartupMigrations();
 
 const server = app.listen(port, (err) => {
   if (err) {
