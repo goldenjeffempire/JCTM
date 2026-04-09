@@ -122,7 +122,7 @@ Full dedicated event landing page for the Prophet Amos Global Crusade (April 30 
 - **Sonner Toast Notifications** — Global toast system replacing old Toaster; fires on testimony submission and payment processing
 - **Lazy-loaded Routes** — All pages use React.lazy() + Suspense with skeleton fallback for faster initial bundle load
 - **PWA Manifest** — `/public/manifest.json` with app ID `com.onomelabs.jctm`, theme color, and permissions
-- **SEO Meta Tags** — OpenGraph tags, description, apple-mobile-web-app, theme-color in `index.html`
+- **Full SEO Optimization** — `react-helmet-async` installed; `HelmetProvider` wraps app; reusable `SEO` component (`src/components/SEO.tsx`) with title, description, canonical, OpenGraph, Twitter Card, keywords, JSON-LD structured data, and og:image support. Applied to ALL 19 pages including Home, Sermons, SermonDetail (dynamic VideoObject schema), Leadership (Person schema), About (AboutPage schema), Events (EventSeries schema), and all other routes. `index.html` has base keyword-rich meta tags, `public/robots.txt`, `public/sitemap.xml` (17 URLs). Target keywords: "Jesus Christ Temple Ministry," "JCTM," "Temple TV," "Prophet Amos Evomobor," "Correction Mandate."
 - **Live Banner** — Auto-shown when livestream is active (in-memory state)
 
 ### Architecture

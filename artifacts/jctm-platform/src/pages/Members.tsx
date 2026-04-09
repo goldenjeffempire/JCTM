@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useListMembers, getListMembersQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Search, User } from "lucide-react";
@@ -31,6 +32,12 @@ export default function Members() {
 
   return (
     <Layout>
+      <SEO
+        title="Member Directory — JCTM Digital Sanctuary"
+        description="Connect with registered members of Jesus Christ Temple Ministry (JCTM). Join the community of believers walking in holiness and the Correction Mandate."
+        path="/members"
+        keywords="JCTM members, Jesus Christ Temple Ministry community, join JCTM, register JCTM"
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

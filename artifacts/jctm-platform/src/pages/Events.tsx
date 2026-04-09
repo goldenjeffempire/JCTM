@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useListEvents, useGetFeaturedSermon, getGetFeaturedSermonQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, MapPin, Clock, Youtube, Radio, Play, ExternalLink, Phone,
@@ -423,6 +424,22 @@ export default function Events() {
 
   return (
     <Layout>
+      <SEO
+        title="Events & Programmes — Jesus Christ Temple Ministry"
+        description="Upcoming events, crusades, and church programmes at Jesus Christ Temple Ministry (JCTM), Warri Nigeria. Stay updated with JCTM's calendar of services, meetings, and outreach events."
+        path="/events"
+        keywords="JCTM events, Jesus Christ Temple Ministry programmes, church events Warri, JCTM crusade, Temple TV events"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "EventSeries",
+          "name": "JCTM Church Events & Programmes",
+          "organizer": {
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry (JCTM)",
+            "url": "https://jctm.org.ng"
+          }
+        }}
+      />
       <div className="container mx-auto px-4 py-16">
 
         {/* Header */}

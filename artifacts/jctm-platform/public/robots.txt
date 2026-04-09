@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block build/dev artefacts from crawling
+Disallow: /src/
+Disallow: /.vite/
+Disallow: /node_modules/
+
+Sitemap: https://jctm.org.ng/sitemap.xml

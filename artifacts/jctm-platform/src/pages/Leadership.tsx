@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,23 @@ const MINISTRY_VALUES = [
 export default function Leadership() {
   return (
     <Layout>
+      <SEO
+        title="Leadership — Prophet Amos Evomobor & JCTM"
+        description="Meet the leadership of Jesus Christ Temple Ministry (JCTM). Prophet Amos Evomobor leads JCTM with the Correction Mandate — restoring apostolic Christianity in Nigeria and beyond."
+        path="/leadership"
+        keywords="Prophet Amos Evomobor, JCTM leadership, Jesus Christ Temple Ministry pastor, apostolic prophet Nigeria"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": "Prophet Amos Evomobor",
+          "jobTitle": "Prophet and Founder",
+          "worksFor": {
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry (JCTM)"
+          },
+          "url": "https://jctm.org.ng/leadership"
+        }}
+      />
       <div className="min-h-screen bg-background pt-24 pb-16">
 
         {/* Hero */}

@@ -2,6 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
+import { SEO } from "@/components/SEO";
 const prophetAmosImg = "/founder/prophet-portrait.jpg";
 
 const DOCTRINES = [
@@ -56,6 +57,25 @@ const fadeUp = {
 export default function About() {
   return (
     <Layout>
+      <SEO
+        title="About Jesus Christ Temple Ministry — JCTM Warri, Nigeria"
+        description="Learn about Jesus Christ Temple Ministry (JCTM), founded January 3, 2013 by Prophet Amos Evomobor in Warri, Nigeria. Discover the Correction Mandate, holiness doctrine, and the story of JCTM."
+        path="/about"
+        keywords="about JCTM, Jesus Christ Temple Ministry history, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, Ebrumede Temple Warri"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          "name": "About Jesus Christ Temple Ministry",
+          "description": "The founding story, vision, and doctrine of Jesus Christ Temple Ministry (JCTM), Warri Nigeria — led by Prophet Amos Evomobor.",
+          "url": "https://jctm.org.ng/about",
+          "mainEntity": {
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry",
+            "foundingDate": "2013-01-03",
+            "founder": { "@type": "Person", "name": "Prophet Amos Evomobor" }
+          }
+        }}
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { BookOpen, Shield, Target, Globe, Tv, Laptop } from "lucide-react";
 
@@ -67,6 +68,12 @@ export default function Timeline() {
 
   return (
     <Layout>
+      <SEO
+        title="The Correction Mandate Timeline — JCTM"
+        description="Explore the timeline of the Correction Mandate — JCTM's divine assignment to restore apostolic Christianity and doctrinal truth to the global church. Led by Prophet Amos Evomobor."
+        path="/correction-timeline"
+        keywords="Correction Mandate, JCTM timeline, apostolic restoration, doctrinal correction, Prophet Amos Evomobor timeline"
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

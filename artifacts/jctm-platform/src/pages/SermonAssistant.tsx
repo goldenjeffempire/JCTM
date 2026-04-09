@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, Sparkles, BookOpen, Mic2, ChevronRight, RotateCcw } from "lucide-react";
@@ -176,6 +177,12 @@ export default function SermonAssistant() {
 
   return (
     <Layout>
+      <SEO
+        title="TempleBots AI — JCTM Sermon Assistant"
+        description="Ask TempleBots — the AI-powered sermon assistant of Jesus Christ Temple Ministry (JCTM). Get answers grounded in apostolic doctrine, the Correction Mandate, and JCTM teachings."
+        path="/sermon-assistant"
+        keywords="TempleBots, JCTM AI assistant, Jesus Christ Temple Ministry chatbot, apostolic doctrine AI, sermon Q&A JCTM"
+      />
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-sky-50/20 dark:to-sky-950/10 pt-24 pb-8 px-4">
         <div className="max-w-4xl mx-auto">
 

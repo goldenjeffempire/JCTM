@@ -6,6 +6,7 @@ import {
   X, Send, Youtube,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -664,6 +665,12 @@ export default function Moments() {
 
   return (
     <Layout>
+      <SEO
+        title="Temple TV Moments — JCTM Short Videos"
+        description="Watch Temple TV Moments — powerful short video clips from Jesus Christ Temple Ministry (JCTM). Encounter the Word of God through quick spiritual moments and prophetic highlights."
+        path="/moments"
+        keywords="Temple TV moments, JCTM videos, Jesus Christ Temple Ministry clips, Temple TV short videos, prophetic moments JCTM"
+      />
       <div className="flex h-[calc(100dvh-64px)] max-h-screen overflow-hidden">
         <div className="flex-1 relative flex flex-col min-w-0">
 

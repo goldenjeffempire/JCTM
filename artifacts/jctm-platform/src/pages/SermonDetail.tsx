@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams } from "wouter";
 import { useGetSermon, getGetSermonQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Volume2, VideoIcon, ArrowLeft, Calendar, Eye } from "lucide-react";
 import { format } from "date-fns";
@@ -49,8 +50,36 @@ export default function SermonDetail() {
     );
   }
 
+  const seoTitle = sermon ? `${sermon.title} — Temple TV Sermon` : "Sermon — Temple TV | JCTM";
+  const seoDesc = sermon
+    ? `Watch "${sermon.title}" — a Temple TV sermon from Jesus Christ Temple Ministry (JCTM). ${sermon.description ? sermon.description.slice(0, 100) + "…" : "Teachings on holiness, apostolic doctrine, and the Correction Mandate."}`
+    : "Watch sermons from Jesus Christ Temple Ministry (JCTM) on Temple TV.";
+
   return (
     <Layout>
+      <SEO
+        title={seoTitle}
+        description={seoDesc}
+        path={`/sermons/${id}`}
+        image={sermon?.thumbnailUrl ?? undefined}
+        type="article"
+        keywords="Temple TV sermon, JCTM sermon, Jesus Christ Temple Ministry teaching, Prophet Amos Evomobor"
+        jsonLd={sermon ? {
+          "@context": "https://schema.org",
+          "@type": "VideoObject",
+          "name": sermon.title,
+          "description": sermon.description ?? seoDesc,
+          "thumbnailUrl": sermon.thumbnailUrl,
+          "uploadDate": sermon.publishedAt,
+          "url": `https://www.youtube.com/watch?v=${sermon.videoId}`,
+          "embedUrl": `https://www.youtube.com/embed/${sermon.videoId}`,
+          "publisher": {
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry (JCTM)",
+            "url": "https://jctm.org.ng"
+          }
+        } : undefined}
+      />
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

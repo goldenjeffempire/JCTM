@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { BookOpen } from "lucide-react";
+import { SEO } from "@/components/SEO";
 
 const SECTIONS = [
   {
@@ -70,6 +71,12 @@ const SECTIONS = [
 export default function Terms() {
   return (
     <Layout>
+      <SEO
+        title="Terms of Use — JCTM Digital Sanctuary"
+        description="Terms and conditions for using the JCTM Digital Sanctuary — the official platform of Jesus Christ Temple Ministry, Warri Nigeria."
+        path="/terms"
+        keywords="JCTM terms of use, Jesus Christ Temple Ministry website terms"
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -20,6 +20,7 @@ import {
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
+import { SEO } from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
@@ -2684,6 +2685,25 @@ function GlobalAltarSection() {
 export default function Home() {
   return (
     <Layout>
+      <SEO
+        title="Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary"
+        description="Welcome to JCTM — Jesus Christ Temple Ministry, Warri Nigeria. Watch Temple TV sermons, give online, experience the Correction Mandate, and connect with Prophet Amos Evomobor's ministry."
+        path="/"
+        keywords="Jesus Christ Temple Ministry, JCTM, Temple TV, JCTM Warri Nigeria, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, Temple Ministry"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": "JCTM Digital Sanctuary — Home",
+          "url": "https://jctm.org.ng/",
+          "description": "Official digital home of Jesus Christ Temple Ministry (JCTM), Warri Nigeria.",
+          "isPartOf": { "@type": "WebSite", "name": "JCTM Digital Sanctuary", "url": "https://jctm.org.ng" },
+          "about": {
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry",
+            "alternateName": ["JCTM", "Temple TV"]
+          }
+        }}
+      />
       <HeroSection />
       <PlatformBar />
       <DailyDevotionSection />

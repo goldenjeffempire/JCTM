@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
@@ -102,6 +103,12 @@ export default function Give() {
 
   return (
     <Layout>
+      <SEO
+        title="Give to JCTM — Support Jesus Christ Temple Ministry"
+        description="Give online to support Jesus Christ Temple Ministry (JCTM). Sow into the Correction Mandate, Temple TV broadcasts, and the spread of apostolic Christianity across Nigeria and the world."
+        path="/give"
+        keywords="give to JCTM, donate Jesus Christ Temple Ministry, support Temple TV, tithe JCTM, offering JCTM Nigeria"
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
           <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Kingdom Giving</span>

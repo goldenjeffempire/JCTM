@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/SEO";
 import {
   Heart, Sparkles, BookOpen, Copy, Check, RefreshCw,
   ChevronDown, Flame, Shield, Star, Sun, Users, Home as HomeIcon,
@@ -130,6 +131,12 @@ export default function Prayer() {
 
   return (
     <Layout>
+      <SEO
+        title="Prayer Room — JCTM Digital Sanctuary"
+        description="Enter the JCTM Prayer Room — a space for intercession, prophetic prayers, and communion with God. Powered by TempleBots AI and the ministry of Jesus Christ Temple Ministry."
+        path="/prayer"
+        keywords="JCTM prayer, Jesus Christ Temple Ministry prayer, prayer requests Nigeria, intercession JCTM, TempleBots prayer"
+      />
       <div className="min-h-screen bg-background">
         <div className="relative overflow-hidden">
           <div

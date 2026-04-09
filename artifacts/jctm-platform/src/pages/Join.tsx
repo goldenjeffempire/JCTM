@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
@@ -72,6 +73,12 @@ export default function Join() {
 
   return (
     <Layout>
+      <SEO
+        title="Join the Digital Sanctuary — JCTM Member Portal"
+        description="Register as a member of Jesus Christ Temple Ministry (JCTM) Digital Sanctuary. Access exclusive teachings, connect with believers, and grow in the Correction Mandate."
+        path="/join"
+        keywords="join JCTM, register Jesus Christ Temple Ministry, JCTM member, digital sanctuary membership"
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
           <Church className="h-12 w-12 text-accent mx-auto mb-4" />

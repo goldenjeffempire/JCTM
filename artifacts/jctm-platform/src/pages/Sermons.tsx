@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetSermonStats, getGetSermonStatsQueryKey, useSyncSermons } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -234,6 +235,24 @@ export default function Sermons() {
 
   return (
     <Layout>
+      <SEO
+        title="Sermons — Temple TV | Jesus Christ Temple Ministry"
+        description="Watch and listen to sermons from Jesus Christ Temple Ministry (JCTM) and Temple TV. Teachings on holiness, the Correction Mandate, apostolic doctrine, and end-time preparation by Prophet Amos Evomobor."
+        path="/sermons"
+        keywords="JCTM sermons, Temple TV sermons, Jesus Christ Temple Ministry teachings, Prophet Amos Evomobor sermons, holiness preaching Nigeria, apostolic sermons"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          "name": "JCTM Sermon Library — Temple TV",
+          "description": "Sermons and teachings from Jesus Christ Temple Ministry (JCTM) broadcast on Temple TV.",
+          "url": "https://jctm.org.ng/sermons",
+          "provider": {
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry (JCTM)",
+            "url": "https://jctm.org.ng"
+          }
+        }}
+      />
       {/* Netflix-style dark hero header */}
       <div className="bg-gradient-to-b from-primary via-primary/90 to-background pt-24 pb-8 px-4 mb-0">
         <div className="container mx-auto">

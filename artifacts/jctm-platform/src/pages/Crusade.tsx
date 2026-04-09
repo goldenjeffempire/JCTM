@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { SEO } from "@/components/SEO";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
 import { Layout } from "@/components/layout/Layout";
@@ -1118,6 +1119,12 @@ export default function Crusade() {
 
   return (
     <Layout>
+      <SEO
+        title="Warri City Crusade 2026 — JCTM"
+        description="Join the Warri City Crusade 2026 — a major evangelistic outreach by Jesus Christ Temple Ministry (JCTM). Experience the power of God, the Correction Mandate, and prophetic ministry in Warri, Nigeria."
+        path="/crusade"
+        keywords="Warri City Crusade 2026, JCTM crusade, Jesus Christ Temple Ministry crusade, evangelism Warri Nigeria, Prophet Amos Evomobor crusade"
+      />
       <div
         className="relative min-h-screen"
         style={{

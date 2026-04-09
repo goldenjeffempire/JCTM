@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { Shield } from "lucide-react";
+import { SEO } from "@/components/SEO";
 
 const SECTIONS = [
   {
@@ -72,6 +73,12 @@ To exercise any of these rights, please contact us. We will respond within 30 da
 export default function Privacy() {
   return (
     <Layout>
+      <SEO
+        title="Privacy Policy — JCTM Digital Sanctuary"
+        description="Read the privacy policy of Jesus Christ Temple Ministry (JCTM). Learn how we collect, use, and protect your data on the JCTM Digital Sanctuary platform."
+        path="/privacy"
+        keywords="JCTM privacy policy, Jesus Christ Temple Ministry data policy"
+      />
       <div className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

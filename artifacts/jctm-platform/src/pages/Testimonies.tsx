@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -229,6 +230,12 @@ export default function Testimonies() {
 
   return (
     <Layout>
+      <SEO
+        title="Testimonies — JCTM Digital Sanctuary"
+        description="Read powerful testimonies of healing, transformation, and restoration through Jesus Christ Temple Ministry (JCTM). Share your own testimony and glorify God through the Correction Mandate."
+        path="/testimonies"
+        keywords="JCTM testimonies, Jesus Christ Temple Ministry miracles, healing testimonies Nigeria, church testimonies Warri"
+      />
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}

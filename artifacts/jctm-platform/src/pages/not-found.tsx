@@ -2,10 +2,16 @@ import { motion } from "framer-motion";
 import { Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { SEO } from "@/components/SEO";
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <SEO
+        title="Page Not Found — JCTM Digital Sanctuary"
+        description="The page you're looking for doesn't exist on the JCTM Digital Sanctuary. Return to the home of Jesus Christ Temple Ministry."
+        path="/404"
+      />
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
