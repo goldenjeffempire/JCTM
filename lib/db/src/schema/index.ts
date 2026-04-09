@@ -8,3 +8,4 @@ export * from "./messages";
 export * from "./memberAuth";
 export * from "./crusade";
 export * from "./knowledge";
+export * from "./devotions";
