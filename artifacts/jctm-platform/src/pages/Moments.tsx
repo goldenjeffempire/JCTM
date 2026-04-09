@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  ChevronUp, ChevronDown, ExternalLink,
+  ChevronUp, ChevronDown,
   Sparkles, Radio, Flame, Share2, BookOpen,
   Volume2, VolumeX, Heart, MessageCircle, Eye,
   X, Send,
@@ -277,7 +277,6 @@ function MomentCard({
   muted,
   visitorId,
   onToggleMute,
-  renderPlayer,
   isActive,
 }: {
   moment: MomentItem;
@@ -286,16 +285,17 @@ function MomentCard({
   muted: boolean;
   visitorId: string;
   onToggleMute: () => void;
-  renderPlayer: boolean;
   isActive: boolean;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
-  const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
-  const embedSrc =
-    `https://www.youtube.com/embed/${moment.videoId}` +
-    `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
-    `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+
+  // Only build embed src when this card is active — destroyed when inactive so video stops
+  const embedSrc = isActive
+    ? `https://www.youtube.com/embed/${moment.videoId}` +
+      `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
+      `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`
+    : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false });
   const [liking, setLiking] = useState(false);
@@ -310,19 +310,19 @@ function MomentCard({
     fetchYTViews(moment.videoId).then(data => {
       if (data) setViewCount(data.viewCount);
     });
-    // Fetch comment count
     fetchComments(moment.videoId).then(comments => setCommentCount(comments.length));
   }, [isActive, moment.videoId, visitorId]);
 
+  // Pump volume to max after iframe loads
   const handleLoad = () => {
     const pump = (n: number) => {
       iframeRef.current?.contentWindow?.postMessage(
         JSON.stringify({ event: "command", func: "setVolume", args: [100] }),
         "*",
       );
-      if (n < 6) setTimeout(() => pump(n + 1), 700);
+      if (n < 8) setTimeout(() => pump(n + 1), 600);
     };
-    setTimeout(() => pump(0), 400);
+    setTimeout(() => pump(0), 300);
   };
 
   const handleLike = async () => {
@@ -345,11 +345,16 @@ function MomentCard({
   };
 
   const handleShare = async () => {
-    const data = { title: moment.title, text: `Watch: ${moment.title}`, url: ytUrl };
+    const platformUrl = window.location.href;
+    const shareData = {
+      title: moment.title,
+      text: `Watch "${moment.title}" on Temple TV — Jesus Christ Temple Ministry`,
+      url: platformUrl,
+    };
     if (navigator.share) {
-      try { await navigator.share(data); } catch {}
+      try { await navigator.share(shareData); } catch {}
     } else {
-      await navigator.clipboard.writeText(ytUrl);
+      await navigator.clipboard.writeText(platformUrl);
       toast.success("Link copied to clipboard!");
     }
   };
@@ -360,8 +365,8 @@ function MomentCard({
 
   return (
     <div className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}>
-      {/* Video layer */}
-      {renderPlayer ? (
+      {/* Video layer — only renders for the active card */}
+      {isActive && embedSrc ? (
         <div className="absolute inset-0 bg-black">
           <iframe
             key={`${moment.videoId}-${muted}`}
@@ -379,6 +384,7 @@ function MomentCard({
             style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 25%)" }} />
         </div>
       ) : (
+        // Thumbnail shown for non-active cards — no video playing
         <div className="absolute inset-0">
           <img
             src={moment.thumbnailUrl}
@@ -468,20 +474,6 @@ function MomentCard({
             </div>
             <span className="text-white text-[10px] font-semibold drop-shadow">Share</span>
           </button>
-
-          {/* Watch full on YouTube */}
-          <a
-            href={ytUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center gap-1 group"
-            title="Watch on YouTube"
-          >
-            <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-red-600/40">
-              <ExternalLink className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-white text-[10px] font-semibold drop-shadow">YouTube</span>
-          </a>
         </div>
 
         {/* Bottom info */}
@@ -533,7 +525,6 @@ function MomentCard({
           visitorId={visitorId}
           onClose={() => {
             setShowComments(false);
-            // Refresh comment count after closing
             fetchComments(moment.videoId).then(c => setCommentCount(c.length));
           }}
         />
@@ -546,7 +537,7 @@ function MomentCard({
 export default function Moments() {
   const [moments, setMoments] = useState<MomentItem[]>([]);
   const [current, setCurrent] = useState(0);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(false); // sound ON by default
   const [loading, setLoading] = useState(true);
   const [newVideoAlert, setNewVideoAlert] = useState(false);
   const [visitorId] = useState(() => getVisitorId());
@@ -587,13 +578,13 @@ export default function Moments() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             const idx = cardRefs.current.findIndex(ref => ref === entry.target);
             if (idx !== -1) setCurrent(idx);
           }
         });
       },
-      { threshold: 0.5, root: scrollContainerRef.current },
+      { threshold: 0.6, root: scrollContainerRef.current },
     );
     cardRefs.current.forEach(ref => { if (ref) observer.observe(ref); });
     return () => observer.disconnect();
@@ -633,15 +624,6 @@ export default function Moments() {
               <Flame className="h-4 w-4 text-red-500" />
               <span className="text-sm font-bold text-primary">Temple Moments</span>
             </div>
-            <div className="flex items-center gap-3">
-              {moments.length > 0 && (
-                <span className="text-xs text-muted-foreground">{current + 1} / {moments.length}</span>
-              )}
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Heart className="h-3 w-3 text-red-400" />
-                <span className="hidden sm:inline">Like & comment right here</span>
-              </div>
-            </div>
           </div>
 
           {/* New video alert */}
@@ -674,13 +656,18 @@ export default function Moments() {
                   scrollSnapType: "y mandatory",
                   scrollbarWidth: "none",
                   WebkitOverflowScrolling: "touch",
+                  overscrollBehavior: "contain",
                 }}
               >
                 {moments.map((moment, i) => (
                   <div
                     key={moment.videoId}
                     ref={el => { cardRefs.current[i] = el; }}
-                    style={{ scrollSnapAlign: "start", height: "100%" }}
+                    style={{
+                      scrollSnapAlign: "start",
+                      scrollSnapStop: "always",
+                      height: "100%",
+                    }}
                     className="w-full flex-shrink-0"
                   >
                     <MomentCard
@@ -690,7 +677,6 @@ export default function Moments() {
                       muted={muted}
                       visitorId={visitorId}
                       onToggleMute={toggleMute}
-                      renderPlayer={Math.abs(i - current) <= 1}
                       isActive={i === current}
                     />
                   </div>
