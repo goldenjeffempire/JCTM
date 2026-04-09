@@ -20,6 +20,24 @@ async function runStartupMigrations() {
         declaration text NOT NULL
       )
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS moment_likes (
+        id serial PRIMARY KEY,
+        video_id text NOT NULL,
+        visitor_id text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS moment_comments (
+        id serial PRIMARY KEY,
+        video_id text NOT NULL,
+        visitor_id text NOT NULL,
+        name text NOT NULL,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");

@@ -3,7 +3,7 @@ import {
   ChevronUp, ChevronDown, ExternalLink,
   Sparkles, Radio, Flame, Share2, BookOpen,
   Volume2, VolumeX, Heart, MessageCircle, Eye,
-  ThumbsUp,
+  X, Send,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,17 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// ── Visitor identity — anonymous, persisted in localStorage ──────────────────
+function getVisitorId(): string {
+  const key = "jctm_visitor_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
 
 interface MomentItem {
   id: number;
@@ -20,11 +31,22 @@ interface MomentItem {
   publishedAt: string;
   viewCount?: number | null;
   isLive?: boolean;
+  duration?: string | null;
 }
 
-interface YTStats {
-  likeCount: number | null;
-  commentCount: number | null;
+interface NativeLikes {
+  count: number;
+  liked: boolean;
+}
+
+interface Comment {
+  id: number;
+  name: string;
+  body: string;
+  createdAt: string;
+}
+
+interface YTViews {
   viewCount: number;
 }
 
@@ -38,10 +60,14 @@ const GRADIENT_THEMES = [
 ];
 
 function formatCount(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
+}
+
+function initials(name: string): string {
+  return name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
 }
 
 async function fetchShorts(): Promise<MomentItem[]> {
@@ -50,7 +76,47 @@ async function fetchShorts(): Promise<MomentItem[]> {
   return res.json();
 }
 
-async function fetchYTStats(videoId: string): Promise<YTStats | null> {
+async function fetchNativeLikes(videoId: string, visitorId: string): Promise<NativeLikes> {
+  try {
+    const res = await fetch(`${BASE}/api/moments/${videoId}/likes?visitorId=${encodeURIComponent(visitorId)}`);
+    if (!res.ok) return { count: 0, liked: false };
+    return res.json();
+  } catch {
+    return { count: 0, liked: false };
+  }
+}
+
+async function toggleLike(videoId: string, visitorId: string): Promise<NativeLikes> {
+  const res = await fetch(`${BASE}/api/moments/${videoId}/like`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visitorId }),
+  });
+  if (!res.ok) throw new Error("Failed to toggle like");
+  return res.json();
+}
+
+async function fetchComments(videoId: string): Promise<Comment[]> {
+  try {
+    const res = await fetch(`${BASE}/api/moments/${videoId}/comments`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+async function postComment(videoId: string, visitorId: string, name: string, body: string): Promise<Comment> {
+  const res = await fetch(`${BASE}/api/moments/${videoId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visitorId, name, body }),
+  });
+  if (!res.ok) throw new Error("Failed to post comment");
+  return res.json();
+}
+
+async function fetchYTViews(videoId: string): Promise<YTViews | null> {
   try {
     const res = await fetch(`${BASE}/api/sermons/youtube-stats/${videoId}`);
     if (!res.ok) return null;
@@ -60,12 +126,156 @@ async function fetchYTStats(videoId: string): Promise<YTStats | null> {
   }
 }
 
+// ── Comment Panel ─────────────────────────────────────────────────────────────
+function CommentPanel({
+  videoId,
+  visitorId,
+  onClose,
+}: {
+  videoId: string;
+  visitorId: string;
+  onClose: () => void;
+}) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState(() => localStorage.getItem("jctm_commenter_name") ?? "");
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchComments(videoId).then(data => {
+      setComments(data);
+      setLoading(false);
+    });
+  }, [videoId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimName = name.trim();
+    const trimBody = body.trim();
+    if (!trimName || !trimBody) return;
+    setSubmitting(true);
+    try {
+      const comment = await postComment(videoId, visitorId, trimName, trimBody);
+      localStorage.setItem("jctm_commenter_name", trimName);
+      setComments(prev => [comment, ...prev]);
+      setBody("");
+      listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      toast.success("Comment posted!");
+    } catch {
+      toast.error("Could not post comment. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="absolute bottom-0 left-0 right-0 z-40 flex flex-col"
+      style={{
+        height: "68%",
+        background: "rgba(10,10,20,0.94)",
+        backdropFilter: "blur(16px)",
+        borderRadius: "20px 20px 0 0",
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.7)",
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Handle + Header */}
+      <div className="flex-shrink-0 px-4 pt-3 pb-2">
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-3" />
+        <div className="flex items-center justify-between">
+          <span className="text-white font-bold text-sm">
+            Comments {comments.length > 0 && <span className="text-white/50 font-normal ml-1">{comments.length}</span>}
+          </span>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+            <X className="h-3.5 w-3.5 text-white/70" />
+          </button>
+        </div>
+      </div>
+
+      {/* Comment list */}
+      <div
+        ref={listRef}
+        className="flex-1 overflow-y-auto px-4 space-y-3"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <Radio className="h-5 w-5 text-accent animate-spin" />
+          </div>
+        ) : comments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <MessageCircle className="h-8 w-8 text-white/20" />
+            <p className="text-white/40 text-sm">Be the first to comment</p>
+          </div>
+        ) : (
+          comments.map(c => (
+            <div key={c.id} className="flex gap-3">
+              <div className="h-8 w-8 rounded-full bg-accent/30 flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold">
+                {initials(c.name)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-white text-xs font-semibold">{c.name}</span>
+                  <span className="text-white/35 text-[10px]">
+                    {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                  </span>
+                </div>
+                <p className="text-white/80 text-xs mt-0.5 leading-relaxed break-words">{c.body}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-white/10 flex-shrink-0 mx-4" />
+
+      {/* Input form */}
+      <form onSubmit={handleSubmit} className="flex-shrink-0 px-4 py-3 space-y-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Your name"
+          maxLength={80}
+          className="w-full bg-white/8 border border-white/15 rounded-xl px-3 py-2 text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-accent/60 focus:bg-white/12 transition-colors"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder="Add a comment…"
+            maxLength={1000}
+            className="flex-1 bg-white/8 border border-white/15 rounded-xl px-3 py-2 text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-accent/60 focus:bg-white/12 transition-colors"
+            style={{ background: "rgba(255,255,255,0.06)" }}
+          />
+          <button
+            type="submit"
+            disabled={submitting || !name.trim() || !body.trim()}
+            className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center disabled:opacity-40 hover:bg-accent/80 transition-colors flex-shrink-0"
+          >
+            <Send className="h-3.5 w-3.5 text-white" />
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ── Single card ────────────────────────────────────────────────────────────
 function MomentCard({
   moment,
   index,
   total,
   muted,
+  visitorId,
   onToggleMute,
   renderPlayer,
   isActive,
@@ -74,6 +284,7 @@ function MomentCard({
   index: number;
   total: number;
   muted: boolean;
+  visitorId: string;
   onToggleMute: () => void;
   renderPlayer: boolean;
   isActive: boolean;
@@ -81,22 +292,28 @@ function MomentCard({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
   const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
-  const ytCommentsUrl = `${ytUrl}&lc=`;
   const embedSrc =
     `https://www.youtube.com/embed/${moment.videoId}` +
     `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
     `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
 
-  const [stats, setStats] = useState<YTStats | null>(null);
-  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false });
+  const [liking, setLiking] = useState(false);
+  const [viewCount, setViewCount] = useState<number | null>(moment.viewCount ?? null);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
 
-  // Fetch YouTube stats when this card becomes active
+  // Fetch native likes + YT view count when card becomes active
   useEffect(() => {
     if (!isActive) return;
-    fetchYTStats(moment.videoId).then(setStats);
-  }, [isActive, moment.videoId]);
+    fetchNativeLikes(moment.videoId, visitorId).then(setLikes);
+    fetchYTViews(moment.videoId).then(data => {
+      if (data) setViewCount(data.viewCount);
+    });
+    // Fetch comment count
+    fetchComments(moment.videoId).then(comments => setCommentCount(comments.length));
+  }, [isActive, moment.videoId, visitorId]);
 
-  // Pump volume to 100 via IFrame API after player loads
   const handleLoad = () => {
     const pump = (n: number) => {
       iframeRef.current?.contentWindow?.postMessage(
@@ -106,6 +323,25 @@ function MomentCard({
       if (n < 6) setTimeout(() => pump(n + 1), 700);
     };
     setTimeout(() => pump(0), 400);
+  };
+
+  const handleLike = async () => {
+    if (liking) return;
+    setLiking(true);
+    const optimistic: NativeLikes = {
+      count: likes.liked ? likes.count - 1 : likes.count + 1,
+      liked: !likes.liked,
+    };
+    setLikes(optimistic);
+    try {
+      const result = await toggleLike(moment.videoId, visitorId);
+      setLikes(result);
+    } catch {
+      setLikes(likes);
+      toast.error("Could not register like. Try again.");
+    } finally {
+      setLiking(false);
+    }
   };
 
   const handleShare = async () => {
@@ -118,26 +354,12 @@ function MomentCard({
     }
   };
 
-  const handleLike = () => {
-    // Open YouTube where user can like — this makes the like reflect on YouTube
-    window.open(ytUrl, "_blank", "noopener,noreferrer");
-    // Optimistic UI feedback
-    if (!liked) {
-      setLiked(true);
-      toast.success("Opening YouTube to like this video!");
-    }
-  };
-
-  const handleComment = () => {
-    // Open YouTube comments section
-    window.open(ytCommentsUrl, "_blank", "noopener,noreferrer");
-    toast.success("Opening YouTube comments!");
+  const handleOpenComments = () => {
+    setShowComments(true);
   };
 
   return (
-    <div
-      className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}
-    >
+    <div className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}>
       {/* Video layer */}
       {renderPlayer ? (
         <div className="absolute inset-0 bg-black">
@@ -151,7 +373,6 @@ function MomentCard({
             allowFullScreen
             onLoad={handleLoad}
           />
-          {/* Readability gradients */}
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.15) 40%, transparent 65%)" }} />
           <div className="absolute inset-0 pointer-events-none"
@@ -173,7 +394,7 @@ function MomentCard({
         </div>
       )}
 
-      {/* UI overlay — always on top */}
+      {/* UI overlay */}
       <div className="absolute inset-0 z-10 flex flex-col pointer-events-none">
 
         {/* Top bar */}
@@ -198,41 +419,41 @@ function MomentCard({
           </div>
         </div>
 
-        {/* Spacer — pushes bottom content down */}
         <div className="flex-1" />
 
-        {/* Right-side action buttons (TikTok-style) */}
+        {/* Right-side action buttons */}
         <div className="absolute right-4 bottom-32 flex flex-col items-center gap-5 pointer-events-auto z-20">
 
           {/* Like */}
           <button
             onClick={handleLike}
+            disabled={liking}
             className="flex flex-col items-center gap-1 group"
-            title="Like on YouTube"
+            title="Like this moment"
           >
             <div className={`h-11 w-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
-              liked
+              likes.liked
                 ? "bg-red-500/80 border border-red-400/50 scale-110"
                 : "bg-black/40 backdrop-blur-md border border-white/20 group-hover:bg-red-500/40"
             }`}>
-              <Heart className={`h-5 w-5 transition-colors ${liked ? "text-white fill-white" : "text-white"}`} />
+              <Heart className={`h-5 w-5 transition-colors ${likes.liked ? "text-white fill-white" : "text-white"}`} />
             </div>
             <span className="text-white text-[10px] font-semibold drop-shadow">
-              {formatCount(stats?.likeCount)}
+              {formatCount(likes.count)}
             </span>
           </button>
 
           {/* Comment */}
           <button
-            onClick={handleComment}
+            onClick={handleOpenComments}
             className="flex flex-col items-center gap-1 group"
-            title="Comment on YouTube"
+            title="Comments"
           >
             <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-white/20">
               <MessageCircle className="h-5 w-5 text-white" />
             </div>
             <span className="text-white text-[10px] font-semibold drop-shadow">
-              {formatCount(stats?.commentCount)}
+              {commentCount !== null ? formatCount(commentCount) : "—"}
             </span>
           </button>
 
@@ -248,7 +469,7 @@ function MomentCard({
             <span className="text-white text-[10px] font-semibold drop-shadow">Share</span>
           </button>
 
-          {/* Open on YouTube */}
+          {/* Watch full on YouTube */}
           <a
             href={ytUrl}
             target="_blank"
@@ -276,10 +497,10 @@ function MomentCard({
                 {formatDistanceToNow(new Date(moment.publishedAt), { addSuffix: true })}
               </p>
             </div>
-            {(stats?.viewCount != null && stats.viewCount > 0) && (
+            {viewCount != null && viewCount > 0 && (
               <div className="flex items-center gap-1">
                 <Eye className="h-3 w-3 text-white/40" />
-                <span className="text-white/45 text-xs">{formatCount(stats.viewCount)} views</span>
+                <span className="text-white/45 text-xs">{formatCount(viewCount)} views</span>
               </div>
             )}
           </div>
@@ -304,6 +525,19 @@ function MomentCard({
           </div>
         </div>
       </div>
+
+      {/* Comment panel — slides up over the card */}
+      {showComments && (
+        <CommentPanel
+          videoId={moment.videoId}
+          visitorId={visitorId}
+          onClose={() => {
+            setShowComments(false);
+            // Refresh comment count after closing
+            fetchComments(moment.videoId).then(c => setCommentCount(c.length));
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -315,10 +549,10 @@ export default function Moments() {
   const [muted, setMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newVideoAlert, setNewVideoAlert] = useState(false);
+  const [visitorId] = useState(() => getVisitorId());
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isScrollingProgrammatically = useRef(false);
 
   const loadMoments = useCallback(() => {
     return fetchShorts()
@@ -334,26 +568,20 @@ export default function Moments() {
     loadMoments();
   }, [loadMoments]);
 
-  // ── SSE listener — auto-refresh when new shorts are uploaded on YouTube
+  // SSE — auto-refresh banner when new shorts are uploaded
   useEffect(() => {
     const es = new EventSource(`${BASE}/api/sermons/stream`);
-
     es.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data) as { type?: string };
-        if (msg.type === "new_sermon" || msg.type === "sync_complete") {
-          // Show alert banner so user can tap to refresh (avoids disrupting current playback)
-          setNewVideoAlert(true);
-        }
+        if (msg.type === "new_sermon" || msg.type === "sync_complete") setNewVideoAlert(true);
       } catch {}
     };
-
-    es.onerror = () => { /* silent — SSE reconnects automatically */ };
-
+    es.onerror = () => {};
     return () => es.close();
   }, []);
 
-  // IntersectionObserver — updates current as user scrolls
+  // IntersectionObserver — track active card as user scrolls
   useEffect(() => {
     if (moments.length === 0) return;
     const observer = new IntersectionObserver(
@@ -373,10 +601,8 @@ export default function Moments() {
 
   const scrollTo = useCallback((idx: number) => {
     const clamped = Math.max(0, Math.min(idx, moments.length - 1));
-    isScrollingProgrammatically.current = true;
     cardRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", block: "start" });
     setCurrent(clamped);
-    setTimeout(() => { isScrollingProgrammatically.current = false; }, 600);
   }, [moments.length]);
 
   const goNext = useCallback(() => scrollTo(current + 1), [current, scrollTo]);
@@ -384,7 +610,6 @@ export default function Moments() {
   const jumpTo = useCallback((i: number) => scrollTo(i), [scrollTo]);
   const toggleMute = useCallback(() => setMuted(m => !m), []);
 
-  // Keyboard nav
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -400,11 +625,9 @@ export default function Moments() {
   return (
     <Layout>
       <div className="flex h-[calc(100dvh-64px)] max-h-screen overflow-hidden">
-
-        {/* ── Video feed ── */}
         <div className="flex-1 relative flex flex-col min-w-0">
 
-          {/* Header strip */}
+          {/* Header */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-border/20 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-red-500" />
@@ -415,13 +638,13 @@ export default function Moments() {
                 <span className="text-xs text-muted-foreground">{current + 1} / {moments.length}</span>
               )}
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <ThumbsUp className="h-3 w-3" />
-                <span className="hidden sm:inline">Likes & comments reflect on YouTube</span>
+                <Heart className="h-3 w-3 text-red-400" />
+                <span className="hidden sm:inline">Like & comment right here</span>
               </div>
             </div>
           </div>
 
-          {/* New video alert banner */}
+          {/* New video alert */}
           {newVideoAlert && (
             <button
               onClick={() => { setLoading(true); loadMoments(); }}
@@ -465,6 +688,7 @@ export default function Moments() {
                       index={i}
                       total={moments.length}
                       muted={muted}
+                      visitorId={visitorId}
                       onToggleMute={toggleMute}
                       renderPlayer={Math.abs(i - current) <= 1}
                       isActive={i === current}
@@ -473,14 +697,13 @@ export default function Moments() {
                 ))}
               </div>
 
-              {/* Nav arrows — float left-center */}
+              {/* Nav arrows + dots — float left-center */}
               <div className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
                 <button onClick={goPrev} disabled={current === 0}
                   className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
                   <ChevronUp className="h-4 w-4" />
                 </button>
 
-                {/* Progress dots */}
                 <div className="flex flex-col gap-1 items-center py-1">
                   {moments.slice(0, 12).map((_, i) => (
                     <button key={i} onClick={() => jumpTo(i)}

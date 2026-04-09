@@ -9,3 +9,4 @@ export * from "./memberAuth";
 export * from "./crusade";
 export * from "./knowledge";
 export * from "./devotions";
+export * from "./moments";
