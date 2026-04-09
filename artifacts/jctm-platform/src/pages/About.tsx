@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin } from "lucide-react";
+import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
 const prophetAmosImg = "/founder/prophet-portrait.jpg";
@@ -300,6 +300,20 @@ export default function About() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Sunday Service</p>
                     <p>Live-streamed via Temple TV · 8:00 AM WAT</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Video className="h-3.5 w-3.5 text-accent shrink-0" />
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">Zoom Meeting ID</p>
+                    </div>
+                    <a
+                      href="https://zoom.us/j/4092099631"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-accent transition-colors font-medium text-primary"
+                    >
+                      4092099631
+                    </a>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Facebook, Youtube, Mail } from "lucide-react";
+import { Facebook, Youtube, Mail, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
 const SOCIAL = [
@@ -113,6 +113,18 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
+              <div className="mt-4 flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Zoom Meeting ID</span>
+                <a
+                  href="https://zoom.us/j/4092099631"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#003366] transition-colors"
+                >
+                  <Video className="h-3.5 w-3.5 shrink-0" />
+                  4092099631
+                </a>
+              </div>
             </div>
           </div>
 
