@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Tv, MapPin, Phone, Mail } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
-const VIEWING_CENTRES = [
+const VIEWING_CENTRES: { name: string; location: string; phone: string | null; phone2?: string }[] = [
   { name: "Bro Ogbonna Nwaokoro",                    location: "Abia",             phone: null },
   { name: "Evang. Joel Uchechukwu John",             location: "Abia – Umuahia",   phone: "08038501555" },
   { name: "Pst. Emmanuel",                           location: "Abuja – Jikwoyi",  phone: "08069041250" },
@@ -24,6 +24,7 @@ const VIEWING_CENTRES = [
   { name: "Bro Chikwado Martins / Bro Osita Emeka", location: "Edo",              phone: "08129409312" },
   { name: "Bro Joseph Ulankhoba",                    location: "Edo",              phone: "07032226903" },
   { name: "Bro Ugwudinso Christian",                 location: "Enugu",            phone: "08138975516" },
+  { name: "Evang. Azubuogu Christopher Ejike",       location: "Imo – Okigwe",     phone: "07068681100", phone2: "09064237006" },
   { name: "Bro Adeniyi David",                       location: "Lagos",            phone: "08051366325" },
   { name: "Pst Basibe Evans",                        location: "Lagos",            phone: "0803266645" },
   { name: "Bro Lumi Istifanus",                      location: "Lagos",            phone: "07040689542" },
@@ -115,11 +116,14 @@ export default function ViewingCentres() {
                       {centre.location}
                     </span>
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-3 flex flex-col gap-0.5">
                     {centre.phone
                       ? <a href={`tel:${centre.phone}`} className="hover:text-accent transition-colors font-mono text-xs flex items-center gap-1"><Phone className="h-3 w-3 shrink-0" />{centre.phone}</a>
                       : <span className="text-xs text-muted-foreground/40 italic">—</span>
                     }
+                    {centre.phone2 && (
+                      <a href={`tel:${centre.phone2}`} className="hover:text-accent transition-colors font-mono text-xs flex items-center gap-1"><Phone className="h-3 w-3 shrink-0" />{centre.phone2}</a>
+                    )}
                   </div>
                 </motion.div>
               ))}
