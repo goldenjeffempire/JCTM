@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { db, momentLikesTable, momentCommentsTable } from "@workspace/db";
-import { postYouTubeComment } from "../lib/youtube-oauth.js";
+import { db, momentLikesTable, momentCommentsTable, momentEngagementsTable } from "@workspace/db";
+import { postYouTubeComment, syncEngagementComment } from "../lib/youtube-oauth.js";
 
 const router: IRouter = Router();
 
@@ -13,18 +13,64 @@ function isValidVisitorId(v: unknown): v is string {
   return typeof v === "string" && v.length >= 1 && v.length <= 128;
 }
 
+// ── Shared helper: read counts + engagement record for a video ─────────────
+async function getVideoEngagement(videoId: string) {
+  const [[likeRow], [engagement]] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` })
+      .from(momentLikesTable)
+      .where(eq(momentLikesTable.videoId, videoId)),
+    db.select()
+      .from(momentEngagementsTable)
+      .where(eq(momentEngagementsTable.videoId, videoId))
+      .limit(1),
+  ]);
+  return {
+    likeCount:   likeRow?.count ?? 0,
+    shareCount:  engagement?.shareCount ?? 0,
+    commentId:   engagement?.ytEngagementCommentId ?? null,
+  };
+}
+
+// ── Upsert engagement row with a new YouTube comment ID ───────────────────
+async function storeEngagementCommentId(videoId: string, commentId: string) {
+  await db.insert(momentEngagementsTable)
+    .values({ videoId, ytEngagementCommentId: commentId, shareCount: 0 })
+    .onConflictDoUpdate({
+      target: momentEngagementsTable.videoId,
+      set:    { ytEngagementCommentId: commentId, updatedAt: new Date() },
+    });
+}
+
+// ── Fire-and-forget YouTube engagement sync ───────────────────────────────
+function fireEngagementSync(videoId: string, likeCount: number, shareCount: number, commentId: string | null) {
+  syncEngagementComment(videoId, commentId, likeCount, shareCount)
+    .then(async (returnedId) => {
+      if (returnedId && !commentId) {
+        await storeEngagementCommentId(videoId, returnedId);
+      }
+    })
+    .catch(() => {});
+}
+
 // ──────────────────────────────────────────────────────
 // GET /moments/:videoId/likes?visitorId=xxx
+// Returns like count, liked status, and share count.
 // ──────────────────────────────────────────────────────
 router.get("/moments/:videoId/likes", async (req, res): Promise<void> => {
   const { videoId } = req.params;
   if (!isValidVideoId(videoId)) { res.status(400).json({ error: "Invalid videoId" }); return; }
 
   const visitorId = req.query["visitorId"];
-  const [countRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(momentLikesTable)
-    .where(eq(momentLikesTable.videoId, videoId));
+
+  const [[countRow], [engagement]] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` })
+      .from(momentLikesTable)
+      .where(eq(momentLikesTable.videoId, videoId)),
+    db.select({ shareCount: momentEngagementsTable.shareCount })
+      .from(momentEngagementsTable)
+      .where(eq(momentEngagementsTable.videoId, videoId))
+      .limit(1),
+  ]);
 
   let liked = false;
   if (isValidVisitorId(visitorId)) {
@@ -36,13 +82,17 @@ router.get("/moments/:videoId/likes", async (req, res): Promise<void> => {
     liked = !!row;
   }
 
-  res.json({ count: countRow?.count ?? 0, liked });
+  res.json({
+    count:      countRow?.count ?? 0,
+    liked,
+    shareCount: engagement?.shareCount ?? 0,
+  });
 });
 
 // ──────────────────────────────────────────────────────
 // POST /moments/:videoId/like
 // Body: { visitorId: string }
-// Toggles like — platform-native (YouTube likes require user OAuth)
+// Toggles like locally and syncs engagement comment to YouTube.
 // ──────────────────────────────────────────────────────
 router.post("/moments/:videoId/like", async (req, res): Promise<void> => {
   const { videoId } = req.params;
@@ -63,12 +113,47 @@ router.post("/moments/:videoId/like", async (req, res): Promise<void> => {
     await db.insert(momentLikesTable).values({ videoId, visitorId });
   }
 
-  const [countRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(momentLikesTable)
-    .where(eq(momentLikesTable.videoId, videoId));
+  const { likeCount, shareCount, commentId } = await getVideoEngagement(videoId);
 
-  res.json({ count: countRow?.count ?? 0, liked: !existing });
+  // Mirror updated counts to YouTube (fire-and-forget)
+  fireEngagementSync(videoId, likeCount, shareCount, commentId);
+
+  res.json({
+    count:      likeCount,
+    liked:      !existing,
+    shareCount,
+  });
+});
+
+// ──────────────────────────────────────────────────────
+// POST /moments/:videoId/share
+// Body: { visitorId: string }
+// Increments share count and syncs engagement comment to YouTube.
+// ──────────────────────────────────────────────────────
+router.post("/moments/:videoId/share", async (req, res): Promise<void> => {
+  const { videoId } = req.params;
+  if (!isValidVideoId(videoId)) { res.status(400).json({ error: "Invalid videoId" }); return; }
+
+  const { visitorId } = req.body as { visitorId?: unknown };
+  if (!isValidVisitorId(visitorId)) { res.status(400).json({ error: "visitorId is required" }); return; }
+
+  // Upsert engagement row — increment share_count
+  await db.insert(momentEngagementsTable)
+    .values({ videoId, shareCount: 1 })
+    .onConflictDoUpdate({
+      target: momentEngagementsTable.videoId,
+      set: {
+        shareCount: sql`${momentEngagementsTable.shareCount} + 1`,
+        updatedAt:  new Date(),
+      },
+    });
+
+  const { likeCount, shareCount, commentId } = await getVideoEngagement(videoId);
+
+  // Mirror updated counts to YouTube (fire-and-forget)
+  fireEngagementSync(videoId, likeCount, shareCount, commentId);
+
+  res.json({ shareCount });
 });
 
 // ──────────────────────────────────────────────────────
@@ -80,10 +165,10 @@ router.get("/moments/:videoId/comments", async (req, res): Promise<void> => {
 
   const comments = await db
     .select({
-      id: momentCommentsTable.id,
-      name: momentCommentsTable.name,
-      body: momentCommentsTable.body,
-      createdAt: momentCommentsTable.createdAt,
+      id:          momentCommentsTable.id,
+      name:        momentCommentsTable.name,
+      body:        momentCommentsTable.body,
+      createdAt:   momentCommentsTable.createdAt,
       ytCommentId: momentCommentsTable.ytCommentId,
     })
     .from(momentCommentsTable)
@@ -93,7 +178,7 @@ router.get("/moments/:videoId/comments", async (req, res): Promise<void> => {
 
   res.json(comments.map(c => ({
     ...c,
-    createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+    createdAt:  c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
     ytMirrored: !!c.ytCommentId,
   })));
 });
@@ -113,10 +198,10 @@ router.post("/moments/:videoId/comments", async (req, res): Promise<void> => {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const text = typeof body.body === "string" ? body.body.trim() : "";
 
-  if (!name || name.length > 80) { res.status(400).json({ error: "name is required (max 80 chars)" }); return; }
-  if (!text || text.length > 1000) { res.status(400).json({ error: "body is required (max 1000 chars)" }); return; }
+  if (!name || name.length > 80)    { res.status(400).json({ error: "name is required (max 80 chars)" });   return; }
+  if (!text || text.length > 1000)  { res.status(400).json({ error: "body is required (max 1000 chars)" }); return; }
 
-  // Mirror to YouTube first (fire-and-forget with result)
+  // Mirror to YouTube (fire-and-forget with result)
   const ytCommentId = await postYouTubeComment(videoId, name, text);
 
   const [comment] = await db
@@ -132,7 +217,7 @@ router.post("/moments/:videoId/comments", async (req, res): Promise<void> => {
 
   res.status(201).json({
     ...comment,
-    createdAt: comment!.createdAt instanceof Date ? comment!.createdAt.toISOString() : comment!.createdAt,
+    createdAt:  comment!.createdAt instanceof Date ? comment!.createdAt.toISOString() : comment!.createdAt,
     ytMirrored: !!ytCommentId,
   });
 });

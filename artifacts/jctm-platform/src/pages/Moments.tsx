@@ -37,6 +37,7 @@ interface MomentItem {
 interface NativeLikes {
   count: number;
   liked: boolean;
+  shareCount: number;
 }
 
 interface Comment {
@@ -80,10 +81,10 @@ async function fetchShorts(): Promise<MomentItem[]> {
 async function fetchNativeLikes(videoId: string, visitorId: string): Promise<NativeLikes> {
   try {
     const res = await fetch(`${BASE}/api/moments/${videoId}/likes?visitorId=${encodeURIComponent(visitorId)}`);
-    if (!res.ok) return { count: 0, liked: false };
+    if (!res.ok) return { count: 0, liked: false, shareCount: 0 };
     return res.json();
   } catch {
-    return { count: 0, liked: false };
+    return { count: 0, liked: false, shareCount: 0 };
   }
 }
 
@@ -95,6 +96,21 @@ async function toggleLike(videoId: string, visitorId: string): Promise<NativeLik
   });
   if (!res.ok) throw new Error("Failed to toggle like");
   return res.json();
+}
+
+async function postShare(videoId: string, visitorId: string): Promise<number> {
+  try {
+    const res = await fetch(`${BASE}/api/moments/${videoId}/share`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId }),
+    });
+    if (!res.ok) return 0;
+    const data = (await res.json()) as { shareCount: number };
+    return data.shareCount;
+  } catch {
+    return 0;
+  }
 }
 
 async function fetchComments(videoId: string): Promise<Comment[]> {
@@ -307,8 +323,9 @@ function MomentCard({
       `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`
     : null;
 
-  const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false });
+  const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });
   const [liking, setLiking] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [viewCount, setViewCount] = useState<number | null>(moment.viewCount ?? null);
   const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState<number | null>(null);
@@ -342,8 +359,9 @@ function MomentCard({
     setLiking(true);
     const wasLiked = likes.liked;
     const optimistic: NativeLikes = {
-      count: wasLiked ? likes.count - 1 : likes.count + 1,
-      liked: !wasLiked,
+      count:      wasLiked ? likes.count - 1 : likes.count + 1,
+      liked:      !wasLiked,
+      shareCount: likes.shareCount,
     };
     setLikes(optimistic);
     try {
@@ -358,17 +376,28 @@ function MomentCard({
   };
 
   const handleShare = async () => {
-    // Share the YouTube video URL so it registers views/traffic on YouTube
+    if (sharing) return;
     const shareData = {
       title: moment.title,
-      text: `Watch "${moment.title}" — Jesus Christ Temple Ministry`,
-      url: ytUrl,
+      text:  `Watch "${moment.title}" — Jesus Christ Temple Ministry`,
+      url:   ytUrl,
     };
+    let shared = false;
     if (navigator.share) {
-      try { await navigator.share(shareData); } catch {}
+      try {
+        await navigator.share(shareData);
+        shared = true;
+      } catch {}
     } else {
       await navigator.clipboard.writeText(ytUrl);
       toast.success("YouTube link copied to clipboard!");
+      shared = true;
+    }
+    if (shared) {
+      setSharing(true);
+      const newShareCount = await postShare(moment.videoId, visitorId);
+      setLikes(prev => ({ ...prev, shareCount: newShareCount || prev.shareCount + 1 }));
+      setSharing(false);
     }
   };
 
@@ -479,13 +508,20 @@ function MomentCard({
           {/* Share */}
           <button
             onClick={handleShare}
+            disabled={sharing}
             className="flex flex-col items-center gap-1 group"
             title="Share"
           >
-            <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-white/20">
+            <div className={`h-11 w-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
+              sharing
+                ? "bg-white/20 border border-white/20 scale-95"
+                : "bg-black/40 backdrop-blur-md border border-white/20 group-hover:bg-white/20"
+            }`}>
               <Share2 className="h-5 w-5 text-white" />
             </div>
-            <span className="text-white text-[10px] font-semibold drop-shadow">Share</span>
+            <span className="text-white text-[10px] font-semibold drop-shadow">
+              {likes.shareCount > 0 ? formatCount(likes.shareCount) : "Share"}
+            </span>
           </button>
         </div>
 

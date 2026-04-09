@@ -41,6 +41,15 @@ async function runStartupMigrations() {
     await pool.query(`
       ALTER TABLE moment_comments ADD COLUMN IF NOT EXISTS yt_comment_id text
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS moment_engagements (
+        id serial PRIMARY KEY,
+        video_id text NOT NULL UNIQUE,
+        yt_engagement_comment_id text,
+        share_count integer NOT NULL DEFAULT 0,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
