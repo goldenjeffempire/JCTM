@@ -133,11 +133,11 @@ export default function Join() {
                       <div><label className="text-xs font-medium text-primary mb-1 block">First Name *</label><Input value={regForm.firstName} onChange={e => setRegForm(p => ({ ...p, firstName: e.target.value }))} placeholder="First" required className="bg-white" /></div>
                       <div><label className="text-xs font-medium text-primary mb-1 block">Last Name *</label><Input value={regForm.lastName} onChange={e => setRegForm(p => ({ ...p, lastName: e.target.value }))} placeholder="Last" required className="bg-white" /></div>
                     </div>
-                    <div><label className="text-xs font-medium text-primary mb-1 block">Email Address *</label><Input type="email" value={regForm.email} onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" /></div>
+                    <div><label className="text-xs font-medium text-primary mb-1 block">Email Address *</label><Input type="email" value={regForm.email} onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="email" /></div>
                     <div>
                       <label className="text-xs font-medium text-primary mb-1 block">Password *</label>
                       <div className="relative">
-                        <Input type={showPass ? "text" : "password"} value={regForm.password} onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))} placeholder="Min. 6 characters" required className="bg-white pr-10" />
+                        <Input type={showPass ? "text" : "password"} value={regForm.password} onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))} placeholder="Min. 6 characters" required className="bg-white pr-10" autoComplete="new-password" />
                         <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -159,11 +159,11 @@ export default function Join() {
                     <button onClick={() => { setView("login"); setError(""); }} className="flex-1 py-2 rounded-full text-sm font-medium bg-white shadow text-primary">Sign In</button>
                   </div>
                   <form onSubmit={handleLogin} className="space-y-4">
-                    <div><label className="text-xs font-medium text-primary mb-1 block">Email Address *</label><Input type="email" value={loginForm.email} onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" /></div>
+                    <div><label className="text-xs font-medium text-primary mb-1 block">Email Address *</label><Input type="email" value={loginForm.email} onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="username" /></div>
                     <div>
                       <label className="text-xs font-medium text-primary mb-1 block">Password *</label>
                       <div className="relative">
-                        <Input type={showPass ? "text" : "password"} value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))} placeholder="Your password" required className="bg-white pr-10" />
+                        <Input type={showPass ? "text" : "password"} value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))} placeholder="Your password" required className="bg-white pr-10" autoComplete="current-password" />
                         <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>

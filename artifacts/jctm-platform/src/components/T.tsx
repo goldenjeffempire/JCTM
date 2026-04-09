@@ -8,7 +8,7 @@
  * For static UI strings, use the t() function from useLanguage() instead —
  * it's instant and doesn't require a network call.
  */
-import { useState, useEffect, type JSX } from "react";
+import { useState, useEffect, createElement, type JSX } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TProps {
@@ -33,7 +33,7 @@ export function T({ children, className, as: Tag = "span" }: TProps) {
     return () => { cancelled = true; };
   }, [children, language, translate]);
 
-  return <Tag className={className}>{text}</Tag>;
+  return createElement(Tag, { className }, text);
 }
 
 /**

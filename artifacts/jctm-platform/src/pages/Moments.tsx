@@ -147,7 +147,7 @@ function MomentCard({
             src={embedSrc}
             title={moment.title}
             className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             onLoad={handleLoad}
           />

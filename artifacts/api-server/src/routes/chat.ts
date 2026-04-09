@@ -473,7 +473,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     const { msgs, conversationId } = await buildMessages(
       message,
       history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      sessionId,
+      sessionId ?? undefined,
       language,
     );
 
@@ -555,7 +555,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     const { msgs, conversationId } = await buildMessages(
       message,
       history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      sessionId,
+      sessionId ?? undefined,
       language,
     );
 
