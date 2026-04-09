@@ -164,6 +164,48 @@ router.get("/sermons/:id", async (req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
+// GET /sermons/youtube-stats/:videoId
+// Fetches live like / comment / view counts from YouTube Data API.
+// Returns cached DB view count as fallback if no API key is set.
+// ──────────────────────────────────────────────────────
+router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> => {
+  const videoId = String(req.params.videoId ?? "").trim();
+  if (!videoId) { res.status(400).json({ error: "videoId required" }); return; }
+
+  const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+  if (!YOUTUBE_API_KEY) {
+    // Fallback: return stored view count from DB, no likes/comments available
+    const [row] = await db
+      .select({ viewCount: sermonsTable.viewCount })
+      .from(sermonsTable)
+      .where(eq(sermonsTable.videoId, videoId));
+    res.json({ likeCount: null, commentCount: null, viewCount: row?.viewCount ?? 0 });
+    return;
+  }
+
+  try {
+    const url =
+      `https://www.googleapis.com/youtube/v3/videos` +
+      `?part=statistics&id=${encodeURIComponent(videoId)}&key=${YOUTUBE_API_KEY}`;
+    const ytRes = await fetch(url);
+    if (!ytRes.ok) throw new Error(`YouTube API error: ${ytRes.status}`);
+    const data = await ytRes.json() as {
+      items?: { statistics?: { likeCount?: string; commentCount?: string; viewCount?: string } }[]
+    };
+    const stats = data.items?.[0]?.statistics ?? {};
+    res.json({
+      likeCount: stats.likeCount != null ? parseInt(stats.likeCount) : null,
+      commentCount: stats.commentCount != null ? parseInt(stats.commentCount) : null,
+      viewCount: stats.viewCount != null ? parseInt(stats.viewCount) : 0,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch YouTube stats");
+    res.status(500).json({ error: "Failed to fetch YouTube stats" });
+  }
+});
+
+// ──────────────────────────────────────────────────────
 // POST /sermons  — incremental sync (manual trigger)
 // POST /sermons?harvest=true  — full purge + repopulate
 // ──────────────────────────────────────────────────────

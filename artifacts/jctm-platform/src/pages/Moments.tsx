@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ChevronUp, ChevronDown, ExternalLink,
   Sparkles, Radio, Flame, Share2, BookOpen,
-  Volume2, VolumeX,
+  Volume2, VolumeX, Heart, MessageCircle, Eye,
+  ThumbsUp,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,14 @@ interface MomentItem {
   title: string;
   thumbnailUrl: string;
   publishedAt: string;
+  viewCount?: number | null;
   isLive?: boolean;
+}
+
+interface YTStats {
+  likeCount: number | null;
+  commentCount: number | null;
+  viewCount: number;
 }
 
 const GRADIENT_THEMES = [
@@ -29,14 +37,30 @@ const GRADIENT_THEMES = [
   "from-[#1a0a2a] via-[#2a1a4a] to-[#0d0519]",
 ];
 
+function formatCount(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 async function fetchShorts(): Promise<MomentItem[]> {
   const res = await fetch(`${BASE}/api/sermons/shorts`);
   if (!res.ok) throw new Error("Failed to fetch shorts");
   return res.json();
 }
 
+async function fetchYTStats(videoId: string): Promise<YTStats | null> {
+  try {
+    const res = await fetch(`${BASE}/api/sermons/youtube-stats/${videoId}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 // ── Single card ────────────────────────────────────────────────────────────
-// renderPlayer is true only for the active card ± 1 neighbour (saves memory)
 function MomentCard({
   moment,
   index,
@@ -44,6 +68,7 @@ function MomentCard({
   muted,
   onToggleMute,
   renderPlayer,
+  isActive,
 }: {
   moment: MomentItem;
   index: number;
@@ -51,15 +76,25 @@ function MomentCard({
   muted: boolean;
   onToggleMute: () => void;
   renderPlayer: boolean;
+  isActive: boolean;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
   const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
-  // loop=1 repeats the video; playlist must equal videoId for single-video looping
+  const ytCommentsUrl = `${ytUrl}&lc=`;
   const embedSrc =
     `https://www.youtube.com/embed/${moment.videoId}` +
     `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
     `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+
+  const [stats, setStats] = useState<YTStats | null>(null);
+  const [liked, setLiked] = useState(false);
+
+  // Fetch YouTube stats when this card becomes active
+  useEffect(() => {
+    if (!isActive) return;
+    fetchYTStats(moment.videoId).then(setStats);
+  }, [isActive, moment.videoId]);
 
   // Pump volume to 100 via IFrame API after player loads
   const handleLoad = () => {
@@ -79,8 +114,24 @@ function MomentCard({
       try { await navigator.share(data); } catch {}
     } else {
       await navigator.clipboard.writeText(ytUrl);
-      toast.success("Link copied!");
+      toast.success("Link copied to clipboard!");
     }
+  };
+
+  const handleLike = () => {
+    // Open YouTube where user can like — this makes the like reflect on YouTube
+    window.open(ytUrl, "_blank", "noopener,noreferrer");
+    // Optimistic UI feedback
+    if (!liked) {
+      setLiked(true);
+      toast.success("Opening YouTube to like this video!");
+    }
+  };
+
+  const handleComment = () => {
+    // Open YouTube comments section
+    window.open(ytCommentsUrl, "_blank", "noopener,noreferrer");
+    toast.success("Opening YouTube comments!");
   };
 
   return (
@@ -102,12 +153,11 @@ function MomentCard({
           />
           {/* Readability gradients */}
           <div className="absolute inset-0 pointer-events-none"
-            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 35%, transparent 60%)" }} />
+            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.15) 40%, transparent 65%)" }} />
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 25%)" }} />
         </div>
       ) : (
-        /* Thumbnail placeholder for off-screen cards */
         <div className="absolute inset-0">
           <img
             src={moment.thumbnailUrl}
@@ -119,12 +169,13 @@ function MomentCard({
             }}
           />
           <div className="absolute inset-0"
-            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.2) 100%)" }} />
+            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.2) 100%)" }} />
         </div>
       )}
 
       {/* UI overlay — always on top */}
       <div className="absolute inset-0 z-10 flex flex-col pointer-events-none">
+
         {/* Top bar */}
         <div className="flex items-center justify-between p-4 pointer-events-auto">
           <div className="flex items-center gap-2">
@@ -147,46 +198,107 @@ function MomentCard({
           </div>
         </div>
 
+        {/* Spacer — pushes bottom content down */}
         <div className="flex-1" />
 
+        {/* Right-side action buttons (TikTok-style) */}
+        <div className="absolute right-4 bottom-32 flex flex-col items-center gap-5 pointer-events-auto z-20">
+
+          {/* Like */}
+          <button
+            onClick={handleLike}
+            className="flex flex-col items-center gap-1 group"
+            title="Like on YouTube"
+          >
+            <div className={`h-11 w-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
+              liked
+                ? "bg-red-500/80 border border-red-400/50 scale-110"
+                : "bg-black/40 backdrop-blur-md border border-white/20 group-hover:bg-red-500/40"
+            }`}>
+              <Heart className={`h-5 w-5 transition-colors ${liked ? "text-white fill-white" : "text-white"}`} />
+            </div>
+            <span className="text-white text-[10px] font-semibold drop-shadow">
+              {formatCount(stats?.likeCount)}
+            </span>
+          </button>
+
+          {/* Comment */}
+          <button
+            onClick={handleComment}
+            className="flex flex-col items-center gap-1 group"
+            title="Comment on YouTube"
+          >
+            <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-white/20">
+              <MessageCircle className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-white text-[10px] font-semibold drop-shadow">
+              {formatCount(stats?.commentCount)}
+            </span>
+          </button>
+
+          {/* Share */}
+          <button
+            onClick={handleShare}
+            className="flex flex-col items-center gap-1 group"
+            title="Share"
+          >
+            <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-white/20">
+              <Share2 className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-white text-[10px] font-semibold drop-shadow">Share</span>
+          </button>
+
+          {/* Open on YouTube */}
+          <a
+            href={ytUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-1 group"
+            title="Watch on YouTube"
+          >
+            <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-red-600/40">
+              <ExternalLink className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-white text-[10px] font-semibold drop-shadow">YouTube</span>
+          </a>
+        </div>
+
         {/* Bottom info */}
-        <div className="p-4 space-y-3 pointer-events-auto">
-          <div>
-            <p className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-1">
-              {moment.title}
-            </p>
-            <div className="flex items-center gap-2">
+        <div className="p-4 pb-5 space-y-2 pointer-events-auto pr-20">
+          <p className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow">
+            {moment.title}
+          </p>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
               <Radio className="h-3 w-3 text-white/50 animate-pulse" />
               <p className="text-white/55 text-xs">
                 {formatDistanceToNow(new Date(moment.publishedAt), { addSuffix: true })}
               </p>
             </div>
+            {(stats?.viewCount != null && stats.viewCount > 0) && (
+              <div className="flex items-center gap-1">
+                <Eye className="h-3 w-3 text-white/40" />
+                <span className="text-white/45 text-xs">{formatCount(stats.viewCount)} views</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onToggleMute}
-              className={`flex-1 h-9 rounded-xl backdrop-blur-md border flex items-center justify-center gap-2 text-white text-xs font-semibold transition-colors ${
-                muted
-                  ? "bg-white/10 border-white/20 hover:bg-white/20"
-                  : "bg-accent/20 border-accent/30 hover:bg-accent/30"
-              }`}
-            >
-              {muted
-                ? <><VolumeX className="h-3.5 w-3.5" /> Tap to unmute</>
-                : <><Volume2 className="h-3.5 w-3.5" /> Sound on</>}
-            </button>
-            <button
-              onClick={handleShare}
-              className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-colors"
-            ><Share2 className="h-3.5 w-3.5" /></button>
-            <a href={ytUrl} target="_blank" rel="noopener noreferrer"
-              className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-colors">
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
+          {/* Sound toggle */}
+          <button
+            onClick={onToggleMute}
+            className={`h-9 px-4 rounded-xl backdrop-blur-md border flex items-center gap-2 text-white text-xs font-semibold transition-colors ${
+              muted
+                ? "bg-white/10 border-white/20 hover:bg-white/20"
+                : "bg-accent/20 border-accent/30 hover:bg-accent/30"
+            }`}
+          >
+            {muted
+              ? <><VolumeX className="h-3.5 w-3.5" /> Tap to unmute</>
+              : <><Volume2 className="h-3.5 w-3.5" /> Sound on</>}
+          </button>
 
-          <div className="flex items-center gap-1.5 text-white/25 text-[10px]">
+          <div className="flex items-center gap-1.5 text-white/20 text-[10px]">
             <Sparkles className="h-3 w-3" />
             <span>Jesus Christ Temple Ministry · Warri, Nigeria</span>
           </div>
@@ -202,20 +314,46 @@ export default function Moments() {
   const [current, setCurrent] = useState(0);
   const [muted, setMuted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [newVideoAlert, setNewVideoAlert] = useState(false);
 
-  // Refs for each card — used for programmatic scroll-into-view
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = useRef(false);
 
-  useEffect(() => {
-    fetchShorts()
-      .then(setMoments)
+  const loadMoments = useCallback(() => {
+    return fetchShorts()
+      .then(data => {
+        setMoments(data);
+        setNewVideoAlert(false);
+      })
       .catch(() => toast.error("Could not load Moments"))
       .finally(() => setLoading(false));
   }, []);
 
-  // IntersectionObserver — updates current as user scrolls (mobile scroll-snap)
+  useEffect(() => {
+    loadMoments();
+  }, [loadMoments]);
+
+  // ── SSE listener — auto-refresh when new shorts are uploaded on YouTube
+  useEffect(() => {
+    const es = new EventSource(`${BASE}/api/sermons/stream`);
+
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data) as { type?: string };
+        if (msg.type === "new_sermon" || msg.type === "sync_complete") {
+          // Show alert banner so user can tap to refresh (avoids disrupting current playback)
+          setNewVideoAlert(true);
+        }
+      } catch {}
+    };
+
+    es.onerror = () => { /* silent — SSE reconnects automatically */ };
+
+    return () => es.close();
+  }, []);
+
+  // IntersectionObserver — updates current as user scrolls
   useEffect(() => {
     if (moments.length === 0) return;
     const observer = new IntersectionObserver(
@@ -233,7 +371,6 @@ export default function Moments() {
     return () => observer.disconnect();
   }, [moments]);
 
-  // Scroll programmatically to a card (desktop arrows / keyboard)
   const scrollTo = useCallback((idx: number) => {
     const clamped = Math.max(0, Math.min(idx, moments.length - 1));
     isScrollingProgrammatically.current = true;
@@ -262,10 +399,6 @@ export default function Moments() {
 
   return (
     <Layout>
-      {/* 
-        Two-column layout on desktop, full-screen feed on mobile.
-        The scroll container fills all available height below the navbar.
-      */}
       <div className="flex h-[calc(100dvh-64px)] max-h-screen overflow-hidden">
 
         {/* ── Video feed ── */}
@@ -277,10 +410,27 @@ export default function Moments() {
               <Flame className="h-4 w-4 text-red-500" />
               <span className="text-sm font-bold text-primary">Temple Moments</span>
             </div>
-            {moments.length > 0 && (
-              <span className="text-xs text-muted-foreground">{current + 1} / {moments.length}</span>
-            )}
+            <div className="flex items-center gap-3">
+              {moments.length > 0 && (
+                <span className="text-xs text-muted-foreground">{current + 1} / {moments.length}</span>
+              )}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <ThumbsUp className="h-3 w-3" />
+                <span className="hidden sm:inline">Likes & comments reflect on YouTube</span>
+              </div>
+            </div>
           </div>
+
+          {/* New video alert banner */}
+          {newVideoAlert && (
+            <button
+              onClick={() => { setLoading(true); loadMoments(); }}
+              className="flex-shrink-0 w-full bg-accent/90 text-white text-xs font-semibold py-2 px-4 flex items-center justify-center gap-2 hover:bg-accent transition-colors z-30"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              New video uploaded! Tap to refresh Moments
+            </button>
+          )}
 
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
@@ -294,11 +444,6 @@ export default function Moments() {
             </div>
           ) : (
             <>
-              {/*
-                Scroll-snap container — native mobile scroll.
-                Each card snaps into position. No JS swipe handling needed.
-                hide scrollbar but keep scrollability.
-              */}
               <div
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-scroll"
@@ -321,37 +466,39 @@ export default function Moments() {
                       total={moments.length}
                       muted={muted}
                       onToggleMute={toggleMute}
-                      renderPlayer={i === current}
+                      renderPlayer={Math.abs(i - current) <= 1}
+                      isActive={i === current}
                     />
                   </div>
                 ))}
               </div>
 
-              {/* Nav arrows — float over the video, right side */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+              {/* Nav arrows — float left-center */}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
                 <button onClick={goPrev} disabled={current === 0}
-                  className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
-                  <ChevronUp className="h-5 w-5" />
+                  className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
+                  <ChevronUp className="h-4 w-4" />
                 </button>
-                <button onClick={goNext} disabled={current === moments.length - 1}
-                  className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
-                  <ChevronDown className="h-5 w-5" />
-                </button>
-              </div>
 
-              {/* Progress dots */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1">
-                {moments.slice(0, 15).map((_, i) => (
-                  <button key={i} onClick={() => jumpTo(i)}
-                    className={`rounded-full transition-all duration-300 ${
-                      i === current ? "h-5 w-1.5 bg-white" : "h-1.5 w-1.5 bg-white/30"
-                    }`} />
-                ))}
-                {moments.length > 15 && (
-                  <span className="text-white/40 text-[8px] text-center mt-0.5">
-                    {moments.length - 15}+
-                  </span>
-                )}
+                {/* Progress dots */}
+                <div className="flex flex-col gap-1 items-center py-1">
+                  {moments.slice(0, 12).map((_, i) => (
+                    <button key={i} onClick={() => jumpTo(i)}
+                      className={`rounded-full transition-all duration-300 ${
+                        i === current ? "h-4 w-1.5 bg-white" : "h-1.5 w-1.5 bg-white/30"
+                      }`} />
+                  ))}
+                  {moments.length > 12 && (
+                    <span className="text-white/40 text-[8px] text-center mt-0.5">
+                      +{moments.length - 12}
+                    </span>
+                  )}
+                </div>
+
+                <button onClick={goNext} disabled={current === moments.length - 1}
+                  className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
+                  <ChevronDown className="h-4 w-4" />
+                </button>
               </div>
             </>
           )}
