@@ -135,7 +135,53 @@ export default function Prayer() {
         title="Prayer Room — JCTM Digital Sanctuary"
         description="Enter the JCTM Prayer Room — a space for intercession, prophetic prayers, and communion with God. Powered by TempleBots AI and the ministry of Jesus Christ Temple Ministry."
         path="/prayer"
-        keywords="JCTM prayer, Jesus Christ Temple Ministry prayer, prayer requests Nigeria, intercession JCTM, TempleBots prayer"
+        keywords="JCTM prayer, Jesus Christ Temple Ministry prayer, prayer requests Nigeria, intercession JCTM, TempleBots prayer, AI prayer generator Nigeria, healing prayer, deliverance prayer Nigeria, online prayer ministry"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Prayer Room", url: "https://jctm.org.ng/prayer" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "JCTM Prayer Room — TempleBots AI Prayer Generator",
+            "description": "AI-powered prayer generator by Jesus Christ Temple Ministry. Generate personalized prayers for healing, deliverance, guidance, peace, provision, family, salvation, and more — grounded in scripture and JCTM doctrine.",
+            "url": "https://jctm.org.ng/prayer",
+            "applicationCategory": "ReligiousApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript",
+            "author": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "featureList": [
+              "Healing Prayer",
+              "Deliverance Prayer",
+              "Prayer for Guidance",
+              "Prayer for Peace",
+              "Prayer for Provision",
+              "Prayer for Family",
+              "Prayer for Protection",
+              "Prayer for Salvation",
+              "Prayer for Strength"
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How do I generate a prayer on JCTM?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Visit jctm.org.ng/prayer and select a prayer category (healing, deliverance, guidance, peace, provision, family, protection, salvation, or strength). Click 'Generate Prayer' and TempleBots AI will stream a personalized, scripture-based prayer grounded in JCTM doctrine. You can copy the prayer to your clipboard when done."
+                }
+              }
+            ]
+          }
+        ]}
       />
       <div className="min-h-screen bg-background">
         <div className="relative overflow-hidden">

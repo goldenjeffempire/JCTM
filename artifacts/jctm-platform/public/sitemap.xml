@@ -1,109 +1,174 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
           http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
+  <!-- ── Homepage ─────────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/</loc>
+    <lastmod>2026-04-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary</image:title>
+      <image:caption>The official digital home of Jesus Christ Temple Ministry, Warri Nigeria</image:caption>
+    </image:image>
   </url>
 
+  <!-- ── Sermons Hub ───────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/sermons</loc>
+    <lastmod>2026-04-09</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>Temple TV Sermons — JCTM Sermon Library</image:title>
+    </image:image>
   </url>
 
+  <!-- ── About ─────────────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/about</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.90</priority>
+    <image:image>
+      <image:loc>https://jctm.org.ng/founder/prophet-portrait.jpg</image:loc>
+      <image:title>Prophet Amos Evomobor — Founder of JCTM</image:title>
+    </image:image>
   </url>
 
-  <url>
-    <loc>https://jctm.org.ng/give</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://jctm.org.ng/events</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://jctm.org.ng/testimonies</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://jctm.org.ng/prayer</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://jctm.org.ng/moments</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://jctm.org.ng/sermon-assistant</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://jctm.org.ng/members</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
+  <!-- ── Leadership ────────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/leadership</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.90</priority>
+    <image:image>
+      <image:loc>https://jctm.org.ng/founder/prophet-portrait.jpg</image:loc>
+      <image:title>Prophet Amos Evomobor — Leader of Jesus Christ Temple Ministry</image:title>
+    </image:image>
   </url>
 
+  <!-- ── Give ──────────────────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/give</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ── Events ────────────────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/events</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ── Crusade 2026 ───────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/crusade</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>Warri City Crusade 2026 — Jesus Christ Temple Ministry</image:title>
+    </image:image>
   </url>
 
+  <!-- ── Testimonies ───────────────────────────────────────────────────────── -->
   <url>
-    <loc>https://jctm.org.ng/viewing-centres</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://jctm.org.ng/testimonies</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
   </url>
 
+  <!-- ── Prayer ────────────────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/prayer</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- ── Moments (Temple TV Reels) ─────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/moments</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <!-- ── Sermon AI Assistant ───────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/sermon-assistant</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <!-- ── Spiritual Growth Tracker ─────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/growth</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <!-- ── Correction Timeline ───────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/correction-timeline</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.75</priority>
   </url>
 
+  <!-- ── Viewing Centres ───────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/viewing-centres</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <!-- ── Members ────────────────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/members</loc>
+    <lastmod>2026-04-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+
+  <!-- ── Join ───────────────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/join</loc>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.65</priority>
   </url>
 
+  <!-- ── Privacy Policy ────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/privacy</loc>
+    <lastmod>2026-01-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.30</priority>
   </url>
 
+  <!-- ── Terms of Service ──────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/terms</loc>
+    <lastmod>2026-01-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.30</priority>
   </url>
 
 </urlset>

@@ -2689,20 +2689,42 @@ export default function Home() {
         title="Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary"
         description="Welcome to JCTM — Jesus Christ Temple Ministry, Warri Nigeria. Watch Temple TV sermons, give online, experience the Correction Mandate, and connect with Prophet Amos Evomobor's ministry."
         path="/"
-        keywords="Jesus Christ Temple Ministry, JCTM, Temple TV, JCTM Warri Nigeria, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, Temple Ministry"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          "name": "JCTM Digital Sanctuary — Home",
-          "url": "https://jctm.org.ng/",
-          "description": "Official digital home of Jesus Christ Temple Ministry (JCTM), Warri Nigeria.",
-          "isPartOf": { "@type": "WebSite", "name": "JCTM Digital Sanctuary", "url": "https://jctm.org.ng" },
-          "about": {
-            "@type": "ReligiousOrganization",
-            "name": "Jesus Christ Temple Ministry",
-            "alternateName": ["JCTM", "Temple TV"]
+        keywords="Jesus Christ Temple Ministry, JCTM, Temple TV, JCTM Warri Nigeria, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, Temple Ministry, primitive Christianity Nigeria, end time church Nigeria, holiness preaching"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "JCTM Digital Sanctuary — Jesus Christ Temple Ministry Official Homepage",
+            "url": "https://jctm.org.ng/",
+            "description": "Official digital home of Jesus Christ Temple Ministry (JCTM), Warri Nigeria. Watch Temple TV sermons, give online, experience the Correction Mandate, and connect with Prophet Amos Evomobor.",
+            "inLanguage": "en-NG",
+            "speakable": {
+              "@type": "SpeakableSpecification",
+              "cssSelector": ["h1", "h2", ".speakable"]
+            },
+            "isPartOf": { "@type": "WebSite", "name": "JCTM Digital Sanctuary", "url": "https://jctm.org.ng" },
+            "about": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry",
+              "alternateName": ["JCTM", "Temple TV"]
+            },
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://jctm.org.ng/" }
+              ]
+            },
+            "mainEntity": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "sameAs": [
+                "https://www.youtube.com/@TEMPLETVJCTM",
+                "https://www.facebook.com/templetvjctm"
+              ]
+            }
           }
-        }}
+        ]}
       />
       <HeroSection />
       <PlatformBar />

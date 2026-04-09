@@ -144,6 +144,37 @@ Full dedicated event landing page for the Prophet Amos Global Crusade (April 30 
 - Temple Blue: `#003366` (--primary), Sky Blue: `#38BDF8` (--accent)
 - Background: `#FFFFFF`, Serif font for headings, Inter for body
 
+### SEO Overhaul (April 2026 — Search Dominance Sprint)
+Complete SEO optimization across the entire platform for dominant Google ranking.
+
+#### Technical SEO
+- **`SEO.tsx` component** — Enhanced with: geo meta tags (`geo.region`, `geo.placename`, `geo.position`, `ICBM`), `BreadcrumbList` schema support via `breadcrumbs` prop, `article:published_time` + `article:author` + `article:publisher` for article-type pages, `og:image:width/height`, `og:locale:alternate` for international, `article:modified_time`, `speakable-selector` meta for voice search
+- **`index.html`** — Expanded with: DNS prefetch + preconnect for YouTube/fonts, geo meta tags, `BroadcastService` JSON-LD for Temple TV, `FAQPage` JSON-LD (7 JCTM-specific Q&As), `SpeakableSpecification` JSON-LD, richer `ReligiousOrganization` schema (OpeningHours, ContactPoint, hasOfferCatalog, founder details, logo ImageObject), expanded `WebSite` schema with `inLanguage`
+- **`robots.txt`** — Expanded with per-bot directives: Googlebot (no delay), Googlebot-Video (sermons), Googlebot-Image, Bingbot (crawl-delay 2), DuckDuckBot, social preview bots (Facebook, Twitter, LinkedIn, WhatsApp); both sitemap URLs listed
+- **`sitemap.xml`** — Upgraded with `<lastmod>` dates, `<image:image>` entries for all major pages, image namespace, added /growth page, /crusade elevated to 0.95 priority
+- **`sitemap-images.xml`** — New dedicated image sitemap for homepage, about, leadership, sermons, crusade pages
+
+#### Structured Data (JSON-LD) — All 19 Pages
+Every page now has rich, valid Schema.org markup:
+- **Home**: `WebPage` with speakable + breadcrumb + mainEntity + inLanguage
+- **About**: `AboutPage` + `FAQPage` (3 JCTM Q&As) + `BreadcrumbList`
+- **Leadership**: Rich `Person` schema (givenName, familyName, honorificPrefix, description, image, knowsAbout[], affiliation) + `FAQPage` (3 Prophet Amos Q&As)
+- **Sermons**: `CollectionPage` (speakable) + `ItemList` (9 sermon categories with URLs)
+- **SermonDetail**: `VideoObject` (duration, contentUrl, inLanguage, genre, keywords, logo) + dynamic `BreadcrumbList` per sermon
+- **Prayer**: `WebApplication` (applicationCategory, featureList) + `FAQPage`
+- **Give**: `DonateAction` (recipient with address) + `FAQPage`
+- **Events**: `EventSeries` (location, organizer) + `BreadcrumbList`
+- **Crusade**: Full `Event` schema (startDate, endDate, eventStatus, location with GeoCoordinates, organizer, performer, Offer with price:0) + `BreadcrumbList`
+- **Testimonies**: `CollectionPage` (inLanguage, about) + `BreadcrumbList`
+- **Timeline**: `Article` (datePublished, dateModified, publisher with logo, about) + `FAQPage` (five corrections Q&A) + `BreadcrumbList`
+- **ViewingCentres**: `ItemList` (15 state centres) + `ReligiousOrganization` HQ with GeoCoordinates + `BreadcrumbList`
+- **SermonAssistant**: `WebApplication` (featureList) + `BreadcrumbList`
+- **Moments**: `CollectionPage` (inLanguage, author) + `BreadcrumbList`
+- **Join**: `WebPage` (about ReligiousOrganization) + `BreadcrumbList`
+
+#### Keywords Expanded
+All 19 pages have extended keyword sets targeting: long-tail queries, local SEO (Warri, Delta State, Nigeria), topic-specific terms (each sermon category, each correction), and intent-based searches.
+
 ### Environment Variables (Optional)
 - `YOUTUBE_API_KEY` — Enables YouTube sync for sermons
 - `PAYSTACK_SECRET_KEY` — Enables live Paystack payment gateway (NGN)

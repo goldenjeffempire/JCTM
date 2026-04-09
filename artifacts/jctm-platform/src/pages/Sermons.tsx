@@ -239,19 +239,52 @@ export default function Sermons() {
         title="Sermons — Temple TV | Jesus Christ Temple Ministry"
         description="Watch and listen to sermons from Jesus Christ Temple Ministry (JCTM) and Temple TV. Teachings on holiness, the Correction Mandate, apostolic doctrine, and end-time preparation by Prophet Amos Evomobor."
         path="/sermons"
-        keywords="JCTM sermons, Temple TV sermons, Jesus Christ Temple Ministry teachings, Prophet Amos Evomobor sermons, holiness preaching Nigeria, apostolic sermons"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "ItemList",
-          "name": "JCTM Sermon Library — Temple TV",
-          "description": "Sermons and teachings from Jesus Christ Temple Ministry (JCTM) broadcast on Temple TV.",
-          "url": "https://jctm.org.ng/sermons",
-          "provider": {
-            "@type": "ReligiousOrganization",
-            "name": "Jesus Christ Temple Ministry (JCTM)",
-            "url": "https://jctm.org.ng"
+        keywords="JCTM sermons, Temple TV sermons, Jesus Christ Temple Ministry teachings, Prophet Amos Evomobor sermons, holiness preaching Nigeria, apostolic sermons, end time messages Nigeria, holiness church sermons, Correction Mandate sermons, primitive Christianity teachings"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Sermons", url: "https://jctm.org.ng/sermons" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": "JCTM Sermon Library — Temple TV",
+            "description": "Browse 479+ sermons and teachings from Jesus Christ Temple Ministry (JCTM) broadcast on Temple TV. Covering holiness, the Correction Mandate, apostolic doctrine, end times, water baptism, prayer, and family.",
+            "url": "https://jctm.org.ng/sermons",
+            "inLanguage": "en-NG",
+            "about": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Prophet Amos Evomobor",
+              "url": "https://jctm.org.ng/leadership"
+            },
+            "speakable": {
+              "@type": "SpeakableSpecification",
+              "cssSelector": ["h1", "h2"]
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "name": "Temple TV Sermon Categories",
+            "description": "Sermon categories available on Temple TV — Jesus Christ Temple Ministry",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Correction Mandate Sermons", "url": "https://jctm.org.ng/sermons?category=correction" },
+              { "@type": "ListItem", "position": 2, "name": "Holiness Sermons", "url": "https://jctm.org.ng/sermons?category=holiness" },
+              { "@type": "ListItem", "position": 3, "name": "Primitive Christianity Teachings", "url": "https://jctm.org.ng/sermons?category=primitive" },
+              { "@type": "ListItem", "position": 4, "name": "Prophecy & End Times", "url": "https://jctm.org.ng/sermons?category=prophecy" },
+              { "@type": "ListItem", "position": 5, "name": "Water Baptism Teachings", "url": "https://jctm.org.ng/sermons?category=baptism" },
+              { "@type": "ListItem", "position": 6, "name": "Prayer & Intercession", "url": "https://jctm.org.ng/sermons?category=prayer" },
+              { "@type": "ListItem", "position": 7, "name": "End Times Messages", "url": "https://jctm.org.ng/sermons?category=endtimes" },
+              { "@type": "ListItem", "position": 8, "name": "Family & Marriage", "url": "https://jctm.org.ng/sermons?category=family" },
+              { "@type": "ListItem", "position": 9, "name": "Healing & Miracles", "url": "https://jctm.org.ng/sermons?category=healing" }
+            ]
           }
-        }}
+        ]}
       />
       {/* Netflix-style dark hero header */}
       <div className="bg-gradient-to-b from-primary via-primary/90 to-background pt-24 pb-8 px-4 mb-0">

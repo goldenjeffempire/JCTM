@@ -181,7 +181,35 @@ export default function SermonAssistant() {
         title="TempleBots AI — JCTM Sermon Assistant"
         description="Ask TempleBots — the AI-powered sermon assistant of Jesus Christ Temple Ministry (JCTM). Get answers grounded in apostolic doctrine, the Correction Mandate, and JCTM teachings."
         path="/sermon-assistant"
-        keywords="TempleBots, JCTM AI assistant, Jesus Christ Temple Ministry chatbot, apostolic doctrine AI, sermon Q&A JCTM"
+        keywords="TempleBots, JCTM AI assistant, Jesus Christ Temple Ministry chatbot, apostolic doctrine AI, sermon Q&A JCTM, AI Bible assistant Nigeria, Christian AI chatbot, JCTM sermon search AI"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Sermon Assistant", url: "https://jctm.org.ng/sermon-assistant" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "TempleBots — JCTM AI Sermon Assistant",
+            "description": "TempleBots is an AI-powered sermon assistant trained on JCTM doctrine, the Correction Mandate, and Temple TV teachings. Ask questions about scripture, holiness, apostolic Christianity, and get answers grounded in JCTM's doctrinal knowledge base.",
+            "url": "https://jctm.org.ng/sermon-assistant",
+            "applicationCategory": "ReligiousApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript",
+            "featureList": [
+              "RAG-powered doctrinal answers",
+              "Scripture-based responses",
+              "Correction Mandate knowledge base",
+              "Streaming AI responses",
+              "Suggested questions"
+            ],
+            "author": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            }
+          }
+        ]}
       />
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-sky-50/20 dark:to-sky-950/10 pt-24 pb-8 px-4">
         <div className="max-w-4xl mx-auto">

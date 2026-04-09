@@ -2,18 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
 
     <!-- Primary SEO -->
     <title>Jesus Christ Temple Ministry (JCTM) | Official Digital Sanctuary</title>
     <meta name="description" content="Jesus Christ Temple Ministry (JCTM) — Official digital sanctuary of JCTM Warri, Nigeria. Watch Temple TV sermons, give online, and access prophetic teachings from Prophet Amos Evomobor under the Correction Mandate." />
-    <meta name="keywords" content="Jesus Christ Temple Ministry, JCTM, Temple TV, Temple Ministry, JCTM Warri, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, JCTM Digital Sanctuary, church Warri Nigeria, Temple TV Nigeria" />
+    <meta name="keywords" content="Jesus Christ Temple Ministry, JCTM, Temple TV, Temple Ministry, JCTM Warri, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, JCTM Digital Sanctuary, church Warri Nigeria, Temple TV Nigeria, primitive Christianity, holiness preaching, end time message Nigeria, doctrinal correction church" />
     <meta name="author" content="Jesus Christ Temple Ministry (JCTM)" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-    <meta name="googlebot" content="index, follow" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="bingbot" content="index, follow" />
 
     <!-- Canonical -->
     <link rel="canonical" href="https://jctm.org.ng/" />
+
+    <!-- Geo / Local SEO -->
+    <meta name="geo.region" content="NG-DE" />
+    <meta name="geo.placename" content="Warri, Delta State, Nigeria" />
+    <meta name="geo.position" content="5.5167;5.7500" />
+    <meta name="ICBM" content="5.5167, 5.7500" />
+    <meta name="language" content="English" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -26,6 +34,8 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Jesus Christ Temple Ministry — JCTM Digital Sanctuary" />
     <meta property="og:locale" content="en_NG" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:locale:alternate" content="en_GB" />
 
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -43,15 +53,25 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="JCTM" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
 
     <!-- Icons / Manifest -->
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="shortcut icon" href="/favicon.png" />
 
-    <!-- Fonts -->
+    <!-- DNS Prefetch & Preconnect (performance + crawlability) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://www.youtube.com" />
+    <link rel="dns-prefetch" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <!-- JSON-LD: Religious Organization -->
@@ -60,22 +80,38 @@
       "@context": "https://schema.org",
       "@type": "ReligiousOrganization",
       "name": "Jesus Christ Temple Ministry",
-      "alternateName": ["JCTM", "Temple TV", "JCTM Digital Sanctuary"],
+      "alternateName": ["JCTM", "Temple TV", "JCTM Digital Sanctuary", "Jesus Christ Temple Ministry Warri"],
       "url": "https://jctm.org.ng",
-      "logo": "https://jctm.org.ng/favicon.png",
-      "image": "https://jctm.org.ng/opengraph.jpg",
-      "description": "Jesus Christ Temple Ministry (JCTM) is a Nigeria-based Christian ministry founded by Prophet Amos Evomobor on January 3, 2013. Operating under the Correction Mandate, JCTM preaches holiness, apostolic doctrine, and doctrinal correction through Temple TV and the JCTM Digital Sanctuary.",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://jctm.org.ng/favicon.png",
+        "width": 512,
+        "height": 512
+      },
+      "image": {
+        "@type": "ImageObject",
+        "url": "https://jctm.org.ng/opengraph.jpg",
+        "width": 1200,
+        "height": 630
+      },
+      "description": "Jesus Christ Temple Ministry (JCTM) is a Nigeria-based Christian ministry founded by Prophet Amos Evomobor on January 3, 2013. Operating under the Correction Mandate, JCTM preaches holiness, apostolic doctrine, and doctrinal correction through Temple TV and the JCTM Digital Sanctuary. Reaching believers in over 40 nations.",
       "foundingDate": "2013-01-03",
+      "numberOfEmployees": { "@type": "QuantitativeValue", "value": 30 },
       "founder": {
         "@type": "Person",
         "name": "Prophet Amos Evomobor",
-        "jobTitle": "Prophet and Founder"
+        "jobTitle": "Prophet and Founder",
+        "url": "https://jctm.org.ng/leadership",
+        "image": "https://jctm.org.ng/founder/prophet-portrait.jpg",
+        "knowsAbout": ["Correction Mandate", "Primitive Christianity", "Holiness Doctrine", "Apostolic Christianity"],
+        "worksFor": { "@type": "ReligiousOrganization", "name": "Jesus Christ Temple Ministry" }
       },
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Ebrumede",
+        "streetAddress": "Ebrumede Temple, Off Sapele Road",
         "addressLocality": "Warri",
         "addressRegion": "Delta State",
+        "postalCode": "330222",
         "addressCountry": "NG"
       },
       "geo": {
@@ -83,16 +119,48 @@
         "latitude": "5.5167",
         "longitude": "5.7500"
       },
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "General Enquiries",
-        "email": "info@jctm.org.ng",
-        "availableLanguage": "English"
-      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Sunday",
+          "opens": "08:00",
+          "closes": "12:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Wednesday",
+          "opens": "17:00",
+          "closes": "20:00"
+        }
+      ],
+      "contactPoint": [
+        {
+          "@type": "ContactPoint",
+          "contactType": "General Enquiries",
+          "email": "info@jctm.org.ng",
+          "availableLanguage": ["English", "Yoruba", "Igbo", "Hausa"]
+        },
+        {
+          "@type": "ContactPoint",
+          "contactType": "Prayer Requests",
+          "url": "https://jctm.org.ng/prayer",
+          "availableLanguage": "English"
+        }
+      ],
       "sameAs": [
         "https://www.youtube.com/@TEMPLETVJCTM",
-        "https://www.facebook.com/templetvjctm"
-      ]
+        "https://www.facebook.com/templetvjctm",
+        "https://jctm.org.ng"
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Temple TV Sermons",
+        "itemListElement": [
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Online Sermons & Teachings" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Prayer & Intercession" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "AI Sermon Assistant (TempleBots)" } }
+        ]
+      }
     }
     </script>
 
@@ -102,9 +170,10 @@
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "JCTM Digital Sanctuary",
-      "alternateName": "Jesus Christ Temple Ministry",
+      "alternateName": ["Jesus Christ Temple Ministry", "Temple TV", "JCTM"],
       "url": "https://jctm.org.ng",
       "description": "Official website of Jesus Christ Temple Ministry — sermons, Temple TV, giving, events, and the Correction Mandate.",
+      "inLanguage": "en-NG",
       "potentialAction": {
         "@type": "SearchAction",
         "target": {
@@ -113,6 +182,106 @@
         },
         "query-input": "required name=search_term_string"
       }
+    }
+    </script>
+
+    <!-- JSON-LD: BroadcastService — Temple TV -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BroadcastService",
+      "name": "Temple TV",
+      "alternateName": "JCTM Temple TV",
+      "description": "Temple TV is the official broadcast channel of Jesus Christ Temple Ministry (JCTM), delivering sermons, teachings, and live services on holiness, the Correction Mandate, and apostolic Christianity.",
+      "broadcastDisplayName": "Temple TV",
+      "broadcastFrequency": "Continuous",
+      "broadcaster": {
+        "@type": "ReligiousOrganization",
+        "name": "Jesus Christ Temple Ministry (JCTM)",
+        "url": "https://jctm.org.ng"
+      },
+      "url": "https://www.youtube.com/@TEMPLETVJCTM",
+      "sameAs": "https://www.youtube.com/@TEMPLETVJCTM"
+    }
+    </script>
+
+    <!-- JSON-LD: FAQPage — Common JCTM Questions -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is Jesus Christ Temple Ministry (JCTM)?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Jesus Christ Temple Ministry (JCTM) is a Christian ministry founded on January 3, 2013 by Prophet Amos Evomobor in Warri, Delta State, Nigeria. JCTM preaches holiness, apostolic Christianity, and operates under the Correction Mandate — a divine assignment to restore primitive Christianity to the global church."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Who is Prophet Amos Evomobor?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Prophet Amos Evomobor is the founder and senior pastor of Jesus Christ Temple Ministry (JCTM), based in Warri, Nigeria. With over 30 years of ministry, he leads the Correction Mandate — a prophetic assignment to identify and correct false doctrines in the Body of Christ. His teachings are broadcast through Temple TV, reaching believers in over 40 nations."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the Correction Mandate?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Correction Mandate is the divine assignment of Jesus Christ Temple Ministry (JCTM) to restore primitive, apostolic Christianity by correcting five major doctrinal errors: the Prosperity Gospel, Prophetic Manipulation, Apostolic Abuse, Sacramental Corruption, and Dangerous Ecumenism. It is grounded in Jeremiah 6:16 — 'Ask for the old paths, where the good way is.'"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where is JCTM located?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Jesus Christ Temple Ministry (JCTM) is headquartered at Ebrumede Temple, Warri, Delta State, Nigeria. The ministry also has viewing centres and branches across Nigeria and reaches believers in over 40 nations worldwide through Temple TV on YouTube."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I watch Temple TV sermons online?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can watch Temple TV sermons for free on the JCTM Digital Sanctuary at jctm.org.ng/sermons, or directly on YouTube at youtube.com/@TEMPLETVJCTM. Sermons cover holiness, the Correction Mandate, apostolic doctrine, end times, and more — all taught by Prophet Amos Evomobor."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I give to JCTM online?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can give to Jesus Christ Temple Ministry (JCTM) online at jctm.org.ng/give. Donations support Temple TV broadcasts, the Correction Mandate outreach, and ministry operations. Payment options include Paystack (NGN) and Stripe (USD) for international giving."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is primitive Christianity as taught by JCTM?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Primitive Christianity, as taught by JCTM, refers to the original, unadulterated faith of the first-century apostolic church — holy in practice, sound in doctrine, and powerful in manifestation. JCTM calls believers back to New Testament standards as opposed to modern religious trends and traditions of men."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- JSON-LD: SpeakableSpecification (Voice Search) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "JCTM Digital Sanctuary — Jesus Christ Temple Ministry",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", ".speakable"]
+      },
+      "url": "https://jctm.org.ng"
     }
     </script>
   </head>

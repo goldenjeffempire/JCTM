@@ -107,7 +107,53 @@ export default function Give() {
         title="Give to JCTM — Support Jesus Christ Temple Ministry"
         description="Give online to support Jesus Christ Temple Ministry (JCTM). Sow into the Correction Mandate, Temple TV broadcasts, and the spread of apostolic Christianity across Nigeria and the world."
         path="/give"
-        keywords="give to JCTM, donate Jesus Christ Temple Ministry, support Temple TV, tithe JCTM, offering JCTM Nigeria"
+        keywords="give to JCTM, donate Jesus Christ Temple Ministry, support Temple TV, tithe JCTM, offering JCTM Nigeria, church donation Nigeria online, support holiness ministry Nigeria"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Give", url: "https://jctm.org.ng/give" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "DonateAction",
+            "name": "Give to Jesus Christ Temple Ministry (JCTM)",
+            "description": "Support the Correction Mandate, Temple TV broadcasts, and the spread of apostolic Christianity worldwide through JCTM.",
+            "url": "https://jctm.org.ng/give",
+            "recipient": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Warri",
+                "addressRegion": "Delta State",
+                "addressCountry": "NG"
+              }
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How can I give to JCTM online?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You can give to Jesus Christ Temple Ministry (JCTM) online at jctm.org.ng/give. We accept Naira (NGN) payments via Paystack and US Dollar (USD) payments via Stripe. You can give tithes, offerings, or missions support to fund Temple TV broadcasts and the Correction Mandate outreach."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What does my giving to JCTM support?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Your giving to JCTM supports: Temple TV YouTube broadcasts reaching 40+ nations, the Correction Mandate outreach, church programmes and events in Warri, printing of discipleship materials, and caring for ministry workers dedicated to spreading apostolic Christianity."
+                }
+              }
+            ]
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">

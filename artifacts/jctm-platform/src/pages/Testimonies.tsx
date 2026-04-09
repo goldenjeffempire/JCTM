@@ -234,7 +234,26 @@ export default function Testimonies() {
         title="Testimonies — JCTM Digital Sanctuary"
         description="Read powerful testimonies of healing, transformation, and restoration through Jesus Christ Temple Ministry (JCTM). Share your own testimony and glorify God through the Correction Mandate."
         path="/testimonies"
-        keywords="JCTM testimonies, Jesus Christ Temple Ministry miracles, healing testimonies Nigeria, church testimonies Warri"
+        keywords="JCTM testimonies, Jesus Christ Temple Ministry miracles, healing testimonies Nigeria, church testimonies Warri, transformation stories, deliverance testimonies, Nigeria church miracles, Correction Mandate testimonies"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Testimonies", url: "https://jctm.org.ng/testimonies" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": "JCTM Testimony Vault — Miracles & Transformations",
+            "description": "A collection of testimonies of healing, restoration, deliverance, and transformation from members of Jesus Christ Temple Ministry (JCTM) and believers reached by the Correction Mandate.",
+            "url": "https://jctm.org.ng/testimonies",
+            "about": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "inLanguage": "en-NG"
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         {/* Header */}

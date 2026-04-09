@@ -72,18 +72,85 @@ export default function Leadership() {
         title="Leadership — Prophet Amos Evomobor & JCTM"
         description="Meet the leadership of Jesus Christ Temple Ministry (JCTM). Prophet Amos Evomobor leads JCTM with the Correction Mandate — restoring apostolic Christianity in Nigeria and beyond."
         path="/leadership"
-        keywords="Prophet Amos Evomobor, JCTM leadership, Jesus Christ Temple Ministry pastor, apostolic prophet Nigeria"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "Person",
-          "name": "Prophet Amos Evomobor",
-          "jobTitle": "Prophet and Founder",
-          "worksFor": {
-            "@type": "ReligiousOrganization",
-            "name": "Jesus Christ Temple Ministry (JCTM)"
+        keywords="Prophet Amos Evomobor, JCTM leadership, Jesus Christ Temple Ministry pastor, apostolic prophet Nigeria, JCTM founder, holiness preacher Nigeria, Correction Mandate prophet"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Leadership", url: "https://jctm.org.ng/leadership" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Person",
+            "name": "Prophet Amos Evomobor",
+            "givenName": "Amos",
+            "familyName": "Evomobor",
+            "honorificPrefix": "Prophet",
+            "jobTitle": "Prophet, Founder and Senior Pastor",
+            "description": "Prophet Amos Evomobor is the founder and senior pastor of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria. He carries the divine Correction Mandate — a prophetic assignment to restore apostolic, holiness-based Christianity to the global church. With over 30 years of ministry, his teachings on Temple TV have reached believers in 40+ nations.",
+            "image": "https://jctm.org.ng/founder/prophet-portrait.jpg",
+            "url": "https://jctm.org.ng/leadership",
+            "sameAs": [
+              "https://www.youtube.com/@TEMPLETVJCTM",
+              "https://jctm.org.ng/leadership"
+            ],
+            "knowsAbout": [
+              "Correction Mandate",
+              "Primitive Christianity",
+              "Holiness Doctrine",
+              "Apostolic Christianity",
+              "Prosperity Gospel Refutation",
+              "End Times Prophecy",
+              "Water Baptism",
+              "Doctrinal Correction"
+            ],
+            "worksFor": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Warri",
+                "addressRegion": "Delta State",
+                "addressCountry": "NG"
+              }
+            },
+            "affiliation": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            }
           },
-          "url": "https://jctm.org.ng/leadership"
-        }}
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Who is the founder of Jesus Christ Temple Ministry (JCTM)?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Jesus Christ Temple Ministry (JCTM) was founded by Prophet Amos Evomobor on January 3, 2013, in Ebrumede, Warri, Delta State, Nigeria. He is the senior pastor and carrier of the Correction Mandate — a divine calling to restore primitive, apostolic Christianity worldwide."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What is the Correction Mandate of Prophet Amos Evomobor?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The Correction Mandate is a divine assignment given to Prophet Amos Evomobor to identify and correct five major doctrinal errors in the church: (1) Prosperity Gospel Error, (2) Prophetic Manipulation, (3) Apostolic Abuse, (4) Sacramental Corruption, and (5) Dangerous Ecumenism. This mandate is grounded in Jeremiah 6:16 and 1 Timothy 6:5-10."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How can I watch Prophet Amos Evomobor sermons?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You can watch Prophet Amos Evomobor's sermons free on the JCTM Digital Sanctuary at jctm.org.ng/sermons or on Temple TV's official YouTube channel at youtube.com/@TEMPLETVJCTM. Over 479 sermons are available on topics including holiness, the Correction Mandate, end times, and apostolic Christianity."
+                }
+              }
+            ]
+          }
+        ]}
       />
       <div className="min-h-screen bg-background pt-24 pb-16">
 

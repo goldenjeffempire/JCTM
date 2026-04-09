@@ -1,9 +1,61 @@
+# JCTM Digital Sanctuary — robots.txt
+# https://jctm.org.ng
+
+# ── All crawlers ─────────────────────────────────────────────────────────────
 User-agent: *
 Allow: /
-
-# Block build/dev artefacts from crawling
 Disallow: /src/
 Disallow: /.vite/
 Disallow: /node_modules/
+Disallow: /api/auth/
+Disallow: /api/giving/
+Crawl-delay: 1
 
+# ── Google (full access, no delay) ───────────────────────────────────────────
+User-agent: Googlebot
+Allow: /
+Disallow: /src/
+Disallow: /.vite/
+Disallow: /api/auth/
+Disallow: /api/giving/
+
+# ── Googlebot-Video (index sermon thumbnails & embeds) ───────────────────────
+User-agent: Googlebot-Video
+Allow: /sermons
+Allow: /sermons/
+Allow: /moments
+
+# ── Google Image crawler ─────────────────────────────────────────────────────
+User-agent: Googlebot-Image
+Allow: /opengraph.jpg
+Allow: /founder/
+Allow: /favicon.png
+
+# ── Bing ─────────────────────────────────────────────────────────────────────
+User-agent: Bingbot
+Allow: /
+Disallow: /src/
+Disallow: /.vite/
+Disallow: /api/auth/
+Crawl-delay: 2
+
+# ── DuckDuckGo ───────────────────────────────────────────────────────────────
+User-agent: DuckDuckBot
+Allow: /
+
+# ── Social previews ──────────────────────────────────────────────────────────
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# ── Sitemaps ─────────────────────────────────────────────────────────────────
 Sitemap: https://jctm.org.ng/sitemap.xml
+Sitemap: https://jctm.org.ng/sitemap-images.xml

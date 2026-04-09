@@ -61,20 +61,76 @@ export default function About() {
         title="About Jesus Christ Temple Ministry — JCTM Warri, Nigeria"
         description="Learn about Jesus Christ Temple Ministry (JCTM), founded January 3, 2013 by Prophet Amos Evomobor in Warri, Nigeria. Discover the Correction Mandate, holiness doctrine, and the story of JCTM."
         path="/about"
-        keywords="about JCTM, Jesus Christ Temple Ministry history, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, Ebrumede Temple Warri"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "AboutPage",
-          "name": "About Jesus Christ Temple Ministry",
-          "description": "The founding story, vision, and doctrine of Jesus Christ Temple Ministry (JCTM), Warri Nigeria — led by Prophet Amos Evomobor.",
-          "url": "https://jctm.org.ng/about",
-          "mainEntity": {
-            "@type": "ReligiousOrganization",
-            "name": "Jesus Christ Temple Ministry",
-            "foundingDate": "2013-01-03",
-            "founder": { "@type": "Person", "name": "Prophet Amos Evomobor" }
+        keywords="about JCTM, Jesus Christ Temple Ministry history, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, Ebrumede Temple Warri, apostolic Christianity Nigeria, JCTM founding story"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "About JCTM", url: "https://jctm.org.ng/about" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "AboutPage",
+            "name": "About Jesus Christ Temple Ministry",
+            "description": "The founding story, vision, and doctrine of Jesus Christ Temple Ministry (JCTM), Warri Nigeria — led by Prophet Amos Evomobor.",
+            "url": "https://jctm.org.ng/about",
+            "speakable": {
+              "@type": "SpeakableSpecification",
+              "cssSelector": ["h1", "h2", ".speakable"]
+            },
+            "mainEntity": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry",
+              "alternateName": ["JCTM", "Temple TV"],
+              "foundingDate": "2013-01-03",
+              "foundingLocation": {
+                "@type": "Place",
+                "name": "Ebrumede Temple, Warri, Delta State, Nigeria"
+              },
+              "founder": {
+                "@type": "Person",
+                "name": "Prophet Amos Evomobor",
+                "jobTitle": "Prophet and Founder",
+                "url": "https://jctm.org.ng/leadership"
+              },
+              "description": "JCTM is a holiness-centred, apostolic ministry operating under the Correction Mandate — a divine assignment to restore primitive Christianity and correct false doctrines in the global church.",
+              "url": "https://jctm.org.ng",
+              "sameAs": [
+                "https://www.youtube.com/@TEMPLETVJCTM",
+                "https://www.facebook.com/templetvjctm"
+              ]
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "When was Jesus Christ Temple Ministry (JCTM) founded?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Jesus Christ Temple Ministry (JCTM) was founded on January 3, 2013 by Prophet Amos Evomobor in Ebrumede, Warri, Delta State, Nigeria. The ministry was established by divine mandate — not by human ambition — and is rooted in holiness, righteousness, and the Correction Mandate."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What doctrines does JCTM teach?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "JCTM teaches four core doctrines: Primitive Christianity (returning to first-century apostolic faith), Holiness (without holiness no man shall see the Lord), Doctrinal Correction (identifying and correcting false teachings), and the Correction Mandate (a divine assignment to restore the global church to biblical truth)."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where is JCTM headquartered?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "JCTM is headquartered at Ebrumede Temple, Warri, Delta State, Nigeria. The ministry also reaches believers across Nigeria and in over 40 nations through Temple TV on YouTube and the JCTM Digital Sanctuary."
+                }
+              }
+            ]
           }
-        }}
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div

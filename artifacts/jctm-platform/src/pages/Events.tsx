@@ -429,16 +429,34 @@ export default function Events() {
         description="Upcoming events, crusades, and church programmes at Jesus Christ Temple Ministry (JCTM), Warri Nigeria. Stay updated with JCTM's calendar of services, meetings, and outreach events."
         path="/events"
         keywords="JCTM events, Jesus Christ Temple Ministry programmes, church events Warri, JCTM crusade, Temple TV events"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "EventSeries",
-          "name": "JCTM Church Events & Programmes",
-          "organizer": {
-            "@type": "ReligiousOrganization",
-            "name": "Jesus Christ Temple Ministry (JCTM)",
-            "url": "https://jctm.org.ng"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Events", url: "https://jctm.org.ng/events" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "EventSeries",
+            "name": "JCTM Church Events & Programmes",
+            "description": "Upcoming events, crusades, services, and ministry programmes of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria — including live services, outreach events, and special gatherings.",
+            "url": "https://jctm.org.ng/events",
+            "location": {
+              "@type": "Place",
+              "name": "Ebrumede Temple, Warri, Delta State, Nigeria",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Warri",
+                "addressRegion": "Delta State",
+                "addressCountry": "NG"
+              }
+            },
+            "organizer": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            }
           }
-        }}
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
 

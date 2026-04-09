@@ -77,7 +77,26 @@ export default function Join() {
         title="Join the Digital Sanctuary — JCTM Member Portal"
         description="Register as a member of Jesus Christ Temple Ministry (JCTM) Digital Sanctuary. Access exclusive teachings, connect with believers, and grow in the Correction Mandate."
         path="/join"
-        keywords="join JCTM, register Jesus Christ Temple Ministry, JCTM member, digital sanctuary membership"
+        keywords="join JCTM, register Jesus Christ Temple Ministry, JCTM member, digital sanctuary membership, JCTM church membership, apostolic church membership Nigeria, holiness church Nigeria join"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Join JCTM", url: "https://jctm.org.ng/join" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Join the JCTM Digital Sanctuary — Member Registration",
+            "description": "Register as a member of the JCTM Digital Sanctuary to track your spiritual growth, access exclusive resources, and connect with the Jesus Christ Temple Ministry community.",
+            "url": "https://jctm.org.ng/join",
+            "inLanguage": "en-NG",
+            "about": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            }
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">

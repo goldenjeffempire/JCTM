@@ -70,9 +70,56 @@ export default function Timeline() {
     <Layout>
       <SEO
         title="The Correction Mandate Timeline — JCTM"
-        description="Explore the timeline of the Correction Mandate — JCTM's divine assignment to restore apostolic Christianity and doctrinal truth to the global church. Led by Prophet Amos Evomobor."
+        description="Explore the five doctrinal corrections of the Correction Mandate — JCTM's divine assignment to restore apostolic Christianity and doctrinal truth to the global church. Led by Prophet Amos Evomobor."
         path="/correction-timeline"
-        keywords="Correction Mandate, JCTM timeline, apostolic restoration, doctrinal correction, Prophet Amos Evomobor timeline"
+        keywords="Correction Mandate, JCTM timeline, apostolic restoration, doctrinal correction, Prophet Amos Evomobor timeline, five corrections JCTM, holiness reformation, prosperity gospel correction, false prophets correction, apostolic abuse correction, water baptism truth"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Correction Mandate Timeline", url: "https://jctm.org.ng/correction-timeline" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "name": "The Five Corrections of the Correction Mandate — JCTM",
+            "headline": "The Correction Mandate: JCTM's Five Doctrinal Corrections",
+            "description": "The Correction Mandate is the divine assignment of Jesus Christ Temple Ministry (JCTM) to restore apostolic Christianity by correcting five major doctrinal errors in the global church: Prosperity Gospel, Prophetic Manipulation, Apostolic Abuse, Sacramental Corruption, and Dangerous Ecumenism.",
+            "url": "https://jctm.org.ng/correction-timeline",
+            "inLanguage": "en-NG",
+            "datePublished": "2013-01-03",
+            "dateModified": "2026-04-01",
+            "author": {
+              "@type": "Person",
+              "name": "Prophet Amos Evomobor",
+              "url": "https://jctm.org.ng/leadership"
+            },
+            "publisher": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "logo": { "@type": "ImageObject", "url": "https://jctm.org.ng/favicon.png" }
+            },
+            "about": {
+              "@type": "Thing",
+              "name": "Correction Mandate",
+              "description": "A divine assignment given to Jesus Christ Temple Ministry to identify and correct five false doctrines that have infiltrated the Body of Christ."
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What are the five corrections of the JCTM Correction Mandate?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The five doctrinal corrections of the JCTM Correction Mandate are: (1) Prosperity Gospel Error — exposing the false doctrine that wealth is always God's will (1 Timothy 6:5-10); (2) Prophetic Manipulation — addressing false prophets who exploit spiritual gifts for gain (Jeremiah 23:16-17); (3) Apostolic Abuse — correcting self-appointed apostles without genuine calling (2 Corinthians 11:13-15); (4) Sacramental Corruption — restoring true water baptism and Holy Communion (Romans 6:3-4); (5) Dangerous Ecumenism — warning against compromising truth for false unity (2 Corinthians 6:14-17)."
+                }
+              }
+            ]
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div

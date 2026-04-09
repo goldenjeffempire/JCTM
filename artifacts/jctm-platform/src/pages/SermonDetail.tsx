@@ -64,21 +64,43 @@ export default function SermonDetail() {
         image={sermon?.thumbnailUrl ?? undefined}
         type="article"
         keywords="Temple TV sermon, JCTM sermon, Jesus Christ Temple Ministry teaching, Prophet Amos Evomobor"
-        jsonLd={sermon ? {
-          "@context": "https://schema.org",
-          "@type": "VideoObject",
-          "name": sermon.title,
-          "description": sermon.description ?? seoDesc,
-          "thumbnailUrl": sermon.thumbnailUrl,
-          "uploadDate": sermon.publishedAt,
-          "url": `https://www.youtube.com/watch?v=${sermon.videoId}`,
-          "embedUrl": `https://www.youtube.com/embed/${sermon.videoId}`,
-          "publisher": {
-            "@type": "ReligiousOrganization",
-            "name": "Jesus Christ Temple Ministry (JCTM)",
-            "url": "https://jctm.org.ng"
+        breadcrumbs={sermon ? [
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Sermons", url: "https://jctm.org.ng/sermons" },
+          { name: sermon.title, url: `https://jctm.org.ng/sermons/${id}` },
+        ] : undefined}
+        publishedTime={sermon?.publishedAt}
+        jsonLd={sermon ? [
+          {
+            "@context": "https://schema.org",
+            "@type": "VideoObject",
+            "name": sermon.title,
+            "description": sermon.description ?? seoDesc,
+            "thumbnailUrl": sermon.thumbnailUrl,
+            "uploadDate": sermon.publishedAt,
+            "duration": "PT1H",
+            "url": `https://www.youtube.com/watch?v=${sermon.videoId}`,
+            "embedUrl": `https://www.youtube.com/embed/${sermon.videoId}`,
+            "contentUrl": `https://www.youtube.com/watch?v=${sermon.videoId}`,
+            "inLanguage": "en-NG",
+            "publisher": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://jctm.org.ng/favicon.png"
+              }
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Prophet Amos Evomobor",
+              "url": "https://jctm.org.ng/leadership"
+            },
+            "genre": "Religious Teaching",
+            "keywords": "JCTM, Temple TV, Prophet Amos Evomobor, holiness, Correction Mandate, apostolic Christianity"
           }
-        } : undefined}
+        ] : undefined}
       />
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <motion.div

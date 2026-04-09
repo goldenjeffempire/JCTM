@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <url>
+    <loc>https://jctm.org.ng/</loc>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>JCTM Digital Sanctuary — Jesus Christ Temple Ministry Official Homepage</image:title>
+      <image:caption>The official digital home of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria — Temple TV sermons, giving, events, and the Correction Mandate.</image:caption>
+      <image:geo_location>Warri, Delta State, Nigeria</image:geo_location>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://jctm.org.ng/about</loc>
+    <image:image>
+      <image:loc>https://jctm.org.ng/founder/prophet-portrait.jpg</image:loc>
+      <image:title>Prophet Amos Evomobor — Founder and Senior Pastor of Jesus Christ Temple Ministry</image:title>
+      <image:caption>Prophet Amos Evomobor, founder of JCTM (Jesus Christ Temple Ministry), Warri, Delta State, Nigeria — carrier of the divine Correction Mandate.</image:caption>
+      <image:geo_location>Warri, Delta State, Nigeria</image:geo_location>
+    </image:image>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>About Jesus Christ Temple Ministry (JCTM) — History, Vision, and Mission</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://jctm.org.ng/leadership</loc>
+    <image:image>
+      <image:loc>https://jctm.org.ng/founder/prophet-portrait.jpg</image:loc>
+      <image:title>Prophet Amos Evomobor — Leader of Jesus Christ Temple Ministry (JCTM)</image:title>
+      <image:caption>Prophet Amos Evomobor leads JCTM with the Correction Mandate, restoring apostolic Christianity across Nigeria and 40+ nations.</image:caption>
+      <image:geo_location>Warri, Delta State, Nigeria</image:geo_location>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://jctm.org.ng/sermons</loc>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>Temple TV Sermons — JCTM Sermon Library by Prophet Amos Evomobor</image:title>
+      <image:caption>Browse 479+ sermons from Temple TV — teachings on holiness, the Correction Mandate, apostolic Christianity, end times, and more.</image:caption>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://jctm.org.ng/crusade</loc>
+    <image:image>
+      <image:loc>https://jctm.org.ng/opengraph.jpg</image:loc>
+      <image:title>Warri City Crusade 2026 — Jesus Christ Temple Ministry</image:title>
+      <image:caption>Prophet Amos Global Crusade — April 30 to May 1, 2026, Ighogbadu Primary School, Okumagba Avenue, Warri, Nigeria.</image:caption>
+      <image:geo_location>Warri, Delta State, Nigeria</image:geo_location>
+    </image:image>
+  </url>
+
+</urlset>

@@ -48,7 +48,61 @@ export default function ViewingCentres() {
         title="Temple TV Viewing Centres — JCTM Nigeria"
         description="Find official Temple TV viewing centres of Jesus Christ Temple Ministry (JCTM) across Nigeria and beyond. Watch live services and Temple TV broadcasts near you."
         path="/viewing-centres"
-        keywords="Temple TV viewing centres, JCTM viewing centres, watch Temple TV Nigeria, JCTM centres Nigeria"
+        keywords="Temple TV viewing centres, JCTM viewing centres, watch Temple TV Nigeria, JCTM centres Nigeria, JCTM Lagos, JCTM Abuja, JCTM Rivers, JCTM Edo, JCTM Anambra, Jesus Christ Temple Ministry branches"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Viewing Centres", url: "https://jctm.org.ng/viewing-centres" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "name": "Official Temple TV Viewing Centres — JCTM Nigeria",
+            "description": "Official Temple TV viewing centres of Jesus Christ Temple Ministry (JCTM) across all states of Nigeria. These centres host believers who gather to watch live Temple TV services and broadcasts.",
+            "url": "https://jctm.org.ng/viewing-centres",
+            "numberOfItems": 42,
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "JCTM Viewing Centre — Abia" },
+              { "@type": "ListItem", "position": 2, "name": "JCTM Viewing Centre — Abuja (Jikwoyi)" },
+              { "@type": "ListItem", "position": 3, "name": "JCTM Viewing Centre — Adamawa" },
+              { "@type": "ListItem", "position": 4, "name": "JCTM Viewing Centre — Akwa Ibom" },
+              { "@type": "ListItem", "position": 5, "name": "JCTM Viewing Centre — Anambra" },
+              { "@type": "ListItem", "position": 6, "name": "JCTM Viewing Centre — Bayelsa" },
+              { "@type": "ListItem", "position": 7, "name": "JCTM Viewing Centre — Benue" },
+              { "@type": "ListItem", "position": 8, "name": "JCTM Viewing Centre — Delta (Warri HQ, Abraka, Asaba, Kwale, Oleh)" },
+              { "@type": "ListItem", "position": 9, "name": "JCTM Viewing Centre — Edo" },
+              { "@type": "ListItem", "position": 10, "name": "JCTM Viewing Centre — Enugu" },
+              { "@type": "ListItem", "position": 11, "name": "JCTM Viewing Centre — Imo (Okigwe)" },
+              { "@type": "ListItem", "position": 12, "name": "JCTM Viewing Centre — Lagos" },
+              { "@type": "ListItem", "position": 13, "name": "JCTM Viewing Centre — Nasarawa" },
+              { "@type": "ListItem", "position": 14, "name": "JCTM Viewing Centre — Niger State" },
+              { "@type": "ListItem", "position": 15, "name": "JCTM Viewing Centre — Rivers" }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ReligiousOrganization",
+            "name": "Jesus Christ Temple Ministry (JCTM) — Headquarters",
+            "url": "https://jctm.org.ng",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Ebrumede Temple, Off Sapele Road",
+              "addressLocality": "Warri",
+              "addressRegion": "Delta State",
+              "addressCountry": "NG"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": "5.5167",
+              "longitude": "5.7500"
+            },
+            "hasMap": "https://maps.google.com/?q=Ebrumede+Warri+Delta+State+Nigeria",
+            "areaServed": {
+              "@type": "Country",
+              "name": "Nigeria"
+            }
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div

@@ -669,7 +669,31 @@ export default function Moments() {
         title="Temple TV Moments — JCTM Short Videos"
         description="Watch Temple TV Moments — powerful short video clips from Jesus Christ Temple Ministry (JCTM). Encounter the Word of God through quick spiritual moments and prophetic highlights."
         path="/moments"
-        keywords="Temple TV moments, JCTM videos, Jesus Christ Temple Ministry clips, Temple TV short videos, prophetic moments JCTM"
+        keywords="Temple TV moments, JCTM videos, Jesus Christ Temple Ministry clips, Temple TV short videos, prophetic moments JCTM, short sermons Nigeria, JCTM reels, holiness clips, Bible moments Nigeria"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Temple Moments", url: "https://jctm.org.ng/moments" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": "Temple TV Moments — JCTM Short Video Feed",
+            "description": "Temple Moments is a TikTok/Reels-style vertical video feed of powerful short clips from Jesus Christ Temple Ministry (JCTM) Temple TV sermons. Watch prophetic highlights, holiness messages, and Correction Mandate moments.",
+            "url": "https://jctm.org.ng/moments",
+            "inLanguage": "en-NG",
+            "about": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Prophet Amos Evomobor",
+              "url": "https://jctm.org.ng/leadership"
+            }
+          }
+        ]}
       />
       <div className="flex h-[calc(100dvh-64px)] max-h-screen overflow-hidden">
         <div className="flex-1 relative flex flex-col min-w-0">
