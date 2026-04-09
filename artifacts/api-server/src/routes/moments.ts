@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, momentLikesTable, momentCommentsTable } from "@workspace/db";
+import { postYouTubeComment } from "../lib/youtube-oauth.js";
 
 const router: IRouter = Router();
 
@@ -41,7 +42,7 @@ router.get("/moments/:videoId/likes", async (req, res): Promise<void> => {
 // ──────────────────────────────────────────────────────
 // POST /moments/:videoId/like
 // Body: { visitorId: string }
-// Toggles like
+// Toggles like — platform-native (YouTube likes require user OAuth)
 // ──────────────────────────────────────────────────────
 router.post("/moments/:videoId/like", async (req, res): Promise<void> => {
   const { videoId } = req.params;
@@ -83,6 +84,7 @@ router.get("/moments/:videoId/comments", async (req, res): Promise<void> => {
       name: momentCommentsTable.name,
       body: momentCommentsTable.body,
       createdAt: momentCommentsTable.createdAt,
+      ytCommentId: momentCommentsTable.ytCommentId,
     })
     .from(momentCommentsTable)
     .where(eq(momentCommentsTable.videoId, videoId))
@@ -92,12 +94,14 @@ router.get("/moments/:videoId/comments", async (req, res): Promise<void> => {
   res.json(comments.map(c => ({
     ...c,
     createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+    ytMirrored: !!c.ytCommentId,
   })));
 });
 
 // ──────────────────────────────────────────────────────
 // POST /moments/:videoId/comments
 // Body: { visitorId, name, body }
+// Saves to platform DB and mirrors to YouTube if OAuth is configured.
 // ──────────────────────────────────────────────────────
 router.post("/moments/:videoId/comments", async (req, res): Promise<void> => {
   const { videoId } = req.params;
@@ -112,14 +116,24 @@ router.post("/moments/:videoId/comments", async (req, res): Promise<void> => {
   if (!name || name.length > 80) { res.status(400).json({ error: "name is required (max 80 chars)" }); return; }
   if (!text || text.length > 1000) { res.status(400).json({ error: "body is required (max 1000 chars)" }); return; }
 
+  // Mirror to YouTube first (fire-and-forget with result)
+  const ytCommentId = await postYouTubeComment(videoId, name, text);
+
   const [comment] = await db
     .insert(momentCommentsTable)
-    .values({ videoId, visitorId: body.visitorId as string, name, body: text })
+    .values({
+      videoId,
+      visitorId: body.visitorId as string,
+      name,
+      body: text,
+      ytCommentId: ytCommentId ?? undefined,
+    })
     .returning();
 
   res.status(201).json({
     ...comment,
     createdAt: comment!.createdAt instanceof Date ? comment!.createdAt.toISOString() : comment!.createdAt,
+    ytMirrored: !!ytCommentId,
   });
 });
 

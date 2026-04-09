@@ -38,6 +38,9 @@ async function runStartupMigrations() {
         created_at timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await pool.query(`
+      ALTER TABLE moment_comments ADD COLUMN IF NOT EXISTS yt_comment_id text
+    `);
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
