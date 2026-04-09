@@ -221,14 +221,6 @@ function CaptionContent({
 
   return (
     <div className={isSide ? "flex flex-col justify-center h-full" : "text-center"}>
-      {/* Theme badge */}
-      <span
-        className="inline-block text-[9px] font-bold uppercase tracking-[0.32em] mb-3 px-3 py-1.5 rounded-full border"
-        style={{ color: theme.accent, borderColor: `${theme.accent}45`, background: theme.pill }}
-      >
-        {slide.theme}
-      </span>
-
       {/* Sermon point — prominent */}
       <h2
         className={`font-serif font-bold leading-snug text-white mb-4 ${
