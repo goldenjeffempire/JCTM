@@ -1,16 +1,30 @@
-import { syncIncremental, harvestAll } from "./youtube-sync.js";
+import { syncIncremental, harvestAll, QuotaExceededError } from "./youtube-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { db, sermonsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import type { Logger } from "pino";
 
-const INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours (4 syncs/day vs previous 48)
 
 let cronHandle: ReturnType<typeof setInterval> | null = null;
+let quotaPausedUntil: number | null = null;
+
+function msUntilUtcMidnight(): number {
+  const now = new Date();
+  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return midnight.getTime() - now.getTime();
+}
 
 async function runSync(apiKey: string, log: Logger): Promise<void> {
+  if (quotaPausedUntil !== null && Date.now() < quotaPausedUntil) {
+    const resumesIn = Math.round((quotaPausedUntil - Date.now()) / 60000);
+    log.info({ resumesInMinutes: resumesIn }, "YouTube sync skipped — quota paused until UTC midnight");
+    return;
+  }
+
+  quotaPausedUntil = null;
+
   try {
-    // Check if the DB is empty — if so, do a full harvest on first boot
     const [{ count }] = await db
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(sermonsTable);
@@ -26,7 +40,17 @@ async function runSync(apiKey: string, log: Logger): Promise<void> {
       data: { synced: result.synced, featured: result.featured },
     });
   } catch (err) {
-    log.error({ err }, "YouTube sync failed");
+    if (err instanceof QuotaExceededError) {
+      const pauseMs = msUntilUtcMidnight();
+      quotaPausedUntil = Date.now() + pauseMs;
+      const resumesInHours = Math.round(pauseMs / 3600000);
+      log.warn(
+        { resumesInHours },
+        "YouTube API quota exceeded — sync paused until UTC midnight"
+      );
+    } else {
+      log.error({ err }, "YouTube sync failed");
+    }
   }
 }
 
@@ -38,9 +62,8 @@ export function startCron(log: Logger): void {
     return;
   }
 
-  log.info({ intervalMs: INTERVAL_MS }, "Starting YouTube sync cron (30-minute interval)");
+  log.info({ intervalMs: INTERVAL_MS }, "Starting YouTube sync cron (6-hour interval)");
 
-  // Run immediately on startup so sermons are always populated
   runSync(apiKey, log);
 
   cronHandle = setInterval(() => runSync(apiKey, log), INTERVAL_MS);

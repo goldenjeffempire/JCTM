@@ -55,21 +55,34 @@ export function classifyTitle(title: string): { isFeatured: boolean; isLive: boo
   return { isFeatured, isLive };
 }
 
+export class QuotaExceededError extends Error {
+  constructor() {
+    super("YouTube API quota exceeded for today");
+    this.name = "QuotaExceededError";
+  }
+}
+
 async function fetchWithRetry<T>(
   url: string,
-  retries = 3,
-  delayMs = 1000
+  retries = 2,
+  delayMs = 1500
 ): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url);
+      if (res.status === 403) {
+        const body = await res.text();
+        if (body.includes("quota")) throw new QuotaExceededError();
+        throw new Error(`HTTP 403: ${body.slice(0, 200)}`);
+      }
       if (!res.ok) {
         const body = await res.text();
         throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
       }
       return await res.json() as T;
     } catch (err) {
+      if (err instanceof QuotaExceededError) throw err;
       lastErr = err;
       if (attempt < retries) {
         await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt)));
