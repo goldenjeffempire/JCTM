@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useMotionValue } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 // ─── Sermon-Driven Slide Content ─────────────────────────────────────────────
 const SLIDES = [
@@ -161,8 +161,7 @@ const THEME: Record<string, { accent: string; pill: string; bg: string; quoteCol
   },
 };
 
-const INTERVAL_MS = 5500;
-const SWIPE_THRESHOLD = 50;
+const INTERVAL_MS = 10000;
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -279,34 +278,6 @@ function SlideDots({
   );
 }
 
-// ─── Navigation arrow button ──────────────────────────────────────────────────
-function NavArrow({
-  dir, accent, onClick,
-}: {
-  dir: "prev" | "next"; accent: string; onClick: () => void;
-}) {
-  return (
-    <motion.button
-      onClick={onClick}
-      aria-label={dir === "prev" ? "Previous slide" : "Next slide"}
-      className="absolute top-1/2 -translate-y-1/2 z-40 flex items-center justify-center rounded-full backdrop-blur-sm border border-white/10 text-white transition-colors"
-      style={{
-        [dir === "prev" ? "left" : "right"]: "14px",
-        width: 38, height: 38,
-        background: "rgba(0,0,0,0.38)",
-      }}
-      whileHover={{ scale: 1.1, background: `${accent}28` }}
-      whileTap={{ scale: 0.93 }}
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {dir === "prev"
-          ? <polyline points="10 12 6 8 10 4" />
-          : <polyline points="6 4 10 8 6 12" />}
-      </svg>
-    </motion.button>
-  );
-}
-
 // ─── Caption content ──────────────────────────────────────────────────────────
 function CaptionContent({
   slide, layout,
@@ -386,13 +357,10 @@ export function MinistrySlideshow() {
   const [shuffled, setShuffled] = useState<ImageEntry[]>([]);
   const [imgIdx, setImgIdx]     = useState(0);
   const [slideIdx, setSlideIdx] = useState(0);
-  const [paused, setPaused]     = useState(false);
   const [orientations, setOrientations] = useState<Record<string, Orientation>>({});
-  const [showArrows, setShowArrows]     = useState(false);
 
-  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const preloadedRef  = useRef(false);
-  const dragX         = useMotionValue(0);
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const preloadedRef = useRef(false);
 
   // ── Initialise ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -430,38 +398,15 @@ export function MinistrySlideshow() {
     });
   }, [imgIdx, shuffled, detectOrientation]);
 
-  // ── Auto-advance timer ───────────────────────────────────────────────────
+  // ── Auto-advance (always running — no pause) ─────────────────────────────
   useEffect(() => {
-    if (paused || !shuffled.length) return;
-    intervalRef.current = setInterval(() => advance(1), INTERVAL_MS);
+    if (!shuffled.length) return;
+    intervalRef.current = setInterval(() => {
+      setImgIdx((i)   => (i   + 1) % shuffled.length);
+      setSlideIdx((s) => (s   + 1) % SLIDES.length);
+    }, INTERVAL_MS);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, shuffled]);
-
-  // ── Keyboard navigation ──────────────────────────────────────────────────
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft")  advance(-1);
-      if (e.key === "ArrowRight") advance(1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shuffled]);
-
-  // ── Navigation helpers ───────────────────────────────────────────────────
-  function advance(dir: 1 | -1) {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setImgIdx((i)   => (i   + dir + shuffled.length) % shuffled.length);
-    setSlideIdx((s) => (s   + dir + SLIDES.length)   % SLIDES.length);
-  }
-
-  // ── Swipe / drag handling ────────────────────────────────────────────────
-  function onDragEnd(_: unknown, info: { offset: { x: number } }) {
-    if (info.offset.x < -SWIPE_THRESHOLD)       advance(1);
-    else if (info.offset.x > SWIPE_THRESHOLD)   advance(-1);
-    dragX.set(0);
-  }
 
   const currentEntry = shuffled[imgIdx];
   const orientation  = currentEntry ? (orientations[currentEntry.webp] ?? "landscape") : "landscape";
@@ -473,15 +418,9 @@ export function MinistrySlideshow() {
   if (!shuffled.length || !currentEntry) return null;
 
   return (
-    <motion.div
-      className="relative w-full overflow-hidden rounded-2xl shadow-2xl select-none"
-      style={{ x: dragX, minHeight: 460, maxHeight: 720, height: "62vw" }}
-      onHoverStart={() => { setPaused(true);  setShowArrows(true);  }}
-      onHoverEnd  ={() => { setPaused(false); setShowArrows(false); }}
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.12}
-      onDragEnd={onDragEnd}
+    <div
+      className="relative w-full overflow-hidden rounded-2xl shadow-2xl"
+      style={{ minHeight: 460, maxHeight: 720, height: "62vw" }}
     >
       {/* ── Slide content ─────────────────────────────────────────────── */}
       <AnimatePresence mode="sync">
@@ -608,53 +547,11 @@ export function MinistrySlideshow() {
             className="h-full rounded-r-full"
             style={{ background: theme.accent }}
             initial={{ width: "0%" }}
-            animate={{ width: paused ? undefined : "100%" }}
+            animate={{ width: "100%" }}
             transition={{ duration: INTERVAL_MS / 1000, ease: "linear" }}
           />
         </AnimatePresence>
       </div>
-
-      {/* ── Pause indicator ───────────────────────────────────────────── */}
-      <AnimatePresence>
-        {paused && (
-          <motion.div
-            className="absolute top-3 right-3 z-40 flex gap-[3px] items-end"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="w-[3px] h-3 rounded-full bg-white/50" />
-            <div className="w-[3px] h-3 rounded-full bg-white/50" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Prev / Next arrows (visible on hover) ─────────────────────── */}
-      <AnimatePresence>
-        {showArrows && (
-          <>
-            <motion.div
-              key="prev"
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -6 }}
-              transition={{ duration: 0.2 }}
-            >
-              <NavArrow dir="prev" accent={theme.accent} onClick={() => advance(-1)} />
-            </motion.div>
-            <motion.div
-              key="next"
-              initial={{ opacity: 0, x: 6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 6 }}
-              transition={{ duration: 0.2 }}
-            >
-              <NavArrow dir="next" accent={theme.accent} onClick={() => advance(1)} />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* ── Bottom bar: dots + slide counter ──────────────────────────── */}
       <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-3 z-40 pointer-events-none">
@@ -663,6 +560,6 @@ export function MinistrySlideshow() {
           {(imgIdx % shuffled.length) + 1} / {shuffled.length}
         </span>
       </div>
-    </motion.div>
+    </div>
   );
 }
