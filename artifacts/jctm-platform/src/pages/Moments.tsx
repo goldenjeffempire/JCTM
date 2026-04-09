@@ -349,16 +349,6 @@ function MomentCard({
     try {
       const result = await toggleLike(moment.videoId, visitorId);
       setLikes(result);
-      // After liking on the platform, prompt to also like on YouTube
-      if (!wasLiked) {
-        toast("Liked! Also like it on YouTube?", {
-          duration: 6000,
-          action: {
-            label: "Like on YouTube",
-            onClick: () => window.open(ytUrl, "_blank", "noopener,noreferrer"),
-          },
-        });
-      }
     } catch {
       setLikes(likes);
       toast.error("Could not register like. Try again.");
