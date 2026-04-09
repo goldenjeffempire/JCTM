@@ -177,7 +177,7 @@ export function MinistrySlideshow() {
   return (
     <div
       className="relative w-full overflow-hidden rounded-2xl shadow-2xl"
-      style={{ minHeight: 420, maxHeight: 580, height: "56vw", maxWidth: "100%" }}
+      style={{ minHeight: 500, maxHeight: 720, height: "64vw", maxWidth: "100%" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

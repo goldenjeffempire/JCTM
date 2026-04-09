@@ -2002,17 +2002,6 @@ function GlobalReach() {
     { value: 13, suffix: "+", label: "Years of Ministry", icon: Award, color: "from-amber-400 to-orange-500" },
   ];
 
-  const regions = [
-    { name: "West Africa", icon: "🌍", highlight: true },
-    { name: "East Africa", icon: "🌍" },
-    { name: "UK & Europe", icon: "🌍" },
-    { name: "United States", icon: "🌎" },
-    { name: "Canada", icon: "🌎" },
-    { name: "Caribbean", icon: "🌎" },
-    { name: "Asia Pacific", icon: "🌏" },
-    { name: "Middle East", icon: "🌍" },
-  ];
-
   return (
     <section ref={ref} className="py-28 relative overflow-hidden" style={{ background: "#020b18" }}>
       {/* Animated background */}
@@ -2071,34 +2060,9 @@ function GlobalReach() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ type: "spring", stiffness: 60, damping: 18 }}
-          className="mb-14"
         >
           <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Ministry in Pictures — The Story of Truth, Holiness & Salvation</p>
           <MinistrySlideshow />
-        </motion.div>
-
-        {/* Regions */}
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 70 }} className="text-center">
-          <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-6 font-medium">Nations & Regions Reached</p>
-          <div className="flex flex-wrap gap-3 justify-center max-w-3xl mx-auto">
-            {regions.map((r, i) => (
-              <motion.span key={i}
-                initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
-                whileHover={{ scale: 1.06, y: -2 } as never}
-                className={`flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-medium border transition-all duration-200 cursor-default ${r.highlight ? "bg-accent/20 border-accent/40 text-accent shadow-lg shadow-accent/20" : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20 hover:text-white/80"}`}
-              >
-                <span>{r.icon}</span> {r.name}
-                {r.highlight && <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse ml-1" />}
-              </motion.span>
-            ))}
-          </div>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.5 }} className="mt-8">
-            <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
-              <motion.button whileHover={{ scale: 1.04 } as never} whileTap={{ scale: 0.97 } as never} className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full border border-accent/30 text-accent text-sm font-semibold bg-accent/10 hover:bg-accent/20 transition-colors">
-                <Youtube className="h-4 w-4" /> Watch Temple TV Live <ArrowRight className="h-4 w-4" />
-              </motion.button>
-            </a>
-          </motion.div>
         </motion.div>
       </div>
     </section>
