@@ -76,6 +76,7 @@ export function Navbar() {
     { href: "/about", label: t("About JCTM"), description: t("Our mission and history") },
     { href: "/leadership", label: t("Leadership"), description: t("Prophet Amos & ministry team") },
     { href: "/sermon-assistant", label: `🤖 ${t("Ask AI")}`, description: t("Chat with our sermon AI"), aiHighlight: true },
+    { href: "https://whatsapp.com/channel/0029Vb8HxkvEQIaf1Z86gX0x", label: `💬 ${t("WhatsApp Channel")}`, description: t("Follow us on WhatsApp"), isExternal: true, whatsappHighlight: true },
   ];
 
   return (
@@ -333,22 +334,35 @@ export function Navbar() {
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-3 pb-1">{t("About")}</p>
                 {aboutItems.map((item, i) => (
                   <motion.div key={item.href} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: (flatNavItems.length + resourcesItems.length + i) * 0.04 }}>
-                    <Link href={item.href}>
-                      <div
-                        className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
-                        style={
-                          item.aiHighlight
-                            ? { color: "#8b5cf6" }
-                            : location === item.href
-                            ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" }
-                            : { color: "hsl(var(--primary))" }
-                        }
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {item.label}
-                        <span className="block text-[11px] text-muted-foreground">{item.description}</span>
-                      </div>
-                    </Link>
+                    {item.isExternal ? (
+                      <a href={item.href} target="_blank" rel="noopener noreferrer">
+                        <div
+                          className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
+                          style={{ color: "#25D366" }}
+                          onClick={() => setIsOpen(false)}
+                        >
+                          {item.label}
+                          <span className="block text-[11px] text-muted-foreground">{item.description}</span>
+                        </div>
+                      </a>
+                    ) : (
+                      <Link href={item.href}>
+                        <div
+                          className="text-sm font-medium cursor-pointer py-2.5 px-3 rounded-lg transition-colors"
+                          style={
+                            item.aiHighlight
+                              ? { color: "#8b5cf6" }
+                              : location === item.href
+                              ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" }
+                              : { color: "hsl(var(--primary))" }
+                          }
+                          onClick={() => setIsOpen(false)}
+                        >
+                          {item.label}
+                          <span className="block text-[11px] text-muted-foreground">{item.description}</span>
+                        </div>
+                      </Link>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -366,7 +380,7 @@ export function Navbar() {
 
 // ── Dropdown panel ────────────────────────────────────────────────────────────
 interface DropdownPanelProps {
-  items: { href: string; label: string; description: string; aiHighlight?: boolean }[];
+  items: { href: string; label: string; description: string; aiHighlight?: boolean; isExternal?: boolean; whatsappHighlight?: boolean }[];
   isActive: boolean;
   isDark: boolean;
   onClose: () => void;
@@ -390,19 +404,33 @@ function DropdownPanel({ items, isActive, isDark, onClose, location }: DropdownP
           }}
         >
           <div className="py-2">
-            {items.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <div
-                  onClick={onClose}
-                  className={`flex flex-col px-4 py-2.5 cursor-pointer transition-colors hover:bg-accent/5 ${location === item.href ? "bg-accent/10" : ""}`}
-                >
-                  <span className={`text-sm font-semibold ${item.aiHighlight ? "text-purple-500" : location === item.href ? "text-accent" : "text-primary"}`}>
-                    {item.label}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground mt-0.5">{item.description}</span>
-                </div>
-              </Link>
-            ))}
+            {items.map((item) =>
+              item.isExternal ? (
+                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
+                  <div
+                    onClick={onClose}
+                    className="flex flex-col px-4 py-2.5 cursor-pointer transition-colors hover:bg-accent/5"
+                  >
+                    <span className={`text-sm font-semibold ${item.whatsappHighlight ? "text-[#25D366]" : "text-primary"}`}>
+                      {item.label}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground mt-0.5">{item.description}</span>
+                  </div>
+                </a>
+              ) : (
+                <Link key={item.href} href={item.href}>
+                  <div
+                    onClick={onClose}
+                    className={`flex flex-col px-4 py-2.5 cursor-pointer transition-colors hover:bg-accent/5 ${location === item.href ? "bg-accent/10" : ""}`}
+                  >
+                    <span className={`text-sm font-semibold ${item.aiHighlight ? "text-purple-500" : location === item.href ? "text-accent" : "text-primary"}`}>
+                      {item.label}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground mt-0.5">{item.description}</span>
+                  </div>
+                </Link>
+              )
+            )}
           </div>
         </motion.div>
       )}
