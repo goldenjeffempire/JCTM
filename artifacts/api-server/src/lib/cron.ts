@@ -4,7 +4,7 @@ import { db, sermonsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import type { Logger } from "pino";
 
-const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours (4 syncs/day vs previous 48)
+const INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 let cronHandle: ReturnType<typeof setInterval> | null = null;
 let quotaPausedUntil: number | null = null;
@@ -62,7 +62,7 @@ export function startCron(log: Logger): void {
     return;
   }
 
-  log.info({ intervalMs: INTERVAL_MS }, "Starting YouTube sync cron (6-hour interval)");
+  log.info({ intervalMs: INTERVAL_MS }, "Starting YouTube sync cron (30-minute interval)");
 
   runSync(apiKey, log);
 
