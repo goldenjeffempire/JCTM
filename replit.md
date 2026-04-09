@@ -53,7 +53,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ### New Features Added (April 2026 Enhancement Sprint)
 - **Global Altar SSE Counter** — `/api/altar/stream` SSE endpoint tracks live worshippers; `GlobalAltar.tsx` component with animated spring counter, region flags, pulsing rings, trend arrows
-- **Interactive Mandate Map** — `MandateMap.tsx` SVG-based world map with 11 glow points (Warri HQ + global hubs), travelling pulse animations, connection lines, hover tooltips showing flag + reach stats
+- **Ministry Slideshow** — `MinistrySlideshow.tsx` automated crossfade slideshow cycling all 163 images from `attached_assets/` in random order; storytelling captions (Truth / Holiness / Salvation themes) with matching accent colours, progress dots, pause-on-hover, and image counter
 - **TikTok-style Testimony Reel** — `Testimonies.tsx` now has Grid/Reel toggle; Reel view shows snap-scroll vertical cards with gradient backgrounds, Amen fire buttons, category badges
 - **Predictive TempleBots Hover Whispers** — listens to `jctm:hover-enter` custom events dispatched on section hover (giving, altar, sermons, testimony); shows whisper tooltip with auto-dismiss timer bar
 - **Enhanced Glassmorphism** — `index.css` new `.glass-dark`, `.glass-panel` enhanced, `.altar-glow`, `.scrollbar-hide`, `.bento-card-hover`, `.reel-card-enter`, `.glow-dot` animations
@@ -71,7 +71,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 9. **MinistryPillars** — 6-card grid with accordion expand on click, scripture reference revealed, gradient accent top-bar on hover
 10. **ScriptureFeature** — Full-width Jeremiah 6:16 typographic display on deep navy background with parallax dot grid
 11. **EventsSection** — Upcoming events from /api/events/upcoming with date badge cards, hover reveal, skeleton loaders
-12. **GlobalReach** — Dark impact section: animated counters (sermons, views, nations, years), region chips with emoji flags
+12. **GlobalReach** — Dark impact section: animated counters (sermons, views, nations, years), **MinistrySlideshow** (163-image crossfade replacing former MandateMap), region chips with emoji flags
 13. **GivingBand** — Tithe / Offerings / Missions cards on navy gradient with diagonal line texture; magnetic CTA
 14. **NewcomerSection** — 3-step onboarding: Beliefs, Find a Branch, Join a Unit with tilt cards
 15. **ConnectSection** — Social channels (YouTube, Facebook, Email) + headquarters location card

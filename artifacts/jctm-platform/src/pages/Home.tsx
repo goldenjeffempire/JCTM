@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
 import { GlobalAltar3D } from "@/components/GlobalAltar3D";
-import { MandateMap } from "@/components/MandateMap";
+import { MinistrySlideshow } from "@/components/MinistrySlideshow";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
 
@@ -2065,7 +2065,7 @@ function GlobalReach() {
           ))}
         </motion.div>
 
-        {/* Interactive Mandate Map */}
+        {/* Ministry Slideshow */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -2073,8 +2073,8 @@ function GlobalReach() {
           transition={{ type: "spring", stiffness: 60, damping: 18 }}
           className="mb-14"
         >
-          <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Interactive Ministry Map — Hover to explore</p>
-          <MandateMap />
+          <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Ministry in Pictures — The Story of Truth, Holiness & Salvation</p>
+          <MinistrySlideshow />
         </motion.div>
 
         {/* Regions */}
