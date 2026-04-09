@@ -1,0 +1,41 @@
+kind = "web"
+previewPath = "/"
+title = "JCTM Digital Sanctuary"
+version = "1.0.0"
+id = "artifacts/jctm-platform"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24565
+
+[services.development]
+run = "pnpm --filter @workspace/jctm-platform run dev"
+
+[services.production]
+publicDir = "artifacts/jctm-platform/dist/public"
+serve = "static"
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/jctm-platform", "run", "build"]
+
+# PORT defaults to 3000 in vite.config.ts when absent, but set it explicitly
+# so the Vite config never has to guess. BASE_PATH must be "/" so all asset
+# URLs are rooted correctly in the Replit static-serve deployment.
+[services.production.build.env]
+PORT = "3000"
+BASE_PATH = "/"
+NODE_ENV = "production"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24565"
+BASE_PATH = "/"
