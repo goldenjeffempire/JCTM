@@ -3,7 +3,7 @@ import {
   ChevronUp, ChevronDown,
   Sparkles, Radio, Flame, Share2, BookOpen,
   Volume2, VolumeX, Heart, MessageCircle, Eye,
-  X, Send,
+  X, Send, Youtube,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ interface Comment {
   name: string;
   body: string;
   createdAt: string;
+  ytMirrored?: boolean;
 }
 
 interface YTViews {
@@ -163,7 +164,11 @@ function CommentPanel({
       setComments(prev => [comment, ...prev]);
       setBody("");
       listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-      toast.success("Comment posted!");
+      if (comment.ytMirrored) {
+        toast.success("Comment posted and reflected on YouTube!");
+      } else {
+        toast.success("Comment posted!");
+      }
     } catch {
       toast.error("Could not post comment. Try again.");
     } finally {
@@ -218,11 +223,16 @@ function CommentPanel({
                 {initials(c.name)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 flex-wrap">
                   <span className="text-white text-xs font-semibold">{c.name}</span>
                   <span className="text-white/35 text-[10px]">
                     {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
                   </span>
+                  {c.ytMirrored && (
+                    <span className="flex items-center gap-0.5 text-red-400 text-[9px] font-semibold">
+                      <Youtube className="h-2.5 w-2.5" /> YouTube
+                    </span>
+                  )}
                 </div>
                 <p className="text-white/80 text-xs mt-0.5 leading-relaxed break-words">{c.body}</p>
               </div>
@@ -325,17 +335,30 @@ function MomentCard({
     setTimeout(() => pump(0), 300);
   };
 
+  const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
+
   const handleLike = async () => {
     if (liking) return;
     setLiking(true);
+    const wasLiked = likes.liked;
     const optimistic: NativeLikes = {
-      count: likes.liked ? likes.count - 1 : likes.count + 1,
-      liked: !likes.liked,
+      count: wasLiked ? likes.count - 1 : likes.count + 1,
+      liked: !wasLiked,
     };
     setLikes(optimistic);
     try {
       const result = await toggleLike(moment.videoId, visitorId);
       setLikes(result);
+      // After liking on the platform, prompt to also like on YouTube
+      if (!wasLiked) {
+        toast("Liked! Also like it on YouTube?", {
+          duration: 6000,
+          action: {
+            label: "Like on YouTube",
+            onClick: () => window.open(ytUrl, "_blank", "noopener,noreferrer"),
+          },
+        });
+      }
     } catch {
       setLikes(likes);
       toast.error("Could not register like. Try again.");
@@ -345,17 +368,17 @@ function MomentCard({
   };
 
   const handleShare = async () => {
-    const platformUrl = window.location.href;
+    // Share the YouTube video URL so it registers views/traffic on YouTube
     const shareData = {
       title: moment.title,
-      text: `Watch "${moment.title}" on Temple TV — Jesus Christ Temple Ministry`,
-      url: platformUrl,
+      text: `Watch "${moment.title}" — Jesus Christ Temple Ministry`,
+      url: ytUrl,
     };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch {}
     } else {
-      await navigator.clipboard.writeText(platformUrl);
-      toast.success("Link copied to clipboard!");
+      await navigator.clipboard.writeText(ytUrl);
+      toast.success("YouTube link copied to clipboard!");
     }
   };
 
