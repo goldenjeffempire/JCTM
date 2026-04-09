@@ -165,25 +165,6 @@ export function MinistrySlideshow() {
           );
         })}
       </div>
-
-      {/* Pause indicator */}
-      <AnimatePresence>
-        {paused && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5 text-white/70 text-[10px] uppercase tracking-widest font-medium"
-          >
-            Paused
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Image counter */}
-      <div className="absolute top-4 left-4 bg-black/30 backdrop-blur-sm rounded-full px-3 py-1.5 text-white/50 text-[10px] font-mono">
-        {idx + 1} / {shuffled.length}
-      </div>
     </div>
   );
 }
