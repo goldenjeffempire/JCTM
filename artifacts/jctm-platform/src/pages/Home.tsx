@@ -1037,6 +1037,30 @@ function ProphetSection() {
     { key: "photo6", src: "/founder/DSC1774.jpg", label: "Photo 6" },
   ];
   const [activePhoto, setActivePhoto] = useState("photo1");
+  const [isPaused, setIsPaused] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-advance slideshow — cycles non-stop every 3 s
+  const startSlideshow = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setActivePhoto(current => {
+        const idx = founderPhotos.findIndex(p => p.key === current);
+        return founderPhotos[(idx + 1) % founderPhotos.length]!.key;
+      });
+    }, 3000);
+  }, [founderPhotos]);
+
+  useEffect(() => {
+    if (!isPaused) startSlideshow();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [isPaused, startSlideshow]);
+
+  const handleThumbClick = (key: string) => {
+    setActivePhoto(key);
+    // Restart timer from this photo so it doesn't jump immediately
+    startSlideshow();
+  };
 
   const credentials = [
     { icon: Award, label: "13+ Years in Ministry", color: "from-amber-400 to-orange-500" },
@@ -1085,7 +1109,7 @@ function ProphetSection() {
             {founderPhotos.map(({ key, src, label }) => (
               <motion.button
                 key={key}
-                onClick={() => setActivePhoto(key)}
+                onClick={() => handleThumbClick(key)}
                 whileHover={{ scale: 1.08 } as never}
                 whileTap={{ scale: 0.95 } as never}
                 className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-lg ${activePhoto === key ? "border-accent shadow-accent/30" : "border-white/30 hover:border-white/60"}`}
@@ -1130,9 +1154,30 @@ function ProphetSection() {
                 Prophet Amos<br />Evomobor
               </h3>
               <p className="text-white/60 text-sm">Founder & Senior Prophet, JCTM · Warri, Nigeria</p>
-              <p className="text-white/35 text-xs mt-3 flex items-center gap-1.5">
-                <span className="h-px w-4 bg-white/30 inline-block" /> Click thumbnails to switch photo
-              </p>
+
+              {/* Slideshow controls */}
+              <div className="flex items-center gap-3 mt-4">
+                {/* Dot indicators */}
+                <div className="flex items-center gap-1.5">
+                  {founderPhotos.map(p => (
+                    <button
+                      key={p.key}
+                      onClick={() => handleThumbClick(p.key)}
+                      className={`rounded-full transition-all duration-300 ${activePhoto === p.key ? "w-5 h-2 bg-accent" : "w-2 h-2 bg-white/30 hover:bg-white/60"}`}
+                    />
+                  ))}
+                </div>
+                {/* Pause / Play */}
+                <button
+                  onClick={() => setIsPaused(p => !p)}
+                  className="flex items-center gap-1 text-white/40 hover:text-white/70 transition-colors text-[10px]"
+                >
+                  {isPaused
+                    ? <><span className="inline-block w-3 h-3 border border-white/50 rounded-sm flex items-center justify-center text-[6px]">▶</span> Resume</>
+                    : <><span className="inline-block w-3 h-3 border border-white/50 rounded-sm flex items-center justify-center text-[6px]">⏸</span> Pause</>
+                  }
+                </button>
+              </div>
             </motion.div>
           </div>
         </motion.div>
