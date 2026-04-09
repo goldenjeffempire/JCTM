@@ -27,6 +27,8 @@ const Prayer = lazy(() => import("@/pages/Prayer"));
 const Moments = lazy(() => import("@/pages/Moments"));
 const SermonAssistant = lazy(() => import("@/pages/SermonAssistant"));
 const Leadership = lazy(() => import("@/pages/Leadership"));
+const Topics = lazy(() => import("@/pages/Topics"));
+const TopicDetail = lazy(() => import("@/pages/TopicDetail"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -74,6 +76,8 @@ function Router() {
         <Route path="/moments" component={Moments} />
         <Route path="/sermon-assistant" component={SermonAssistant} />
         <Route path="/leadership" component={Leadership} />
+        <Route path="/topics" component={Topics} />
+        <Route path="/topics/:slug" component={TopicDetail} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

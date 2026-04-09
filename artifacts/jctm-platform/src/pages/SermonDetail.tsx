@@ -4,13 +4,99 @@ import { useGetSermon, getGetSermonQueryKey } from "@workspace/api-client-react"
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
-import { Volume2, VideoIcon, ArrowLeft, Calendar, Eye } from "lucide-react";
+import { Volume2, VideoIcon, ArrowLeft, Calendar, Eye, Sparkles, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { CrusadeAdBanner } from "@/pages/Crusade";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl } from "@/components/DualStreamToggle";
 import { LiveChat } from "@/components/LiveChat";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+interface SermonSummary { summary: string; keyPoints: string[]; generatedAt: string; }
+
+function SermonAISummary({ sermonId }: { sermonId: number }) {
+  const [data, setData] = useState<SermonSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [requested, setRequested] = useState(false);
+
+  const generate = () => {
+    if (loading || data) return;
+    setLoading(true);
+    setRequested(true);
+    fetch(`${BASE}/api/sermons/${sermonId}/summary`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d: SermonSummary) => { setData(d); setLoading(false); })
+      .catch(() => { setError(true); setLoading(false); });
+  };
+
+  if (!requested) {
+    return (
+      <div className="glass-panel rounded-2xl p-6 border border-accent/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-accent/10 rounded-xl">
+              <Sparkles className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-primary text-base">AI Sermon Summary</h2>
+              <p className="text-xs text-muted-foreground">Key teaching points, extracted by AI</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={generate} className="rounded-full text-accent border-accent/30 hover:bg-accent/5">
+            Generate <ChevronRight className="h-3 w-3 ml-1" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="glass-panel rounded-2xl p-6 border border-accent/20 animate-pulse">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-accent/10 rounded-xl"><Sparkles className="h-5 w-5 text-accent animate-spin" /></div>
+          <span className="text-sm text-muted-foreground">Generating sermon summary…</span>
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-muted rounded w-full" />
+          <div className="h-4 bg-muted rounded w-4/5" />
+          <div className="h-4 bg-muted rounded w-3/4" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      className="glass-panel rounded-2xl p-6 border border-accent/20"
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-accent/10 rounded-xl"><Sparkles className="h-5 w-5 text-accent" /></div>
+        <h2 className="font-semibold text-primary text-base">AI Sermon Summary</h2>
+      </div>
+      <p className="text-muted-foreground text-sm leading-relaxed mb-5">{data.summary}</p>
+      {data.keyPoints.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-accent mb-3">Key Teaching Points</h3>
+          <ul className="space-y-2">
+            {data.keyPoints.map((pt, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                {pt}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 export default function SermonDetail() {
   const params = useParams<{ id: string }>();
@@ -184,6 +270,11 @@ export default function SermonDetail() {
                 />
               </div>
             )}
+          </div>
+
+          {/* AI Sermon Summary — indexable text content for Google */}
+          <div className="mb-6">
+            <SermonAISummary sermonId={id} />
           </div>
 
           {sermon.description && (

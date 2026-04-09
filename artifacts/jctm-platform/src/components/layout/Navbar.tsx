@@ -67,6 +67,7 @@ export function Navbar() {
   ];
 
   const resourcesItems = [
+    { href: "/topics", label: t("Bible Topics"), description: t("8 in-depth teaching topic clusters") },
     { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
     { href: "/events", label: t("Events"), description: t("Upcoming services & programmes") },
     { href: "/give", label: t("Give"), description: t("Support the Correction Mandate") },

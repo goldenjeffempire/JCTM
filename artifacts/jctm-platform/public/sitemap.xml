@@ -155,6 +155,78 @@
     <priority>0.65</priority>
   </url>
 
+  <!-- ── Bible Topics Hub ──────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- ── Topic: Holiness ───────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/holiness</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.88</priority>
+  </url>
+
+  <!-- ── Topic: Correction Mandate ─────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/correction-mandate</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.88</priority>
+  </url>
+
+  <!-- ── Topic: Primitive Christianity ─────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/primitive-christianity</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.88</priority>
+  </url>
+
+  <!-- ── Topic: Healing & Miracles ─────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/healing-miracles</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ── Topic: End Times ───────────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/end-times</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ── Topic: Water Baptism ───────────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/water-baptism</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ── Topic: Prayer & Intercession ──────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/prayer-intercession</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- ── Topic: Family & Marriage ───────────────────────────────────────────── -->
+  <url>
+    <loc>https://jctm.org.ng/topics/family-marriage</loc>
+    <lastmod>2026-04-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
   <!-- ── Privacy Policy ────────────────────────────────────────────────────── -->
   <url>
     <loc>https://jctm.org.ng/privacy</loc>

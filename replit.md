@@ -175,6 +175,30 @@ Every page now has rich, valid Schema.org markup:
 #### Keywords Expanded
 All 19 pages have extended keyword sets targeting: long-tail queries, local SEO (Warri, Delta State, Nigeria), topic-specific terms (each sermon category, each correction), and intent-based searches.
 
+### SEO Sprint #2 (April 2026 — Google Rank #1 Initiatives)
+
+#### 1. Topic Cluster Pillar Pages (8 new SEO content hubs)
+New routes `/topics` and `/topics/:slug` with 8 in-depth topic pages:
+- **Files**: `src/pages/Topics.tsx`, `src/pages/TopicDetail.tsx`
+- **Topics**: holiness, correction-mandate, primitive-christianity, healing-miracles, end-times, water-baptism, prayer-intercession, family-marriage
+- Each page has: 400-600 words original content, 3-4 content sections, 3-4 key scriptures, related sermons from API (live search), FAQ section, `Article` + `FAQPage` + `BreadcrumbList` JSON-LD schema
+- Added to navbar Resources dropdown and sitemap.xml at 0.85-0.90 priority
+- Target queries: "What does JCTM teach about [topic]", "[topic] sermons Nigeria", "JCTM [topic] teaching"
+
+#### 2. AI Sermon Summaries
+- **Backend**: `GET /api/sermons/:id/summary` — OpenAI gpt-4o generates 200-250 word summary + 5 key points, in-memory cached
+- **Frontend**: `SermonAISummary` component on every sermon detail page — user clicks "Generate" → AI summary appears as indexable text
+- Gives Google real text content to crawl on each sermon page (previously just YouTube embed + title)
+
+#### 3. Core Web Vitals Optimization
+- **Vite `manualChunks`**: React Core, framer-motion, lucide-react, Radix UI, wouter, tanstack-query, vendor — all split into separate chunks for optimal HTTP/2 loading
+- **Font strategy**: Non-blocking font loading (`media="print" onload="this.media='all'"`) with `<noscript>` fallback, `<link rel="preload">` for font CSS
+- **Resource hints**: Complete set of `preconnect` + `dns-prefetch` for YouTube, YouTube nocookie, Google Fonts (both domains)
+
+#### 4. Sitemap Expansion
+- 9 new entries in `sitemap.xml`: `/topics` hub (0.90) + 8 individual topic pages (0.85-0.88)
+- All with `lastmod: 2026-04-09` and `changefreq: monthly`
+
 ### Environment Variables (Optional)
 - `YOUTUBE_API_KEY` — Enables YouTube sync for sermons
 - `PAYSTACK_SECRET_KEY` — Enables live Paystack payment gateway (NGN)

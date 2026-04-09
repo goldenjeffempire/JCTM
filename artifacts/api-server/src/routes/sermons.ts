@@ -13,6 +13,10 @@ import {
 import { syncIncremental, harvestAll, iso8601ToSeconds } from "../lib/youtube-sync.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
+import { openai } from "@workspace/integrations-openai-ai-server";
+
+// ── In-memory sermon summary cache (survives restarts only in dev) ─────────────
+const summaryCache = new Map<number, { summary: string; keyPoints: string[]; generatedAt: string }>();
 
 const router: IRouter = Router();
 
@@ -161,6 +165,67 @@ router.get("/sermons/:id", async (req, res): Promise<void> => {
     publishedAt: sermon.publishedAt instanceof Date ? sermon.publishedAt.toISOString() : sermon.publishedAt,
     createdAt: sermon.createdAt instanceof Date ? sermon.createdAt.toISOString() : sermon.createdAt,
   }));
+});
+
+// ──────────────────────────────────────────────────────
+// GET /sermons/:id/summary  — AI-generated sermon summary (cached)
+// Used for SEO: Google can index this text content on the sermon detail page.
+// ──────────────────────────────────────────────────────
+router.get("/sermons/:id/summary", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const params = GetSermonParams.safeParse({ id: raw });
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const cached = summaryCache.get(params.data.id);
+  if (cached) {
+    res.json(cached);
+    return;
+  }
+
+  const [sermon] = await db
+    .select()
+    .from(sermonsTable)
+    .where(eq(sermonsTable.id, params.data.id));
+
+  if (!sermon) {
+    res.status(404).json({ error: "Sermon not found" });
+    return;
+  }
+
+  try {
+    const prompt = `You are a biblical scholar summarizing a sermon by Prophet Amos Evomobor of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria.
+
+Sermon title: "${sermon.title}"
+${sermon.description ? `Description: ${sermon.description.slice(0, 500)}` : ""}
+
+Write a 200-250 word sermon summary in plain, engaging English. Cover: the main scriptural theme, key teachings, and a practical takeaway for the listener. Then list exactly 5 bullet-point key points from the sermon. Format your response as JSON: { "summary": "...", "keyPoints": ["...", "...", "...", "...", "..."] }`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 600,
+      temperature: 0.5,
+    });
+
+    const raw_content = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw_content) as { summary?: string; keyPoints?: string[] };
+
+    const result = {
+      summary: parsed.summary ?? "Summary unavailable.",
+      keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.slice(0, 5) : [],
+      generatedAt: new Date().toISOString(),
+    };
+
+    summaryCache.set(params.data.id, result);
+    res.json(result);
+  } catch (err) {
+    req.log.warn({ err }, "Sermon summary generation failed");
+    res.status(503).json({ error: "Summary generation unavailable" });
+  }
 });
 
 // ──────────────────────────────────────────────────────
