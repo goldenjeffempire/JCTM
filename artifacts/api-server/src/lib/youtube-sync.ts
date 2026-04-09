@@ -92,11 +92,11 @@ async function fetchWithRetry<T>(
   throw lastErr;
 }
 
-async function fetchPlaylistItems(apiKey: string, maxItems = 200): Promise<PlaylistItem[]> {
+async function fetchPlaylistItems(apiKey: string): Promise<PlaylistItem[]> {
   const items: PlaylistItem[] = [];
   let pageToken: string | undefined;
 
-  while (items.length < maxItems) {
+  while (true) {
     const params = new URLSearchParams({
       key: apiKey,
       playlistId: UPLOADS_PLAYLIST_ID,
@@ -159,7 +159,7 @@ export interface SyncResult {
 export async function syncIncremental(apiKey: string, log?: Logger): Promise<SyncResult> {
   log?.info("Starting incremental YouTube sync");
 
-  const playlistItems = await fetchPlaylistItems(apiKey, 100);
+  const playlistItems = await fetchPlaylistItems(apiKey);
   if (playlistItems.length === 0) {
     return { synced: 0, featured: 0, live: 0, message: "No videos on channel" };
   }
@@ -231,7 +231,7 @@ export async function syncIncremental(apiKey: string, log?: Logger): Promise<Syn
 export async function harvestAll(apiKey: string, log?: Logger): Promise<SyncResult> {
   log?.info("Starting full harvest (purge + repopulate)");
 
-  const playlistItems = await fetchPlaylistItems(apiKey, 500);
+  const playlistItems = await fetchPlaylistItems(apiKey);
   if (playlistItems.length === 0) {
     return { synced: 0, featured: 0, live: 0, message: "No videos on channel" };
   }
