@@ -485,6 +485,7 @@ export default function Events() {
                     src={`https://www.youtube.com/embed/${latestYtId}?autoplay=1&mute=1&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                     allow="autoplay; fullscreen"
                     allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
                     title={(latestSermon as { title?: string })?.title ?? "Latest Sermon"}
                   />
                 ) : (
@@ -559,6 +560,7 @@ export default function Events() {
                   className="w-full h-full"
                   title="JCTM Live Stream"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 />
               </div>

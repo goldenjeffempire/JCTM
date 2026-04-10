@@ -352,6 +352,7 @@ export default function Sermons() {
                     src={`https://www.youtube.com/embed/${liveSermons[0].videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                     allow="autoplay; fullscreen"
                     allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
                     title={liveSermons[0].title}
                   />
                 </div>
@@ -561,6 +562,7 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
               src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
               allow="autoplay; fullscreen"
               allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
               title={sermon.title}
             />
             <button

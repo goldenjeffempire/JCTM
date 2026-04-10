@@ -733,6 +733,7 @@ function BentoGrid() {
                               src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&rel=0&playlist=${ytId}&origin=${encodeURIComponent(window.location.origin)}`}
                               allow="autoplay; fullscreen"
                               allowFullScreen
+                              referrerPolicy="strict-origin-when-cross-origin"
                               title={sermon.title}
                             />
                           </motion.div>
@@ -1357,7 +1358,7 @@ function SermonSpotlight() {
                   <div className="absolute -inset-4 bg-gradient-to-r from-accent/15 to-primary/15 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-primary">
                     {playing && ytId ? (
-                      <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`} allow="autoplay; fullscreen" allowFullScreen title={sermon.title} />
+                      <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`} allow="autoplay; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" title={sermon.title} />
                     ) : (
                       <>
                         <div className="aspect-video relative overflow-hidden">
@@ -1421,6 +1422,7 @@ function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
               src={`https://www.youtube.com/embed/${s.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
               allow="autoplay; fullscreen"
               allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
               title={s.title}
             />
             <button
@@ -1754,6 +1756,7 @@ function CrusadeInviteSection() {
                     title="Warri City Crusade 2026 Promo"
                     allow="autoplay; fullscreen"
                     allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
                     className="w-full h-full"
                   />
                 </div>

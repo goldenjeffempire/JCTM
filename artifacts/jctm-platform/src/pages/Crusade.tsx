@@ -238,6 +238,7 @@ function CrusadeVideoLoop() {
             title="Warri City Crusade 2026 — Official Promo Video"
             allow="autoplay; fullscreen; accelerometer; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
             className="w-full h-full"
           />
         </div>

@@ -251,6 +251,7 @@ export default function SermonDetail() {
                   className="opacity-0 h-0 w-0 absolute pointer-events-none"
                   src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&origin=${encodeURIComponent(window.location.origin)}`}
                   allow="autoplay"
+                  referrerPolicy="strict-origin-when-cross-origin"
                   title={`${sermon.title} audio`}
                 />
                 <div className="w-64 bg-white/20 rounded-full overflow-hidden h-2">
@@ -266,6 +267,7 @@ export default function SermonDetail() {
                   title={sermon.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   className="w-full h-full"
                 />
               </div>
