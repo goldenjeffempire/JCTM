@@ -286,16 +286,6 @@ export default function SermonDetail() {
             </div>
           )}
 
-          <div className="mt-8 flex justify-center">
-            <a
-              href={`https://www.youtube.com/watch?v=${sermon.videoId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent text-sm hover:underline"
-            >
-              Watch on YouTube / Temple TV Channel
-            </a>
-          </div>
         </motion.div>
       </div>
       <LiveChat isLive={sermon.isLive ?? false} />

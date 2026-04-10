@@ -244,14 +244,6 @@ function CrusadeVideoLoop() {
         </div>
         <div className="flex flex-wrap gap-3 mt-5 justify-center">
           <a
-            href={`https://www.youtube.com/watch?v=${CRUSADE_YT_VIDEO}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-red-600 hover:bg-red-700 transition-all hover:scale-105 shadow-lg"
-          >
-            <Youtube className="h-4 w-4" /> Watch Full Video
-          </a>
-          <a
             href={`https://wa.me/?text=${videoShareText}`}
             target="_blank"
             rel="noopener noreferrer"

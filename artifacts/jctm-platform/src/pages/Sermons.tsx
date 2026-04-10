@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw, ExternalLink, Zap, Star, Radio, Loader2, Bot, X } from "lucide-react";
+import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
@@ -647,15 +647,6 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
           <p className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}
           </p>
-          <a
-            href={`https://www.youtube.com/watch?v=${sermon.videoId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-muted-foreground/60 hover:text-accent flex items-center gap-1 transition-colors"
-            title="Open in YouTube"
-          >
-            <ExternalLink className="h-3 w-3" />
-          </a>
         </div>
       </div>
     </motion.div>

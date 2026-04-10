@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useListEvents, useGetFeaturedSermon, getGetFeaturedSermonQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Calendar, MapPin, Clock, Youtube, Radio, Play, ExternalLink, Phone,
+  Calendar, MapPin, Clock, Youtube, Radio, Play, Phone,
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download
 } from "lucide-react";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
@@ -514,11 +515,11 @@ export default function Events() {
               </div>
               <div className="p-4 flex items-center justify-between bg-primary border-t border-white/10">
                 <span className="text-white/60 text-sm">{(latestSermon as { title?: string })?.title}</span>
-                <a href={`https://www.youtube.com/watch?v=${latestYtId}`} target="_blank" rel="noopener noreferrer">
-                  <Button size="sm" className="rounded-full bg-red-600 hover:bg-red-700 text-white text-xs h-8 px-4 gap-1.5">
-                    <ExternalLink className="h-3 w-3" /> Watch on YouTube
+                <Link href={`/sermons/${(latestSermon as { id?: number })?.id}`}>
+                  <Button size="sm" className="rounded-full bg-accent hover:bg-accent/90 text-white text-xs h-8 px-4 gap-1.5">
+                    <Play className="h-3 w-3 fill-white" /> Watch Now
                   </Button>
-                </a>
+                </Link>
               </div>
             </div>
           </motion.div>

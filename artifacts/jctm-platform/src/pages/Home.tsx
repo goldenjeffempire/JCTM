@@ -1379,7 +1379,6 @@ function SermonSpotlight() {
                           <p className="text-white/50 text-xs mb-4">{formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}</p>
                           <div className="flex gap-3">
                             <button onClick={() => setPlaying(true)} className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"><Play className="h-4 w-4 fill-white" />Watch Now</button>
-                            {ytId && <a href={`https://www.youtube.com/watch?v=${ytId}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors flex items-center gap-1.5 text-white text-sm"><ExternalLink className="h-3.5 w-3.5" />YouTube</a>}
                           </div>
                         </div>
                       </>
@@ -1771,12 +1770,12 @@ function CrusadeInviteSection() {
                     ✋ Register to Attend
                   </motion.button>
                 </Link>
-                <a href={`https://www.youtube.com/watch?v=${CRUSADE_YT}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                <Link href="/crusade" className="flex-1">
                   <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white">
-                    <Youtube className="h-5 w-5" /> Watch on YouTube
+                    <Youtube className="h-5 w-5" /> Watch Promo
                   </motion.button>
-                </a>
+                </Link>
               </div>
             </motion.div>
           </div>
