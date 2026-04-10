@@ -53,7 +53,10 @@ export default defineConfig({
     cssCodeSplit: true,
     sourcemap: false,
     assetsInlineLimit: 4096,
-    chunkSizeWarningLimit: 1000,
+    // Three.js alone is ~1.8 MB minified — it cannot be reduced further.
+    // It is already lazy-loaded (only fetched when GlobalAltar3D renders),
+    // so the large chunk does not affect initial page load.
+    chunkSizeWarningLimit: 2600,
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
@@ -64,7 +67,9 @@ export default defineConfig({
             id.includes("node_modules/scheduler/") ||
             id.includes("node_modules/react-is/")
           ) return "react-core";
-          if (id.includes("node_modules/three/") || id.includes("node_modules/@react-three/")) return "three-d";
+          // Split Three.js core from the react-three ecosystem for better cache granularity
+          if (id.includes("node_modules/three/")) return "three-core";
+          if (id.includes("node_modules/@react-three/")) return "three-react";
           if (id.includes("node_modules/framer-motion/")) return "framer-motion";
           if (id.includes("node_modules/lucide-react/")) return "lucide-react";
           if (id.includes("node_modules/@radix-ui/")) return "radix-ui";
