@@ -51,14 +51,13 @@ Create a heartfelt, biblically grounded prayer that directly addresses this spec
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.2",
       messages: [
         { role: "system", content: PRAYER_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
       stream: true,
-      temperature: 0.8,
-      max_tokens: 700,
+      max_completion_tokens: 8192,
     });
 
     for await (const chunk of stream) {

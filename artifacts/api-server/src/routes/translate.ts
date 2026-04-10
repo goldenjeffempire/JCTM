@@ -62,7 +62,7 @@ router.post("/translate", async (req: Request, res: Response): Promise<void> => 
       : `Translate each of the following texts to ${langName}. Return a JSON array of translations in the same order:\n\n${JSON.stringify(texts)}`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.2",
       messages: [
         {
           role: "system",
@@ -70,8 +70,7 @@ router.post("/translate", async (req: Request, res: Response): Promise<void> => 
         },
         { role: "user", content: prompt },
       ],
-      max_tokens: 2000,
-      temperature: 0.3,
+      max_completion_tokens: 8192,
     });
 
     const result = completion.choices[0]?.message?.content?.trim() ?? "";

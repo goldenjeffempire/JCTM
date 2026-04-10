@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { GeoProvider } from "@/contexts/GeoContext";
+import { VoiceTempleBots } from "@/components/VoiceTempleBots";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -29,6 +30,8 @@ const SermonAssistant = lazy(() => import("@/pages/SermonAssistant"));
 const Leadership = lazy(() => import("@/pages/Leadership"));
 const Topics = lazy(() => import("@/pages/Topics"));
 const TopicDetail = lazy(() => import("@/pages/TopicDetail"));
+const ScriptureStudy = lazy(() => import("@/pages/ScriptureStudy"));
+const SpiritualInsight = lazy(() => import("@/pages/SpiritualInsight"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -78,6 +81,8 @@ function Router() {
         <Route path="/leadership" component={Leadership} />
         <Route path="/topics" component={Topics} />
         <Route path="/topics/:slug" component={TopicDetail} />
+        <Route path="/scripture-study" component={ScriptureStudy} />
+        <Route path="/spiritual-insight" component={SpiritualInsight} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -95,6 +100,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>
+            <VoiceTempleBots />
           </ErrorBoundary>
           <Toaster
             position="top-center"

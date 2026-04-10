@@ -478,7 +478,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     );
 
     const completion = await openai.chat.completions.create(
-      { model: "gpt-4o", max_tokens: 1024, temperature: 0.7, messages: msgs },
+      { model: "gpt-5.2", max_completion_tokens: 8192, messages: msgs },
       { signal: controller.signal },
     );
 
@@ -561,9 +561,8 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
 
     const stream = await openai.chat.completions.create(
       {
-        model: "gpt-4o",
-        max_tokens: 1024,
-        temperature: 0.7,
+        model: "gpt-5.2",
+        max_completion_tokens: 8192,
         messages: msgs,
         stream: true,
       },

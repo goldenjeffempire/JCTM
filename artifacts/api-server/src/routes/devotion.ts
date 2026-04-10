@@ -187,7 +187,7 @@ router.get("/devotion/daily", async (_req: Request, res: Response): Promise<void
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5.2",
         messages: [
           { role: "system", content: DEVOTION_SYSTEM_PROMPT },
           {
@@ -200,8 +200,7 @@ Include a bold, specific prophetic word for today that speaks directly to the he
 Return ONLY the raw JSON object, no markdown, no code blocks.`,
           },
         ],
-        temperature: 0.78,
-        max_tokens: 900,
+        max_completion_tokens: 8192,
       });
 
       const raw = completion.choices[0]?.message?.content ?? "";

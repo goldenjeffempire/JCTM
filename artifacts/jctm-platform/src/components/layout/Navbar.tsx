@@ -52,7 +52,7 @@ export function Navbar() {
   };
 
   // Derived: does current path belong to a dropdown?
-  const resourcesHrefs = ["/testimonies", "/events", "/give"];
+  const resourcesHrefs = ["/testimonies", "/events", "/give", "/scripture-study", "/spiritual-insight"];
   const aboutHrefs = ["/about", "/leadership", "/sermon-assistant"];
   const resourcesActive = resourcesHrefs.includes(location);
   const aboutActive = aboutHrefs.includes(location);
@@ -68,6 +68,8 @@ export function Navbar() {
 
   const resourcesItems = [
     { href: "/topics", label: t("Bible Topics"), description: t("8 in-depth teaching topic clusters") },
+    { href: "/scripture-study", label: `📖 ${t("Scripture Study")}`, description: t("Deep AI exegetical Bible analysis"), aiHighlight: true },
+    { href: "/spiritual-insight", label: `✦ ${t("Spiritual Insight")}`, description: t("Personalized prophetic guidance"), aiHighlight: true },
     { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
     { href: "/events", label: t("Events"), description: t("Upcoming services & programmes") },
     { href: "/give", label: t("Give"), description: t("Support the Correction Mandate") },

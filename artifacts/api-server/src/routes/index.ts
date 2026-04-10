@@ -19,6 +19,7 @@ import translateRouter from "./translate";
 import geoRouter from "./geo";
 import visitorsRouter from "./visitors";
 import momentsRouter from "./moments";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -44,6 +45,7 @@ router.use(translateRouter);
 router.use(geoRouter);
 router.use(visitorsRouter);
 router.use(momentsRouter);
+router.use(aiRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {
