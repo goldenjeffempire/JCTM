@@ -179,6 +179,32 @@ export function TempleBots() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
 
+  const fetchSuggestedQuestions = useCallback(async (conversationSoFar: HistoryEntry[]) => {
+    try {
+      const res = await fetch(`${SUGGEST_URL}?ctx=1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history: conversationSoFar.slice(-6) }),
+      });
+      if (!res.ok) {
+        // Fallback to GET endpoint
+        const fallback = await fetch(SUGGEST_URL);
+        if (!fallback.ok) return;
+        const fb = await fallback.json() as { questions?: string[] };
+        if (Array.isArray(fb.questions) && fb.questions.length > 0) {
+          setSuggestedQuestions(fb.questions.slice(0, 5));
+        }
+        return;
+      }
+      const data = await res.json() as { questions?: string[] };
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        setSuggestedQuestions(data.questions.slice(0, 5));
+      }
+    } catch {
+      // Silent fallback — keep existing suggestions
+    }
+  }, []);
+
   // Fetch AI suggested questions after each bot reply finishes
   useEffect(() => {
     if (isStreaming) return;
@@ -335,32 +361,6 @@ export function TempleBots() {
       setIsStreaming(false);
     }
   }, [isStreaming, sessionId, language]);
-
-  const fetchSuggestedQuestions = useCallback(async (conversationSoFar: HistoryEntry[]) => {
-    try {
-      const res = await fetch(`${SUGGEST_URL}?ctx=1`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ history: conversationSoFar.slice(-6) }),
-      });
-      if (!res.ok) {
-        // Fallback to GET endpoint
-        const fallback = await fetch(SUGGEST_URL);
-        if (!fallback.ok) return;
-        const fb = await fallback.json() as { questions?: string[] };
-        if (Array.isArray(fb.questions) && fb.questions.length > 0) {
-          setSuggestedQuestions(fb.questions.slice(0, 5));
-        }
-        return;
-      }
-      const data = await res.json() as { questions?: string[] };
-      if (Array.isArray(data.questions) && data.questions.length > 0) {
-        setSuggestedQuestions(data.questions.slice(0, 5));
-      }
-    } catch {
-      // Silent fallback — keep existing suggestions
-    }
-  }, []);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
