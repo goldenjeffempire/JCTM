@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
-import { useListEvents, useGetFeaturedSermon, getGetFeaturedSermonQueryKey } from "@workspace/api-client-react";
+import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Calendar, MapPin, Clock, Youtube, Radio, Play, Phone,
+  Calendar, MapPin, Clock, Youtube, Radio, Phone,
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download
 } from "lucide-react";
-import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
+import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -411,12 +410,11 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
 
 const YOUTUBE_LIVE_ID = "UCPFFvkE-KGpR37qJgvYriJg";
 
+const FEATURED_VIDEO_ID = "oJUkSAZu0y0";
+
 export default function Events() {
   const [showLive, setShowLive] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const { data: events, isLoading } = useListEvents({ limit: 20, offset: 0 });
-  const { data: latestSermon } = useGetFeaturedSermon({ query: { queryKey: getGetFeaturedSermonQueryKey() } });
-  const latestYtId = (latestSermon as { videoId?: string })?.videoId;
 
   useEffect(() => { document.title = "Events | JCTM Digital Sanctuary"; }, []);
 
@@ -468,62 +466,24 @@ export default function Events() {
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
         </motion.div>
 
-        {/* Latest Sermon */}
-        {latestSermon && latestYtId && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">
-            <h2 className="text-xl font-serif font-bold text-primary mb-4 flex items-center gap-2">
-              <Youtube className="h-5 w-5 text-red-600" /> Latest Upload
-            </h2>
-            <div
-              className="rounded-2xl overflow-hidden border border-border shadow-lg bg-primary group cursor-pointer"
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
-                {hovered ? (
-                  <iframe
-                    className="w-full h-full absolute inset-0"
-                    src={`https://www.youtube.com/embed/${latestYtId}?autoplay=1&mute=1&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-                    allow="autoplay; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    title={(latestSermon as { title?: string })?.title ?? "Latest Sermon"}
-                  />
-                ) : (
-                  <>
-                    <img
-                      src={(latestSermon as { thumbnailUrl?: string })?.thumbnailUrl}
-                      alt={(latestSermon as { title?: string })?.title ?? "Latest Sermon"}
-                      className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-700"
-                      onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${latestYtId}/maxresdefault.jpg`; }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/30 to-transparent" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-2xl">
-                        <Play className="h-7 w-7 text-white fill-white ml-1" />
-                      </div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      <span className="text-red-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                        <span className="h-1.5 w-1.5 bg-red-400 rounded-full animate-pulse" /> Just Uploaded
-                      </span>
-                      <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{(latestSermon as { title?: string })?.title}</h3>
-                      <p className="text-white/50 text-xs mt-1.5">Hover to preview · <span className="text-accent">{formatDistanceToNow(new Date((latestSermon as { publishedAt?: string })?.publishedAt ?? new Date()), { addSuffix: true })}</span></p>
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="p-4 flex items-center justify-between bg-primary border-t border-white/10">
-                <span className="text-white/60 text-sm">{(latestSermon as { title?: string })?.title}</span>
-                <Link href={`/sermons/${(latestSermon as { id?: number })?.id}`}>
-                  <Button size="sm" className="rounded-full bg-accent hover:bg-accent/90 text-white text-xs h-8 px-4 gap-1.5">
-                    <Play className="h-3 w-3 fill-white" /> Watch Now
-                  </Button>
-                </Link>
-              </div>
+        {/* Featured Video */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">
+          <h2 className="text-xl font-serif font-bold text-primary mb-4 flex items-center gap-2">
+            <Youtube className="h-5 w-5 text-red-600" /> Featured Video
+          </h2>
+          <div className="rounded-2xl overflow-hidden border border-border shadow-lg">
+            <div className="aspect-video">
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${FEATURED_VIDEO_ID}?rel=0&origin=${encodeURIComponent(window.location.origin)}`}
+                title="Featured Video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
             </div>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
 
         {/* YouTube Live */}
         <div className="glass-panel rounded-2xl p-6 mb-10 border border-red-200/50 bg-red-50/30">
