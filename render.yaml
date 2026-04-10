@@ -9,43 +9,40 @@ services:
     plan: standard
 
     # ── Build ──────────────────────────────────
-    # 1. Pin pnpm, install workspace deps
-    # 2. Build the React/Vite SPA (outputs to artifacts/jctm-platform/dist/public)
-    # 3. Compile the Express API server (outputs to artifacts/api-server/dist)
+    # 1. Pin pnpm, install all workspace dependencies
+    # 2. Build the React/Vite SPA  → artifacts/jctm-platform/dist/public
+    # 3. Compile the Express API   → artifacts/api-server/dist/index.mjs
+    #    NODE_ENV=production skips dev sourcemaps (saves ~3 MB from dist)
     buildCommand: >
       npm install -g pnpm@10 &&
       pnpm install --no-frozen-lockfile &&
       PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build &&
-      pnpm --filter @workspace/api-server run build
+      NODE_ENV=production pnpm --filter @workspace/api-server run build
 
     # ── Start ──────────────────────────────────
-    # Use node directly — avoids depending on pnpm being in PATH at start time.
-    # Express serves both the API (/api/*) and the compiled SPA in production.
-    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    # Express serves both /api/* (REST) and the compiled SPA (SPA fallback).
+    startCommand: node artifacts/api-server/dist/index.mjs
 
     # ── Health check ───────────────────────────
-    # Render pings this endpoint to determine instance health.
-    # Our handler probes PostgreSQL (+ Redis when REDIS_URL is set) and returns
-    # 200 OK when all services are reachable, or 503 Degraded otherwise.
+    # Probes PostgreSQL on every Render health ping.
+    # Returns 200 OK when healthy, 503 when the DB is unreachable.
     healthCheckPath: /api/health
 
     # ── Scaling ────────────────────────────────
-    # The altar counter, sermon SSE stream, and livestream state are stored in
-    # process memory.  Multiple instances would split SSE connections and show
-    # inconsistent worshipper counts across users.  Keep at 1 until Redis
-    # pub/sub fan-out is implemented.
+    # Altar counter + SSE streams live in process memory.
+    # Keep at 1 instance until Redis pub/sub fan-out is added.
     scaling:
       minInstances: 1
       maxInstances: 1
 
     # ── Static asset caching headers ───────────
     headers:
-      # Vite-hashed JS/CSS bundles (filename contains content hash)
+      # Vite content-hashed JS/CSS bundles — safe to cache for 1 year
       - path: /assets/*
         name: Cache-Control
         value: "public, max-age=31536000, immutable"
 
-      # Media & logos uploaded to the public directory
+      # Public media files
       - path: "/*.jpeg"
         name: Cache-Control
         value: "public, max-age=604800, stale-while-revalidate=86400"
@@ -65,7 +62,7 @@ services:
         name: Cache-Control
         value: "public, max-age=86400"
 
-      # HTML shell – always revalidate so the SPA entry point is fresh
+      # HTML shell — must always revalidate so deploys take effect immediately
       - path: /
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
@@ -73,7 +70,7 @@ services:
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
 
-      # API responses must not be cached by intermediaries
+      # API responses must never be cached by CDN or browser
       - path: /api/*
         name: Cache-Control
         value: "no-store"
@@ -86,52 +83,49 @@ services:
       - key: BASE_PATH
         value: /
 
-      # Render assigns port 10000 to web service processes automatically.
+      # Render injects PORT=10000 automatically for web services
       - key: PORT
         value: 10000
 
       - key: LOG_LEVEL
         value: info
 
-      # Redis connection injected automatically from the jctm-redis service below.
-      # The app gracefully skips Redis health checks when this is unset.
+      # Redis — injected automatically from the jctm-redis service
+      # App runs fine without Redis (graceful degradation)
       - key: REDIS_URL
         fromService:
           type: redis
           name: jctm-redis
           property: connectionString
 
-      # ── Secrets – set these in the Render dashboard ─────────────────────
-      # Neon PostgreSQL connection string
+      # ── Secrets: set these in the Render dashboard ──────────────────────
+      # Neon PostgreSQL connection string (required)
       - key: DATABASE_URL
         sync: false
 
-      # YouTube Data API v3 key for sermon syncing
+      # YouTube Data API v3 — sermon auto-sync every 30 minutes
       - key: YOUTUBE_API_KEY
         sync: false
 
-      # Paystack secret key for donation processing
+      # Paystack secret key — donation / giving portal
       - key: PAYSTACK_SECRET_KEY
         sync: false
 
-      # OpenAI API key for TempleBots AI assistant
+      # OpenAI API key — TempleBots, Sermon Assistant, devotions
       - key: OPENAI_API_KEY
         sync: false
 
-      # Random 64-char string used to sign session cookies
+      # 64-char random secret for session cookie signing
       # Generate with: openssl rand -hex 32
       - key: SESSION_SECRET
         sync: false
 
   # ─────────────────────────────────────────────
-  # Redis – health-check probing, future SSE
-  # pub/sub fan-out and rate-limit counters
+  # Redis — SSE pub/sub fan-out + rate-limit store
   # ─────────────────────────────────────────────
   - type: redis
     name: jctm-redis
     region: oregon
     plan: starter
-    # Evict least-recently-used keys when memory is full
     maxmemoryPolicy: allkeys-lru
-    # Only the jctm-platform service may connect
     ipAllowList: []

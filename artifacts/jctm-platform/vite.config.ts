@@ -57,14 +57,17 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
-          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/react-dom/")) return "react-core";
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) return "react-core";
           if (id.includes("node_modules/three/") || id.includes("node_modules/@react-three/")) return "three-d";
           if (id.includes("node_modules/framer-motion/")) return "framer-motion";
           if (id.includes("node_modules/lucide-react/")) return "lucide-react";
           if (id.includes("node_modules/@radix-ui/")) return "radix-ui";
           if (id.includes("node_modules/wouter/")) return "router";
           if (id.includes("node_modules/@tanstack/")) return "tanstack-query";
-          if (id.includes("node_modules/zod/") || id.includes("node_modules/zod-to-json-schema/")) return "validation";
+          if (id.includes("node_modules/zod") || id.includes("node_modules/zod-to-json-schema/")) return "validation";
+          if (id.includes("node_modules/date-fns/")) return "date-fns";
+          if (id.includes("node_modules/clsx/") || id.includes("node_modules/class-variance-authority/") || id.includes("node_modules/tailwind-merge/")) return "styling-utils";
+          if (id.includes("node_modules/@hookform/") || id.includes("node_modules/react-hook-form/")) return "forms";
           if (id.includes("node_modules/")) return "vendor";
         },
       },

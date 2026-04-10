@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, lazy, Suspense } from "react";
 import {
   motion, Variants, useScroll, useTransform, useInView,
   AnimatePresence, useMotionValue, useSpring,
@@ -24,10 +24,11 @@ import { SEO } from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
-import { GlobalAltar3D } from "@/components/GlobalAltar3D";
-import { MinistrySlideshow } from "@/components/MinistrySlideshow";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
+
+const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => ({ default: m.GlobalAltar3D })));
+const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").then(m => ({ default: m.MinistrySlideshow })));
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -2063,7 +2064,9 @@ function GlobalReach() {
           transition={{ type: "spring", stiffness: 60, damping: 18 }}
         >
           <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Ministry in Pictures — The Story of Truth, Holiness & Salvation</p>
-          <MinistrySlideshow />
+          <Suspense fallback={<div className="h-64 animate-pulse bg-white/5 rounded-2xl" />}>
+            <MinistrySlideshow />
+          </Suspense>
         </motion.div>
       </div>
     </section>
@@ -2645,7 +2648,9 @@ function GlobalAltarSection() {
           transition={{ duration: 1 }}
           className="mb-8"
         >
-          <GlobalAltar3D />
+          <Suspense fallback={<div className="h-80 animate-pulse bg-white/5 rounded-2xl" />}>
+            <GlobalAltar3D />
+          </Suspense>
         </motion.div>
 
         <motion.div
