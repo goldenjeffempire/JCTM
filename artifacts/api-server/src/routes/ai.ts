@@ -477,4 +477,94 @@ router.post("/ai/local-inference", (req: Request, res: Response): void => {
   res.json({ query, result, engineVersion: ENGINE_METADATA.version });
 });
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/feedback
+// Feedback loop — log interaction quality for continuous improvement
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/feedback", async (req: Request, res: Response): Promise<void> => {
+  const {
+    sessionId,
+    messageId,
+    userQuery,
+    aiResponse,
+    rating,
+    feedbackText,
+    modelTier,
+    latencyMs,
+    confidenceScore,
+    wasHelpful,
+    category,
+  } = req.body as {
+    sessionId?: string;
+    messageId?: string;
+    userQuery?: string;
+    aiResponse?: string;
+    rating?: number;
+    feedbackText?: string;
+    modelTier?: string;
+    latencyMs?: number;
+    confidenceScore?: number;
+    wasHelpful?: number;
+    category?: string;
+  };
+
+  if (!userQuery?.trim() || !aiResponse?.trim()) {
+    res.status(400).json({ error: "userQuery and aiResponse are required" });
+    return;
+  }
+
+  if (rating !== undefined && (rating < 1 || rating > 5)) {
+    res.status(400).json({ error: "rating must be between 1 and 5" });
+    return;
+  }
+
+  try {
+    const { pool } = await import("@workspace/db");
+    await pool.query(
+      `INSERT INTO ai_feedback
+         (session_id, query, response_snippet, rating, helpful, comment, tier,
+          user_query, ai_response, feedback_text, model_tier, latency_ms,
+          confidence_score, was_helpful, category)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [
+        sessionId ?? null,
+        userQuery,
+        aiResponse.slice(0, 500),
+        rating ?? null,
+        wasHelpful === 1 ? true : wasHelpful === 0 ? false : null,
+        feedbackText ?? null,
+        modelTier ?? "openai",
+        userQuery,
+        aiResponse,
+        feedbackText ?? null,
+        modelTier ?? "openai",
+        latencyMs ?? null,
+        confidenceScore ?? null,
+        wasHelpful ?? null,
+        category ?? null,
+      ],
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to record feedback" });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/ai/model-status
+// Reports the current model routing configuration
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get("/ai/model-status", (_req: Request, res: Response): void => {
+  res.json({
+    architecture: "3-tier hybrid",
+    tiers: {
+      tier1: { name: "Local AI Engine", description: "Exact-match + TF-IDF keyword scoring", latency: "<1ms" },
+      tier2: { name: "RAG (pgvector)", description: "Semantic vector similarity search", latency: "10-50ms" },
+      tier3: { name: "OpenAI GPT-4o", description: "Complex/theological/emotional queries", latency: "500-2000ms" },
+    },
+    openaiAvailable: Boolean(process.env.OPENAI_API_KEY),
+    version: ENGINE_METADATA.version,
+  });
+});
+
 export default router;

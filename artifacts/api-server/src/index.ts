@@ -3,11 +3,13 @@ import { logger } from "./lib/logger";
 import { startCron } from "./lib/cron.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
+import { initSentry } from "./lib/sentry.js";
 import { pool } from "@workspace/db";
 import OpenAI from "openai";
 
 async function runStartupMigrations() {
   try {
+    // ── Core tables ──────────────────────────────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS daily_devotions (
         date date PRIMARY KEY,
@@ -50,6 +52,103 @@ async function runStartupMigrations() {
         updated_at timestamptz NOT NULL DEFAULT now()
       )
     `);
+
+    // ── pgvector extension + similarity index ────────────────────────────────
+    try {
+      await pool.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS knowledge_chunks_embedding_idx
+        ON knowledge_chunks
+        USING ivfflat (embedding vector_cosine_ops)
+        WITH (lists = 50)
+        WHERE embedding IS NOT NULL
+      `);
+      logger.info("pgvector extension and similarity index ready");
+    } catch (vecErr) {
+      logger.warn({ err: vecErr }, "pgvector extension not available — semantic search disabled");
+    }
+
+    // ── Admin RBAC: role column on member_auth ───────────────────────────────
+    await pool.query(`
+      ALTER TABLE member_auth ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'member'
+    `);
+
+    // ── AI Feedback Loop table ───────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_feedback (
+        id serial PRIMARY KEY,
+        session_id text,
+        message_id text,
+        user_query text NOT NULL,
+        ai_response text NOT NULL,
+        rating integer,
+        feedback_text text,
+        model_tier text NOT NULL DEFAULT 'local',
+        latency_ms integer,
+        confidence_score real,
+        was_helpful integer,
+        category text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
+    // ── SEO Blog Posts table ─────────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS blog_posts (
+        id serial PRIMARY KEY,
+        slug text NOT NULL UNIQUE,
+        title text NOT NULL,
+        excerpt text NOT NULL,
+        content text NOT NULL,
+        category text NOT NULL DEFAULT 'faith',
+        tags text[] NOT NULL DEFAULT '{}',
+        meta_title text,
+        meta_description text,
+        canonical_url text,
+        schema_json text,
+        is_published boolean NOT NULL DEFAULT false,
+        published_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
+    // ── Sermon transcript indexing ───────────────────────────────────────────
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS transcript_summary text
+    `);
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()
+    `);
+
+    // ── pgvector cosine similarity search function ───────────────────────────
+    try {
+      await pool.query(`
+        CREATE OR REPLACE FUNCTION search_knowledge_chunks(
+          query_embedding vector(1536),
+          match_count integer DEFAULT 5
+        )
+        RETURNS TABLE (
+          id integer,
+          content text,
+          source text,
+          similarity float
+        )
+        LANGUAGE sql STABLE
+        AS $$
+          SELECT id, content, source,
+                 1 - (embedding <=> query_embedding) AS similarity
+          FROM knowledge_chunks
+          WHERE embedding IS NOT NULL
+          ORDER BY embedding <=> query_embedding
+          LIMIT match_count;
+        $$
+      `);
+      logger.info("pgvector similarity search function created");
+    } catch (fnErr) {
+      logger.warn({ err: fnErr }, "Could not create similarity search function — pgvector may not be available");
+    }
+
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
@@ -70,6 +169,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+await initSentry();
 await runStartupMigrations();
 
 const server = app.listen(port, (err) => {

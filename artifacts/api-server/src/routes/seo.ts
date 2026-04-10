@@ -6,8 +6,8 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, sermonsTable } from "@workspace/db";
-import { desc } from "drizzle-orm";
+import { db, sermonsTable, blogPostsTable } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -32,6 +32,7 @@ const STATIC_PAGES = [
   { path: "/viewing-centres",   priority: "0.72", changefreq: "monthly" },
   { path: "/join",              priority: "0.70", changefreq: "monthly" },
   { path: "/correction-timeline", priority: "0.68", changefreq: "monthly" },
+  { path: "/blog",              priority: "0.88", changefreq: "daily"   },
   { path: "/terms",             priority: "0.30", changefreq: "yearly"  },
   { path: "/privacy",           priority: "0.30", changefreq: "yearly"  },
 ];
@@ -79,17 +80,31 @@ function buildUrlEntry({
 
 router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const sermons = await db
-      .select({
-        id: sermonsTable.id,
-        title: sermonsTable.title,
-        publishedAt: sermonsTable.publishedAt,
-        thumbnailUrl: sermonsTable.thumbnailUrl,
-        description: sermonsTable.description,
-      })
-      .from(sermonsTable)
-      .orderBy(desc(sermonsTable.publishedAt))
-      .limit(500);
+    const [sermons, blogPosts] = await Promise.all([
+      db
+        .select({
+          id: sermonsTable.id,
+          title: sermonsTable.title,
+          publishedAt: sermonsTable.publishedAt,
+          thumbnailUrl: sermonsTable.thumbnailUrl,
+          description: sermonsTable.description,
+        })
+        .from(sermonsTable)
+        .orderBy(desc(sermonsTable.publishedAt))
+        .limit(500),
+      db
+        .select({
+          slug: blogPostsTable.slug,
+          title: blogPostsTable.title,
+          excerpt: blogPostsTable.excerpt,
+          publishedAt: blogPostsTable.publishedAt,
+          updatedAt: blogPostsTable.updatedAt,
+        })
+        .from(blogPostsTable)
+        .where(eq(blogPostsTable.published, true))
+        .orderBy(desc(blogPostsTable.publishedAt))
+        .limit(200),
+    ]);
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -113,6 +128,17 @@ router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> =
                 caption: "Prophet Amos Evomobor, founder of Jesus Christ Temple Ministry (JCTM)",
               }
             : undefined,
+      }),
+    );
+
+    const blogEntries = blogPosts.map(post =>
+      buildUrlEntry({
+        loc: `${BASE_URL}/blog/${post.slug}`,
+        lastmod: post.updatedAt
+          ? new Date(post.updatedAt).toISOString().split("T")[0]
+          : today,
+        changefreq: "monthly",
+        priority: "0.75",
       }),
     );
 
@@ -142,7 +168,7 @@ router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> =
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
   xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
 
-${[...staticEntries, ...sermonEntries].join("\n\n")}
+${[...staticEntries, ...blogEntries, ...sermonEntries].join("\n\n")}
 
 </urlset>`;
 

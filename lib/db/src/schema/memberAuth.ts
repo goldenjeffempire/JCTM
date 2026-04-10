@@ -10,9 +10,10 @@ export const memberAuthTable = pgTable("member_auth", {
   passwordHash: text("password_hash").notNull(),
   token: text("token").unique(),
   phone: text("phone"),
+  role: text("role").notNull().default("member"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertMemberAuthSchema = createInsertSchema(memberAuthTable).omit({ id: true, createdAt: true, token: true });
+export const insertMemberAuthSchema = createInsertSchema(memberAuthTable).omit({ id: true, createdAt: true, token: true, role: true });
 export type InsertMemberAuth = z.infer<typeof insertMemberAuthSchema>;
 export type MemberAuth = typeof memberAuthTable.$inferSelect;
