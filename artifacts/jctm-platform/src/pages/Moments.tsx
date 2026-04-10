@@ -33,7 +33,22 @@ interface MomentItem {
   viewCount?: number | null;
   isLive?: boolean;
   duration?: string | null;
+  pinned?: boolean;
 }
+
+// ── Crusade pinned video — shown at the top until the crusade ends ────────────
+const CRUSADE_VIDEO_ID = "oJUkSAZu0y0";
+const CRUSADE_PIN_UNTIL = new Date("2026-05-01T23:59:59+01:00");
+
+const CRUSADE_PINNED: MomentItem = {
+  id: -1,
+  videoId: CRUSADE_VIDEO_ID,
+  title: "🔥 Warri City Crusade 2026 — Prophet Amos Global Crusade Promo",
+  thumbnailUrl: `https://img.youtube.com/vi/${CRUSADE_VIDEO_ID}/maxresdefault.jpg`,
+  publishedAt: "2026-04-30T18:00:00+01:00",
+  isLive: false,
+  pinned: true,
+};
 
 interface NativeLikes {
   count: number;
@@ -459,6 +474,11 @@ function MomentCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {moment.pinned && (
+              <Badge className="bg-amber-500/90 text-white text-[10px] gap-1 border-0">
+                📌 Pinned
+              </Badge>
+            )}
             {moment.isLive && (
               <Badge className="bg-red-500 text-white text-[10px] gap-1 animate-pulse border-0">
                 <span className="h-1.5 w-1.5 rounded-full bg-white inline-block" />LIVE
@@ -600,7 +620,8 @@ export default function Moments() {
   const loadMoments = useCallback(() => {
     return fetchShorts()
       .then(data => {
-        setMoments(data);
+        const pinned = new Date() < CRUSADE_PIN_UNTIL ? [CRUSADE_PINNED] : [];
+        setMoments([...pinned, ...data]);
         setNewVideoAlert(false);
       })
       .catch(() => toast.error("Could not load Moments"))
