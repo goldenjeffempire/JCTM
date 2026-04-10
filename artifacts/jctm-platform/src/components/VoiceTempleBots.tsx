@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Phone, PhoneOff, Volume2, VolumeX, X } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
 
@@ -100,6 +101,31 @@ export function VoiceTempleBots() {
 
   return (
     <>
+      {/* WhatsApp channel button */}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.a
+            href="https://whatsapp.com/channel/0029Vb8HxkvEQIaf1Z86gX0x"
+            target="_blank"
+            rel="noopener noreferrer"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            className="fixed bottom-40 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+              boxShadow: "0 8px 32px rgba(37,211,102,0.45), 0 0 0 3px rgba(37,211,102,0.12)",
+            }}
+            aria-label="Join our WhatsApp Channel"
+            title="WhatsApp Channel"
+          >
+            <FaWhatsapp className="h-5 w-5 text-white" style={{ fontSize: "1.25rem" }} />
+          </motion.a>
+        )}
+      </AnimatePresence>
+
       {/* Floating trigger button */}
       <AnimatePresence>
         {!isOpen && (
@@ -118,7 +144,7 @@ export function VoiceTempleBots() {
             aria-label="Open Voice TempleBots"
             title="TempleBots Voice"
           >
-            <Phone className="h-5 w-5 text-white" />
+            <Mic className="h-5 w-5 text-white" />
             {isPlaying && (
               <motion.span
                 animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
@@ -149,7 +175,7 @@ export function VoiceTempleBots() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-violet-500/15">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center shadow-lg">
-                  <Phone className="h-4 w-4 text-white" />
+                  <Mic className="h-4 w-4 text-white" />
                 </div>
                 <div>
                   <p className="text-white font-semibold text-sm leading-tight">TempleBots Voice</p>
