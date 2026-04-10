@@ -730,7 +730,7 @@ function BentoGrid() {
                           <motion.div key="iframe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="absolute inset-0">
                             <iframe
                               className="w-full h-full"
-                              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&rel=0&playlist=${ytId}`}
+                              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&rel=0&playlist=${ytId}&origin=${encodeURIComponent(window.location.origin)}`}
                               allow="autoplay; fullscreen"
                               allowFullScreen
                               title={sermon.title}
@@ -1357,7 +1357,7 @@ function SermonSpotlight() {
                   <div className="absolute -inset-4 bg-gradient-to-r from-accent/15 to-primary/15 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-primary">
                     {playing && ytId ? (
-                      <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`} allow="autoplay; fullscreen" allowFullScreen title={sermon.title} />
+                      <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`} allow="autoplay; fullscreen" allowFullScreen title={sermon.title} />
                     ) : (
                       <>
                         <div className="aspect-video relative overflow-hidden">
@@ -1418,7 +1418,7 @@ function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
           <>
             <iframe
               className="w-full h-full absolute inset-0"
-              src={`https://www.youtube.com/embed/${s.videoId}?autoplay=1&rel=0`}
+              src={`https://www.youtube.com/embed/${s.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
               allow="autoplay; fullscreen"
               allowFullScreen
               title={s.title}
@@ -1750,7 +1750,7 @@ function CrusadeInviteSection() {
               <div className="rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(212,160,23,0.25)" }}>
                 <div className="aspect-video">
                   <iframe
-                    src={`https://www.youtube.com/embed/${CRUSADE_YT}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_YT}&controls=1&rel=0`}
+                    src={`https://www.youtube.com/embed/${CRUSADE_YT}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_YT}&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                     title="Warri City Crusade 2026 Promo"
                     allow="autoplay; fullscreen"
                     allowFullScreen

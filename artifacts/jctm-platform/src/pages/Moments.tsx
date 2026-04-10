@@ -321,7 +321,8 @@ function MomentCard({
   const embedSrc = isActive
     ? `https://www.youtube.com/embed/${moment.videoId}` +
       `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
-      `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`
+      `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` +
+      `&origin=${encodeURIComponent(window.location.origin)}`
     : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });

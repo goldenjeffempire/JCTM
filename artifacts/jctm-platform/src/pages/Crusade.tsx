@@ -234,7 +234,7 @@ function CrusadeVideoLoop() {
       <div className="p-4">
         <div className="rounded-2xl overflow-hidden shadow-2xl" style={{ aspectRatio: "16/9" }}>
           <iframe
-            src={`https://www.youtube.com/embed/${CRUSADE_YT_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_YT_VIDEO}&controls=1&rel=0&modestbranding=1`}
+            src={`https://www.youtube.com/embed/${CRUSADE_YT_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_YT_VIDEO}&controls=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
             title="Warri City Crusade 2026 — Official Promo Video"
             allow="autoplay; fullscreen; accelerometer; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

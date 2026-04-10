@@ -349,7 +349,7 @@ export default function Sermons() {
                 <div className="w-full aspect-video">
                   <iframe
                     className="w-full h-full"
-                    src={`https://www.youtube.com/embed/${liveSermons[0].videoId}?autoplay=1&rel=0`}
+                    src={`https://www.youtube.com/embed/${liveSermons[0].videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                     allow="autoplay; fullscreen"
                     allowFullScreen
                     title={liveSermons[0].title}
@@ -558,7 +558,7 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
           <>
             <iframe
               className="w-full h-full absolute inset-0"
-              src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0`}
+              src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
               allow="autoplay; fullscreen"
               allowFullScreen
               title={sermon.title}

@@ -70,17 +70,14 @@ export function useStreamQuality() {
 
 // YouTube embed URL builder that respects stream quality
 export function buildYouTubeUrl(videoId: string, quality: StreamQuality): string {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const params = new URLSearchParams({
     rel: "0",
     modestbranding: "1",
     autoplay: "0",
-    ...(quality === "low" ? {
-      vq: "small",
-      controls: "1",
-    } : {
-      vq: "hd1080",
-      controls: "1",
-    }),
+    controls: "1",
+    ...(quality === "low" ? { vq: "small" } : { vq: "hd1080" }),
+    ...(origin ? { origin } : {}),
   });
   return `https://www.youtube.com/embed/${videoId}?${params}`;
 }

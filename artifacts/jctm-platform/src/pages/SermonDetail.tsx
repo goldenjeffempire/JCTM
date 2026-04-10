@@ -249,7 +249,7 @@ export default function SermonDetail() {
                 </div>
                 <iframe
                   className="opacity-0 h-0 w-0 absolute pointer-events-none"
-                  src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1`}
+                  src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&origin=${encodeURIComponent(window.location.origin)}`}
                   allow="autoplay"
                   title={`${sermon.title} audio`}
                 />

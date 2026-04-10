@@ -482,7 +482,7 @@ export default function Events() {
                 {hovered ? (
                   <iframe
                     className="w-full h-full absolute inset-0"
-                    src={`https://www.youtube.com/embed/${latestYtId}?autoplay=1&mute=1&controls=1&rel=0`}
+                    src={`https://www.youtube.com/embed/${latestYtId}?autoplay=1&mute=1&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                     allow="autoplay; fullscreen"
                     allowFullScreen
                     title={(latestSermon as { title?: string })?.title ?? "Latest Sermon"}
@@ -555,7 +555,7 @@ export default function Events() {
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-6 overflow-hidden">
               <div className="aspect-video rounded-xl overflow-hidden shadow-xl">
                 <iframe
-                  src={`https://www.youtube.com/embed?listType=playlist&list=${YOUTUBE_LIVE_ID}&index=0&autoplay=0`}
+                  src={`https://www.youtube.com/embed?listType=playlist&list=${YOUTUBE_LIVE_ID}&index=0&autoplay=0&origin=${encodeURIComponent(window.location.origin)}`}
                   className="w-full h-full"
                   title="JCTM Live Stream"
                   allowFullScreen
