@@ -475,7 +475,7 @@ export default function Events() {
             <div className="aspect-video">
               <iframe
                 className="w-full h-full"
-                src={`https://www.youtube.com/embed/${FEATURED_VIDEO_ID}?rel=0&origin=${encodeURIComponent(window.location.origin)}`}
+                src={`https://www.youtube.com/embed/${FEATURED_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${FEATURED_VIDEO_ID}&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
                 title="Featured Video"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
