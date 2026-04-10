@@ -315,7 +315,6 @@ function CommentPanel({
 function MomentCard({
   moment,
   index,
-  total,
   muted,
   visitorId,
   onToggleMute,
@@ -323,7 +322,6 @@ function MomentCard({
 }: {
   moment: MomentItem;
   index: number;
-  total: number;
   muted: boolean;
   visitorId: string;
   onToggleMute: () => void;
@@ -484,9 +482,6 @@ function MomentCard({
                 <span className="h-1.5 w-1.5 rounded-full bg-white inline-block" />LIVE
               </Badge>
             )}
-            <Badge className="bg-black/30 border-white/20 text-white text-[10px] backdrop-blur-sm">
-              {index + 1} / {total}
-            </Badge>
           </div>
         </div>
 
@@ -776,7 +771,6 @@ export default function Moments() {
                     <MomentCard
                       moment={moment}
                       index={i}
-                      total={moments.length}
                       muted={muted}
                       visitorId={visitorId}
                       onToggleMute={toggleMute}
