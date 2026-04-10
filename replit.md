@@ -129,7 +129,7 @@ Full dedicated event landing page for the Prophet Amos Global Crusade (April 30 
 - **Frontend**: `artifacts/jctm-platform` — React + Vite, port from `PORT` env var
 - **Backend**: `artifacts/api-server` — Express 5 + Drizzle ORM, port 8080
 - **DB**: PostgreSQL tables: sermons, testimonies (title, likeCount), events, giving_logs, members, member_auth
-- **Auth**: `member_auth` table — SHA-256 password hashing with salt, random token per login, Bearer token auth
+- **Auth**: `member_auth` table — scrypt password hashing (N=16384, r=8, p=1, 64-byte key) with random per-user salt, timing-safe comparison, random 32-byte token per login, Bearer token auth
 - **AI**: OpenAI (gpt-4o) via Replit AI integration, chat route in `api-server/src/routes/chat.ts`
 - **API codegen**: Orval generates hooks in `lib/api-client-react` from `lib/api-spec/openapi.yaml`
 
@@ -198,6 +198,16 @@ New routes `/topics` and `/topics/:slug` with 8 in-depth topic pages:
 #### 4. Sitemap Expansion
 - 9 new entries in `sitemap.xml`: `/topics` hub (0.90) + 8 individual topic pages (0.85-0.88)
 - All with `lastmod: 2026-04-09` and `changefreq: monthly`
+
+### Production Hardening (April 2026 — Environment Migration)
+Applied when migrating to the Replit environment:
+- **Database**: Created all 15 PostgreSQL tables via raw SQL (`sermon_data`, `testimonies`, `event_calendar`, `giving_logs`, `member_directory`, `member_auth`, `conversations`, `messages`, `crusade_registrations`, `knowledge_chunks`, `site_stats` + 4 pre-existing). Note: `knowledge_chunks.embedding` is stored as `text` since pgvector is not available on Replit PostgreSQL.
+- **Vite Dev Proxy**: Added `server.proxy` in `vite.config.ts` — all `/api/*` requests from the frontend (port 3000) are proxied to the backend (port 8080). This was the critical missing piece preventing the platform from loading in dev mode.
+- **Security Headers**: Added `helmet` middleware — sets `X-Frame-Options`, `X-Content-Type-Options`, `Strict-Transport-Security`, `Referrer-Policy` and other headers automatically.
+- **Rate Limiting**: Added `express-rate-limit` — 300 req/15min globally, 20 req/min for AI endpoints, 30 req/15min for auth endpoints.
+- **Password Hashing**: Upgraded from SHA-256 to Node.js native `scrypt` (N=16384, r=8, p=1) with random per-user salt and `timingSafeEqual` comparison.
+- **CORS**: Added `.replit.app` pattern to allow deployed Replit apps to reach the API.
+- **JSON body limit**: Reduced from 50 MB to 1 MB for security.
 
 ### Environment Variables (Optional)
 - `YOUTUBE_API_KEY` — Enables YouTube sync for sermons

@@ -1,12 +1,28 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, memberAuthTable } from "@workspace/db";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
 const router: IRouter = Router();
 
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
+const KEY_LEN = 64;
+
 function hashPassword(password: string): string {
-  return createHash("sha256").update(password + "jctm_salt_2026").digest("hex");
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(password, salt, KEY_LEN, SCRYPT_PARAMS);
+  return `${salt}:${derived.toString("hex")}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hashed] = stored.split(":");
+  if (!salt || !hashed) return false;
+  try {
+    const derived = scryptSync(password, salt, KEY_LEN, SCRYPT_PARAMS);
+    return timingSafeEqual(Buffer.from(hashed, "hex"), derived);
+  } catch {
+    return false;
+  }
 }
 
 function generateToken(): string {
@@ -90,18 +106,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       .where(eq(memberAuthTable.email, email.toLowerCase()))
       .limit(1);
 
-    if (!member) {
+    if (!member || !verifyPassword(password, member.passwordHash)) {
       res.status(401).json({ error: "Invalid email or password." });
       return;
     }
 
-    const passwordHash = hashPassword(password);
-    if (member.passwordHash !== passwordHash) {
-      res.status(401).json({ error: "Invalid email or password." });
-      return;
-    }
-
-    // Issue a new token on each login
     const token = generateToken();
     await db.update(memberAuthTable).set({ token }).where(eq(memberAuthTable.id, member.id));
 

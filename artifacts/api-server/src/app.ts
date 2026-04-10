@@ -1,5 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,6 +11,8 @@ import { logger } from "./lib/logger";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -29,6 +33,14 @@ app.use(
     },
   }),
 );
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+
 const ALLOWED_ORIGINS = new Set([
   "https://jctm.org.ng",
   "https://www.jctm.org.ng",
@@ -43,6 +55,7 @@ app.use(
       if (
         ALLOWED_ORIGINS.has(origin) ||
         /\.replit\.dev$/.test(origin) ||
+        /\.replit\.app$/.test(origin) ||
         /\.onrender\.com$/.test(origin) ||
         process.env.NODE_ENV !== "production"
       ) {
@@ -53,8 +66,41 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true }));
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+  skip: (req) => req.method === "OPTIONS",
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "AI request limit reached. Please wait a moment and try again." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many authentication attempts. Please try again later." },
+});
+
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+app.use("/api", globalLimiter);
+app.use("/api/ai", aiLimiter);
+app.use("/api/prayer", aiLimiter);
+app.use("/api/chat", aiLimiter);
+app.use("/api/devotion", aiLimiter);
+app.use("/api/auth", authLimiter);
 
 // Render's port-detection probe sends HEAD / before routing to healthCheckPath.
 // Handle HEAD only so GET / falls through to the SPA static handler in production.
