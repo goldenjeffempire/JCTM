@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Volume2, VolumeX, X } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X, Phone } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
@@ -101,6 +101,29 @@ export function VoiceTempleBots() {
 
   return (
     <>
+      {/* Phone call button */}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.a
+            href="tel:07082009777"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            className="fixed bottom-56 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+              boxShadow: "0 8px 32px rgba(37,99,235,0.45), 0 0 0 3px rgba(37,99,235,0.12)",
+            }}
+            aria-label="Call us on 07082009777"
+            title="Call 07082009777"
+          >
+            <Phone className="h-5 w-5 text-white" />
+          </motion.a>
+        )}
+      </AnimatePresence>
+
       {/* WhatsApp channel button */}
       <AnimatePresence>
         {!isOpen && (
