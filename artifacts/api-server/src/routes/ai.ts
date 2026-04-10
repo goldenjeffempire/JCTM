@@ -336,6 +336,42 @@ Provide a rich prophetic reflection on this testimony, celebrating God's faithfu
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/suggested-questions?ctx=1
+// Context-aware suggested questions based on conversation history
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/suggested-questions", async (req: Request, res: Response): Promise<void> => {
+  const { history = [] } = req.body as { history?: Array<{ role: string; content: string }> };
+
+  const lastExchange = history.slice(-6).map(m =>
+    `${m.role === "assistant" ? "TempleBots" : "User"}: ${m.content.slice(0, 200)}`
+  ).join("\n");
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      messages: [
+        {
+          role: "system",
+          content: "You generate contextually relevant follow-up questions based on a conversation with TempleBots — JCTM's AI assistant rooted in Primitive Christianity and the Correction Mandate of Prophet Amos Evomobor.",
+        },
+        {
+          role: "user",
+          content: `Based on this recent conversation:\n\n${lastExchange || "No prior conversation."}\n\nGenerate 5 natural follow-up questions the user might want to ask next. Make them specific to what was just discussed, or related to JCTM doctrines if no context exists. Return ONLY JSON: { "questions": ["...", "..."] }`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 512,
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { questions?: string[] };
+    const questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, 5) : [];
+    res.json({ questions });
+  } catch {
+    res.status(500).json({ questions: [] });
+  }
+});
+
 // GET /api/ai/suggested-questions
 // Dynamically generated suggested questions for Sermon Assistant
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

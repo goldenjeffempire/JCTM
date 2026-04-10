@@ -11,6 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const STREAM_URL = `${BASE}/api/chat/stream`;
+const SUGGEST_URL = `${BASE}/api/ai/suggested-questions`;
 
 interface Message {
   id: string;
@@ -95,6 +96,7 @@ export function TempleBots() {
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [whisper, setWhisper] = useState<{ section: string; message: string; cta: string } | null>(null);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>(QUICK_LINKS.slice(0, 5));
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,6 +178,18 @@ export function TempleBots() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
+
+  // Fetch AI suggested questions after each bot reply finishes
+  useEffect(() => {
+    if (isStreaming) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "bot" || last.isStreaming || last.isError || !last.content) return;
+    if (messages.length < 3) return; // Only after first real exchange
+    const history: HistoryEntry[] = messages
+      .filter(m => !m.isStreaming && !m.isError && m.content)
+      .map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content }));
+    void fetchSuggestedQuestions(history);
+  }, [isStreaming, messages, fetchSuggestedQuestions]);
 
   const handleOpen = useCallback((initialMessage?: string) => {
     setIsOpen(true);
@@ -321,6 +335,32 @@ export function TempleBots() {
       setIsStreaming(false);
     }
   }, [isStreaming, sessionId, language]);
+
+  const fetchSuggestedQuestions = useCallback(async (conversationSoFar: HistoryEntry[]) => {
+    try {
+      const res = await fetch(`${SUGGEST_URL}?ctx=1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history: conversationSoFar.slice(-6) }),
+      });
+      if (!res.ok) {
+        // Fallback to GET endpoint
+        const fallback = await fetch(SUGGEST_URL);
+        if (!fallback.ok) return;
+        const fb = await fallback.json() as { questions?: string[] };
+        if (Array.isArray(fb.questions) && fb.questions.length > 0) {
+          setSuggestedQuestions(fb.questions.slice(0, 5));
+        }
+        return;
+      }
+      const data = await res.json() as { questions?: string[] };
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        setSuggestedQuestions(data.questions.slice(0, 5));
+      }
+    } catch {
+      // Silent fallback — keep existing suggestions
+    }
+  }, []);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -638,20 +678,28 @@ export function TempleBots() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick-link theological bubbles */}
+            {/* Suggested questions — AI-updated after each reply */}
             <div className="px-3 pb-2 shrink-0">
               <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                {QUICK_LINKS.map((q, i) => (
-                  <motion.button
-                    key={i}
-                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                    onClick={() => handleQuickLink(q)}
-                    disabled={isStreaming}
-                    className="shrink-0 text-[10px] font-medium text-accent bg-accent/8 hover:bg-accent/15 border border-accent/20 px-3 py-1.5 rounded-full whitespace-nowrap transition-colors disabled:opacity-50"
-                  >
-                    {q}
-                  </motion.button>
-                ))}
+                <AnimatePresence mode="popLayout">
+                  {suggestedQuestions.map((q, i) => (
+                    <motion.button
+                      key={q}
+                      initial={{ opacity: 0, y: 8, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.88 }}
+                      transition={{ delay: i * 0.04, type: "spring", stiffness: 280, damping: 22 }}
+                      onClick={() => handleQuickLink(q)}
+                      disabled={isStreaming}
+                      className="shrink-0 text-[10px] font-medium text-accent bg-accent/8 hover:bg-accent/15 border border-accent/20 px-3 py-1.5 rounded-full whitespace-nowrap transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {messages.length >= 3 && i === 0 && (
+                        <Sparkles className="h-2.5 w-2.5 opacity-60 shrink-0" />
+                      )}
+                      {q}
+                    </motion.button>
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
 

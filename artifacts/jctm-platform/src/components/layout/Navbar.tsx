@@ -61,6 +61,7 @@ export function Navbar() {
   const flatNavItems = [
     { href: "/", label: t("Home") },
     { href: "/sermons", label: t("Sermons") },
+    { href: "/devotion", label: `☀️ ${t("Devotion")}`, devotionHighlight: true },
     { href: "/moments", label: `🎬 ${t("Moments")}`, momentsHighlight: true },
     { href: "/crusade", label: `🔥 ${t("Crusade")}`, highlight: true },
     { href: "/prayer", label: `✦ ${t("Prayer")}`, prayerHighlight: true },
@@ -145,6 +146,17 @@ export function Navbar() {
                     background: location === item.href ? "rgba(56,189,248,0.25)" : "rgba(56,189,248,0.08)",
                     color: "hsl(var(--accent))",
                     border: "1px solid rgba(56,189,248,0.3)",
+                  }}
+                >
+                  {item.label}
+                </div>
+              ) : item.devotionHighlight ? (
+                <div
+                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
+                  style={{
+                    background: location === item.href ? "rgba(251,191,36,0.2)" : "rgba(251,191,36,0.08)",
+                    color: "#f59e0b",
+                    border: "1px solid rgba(251,191,36,0.3)",
                   }}
                 >
                   {item.label}
