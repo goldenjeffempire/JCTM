@@ -57,7 +57,13 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
-          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) return "react-core";
+          // Keep react and all its transitive deps together to avoid circular chunks
+          if (
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/react-dom/") ||
+            id.includes("node_modules/scheduler/") ||
+            id.includes("node_modules/react-is/")
+          ) return "react-core";
           if (id.includes("node_modules/three/") || id.includes("node_modules/@react-three/")) return "three-d";
           if (id.includes("node_modules/framer-motion/")) return "framer-motion";
           if (id.includes("node_modules/lucide-react/")) return "lucide-react";
@@ -68,7 +74,7 @@ export default defineConfig({
           if (id.includes("node_modules/date-fns/")) return "date-fns";
           if (id.includes("node_modules/clsx/") || id.includes("node_modules/class-variance-authority/") || id.includes("node_modules/tailwind-merge/")) return "styling-utils";
           if (id.includes("node_modules/@hookform/") || id.includes("node_modules/react-hook-form/")) return "forms";
-          if (id.includes("node_modules/")) return "vendor";
+          // No vendor catch-all: let Rollup auto-chunk remaining packages to avoid circular dependencies
         },
       },
     },
