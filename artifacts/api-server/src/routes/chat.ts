@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
 import OpenAI from "openai";
 import pg from "pg";
+import { runLocalInference, streamLocalResponse, ENGINE_METADATA } from "../lib/local-ai-engine.js";
 
 const { Pool } = pg;
 
@@ -420,6 +421,7 @@ async function buildMessages(
   clientHistory: Array<{ role: "user" | "assistant"; content: string }>,
   sessionId: string | undefined,
   language = "en",
+  localEngineContext = "",
 ): Promise<{
   msgs: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   conversationId: number;
@@ -435,7 +437,11 @@ async function buildMessages(
     ? `\n\nLANGUAGE INSTRUCTION: The user's preferred language is ${langName}. You MUST respond entirely in ${langName}. Do not mix languages. Preserve all scripture references, ministry names (JCTM, Temple TV), and proper nouns (Prophet Amos Evomobor) in their original form.`
     : "";
 
-  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + languageInstruction + sermonContext + ragContext;
+  const localEngineSection = localEngineContext
+    ? `\n\n## LOCAL AI ENGINE ANALYSIS:\n${localEngineContext}`
+    : "";
+
+  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + languageInstruction + localEngineSection + sermonContext + ragContext;
 
   // Prefer DB history; fall back to client-sent history
   const dbHistory = await loadConversationHistory(conversationId, 20);
@@ -470,15 +476,40 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const timeout = setTimeout(() => controller.abort(), 30_000);
 
   try {
+    // ── TIER 1: Local AI Engine (primary execution layer) ──────────────────
+    const localResult = runLocalInference(message);
+
+    if (!localResult.escalateToOpenAI && localResult.response && language === "en") {
+      const conversationId = await getOrCreateConversation(sessionId ?? undefined);
+      const { cleanReply, action } = extractAction(localResult.response);
+      const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
+      const sources = extractSources(cleanReply);
+
+      await persistMessages(conversationId, message, cleanReply);
+
+      clearTimeout(timeout);
+      res.json(
+        ChatWithTempleBotsResponse.parse({
+          reply: cleanReply,
+          sessionId: String(conversationId),
+          sources,
+          action: finalAction ?? undefined,
+        }),
+      );
+      return;
+    }
+
+    // ── TIER 2: OpenAI (enriched with local engine context) ────────────────
     const { msgs, conversationId } = await buildMessages(
       message,
       history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       sessionId ?? undefined,
       language,
+      localResult.enrichmentContext,
     );
 
     const completion = await openai.chat.completions.create(
-      { model: "gpt-5.2", max_completion_tokens: 8192, messages: msgs },
+      { model: "gpt-4o", max_completion_tokens: 8192, messages: msgs },
       { signal: controller.signal },
     );
 
@@ -486,6 +517,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       completion.choices[0]?.message?.content ??
       "I was unable to process your question. Please try again.";
     const { cleanReply, action } = extractAction(rawReply);
+    const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
 
     await persistMessages(conversationId, message, cleanReply);
@@ -495,6 +527,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         reply: cleanReply,
         sessionId: String(conversationId),
         sources,
+        action: finalAction ?? undefined,
       }),
     );
   } catch (err: unknown) {
@@ -552,16 +585,41 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
   res.on("close", () => controller.abort());
 
   try {
+    // ── TIER 1: Local AI Engine (primary execution layer) ──────────────────
+    const localResult = runLocalInference(message);
+
+    if (!localResult.escalateToOpenAI && localResult.response && language === "en") {
+      const conversationId = await getOrCreateConversation(sessionId ?? undefined);
+      const { cleanReply, action } = extractAction(localResult.response);
+      const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
+      const sources = extractSources(cleanReply);
+
+      for await (const chunk of streamLocalResponse(cleanReply)) {
+        if (!res.writableEnded) send({ delta: chunk });
+      }
+
+      await persistMessages(conversationId, message, cleanReply);
+
+      if (!res.writableEnded) {
+        send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
+        res.end();
+      }
+      clearTimeout(timeout);
+      return;
+    }
+
+    // ── TIER 2: OpenAI (enriched with local engine context) ────────────────
     const { msgs, conversationId } = await buildMessages(
       message,
       history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       sessionId ?? undefined,
       language,
+      localResult.enrichmentContext,
     );
 
     const stream = await openai.chat.completions.create(
       {
-        model: "gpt-5.2",
+        model: "gpt-4o",
         max_completion_tokens: 8192,
         messages: msgs,
         stream: true,
@@ -580,11 +638,12 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     }
 
     const { cleanReply, action } = extractAction(fullReply);
+    const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
 
     await persistMessages(conversationId, message, cleanReply);
 
-    send({ done: true, sessionId: String(conversationId), sources, action });
+    send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
     res.end();
   } catch (err: unknown) {
     const isAbort =

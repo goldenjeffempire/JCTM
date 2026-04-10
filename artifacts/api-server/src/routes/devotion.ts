@@ -187,7 +187,7 @@ router.get("/devotion/daily", async (_req: Request, res: Response): Promise<void
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: DEVOTION_SYSTEM_PROMPT },
           {

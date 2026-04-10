@@ -81,7 +81,7 @@ router.post("/sermon-assistant", async (req: Request, res: Response): Promise<vo
     ];
 
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages,
       stream: true,
       max_completion_tokens: 8192,

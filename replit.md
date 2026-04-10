@@ -100,6 +100,35 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 
 ---
 
+## SEO Architecture
+
+### Static SEO (`artifacts/jctm-platform/index.html`)
+Schema.org JSON-LD blocks embedded in `<head>`:
+- `ReligiousOrganization` — JCTM as an entity with geo, contacts, social media sameAs
+- `WebSite` — with sitelinks searchbox `potentialAction`
+- `BroadcastService` — Temple TV YouTube channel
+- `FAQPage` — 8 ministry FAQs for rich snippets
+- `WebPage` + `SpeakableSpecification` — voice search optimization
+- **`Event`** — Warri City Crusade 2026 (April 30–May 1) with location, organizer, performer
+- **`Person`** — Prophet Amos Evomobor with knowsAbout, sameAs (YouTube, Facebook), worksFor
+
+### Per-Page SEO (`artifacts/jctm-platform/src/components/SEO.tsx`)
+- Canonical URLs, Open Graph, Twitter Card, geo meta tags (ICBM, geo.position)
+- Per-page `jsonLd` prop for additional structured data (AboutPage, Person, Event, VideoObject, BreadcrumbList)
+- Sitemap referenced from `<head>` via `robots.txt`
+
+### Dynamic Sitemaps (`artifacts/api-server/src/routes/seo.ts`)
+Served at root level (not under `/api`) in `app.ts`:
+- **`GET /sitemap.xml`** — 25 static pages + all dynamic sermon URLs with image extensions
+- **`GET /sitemap-sermons.xml`** — Sermon-specific sitemap for Googlebot-Video with VideoObject-compatible data
+
+### `robots.txt` (`artifacts/jctm-platform/public/robots.txt`)
+- Points to both `sitemap.xml` and `sitemap-sermons.xml`
+- Allows Googlebot, Bingbot, Twitterbot, WhatsApp, Facebook crawlers
+- Blocks development paths, AI scrapers, bad bots
+
+---
+
 ## Real-time Features
 
 - **YouTube WebSub** — Push subscriptions for instant new sermon notifications (no polling)
@@ -109,11 +138,22 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 
 ---
 
-## AI Features (Replit AI proxy in dev, OpenAI API in prod)
+## AI Features
 
+### Primary Layer: JCTM Local AI Engine (`artifacts/api-server/src/lib/local-ai-engine.ts`)
+- **Custom inference system** — No external calls; sub-millisecond response for known queries
+- **18 JCTM intent types**: `ministry_overview`, `prophet_amos`, `correction_mandate`, `primitive_christianity`, `holiness_doctrine`, `water_baptism`, `holy_spirit_baptism`, `five_fold_ministry`, `giving_tithing`, `temple_tv`, `contact_location`, `service_times`, `warri_crusade`, `prayer_support`, `sermon_library`, `join_membership`, `viewing_centres`, `general_greeting`
+- **TF-IDF keyword scoring** — Multi-phrase matching (3× weight for n-grams), token-level partial matching
+- **Confidence-gated routing**: ≥ 0.65 → serve locally; < 0.65 → escalate to OpenAI with enrichment context
+- **Emotional & complex query detection** — Auto-escalates distress, grief, marriage, prophecy, personal advice queries
+- **Diagnostic endpoint**: `POST /api/ai/local-inference` for direct engine testing
+- **Health endpoint**: `GET /api/ai/health` exposes engine metadata, model, and architecture info
+
+### Enhancement Layer: OpenAI gpt-4o (via Replit AI Integration)
 - **Daily Devotion** — AI-generated scripture devotion refreshed daily
 - **Prayer Ministry** — AI prayer response
-- **TempleBots** — Conversational AI assistant
-- **Sermon Assistant** — RAG-style Q&A over JCTM sermon knowledge base
+- **TempleBots** — Two-tier: local engine first → OpenAI for complex/emotional queries
+- **Sermon Assistant** — RAG-style Q&A over JCTM sermon knowledge base (12 pgvector chunks)
 - **Scripture Study** — Deep-dive biblical commentary
 - **Spiritual Insight** — Prophetic insight chatbot
+- **Voice Chat, Translation, Testimony Reflection, Devotion** — All using gpt-4o

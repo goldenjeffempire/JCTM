@@ -204,7 +204,7 @@ ${sermon.description ? `Description: ${sermon.description.slice(0, 500)}` : ""}
 Write a 200-250 word sermon summary in plain, engaging English. Cover: the main scriptural theme, key teachings, and a practical takeaway for the listener. Then list exactly 5 bullet-point key points from the sermon. Format your response as JSON: { "summary": "...", "keyPoints": ["...", "...", "...", "...", "..."] }`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       max_completion_tokens: 8192,

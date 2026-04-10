@@ -6,6 +6,7 @@ import {
 } from "@workspace/integrations-openai-ai-server/audio";
 import { db, conversations, messages } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
+import { runLocalInference, ENGINE_METADATA } from "../lib/local-ai-engine.js";
 
 const router: IRouter = Router();
 
@@ -93,7 +94,7 @@ Ground the analysis in JCTM doctrine and Primitive Christianity principles.`;
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: SCRIPTURE_STUDY_SYSTEM },
         { role: "user", content: userPrompt },
@@ -166,7 +167,7 @@ Provide a deeply personal, prophetically-grounded, and scripturally-anchored spi
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: SPIRITUAL_INSIGHT_SYSTEM },
         { role: "user", content: userPrompt },
@@ -314,7 +315,7 @@ Provide a rich prophetic reflection on this testimony, celebrating God's faithfu
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: TESTIMONY_REFLECT_SYSTEM },
         { role: "user", content: userPrompt },
@@ -348,7 +349,7 @@ router.post("/ai/suggested-questions", async (req: Request, res: Response): Prom
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -387,7 +388,7 @@ router.get("/ai/suggested-questions", async (_req: Request, res: Response): Prom
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -435,8 +436,15 @@ router.get("/ai/suggested-questions", async (_req: Request, res: Response): Prom
 router.get("/ai/health", (_req: Request, res: Response): void => {
   res.json({
     status: "operational",
-    model: "gpt-5.2",
+    architecture: {
+      primaryLayer: "JCTM Local AI Engine",
+      enhancementLayer: "OpenAI gpt-4o",
+      strategy: "Local-first inference with OpenAI enrichment for complex/emotional queries",
+    },
+    localEngine: ENGINE_METADATA,
+    openAiModel: "gpt-4o",
     features: [
+      "local-inference-engine",
       "scripture-study",
       "spiritual-insight",
       "voice-chat",
@@ -450,9 +458,23 @@ router.get("/ai/health", (_req: Request, res: Response): void => {
       "translation",
       "sermon-summary",
     ],
-    integration: "Replit AI (OpenAI)",
+    integration: "JCTM Local Engine + OpenAI via Replit AI Integration",
     timestamp: new Date().toISOString(),
   });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/local-inference
+// Direct access to the local AI engine (diagnostic + testing endpoint)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/local-inference", (req: Request, res: Response): void => {
+  const { query } = req.body as { query?: string };
+  if (!query?.trim()) {
+    res.status(400).json({ error: "query is required" });
+    return;
+  }
+  const result = runLocalInference(query.trim());
+  res.json({ query, result, engineVersion: ENGINE_METADATA.version });
 });
 
 export default router;

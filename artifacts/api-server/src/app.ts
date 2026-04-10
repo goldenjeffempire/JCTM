@@ -7,6 +7,7 @@ import pinoHttp from "pino-http";
 import path from "path";
 import { fileURLToPath } from "url";
 import router from "./routes";
+import seoRouter from "./routes/seo";
 import { logger } from "./lib/logger";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -118,6 +119,9 @@ app.use("/api/auth", authLimiter);
 // Render's port-detection probe sends HEAD / before routing to healthCheckPath.
 // Handle HEAD only so GET / falls through to the SPA static handler in production.
 app.head("/", (_req, res) => res.status(200).end());
+
+// ── Sitemaps served at root (not under /api) for search engine discovery ─────
+app.use(seoRouter);
 
 app.use("/api", router);
 

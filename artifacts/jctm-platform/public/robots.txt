@@ -58,4 +58,4 @@ Allow: /
 
 # ── Sitemaps ─────────────────────────────────────────────────────────────────
 Sitemap: https://jctm.org.ng/sitemap.xml
-Sitemap: https://jctm.org.ng/sitemap-images.xml
+Sitemap: https://jctm.org.ng/sitemap-sermons.xml
