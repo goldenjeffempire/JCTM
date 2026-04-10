@@ -314,7 +314,7 @@ export function VoiceTempleBots() {
 
             {/* Footer */}
             <div className="border-t border-violet-500/10 px-4 py-2.5 flex items-center justify-between">
-              <p className="text-violet-300/30 text-[9px]">JCTM · Powered by GPT-5.2</p>
+              <p className="text-violet-300/30 text-[9px]">JCTM · TempleBots AI</p>
               <div className="flex items-center gap-1">
                 {isPlaying && (
                   <motion.span

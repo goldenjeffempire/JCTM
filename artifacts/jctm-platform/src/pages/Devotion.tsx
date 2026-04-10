@@ -110,9 +110,64 @@ export default function Devotion() {
   return (
     <Layout>
       <SEO
-        title="Daily Devotion | JCTM Digital Sanctuary"
-        description="Start your day with prophetically-grounded scripture, reflection, and a prophetic word from JCTM Digital Sanctuary."
-        keywords="JCTM daily devotion, Christian devotional, prophetic word today, scripture reflection"
+        title="Daily Devotion — JCTM Digital Sanctuary | Jesus Christ Temple Ministry"
+        description="Start every day with a prophetically-grounded scripture devotion from Jesus Christ Temple Ministry (JCTM). Fresh AI-powered devotional content anchored in holiness, the Correction Mandate, and Primitive Christianity."
+        path="/devotion"
+        keywords="JCTM daily devotion, daily Bible devotion Nigeria, Christian devotional Nigeria, prophetic word today, scripture reflection, Jesus Christ Temple Ministry devotion, holiness devotion, morning devotion Nigeria, JCTM morning word"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Daily Devotion", url: "https://jctm.org.ng/devotion" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            "name": "JCTM Daily Devotion",
+            "description": "Daily scripture devotions from Jesus Christ Temple Ministry (JCTM), grounded in holiness, the Correction Mandate, and Primitive Christianity. Fresh prophetic word and reflection each day.",
+            "url": "https://jctm.org.ng/devotion",
+            "inLanguage": "en-NG",
+            "author": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "publisher": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "logo": { "@type": "ImageObject", "url": "https://jctm.org.ng/favicon.png" }
+            },
+            "about": [
+              { "@type": "Thing", "name": "Holiness" },
+              { "@type": "Thing", "name": "Correction Mandate" },
+              { "@type": "Thing", "name": "Primitive Christianity" },
+              { "@type": "Thing", "name": "Daily Bible Reading" },
+              { "@type": "Thing", "name": "Christian Devotional" }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is the JCTM Daily Devotion?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The JCTM Daily Devotion is a fresh, AI-powered scripture devotional from Jesus Christ Temple Ministry, published every day. Each devotion includes a Bible passage, a prophetic reflection, and a practical application — all grounded in JCTM's core doctrines of holiness, Primitive Christianity, and the Correction Mandate."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How often is the JCTM devotion updated?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The JCTM Daily Devotion is refreshed every day at jctm.org.ng/devotion. Each day brings a new scripture passage, a prophetically-grounded reflection, and a word for believers to carry through the day."
+                }
+              }
+            ]
+          }
+        ]}
       />
 
       <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #06071a 0%, #0c0e26 40%, #0a0818 100%)" }}>

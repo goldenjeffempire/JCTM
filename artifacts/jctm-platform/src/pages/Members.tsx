@@ -33,10 +33,34 @@ export default function Members() {
   return (
     <Layout>
       <SEO
-        title="Member Directory — JCTM Digital Sanctuary"
-        description="Connect with registered members of Jesus Christ Temple Ministry (JCTM). Join the community of believers walking in holiness and the Correction Mandate."
+        title="Member Directory — JCTM Digital Sanctuary | Jesus Christ Temple Ministry"
+        description="Connect with registered members of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria. Join a growing community of believers walking in holiness, apostolic doctrine, and the Correction Mandate."
         path="/members"
-        keywords="JCTM members, Jesus Christ Temple Ministry community, join JCTM, register JCTM"
+        keywords="JCTM members, Jesus Christ Temple Ministry community, JCTM believers Nigeria, apostolic church members Nigeria, holiness church community Warri, join JCTM, register JCTM Digital Sanctuary"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Member Directory", url: "https://jctm.org.ng/members" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "JCTM Member Directory — Digital Sanctuary",
+            "description": "The JCTM Digital Sanctuary member directory — a community of believers registered with Jesus Christ Temple Ministry (JCTM). Walking together in holiness, apostolic doctrine, and the Correction Mandate.",
+            "url": "https://jctm.org.ng/members",
+            "inLanguage": "en-NG",
+            "about": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "potentialAction": {
+              "@type": "JoinAction",
+              "name": "Join JCTM Digital Sanctuary",
+              "target": "https://jctm.org.ng/join"
+            }
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div

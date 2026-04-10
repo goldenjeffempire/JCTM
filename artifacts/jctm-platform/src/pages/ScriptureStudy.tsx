@@ -133,9 +133,62 @@ export default function ScriptureStudy() {
   return (
     <Layout>
       <SEO
-        title="AI Scripture Study | JCTM Digital Sanctuary"
-        description="Dive deep into any Bible passage with AI-powered exegetical analysis, original language insights, historical context, and doctrinal application rooted in JCTM's Primitive Christianity teaching."
-        keywords="JCTM scripture study, Bible AI analysis, biblical exegesis, Primitive Christianity, Correction Mandate"
+        title="AI Scripture Study — Deep Bible Analysis | JCTM Digital Sanctuary"
+        description="Study any Bible passage with AI-powered exegetical analysis from Jesus Christ Temple Ministry (JCTM). Includes original language insights (Greek & Hebrew), historical context, and doctrinal application grounded in Primitive Christianity and the Correction Mandate."
+        path="/scripture-study"
+        keywords="JCTM scripture study, Bible AI analysis, biblical exegesis Nigeria, Primitive Christianity scripture, Correction Mandate Bible study, online Bible study Nigeria, Greek Hebrew Bible analysis, JCTM Bible commentary, deep Bible study online"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Scripture Study", url: "https://jctm.org.ng/scripture-study" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "JCTM AI Scripture Study Tool",
+            "description": "An AI-powered Bible study and exegesis tool from Jesus Christ Temple Ministry (JCTM). Enter any scripture reference to receive deep analysis including original language insights, historical context, theological significance, and practical application rooted in Primitive Christianity.",
+            "url": "https://jctm.org.ng/scripture-study",
+            "applicationCategory": "ReligiousApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript",
+            "inLanguage": "en-NG",
+            "author": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "featureList": [
+              "Original Greek and Hebrew word analysis",
+              "Historical and cultural context",
+              "Cross-reference with related scriptures",
+              "Doctrinal application (Correction Mandate lens)",
+              "Primitive Christianity interpretation",
+              "Practical application for daily living"
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is the JCTM AI Scripture Study tool?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The JCTM AI Scripture Study tool allows you to enter any Bible verse or passage and receive a deep, multi-layered exegetical analysis. It covers original Greek or Hebrew word meanings, historical context, theological significance, cross-references, and practical application — all grounded in Jesus Christ Temple Ministry's Primitive Christianity and Correction Mandate doctrine."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which Bible passages can I study with JCTM's AI tool?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You can study any Bible passage — from single verses like John 3:16 to extended passages like Romans 8:28-39 or Hebrews 12:14. The AI provides exegetical commentary drawing from the original languages and JCTM's apostolic, holiness-based doctrinal framework."
+                }
+              }
+            ]
+          }
+        ]}
       />
 
       <div className="min-h-screen bg-gradient-to-b from-[#020b18] via-[#001a33] to-[#020b18]">
@@ -148,7 +201,7 @@ export default function ScriptureStudy() {
             <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
               <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs font-medium text-sky-300 mb-6">
                 <Sparkles className="h-3.5 w-3.5" />
-                Powered by GPT-5.2 · JCTM Doctrine
+                Powered by TempleBots AI · JCTM Doctrine
               </div>
               <h1 className="text-4xl md:text-5xl font-bold font-serif text-white mb-4 leading-tight">
                 AI Scripture Study
