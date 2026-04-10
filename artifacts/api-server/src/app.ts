@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import path from "path";
@@ -38,6 +39,17 @@ app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+  }),
+);
+
+app.use(
+  compression({
+    level: 6,
+    threshold: 1024,
+    filter(req, res) {
+      if (req.headers["x-no-compression"]) return false;
+      return compression.filter(req, res);
+    },
   }),
 );
 
