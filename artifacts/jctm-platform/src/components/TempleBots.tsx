@@ -3,6 +3,7 @@ import {
   MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone,
   Bell, Search, ChevronRight, Sparkles, Heart, ExternalLink,
 } from "lucide-react";
+import { SiZoom } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -75,6 +76,7 @@ const HOVER_WHISPERS: Record<string, { message: string; cta: string }> = {
 };
 
 const REACH_US = [
+  { label: "Zoom Meeting", href: "https://zoom.us/j/4092099631", icon: SiZoom, color: "#2D8CFF", bg: "hover:bg-[#2D8CFF]/10 hover:border-[#2D8CFF]/30", hint: "Meeting ID: 4092099631" },
   { label: "Facebook", href: "https://www.facebook.com/templetvjctm", icon: Facebook, color: "#1877F2", bg: "hover:bg-[#1877F2]/10 hover:border-[#1877F2]/30", hint: "templetvjctm" },
   { label: "Temple TV", href: "https://www.youtube.com/templetvjctm", icon: Youtube, color: "#FF0000", bg: "hover:bg-[#FF0000]/10 hover:border-[#FF0000]/30", hint: "youtube.com/templetvjctm" },
   { label: "Email", href: "mailto:info@jctm.org.ng", icon: Mail, color: "#003366", bg: "hover:bg-[#003366]/10 hover:border-[#003366]/30", hint: "info@jctm.org.ng" },

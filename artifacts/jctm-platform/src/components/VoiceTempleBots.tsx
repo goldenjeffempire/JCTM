@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Volume2, VolumeX, X, Phone } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
+import { SiZoom } from "react-icons/si";
 import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
 
@@ -101,6 +102,31 @@ export function VoiceTempleBots() {
 
   return (
     <>
+      {/* Zoom meeting button — above the phone button */}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.a
+            href="https://zoom.us/j/4092099631"
+            target="_blank"
+            rel="noopener noreferrer"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            className="fixed bottom-72 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #2D8CFF 0%, #1a6fd4 100%)",
+              boxShadow: "0 8px 32px rgba(45,140,255,0.45), 0 0 0 3px rgba(45,140,255,0.12)",
+            }}
+            aria-label="Join Zoom Meeting — ID: 4092099631"
+            title="Join Zoom Meeting — ID: 4092099631"
+          >
+            <SiZoom className="h-6 w-6 text-white" />
+          </motion.a>
+        )}
+      </AnimatePresence>
+
       {/* Phone call button */}
       <AnimatePresence>
         {!isOpen && (
