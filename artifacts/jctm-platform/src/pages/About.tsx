@@ -173,7 +173,7 @@ export default function About() {
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-accent/20 to-primary/20 blur-xl scale-110" />
                   <img
                     src={prophetAmosImg}
-                    alt="Prophet Amos Evomobor — General Overseer, JCTM"
+                    alt="Prophet Amos Evomobor — Overseer, JCTM"
                     className="relative w-56 md:w-full md:h-full object-cover object-top rounded-2xl md:rounded-none shadow-2xl"
                     style={{ maxHeight: "420px" }}
                     loading="lazy"
@@ -185,7 +185,7 @@ export default function About() {
               {/* Bio */}
               <div className="flex-1 p-8">
                 <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-3 border border-accent/30 rounded-full px-3 py-1">
-                  Founder & General Overseer
+                  Overseer
                 </span>
                 <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary mb-1">
                   Prophet Amos Evomobor
