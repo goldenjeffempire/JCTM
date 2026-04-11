@@ -267,6 +267,9 @@ function HeroSection() {
   const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
   const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
   const [isLive, setIsLive] = useState(false);
+  const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
+  const [liveTitle, setLiveTitle] = useState<string | null>(null);
+  const [livePlayerOpen, setLivePlayerOpen] = useState(false);
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
@@ -286,7 +289,15 @@ function HeroSection() {
     const check = () => {
       fetch(`${BASE}/api/livestream/status`)
         .then(r => r.json())
-        .then((d: { isLive?: boolean }) => setIsLive(d?.isLive ?? false))
+        .then((d: { isLive?: boolean; title?: string | null; streamUrl?: string | null }) => {
+          const live = d?.isLive ?? false;
+          setIsLive(live);
+          setLiveTitle(d?.title ?? null);
+          // extract videoId from streamUrl e.g. https://www.youtube.com/watch?v=VIDEO_ID
+          const match = d?.streamUrl?.match(/[?&]v=([^&]+)/);
+          setLiveVideoId(match ? match[1] ?? null : null);
+          if (!live) setLivePlayerOpen(false);
+        })
         .catch(() => {});
     };
     check();
@@ -295,7 +306,7 @@ function HeroSection() {
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLightbox(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setLightbox(null); setLivePlayerOpen(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -355,6 +366,78 @@ function HeroSection() {
                 ))}
               </div>
               <p className="text-center text-white/30 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── LIVE PLAYER OVERLAY ── */}
+      <AnimatePresence>
+        {livePlayerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center"
+            style={{ backdropFilter: "blur(20px)", background: "rgba(0,5,20,0.92)" }}
+            onClick={() => setLivePlayerOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 240, damping: 26 }}
+              className="relative w-full max-w-4xl mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Glow halo */}
+              <div className="absolute -inset-8 rounded-[3rem] blur-3xl opacity-30" style={{ background: "radial-gradient(circle, rgba(239,68,68,0.6), rgba(0,51,102,0.4))" }} />
+
+              {/* Header bar */}
+              <div className="relative flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                  </span>
+                  <span className="text-white font-bold text-sm uppercase tracking-widest">Live Service</span>
+                  {liveTitle && (
+                    <span className="text-white/50 text-xs hidden sm:inline truncate max-w-xs">— {liveTitle}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={liveVideoId ? `https://www.youtube.com/watch?v=${liveVideoId}` : "https://www.youtube.com/templetvjctm"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white/50 hover:text-white text-xs flex items-center gap-1 transition-colors"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-3 w-3" /> YouTube
+                  </a>
+                  <button
+                    onClick={() => setLivePlayerOpen(false)}
+                    className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors ml-1"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Embedded player */}
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ paddingBottom: "56.25%" }}>
+                <iframe
+                  className="absolute inset-0 w-full h-full"
+                  src={
+                    liveVideoId
+                      ? `https://www.youtube.com/embed/${liveVideoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`
+                      : `https://www.youtube.com/embed?listType=user_uploads&list=templetvjctm&autoplay=1`
+                  }
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  title="JCTM Live Service"
+                />
+              </div>
+
+              <p className="text-center text-white/25 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>
             </motion.div>
           </motion.div>
         )}
@@ -451,16 +534,17 @@ function HeroSection() {
               </span>
               <AnimatePresence>
                 {isLive && (
-                  <motion.a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer"
+                  <motion.button
+                    onClick={() => setLivePlayerOpen(true)}
                     initial={{ opacity: 0, scale: 0.8, x: -10 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.8 }}
-                    className="inline-flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-red-500/30"
+                    className="inline-flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors cursor-pointer"
                   >
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
                     </span>
-                    Live Now
-                  </motion.a>
+                    Live Now — Join Service
+                  </motion.button>
                 )}
               </AnimatePresence>
             </motion.div>
