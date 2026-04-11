@@ -787,20 +787,6 @@ export default function Moments() {
                   <ChevronUp className="h-4 w-4" />
                 </button>
 
-                <div className="flex flex-col gap-1 items-center py-1">
-                  {moments.slice(0, 12).map((_, i) => (
-                    <button key={i} onClick={() => jumpTo(i)}
-                      className={`rounded-full transition-all duration-300 ${
-                        i === current ? "h-4 w-1.5 bg-white" : "h-1.5 w-1.5 bg-white/30"
-                      }`} />
-                  ))}
-                  {moments.length > 12 && (
-                    <span className="text-white/40 text-[8px] text-center mt-0.5">
-                      +{moments.length - 12}
-                    </span>
-                  )}
-                </div>
-
                 <button onClick={goNext} disabled={current === moments.length - 1}
                   className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
                   <ChevronDown className="h-4 w-4" />
