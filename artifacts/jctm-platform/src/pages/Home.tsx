@@ -1238,29 +1238,6 @@ function ProphetSection() {
               </h3>
               <p className="text-white/60 text-sm">Senior Prophet, JCTM · Warri, Nigeria</p>
 
-              {/* Slideshow controls */}
-              <div className="flex items-center gap-3 mt-4">
-                {/* Dot indicators */}
-                <div className="flex items-center gap-1.5">
-                  {FOUNDER_PHOTOS.map((p, i) => (
-                    <button
-                      key={p.key}
-                      onClick={() => handleThumbClick(i)}
-                      className={`rounded-full transition-all duration-300 ${activeIdx === i ? "w-5 h-2 bg-accent" : "w-2 h-2 bg-white/30 hover:bg-white/60"}`}
-                    />
-                  ))}
-                </div>
-                {/* Pause / Play */}
-                <button
-                  onClick={() => setIsPaused(p => !p)}
-                  className="flex items-center gap-1 text-white/40 hover:text-white/70 transition-colors text-[10px]"
-                >
-                  {isPaused
-                    ? <><span className="inline-block w-3 h-3 border border-white/50 rounded-sm flex items-center justify-center text-[6px]">▶</span> Resume</>
-                    : <><span className="inline-block w-3 h-3 border border-white/50 rounded-sm flex items-center justify-center text-[6px]">⏸</span> Pause</>
-                  }
-                </button>
-              </div>
             </motion.div>
           </div>
         </motion.div>
