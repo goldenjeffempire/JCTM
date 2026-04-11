@@ -1236,7 +1236,7 @@ function ProphetSection() {
               <h3 className="text-white font-serif font-bold text-3xl md:text-4xl leading-tight mb-1">
                 Prophet Amos<br />Evomobor
               </h3>
-              <p className="text-white/60 text-sm">Founder & Senior Prophet, JCTM · Warri, Nigeria</p>
+              <p className="text-white/60 text-sm">Senior Prophet, JCTM · Warri, Nigeria</p>
 
               {/* Slideshow controls */}
               <div className="flex items-center gap-3 mt-4">
