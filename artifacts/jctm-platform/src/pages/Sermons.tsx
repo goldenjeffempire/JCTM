@@ -335,7 +335,7 @@ export default function Sermons() {
                 </span>
                 <Radio className="h-4 w-4 text-red-500" />
                 <span className="text-sm font-semibold text-red-600">
-                  Live Now — {liveSermons[0].title}
+                  Sunday Service 8:00am
                 </span>
                 <Button
                   size="sm"
