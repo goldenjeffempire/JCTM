@@ -77,6 +77,9 @@ export default function Sermons() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [livePlaying, setLivePlaying] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
+  const [liveTitle, setLiveTitle] = useState<string | null>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { quality, toggle: toggleQuality } = useStreamQuality();
@@ -223,7 +226,25 @@ export default function Sermons() {
     return () => { es.close(); };
   }, [debouncedSearch, loadFirstPage, refetchStats]);
 
-  const liveSermons = sermons.filter(s => s.isLive);
+  // Poll livestream status from API every 60 s
+  useEffect(() => {
+    const check = () => {
+      fetch(`${BASE}/api/livestream/status`)
+        .then(r => r.json())
+        .then((d: { isLive?: boolean; title?: string | null; streamUrl?: string | null }) => {
+          const live = d?.isLive ?? false;
+          setIsLive(live);
+          setLiveTitle(d?.title ?? null);
+          const match = d?.streamUrl?.match(/[?&]v=([^&]+)/);
+          setLiveVideoId(match ? match[1] ?? null : null);
+          if (!live) setLivePlaying(false);
+        })
+        .catch(() => {});
+    };
+    check();
+    const t = setInterval(check, 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   const filteredSermons = activeCategory === "all"
     ? sermons
@@ -322,43 +343,50 @@ export default function Sermons() {
       <div className="container mx-auto px-4 py-8">
 
           {/* Live banner */}
-          {liveSermons.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-panel rounded-2xl border border-red-400/30 bg-red-50/30 mb-6 overflow-hidden"
-            >
-              <div className="p-4 flex items-center gap-3">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-                </span>
-                <Radio className="h-4 w-4 text-red-500" />
-                <span className="text-sm font-semibold text-red-600">
-                  Sunday Service 8:00am
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() => { setLivePlaying(p => !p); setPlayingId(null); }}
-                  className={`ml-auto rounded-full text-xs gap-1 ${livePlaying ? "bg-gray-500 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600"} text-white`}
-                >
-                  {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Join Live</>}
-                </Button>
-              </div>
-              {livePlaying && (
-                <div className="w-full aspect-video">
-                  <iframe
-                    className="w-full h-full"
-                    src={`https://www.youtube.com/embed/${liveSermons[0].videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-                    allow="autoplay; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    title={liveSermons[0].title}
-                  />
+          <AnimatePresence>
+            {isLive && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                className="glass-panel rounded-2xl border border-red-400/30 bg-red-50/30 mb-6 overflow-hidden"
+              >
+                <div className="p-4 flex items-center gap-3">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                  </span>
+                  <Radio className="h-4 w-4 text-red-500" />
+                  <span className="text-sm font-semibold text-red-600 truncate">
+                    Live Now — Join Service{liveTitle ? `: ${liveTitle}` : ""}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => { setLivePlaying(p => !p); setPlayingId(null); }}
+                    className={`ml-auto shrink-0 rounded-full text-xs gap-1 ${livePlaying ? "bg-gray-500 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600"} text-white`}
+                  >
+                    {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Join Live</>}
+                  </Button>
                 </div>
-              )}
-            </motion.div>
-          )}
+                {livePlaying && (
+                  <div className="w-full aspect-video">
+                    <iframe
+                      className="w-full h-full"
+                      src={
+                        liveVideoId
+                          ? `https://www.youtube.com/embed/${liveVideoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`
+                          : `https://www.youtube.com/embed?listType=user_uploads&list=templetvjctm&autoplay=1`
+                      }
+                      allow="autoplay; fullscreen"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      title={liveTitle ?? "JCTM Live Service"}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Stats row */}
           <div className="flex flex-wrap gap-3 mb-6">
