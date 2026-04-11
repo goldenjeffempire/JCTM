@@ -238,51 +238,46 @@ export default function SermonDetail() {
 
           {/* Media Player */}
           <div className="rounded-2xl overflow-hidden mb-8 shadow-lg relative">
-            {audioMode ? (
-              <div className="aspect-video bg-primary flex flex-col items-center justify-center gap-6">
-                <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center">
-                  <Volume2 className="h-12 w-12 text-accent animate-pulse" />
+            <div className="aspect-video relative">
+              {/* YouTube iframe always rendered at full size — YouTube's IntersectionObserver
+                  requires real layout dimensions to allow autoplay. Hidden via overlay below. */}
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={audioMode
+                  ? `https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`
+                  : buildYouTubeUrl(sermon.videoId, quality)}
+                title={sermon.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+
+              {/* Audio mode overlay — covers the video; pointer-events-none so
+                  the toggle button outside this div stays clickable */}
+              {audioMode && (
+                <div className="absolute inset-0 bg-primary z-10 pointer-events-none flex flex-col items-center justify-center gap-6">
+                  <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center">
+                    <Volume2 className="h-12 w-12 text-accent animate-pulse" />
+                  </div>
+                  <div className="text-center px-4">
+                    <p className="text-white font-semibold text-lg line-clamp-2">{sermon.title}</p>
+                    <p className="text-white/60 text-sm mt-1">Temple TV — Audio Only Mode</p>
+                  </div>
+                  <div className="flex items-end gap-1 h-10">
+                    {[4, 7, 5, 9, 6, 8, 4, 7, 5, 9, 6, 4].map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-1.5 bg-accent rounded-full"
+                        style={{
+                          height: `${h * 4}px`,
+                          animation: `audioBar 0.9s ease-in-out ${i * 0.08}s infinite alternate`,
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="text-center px-4">
-                  <p className="text-white font-semibold text-lg line-clamp-2">{sermon.title}</p>
-                  <p className="text-white/60 text-sm mt-1">Temple TV — Audio Only Mode</p>
-                </div>
-                {/* Off-screen iframe: 1×1 px keeps it "visible" so browsers allow autoplay */}
-                <iframe
-                  style={{ position: "fixed", left: "-9999px", top: "-9999px", width: "1px", height: "1px", border: "none" }}
-                  src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-                  allow="autoplay"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  title={`${sermon.title} audio`}
-                />
-                {/* Animated audio visualizer */}
-                <div className="flex items-end gap-1 h-10">
-                  {[4, 7, 5, 9, 6, 8, 4, 7, 5, 9, 6, 4].map((h, i) => (
-                    <div
-                      key={i}
-                      className="w-1.5 bg-accent rounded-full"
-                      style={{
-                        height: `${h * 4}px`,
-                        animation: `audioBar 0.9s ease-in-out ${i * 0.08}s infinite alternate`,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="aspect-video">
-                <iframe
-                  width="100%"
-                  height="100%"
-                  src={buildYouTubeUrl(sermon.videoId, quality)}
-                  title={sermon.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  className="w-full h-full"
-                />
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* AI Sermon Summary — indexable text content for Google */}
