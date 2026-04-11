@@ -553,12 +553,9 @@ export function MinistrySlideshow() {
         </AnimatePresence>
       </div>
 
-      {/* ── Bottom bar: dots + slide counter ──────────────────────────── */}
-      <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-3 z-40 pointer-events-none">
+      {/* ── Bottom bar: dots ──────────────────────────── */}
+      <div className="absolute bottom-3 inset-x-0 flex items-center justify-center z-40 pointer-events-none">
         <SlideDots total={SLIDES.length} current={slideIdx % SLIDES.length} accent={theme.accent} />
-        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: `${theme.accent}90` }}>
-          {(imgIdx % shuffled.length) + 1} / {shuffled.length}
-        </span>
       </div>
     </div>
   );
