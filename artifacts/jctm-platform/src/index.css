@@ -387,3 +387,9 @@
 .reel-card-enter {
   animation: reel-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* ─── Audio-only visualizer bar animation ─── */
+@keyframes audioBar {
+  from { transform: scaleY(0.3); opacity: 0.5; }
+  to   { transform: scaleY(1);   opacity: 1; }
+}

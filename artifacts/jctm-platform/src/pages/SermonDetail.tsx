@@ -241,21 +241,32 @@ export default function SermonDetail() {
             {audioMode ? (
               <div className="aspect-video bg-primary flex flex-col items-center justify-center gap-6">
                 <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center">
-                  <Volume2 className="h-12 w-12 text-accent" />
+                  <Volume2 className="h-12 w-12 text-accent animate-pulse" />
                 </div>
-                <div className="text-center">
-                  <p className="text-white font-semibold text-lg">{sermon.title}</p>
+                <div className="text-center px-4">
+                  <p className="text-white font-semibold text-lg line-clamp-2">{sermon.title}</p>
                   <p className="text-white/60 text-sm mt-1">Temple TV — Audio Only Mode</p>
                 </div>
+                {/* Off-screen iframe: 1×1 px keeps it "visible" so browsers allow autoplay */}
                 <iframe
-                  className="opacity-0 h-0 w-0 absolute pointer-events-none"
-                  src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&origin=${encodeURIComponent(window.location.origin)}`}
+                  style={{ position: "fixed", left: "-9999px", top: "-9999px", width: "1px", height: "1px", border: "none" }}
+                  src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                   allow="autoplay"
                   referrerPolicy="strict-origin-when-cross-origin"
                   title={`${sermon.title} audio`}
                 />
-                <div className="w-64 bg-white/20 rounded-full overflow-hidden h-2">
-                  <div className="h-full bg-accent rounded-full" style={{ width: "40%" }} />
+                {/* Animated audio visualizer */}
+                <div className="flex items-end gap-1 h-10">
+                  {[4, 7, 5, 9, 6, 8, 4, 7, 5, 9, 6, 4].map((h, i) => (
+                    <div
+                      key={i}
+                      className="w-1.5 bg-accent rounded-full"
+                      style={{
+                        height: `${h * 4}px`,
+                        animation: `audioBar 0.9s ease-in-out ${i * 0.08}s infinite alternate`,
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
             ) : (

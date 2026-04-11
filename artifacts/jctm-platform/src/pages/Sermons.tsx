@@ -603,9 +603,30 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
           </>
         ) : audioMode ? (
           <div className="absolute inset-0 bg-primary flex flex-col items-center justify-center gap-3">
-            <Volume2 className="h-12 w-12 text-accent" />
-            <p className="text-white text-sm font-medium px-4 text-center">{sermon.title}</p>
-            <p className="text-white/60 text-xs">Audio Only Mode</p>
+            <Volume2 className="h-10 w-10 text-accent animate-pulse" />
+            <p className="text-white text-xs font-medium px-4 text-center line-clamp-2">{sermon.title}</p>
+            <p className="text-white/50 text-[10px]">Audio Only Mode</p>
+            {/* Animated audio visualizer bars */}
+            <div className="flex items-end gap-0.5 h-7">
+              {[3, 5, 4, 7, 5, 6, 4, 7, 5, 3].map((h, i) => (
+                <div
+                  key={i}
+                  className="w-1 bg-accent rounded-full"
+                  style={{
+                    height: `${h * 3}px`,
+                    animation: `audioBar 0.9s ease-in-out ${i * 0.09}s infinite alternate`,
+                  }}
+                />
+              ))}
+            </div>
+            {/* Off-screen iframe — 1×1 px stays "visible" so browser allows autoplay */}
+            <iframe
+              style={{ position: "fixed", left: "-9999px", top: "-9999px", width: "1px", height: "1px", border: "none" }}
+              src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
+              allow="autoplay"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title={`${sermon.title} audio`}
+            />
           </div>
         ) : (
           <img
