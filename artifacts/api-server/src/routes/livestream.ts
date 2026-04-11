@@ -1,9 +1,12 @@
 import { Router, type IRouter } from "express";
 import {
   GetLivestreamStatusResponse,
+  GetRebroadcastStatusResponse,
   UpdateLivestreamStatusBody,
   UpdateLivestreamStatusResponse,
 } from "@workspace/api-zod";
+import { db, sermonsTable } from "@workspace/db";
+import { desc, gte } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -107,6 +110,47 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
   youtubeCheckCache = null;
 
   res.json(UpdateLivestreamStatusResponse.parse(livestreamState));
+});
+
+// 3.5 days in milliseconds
+const REBROADCAST_TTL_MS = 3.5 * 24 * 60 * 60 * 1000;
+
+router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
+  try {
+    const cutoff = new Date(Date.now() - REBROADCAST_TTL_MS);
+
+    const rows = await db
+      .select()
+      .from(sermonsTable)
+      .where(
+        gte(sermonsTable.broadcastEndedAt, cutoff)
+      )
+      .orderBy(desc(sermonsTable.broadcastEndedAt))
+      .limit(1);
+
+    if (rows.length === 0 || !rows[0]) {
+      res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+      res.json(GetRebroadcastStatusResponse.parse({ available: false }));
+      return;
+    }
+
+    const sermon = rows[0];
+    const endedAt = sermon.broadcastEndedAt!;
+    const expiresAt = new Date(endedAt.getTime() + REBROADCAST_TTL_MS);
+
+    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    res.json(GetRebroadcastStatusResponse.parse({
+      available: true,
+      videoId: sermon.videoId,
+      title: sermon.title,
+      thumbnailUrl: sermon.thumbnailUrl,
+      broadcastEndedAt: endedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    }));
+  } catch {
+    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    res.json(GetRebroadcastStatusResponse.parse({ available: false }));
+  }
 });
 
 export default router;

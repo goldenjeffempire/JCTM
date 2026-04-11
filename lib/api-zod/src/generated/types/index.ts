@@ -32,6 +32,7 @@ export * from "./livestreamStatus";
 export * from "./loginMemberBody";
 export * from "./member";
 export * from "./memberProfile";
+export * from "./rebroadcastStatus";
 export * from "./registerMemberBody";
 export * from "./sermon";
 export * from "./sermonStats";

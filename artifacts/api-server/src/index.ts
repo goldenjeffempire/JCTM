@@ -121,6 +121,11 @@ async function runStartupMigrations() {
       ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()
     `);
 
+    // ── Rebroadcast: track when a live stream ends ────────────────────────────
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS broadcast_ended_at timestamptz
+    `);
+
     // ── pgvector cosine similarity search function ───────────────────────────
     try {
       await pool.query(`

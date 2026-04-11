@@ -397,6 +397,18 @@ export const IngestTempleBotsKnowledgeResponse = zod.object({
 });
 
 /**
+ * @summary Get the most recent rebroadcast (if available within 3.5 days of broadcast end)
+ */
+export const GetRebroadcastStatusResponse = zod.object({
+  available: zod.boolean(),
+  videoId: zod.string().nullish(),
+  title: zod.string().nullish(),
+  thumbnailUrl: zod.string().nullish(),
+  broadcastEndedAt: zod.string().nullish(),
+  expiresAt: zod.string().nullish(),
+});
+
+/**
  * @summary Get current livestream status
  */
 export const GetLivestreamStatusResponse = zod.object({

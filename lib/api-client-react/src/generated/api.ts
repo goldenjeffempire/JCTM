@@ -41,6 +41,7 @@ import type {
   LoginMemberBody,
   Member,
   MemberProfile,
+  RebroadcastStatus,
   RegisterMemberBody,
   Sermon,
   SermonStats,
@@ -2070,6 +2071,81 @@ export const useIngestTempleBotsKnowledge = <
 > => {
   return useMutation(getIngestTempleBotsKnowledgeMutationOptions(options));
 };
+
+/**
+ * @summary Get the most recent rebroadcast (if available within 3.5 days of broadcast end)
+ */
+export const getGetRebroadcastStatusUrl = () => {
+  return `/api/livestream/rebroadcast`;
+};
+
+export const getRebroadcastStatus = async (
+  options?: RequestInit,
+): Promise<RebroadcastStatus> => {
+  return customFetch<RebroadcastStatus>(getGetRebroadcastStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRebroadcastStatusQueryKey = () => {
+  return [`/api/livestream/rebroadcast`] as const;
+};
+
+export const getGetRebroadcastStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRebroadcastStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRebroadcastStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRebroadcastStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRebroadcastStatus>>
+  > = ({ signal }) => getRebroadcastStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRebroadcastStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRebroadcastStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRebroadcastStatus>>
+>;
+export type GetRebroadcastStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the most recent rebroadcast (if available within 3.5 days of broadcast end)
+ */
+
+export function useGetRebroadcastStatus<
+  TData = Awaited<ReturnType<typeof getRebroadcastStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRebroadcastStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRebroadcastStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get current livestream status

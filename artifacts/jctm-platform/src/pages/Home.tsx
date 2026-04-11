@@ -16,6 +16,7 @@ import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
   useGetUpcomingEvents, getGetUpcomingEventsQueryKey,
   useGetSermonStats, getGetSermonStatsQueryKey,
+  useGetRebroadcastStatus,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -240,6 +241,150 @@ function KineticHeadline({ lines }: { lines: { text: string; gradient?: boolean 
         </div>
       ))}
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REBROADCAST BANNER — Shown for 3.5 days after each live broadcast ends
+// ═══════════════════════════════════════════════════════════════════════════
+function RebroadcastBanner() {
+  const { data } = useGetRebroadcastStatus({
+    query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
+  });
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem("rebroadcast_dismissed") === "true"; } catch { return false; }
+  });
+  const [playerOpen, setPlayerOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPlayerOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try { sessionStorage.setItem("rebroadcast_dismissed", "true"); } catch { /* noop */ }
+  };
+
+  if (!data?.available || !data.videoId || dismissed) return null;
+
+  const expiresAt = data.expiresAt ? new Date(data.expiresAt) : null;
+  const timeLeft = expiresAt ? formatDistanceToNow(expiresAt, { addSuffix: true }) : null;
+
+  return (
+    <>
+      {/* ── REBROADCAST PLAYER OVERLAY ── */}
+      <AnimatePresence>
+        {playerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center"
+            style={{ backdropFilter: "blur(20px)", background: "rgba(0,5,20,0.93)" }}
+            onClick={() => setPlayerOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 240, damping: 26 }}
+              className="relative w-full max-w-4xl mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="absolute -inset-8 rounded-[3rem] blur-3xl opacity-30" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.6), rgba(0,51,102,0.4))" }} />
+              <div className="relative flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span className="text-white/80 text-sm font-medium tracking-wide">Rebroadcast</span>
+                  {data.title && <span className="text-white/50 text-xs hidden sm:inline truncate max-w-[300px]">— {data.title}</span>}
+                </div>
+                <button onClick={() => setPlayerOpen(false)} className="h-8 w-8 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video bg-black">
+                <iframe
+                  src={`https://www.youtube.com/embed/${data.videoId}?autoplay=1&rel=0`}
+                  title={data.title ?? "Rebroadcast"}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full"
+                />
+              </div>
+              <p className="text-center text-white/25 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── BANNER STRIP ── */}
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: -48 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -48 }}
+          transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          className="relative z-40 w-full"
+          style={{ background: "linear-gradient(90deg, #003366 0%, #0284C7 50%, #003366 100%)" }}
+        >
+          {/* Animated shimmer */}
+          <div className="absolute inset-0 overflow-hidden">
+            <motion.div
+              className="absolute inset-0 opacity-20"
+              style={{ background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)" }}
+              animate={{ x: ["−100%", "200%"] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "linear", repeatDelay: 4 }}
+            />
+          </div>
+
+          <div className="relative max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-3 flex-wrap sm:flex-nowrap">
+            {/* Icon + label */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-sky-400/20 border border-sky-400/40">
+                <Play className="h-3 w-3 text-sky-300 fill-sky-300" />
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-sky-400 animate-ping" />
+              </div>
+              <span className="text-white font-bold text-xs uppercase tracking-widest whitespace-nowrap">Rebroadcast</span>
+            </div>
+
+            {/* Divider */}
+            <div className="hidden sm:block h-4 w-px bg-white/20 shrink-0" />
+
+            {/* Title */}
+            <p className="text-white/85 text-xs sm:text-sm font-medium truncate flex-1 min-w-0">
+              {data.title ?? "Recently Concluded Service — Watch it now"}
+            </p>
+
+            {/* Expiry badge */}
+            {timeLeft && (
+              <span className="text-sky-200/60 text-[10px] font-medium whitespace-nowrap shrink-0 hidden md:inline">
+                Expires {timeLeft}
+              </span>
+            )}
+
+            {/* Watch button */}
+            <motion.button
+              whileHover={{ scale: 1.05 } as never}
+              whileTap={{ scale: 0.96 } as never}
+              onClick={() => setPlayerOpen(true)}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-[#003366] text-xs font-bold shadow-lg hover:shadow-sky-400/30 transition-all"
+            >
+              <Play className="h-3 w-3 fill-current" />
+              Watch Now
+            </motion.button>
+
+            {/* Dismiss */}
+            <button
+              onClick={handleDismiss}
+              className="shrink-0 text-white/40 hover:text-white/70 transition-colors p-0.5"
+              aria-label="Dismiss rebroadcast banner"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -2794,6 +2939,7 @@ export default function Home() {
           }
         ]}
       />
+      <RebroadcastBanner />
       <HeroSection />
       <PlatformBar />
       <DailyDevotionSection />

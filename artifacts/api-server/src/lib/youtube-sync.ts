@@ -1,5 +1,5 @@
 import { db, sermonsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import type { Logger } from "pino";
 
 export const CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
@@ -211,6 +211,7 @@ export async function syncIncremental(apiKey: string, log?: Logger): Promise<Syn
           viewCount: detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
           isFeatured,
           isLive: actuallyLive,
+          broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${actuallyLive} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
         },
       });
   }
@@ -356,6 +357,7 @@ export async function syncSingleVideo(apiKey: string, videoId: string, log?: Log
         viewCount: item.statistics?.viewCount ? parseInt(item.statistics.viewCount) : null,
         isFeatured,
         isLive: actuallyLive,
+        broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${actuallyLive} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
       },
     });
 

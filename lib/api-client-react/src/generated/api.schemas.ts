@@ -263,6 +263,20 @@ export interface UpdateLivestreamBody {
   streamUrl?: string | null;
 }
 
+export interface RebroadcastStatus {
+  available: boolean;
+  /** @nullable */
+  videoId?: string | null;
+  /** @nullable */
+  title?: string | null;
+  /** @nullable */
+  thumbnailUrl?: string | null;
+  /** @nullable */
+  broadcastEndedAt?: string | null;
+  /** @nullable */
+  expiresAt?: string | null;
+}
+
 export type ListSermonsParams = {
   limit?: number;
   offset?: number;

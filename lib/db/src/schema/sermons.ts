@@ -13,6 +13,7 @@ export const sermonsTable = pgTable("sermon_data", {
   duration: text("duration"),
   isFeatured: boolean("is_featured").notNull().default(false),
   isLive: boolean("is_live").notNull().default(false),
+  broadcastEndedAt: timestamp("broadcast_ended_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
