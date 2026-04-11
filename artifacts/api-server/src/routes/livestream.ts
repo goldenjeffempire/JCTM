@@ -79,6 +79,7 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
     }
   }
 
+  res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
   res.json(GetLivestreamStatusResponse.parse(livestreamState));
 });
 

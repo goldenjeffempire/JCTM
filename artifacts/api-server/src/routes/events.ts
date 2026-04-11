@@ -51,6 +51,7 @@ router.get("/events/upcoming", async (req, res): Promise<void> => {
     endDate: e.endDate instanceof Date ? e.endDate.toISOString() : e.endDate,
     createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
   }));
+  res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200");
   res.json(GetUpcomingEventsResponse.parse(serialized));
 });
 

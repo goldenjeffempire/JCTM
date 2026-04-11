@@ -178,6 +178,11 @@ const server = app.listen(port, (err) => {
     process.exit(1);
   }
 
+  // Keep connections alive longer than the 60 s timeout used by most
+  // load balancers / reverse proxies (Render, Replit, Cloudflare).
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout   = 66_000;
+
   logger.info({ port }, "Server listening");
 
   // Start the 30-minute YouTube sync cron

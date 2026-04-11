@@ -132,6 +132,7 @@ router.get("/sermons/stats", async (req, res): Promise<void> => {
     })
     .from(sermonsTable);
 
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
   res.json(GetSermonStatsResponse.parse({
     total: result?.total ?? 0,
     totalViews: result?.totalViews ?? null,

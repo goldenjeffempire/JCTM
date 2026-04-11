@@ -53,6 +53,7 @@ export default defineConfig({
     cssCodeSplit: true,
     sourcemap: false,
     assetsInlineLimit: 4096,
+    reportCompressedSize: false,
     // Three.js alone is ~1.8 MB minified — it cannot be reduced further.
     // It is already lazy-loaded (only fetched when GlobalAltar3D renders),
     // so the large chunk does not affect initial page load.
@@ -79,10 +80,29 @@ export default defineConfig({
           if (id.includes("node_modules/date-fns/")) return "date-fns";
           if (id.includes("node_modules/clsx/") || id.includes("node_modules/class-variance-authority/") || id.includes("node_modules/tailwind-merge/")) return "styling-utils";
           if (id.includes("node_modules/@hookform/") || id.includes("node_modules/react-hook-form/")) return "forms";
+          if (id.includes("node_modules/sonner/")) return "notifications";
+          if (id.includes("node_modules/recharts/") || id.includes("node_modules/d3-")) return "charts";
+          if (id.includes("node_modules/cmdk/")) return "command";
           // No vendor catch-all: let Rollup auto-chunk remaining packages to avoid circular dependencies
         },
       },
     },
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "framer-motion",
+      "wouter",
+      "@tanstack/react-query",
+      "lucide-react",
+      "sonner",
+      "date-fns",
+      "clsx",
+      "tailwind-merge",
+      "class-variance-authority",
+    ],
   },
   server: {
     port,

@@ -46,8 +46,8 @@ app.use(
 
 app.use(
   compression({
-    level: 6,
-    threshold: 1024,
+    level: 7,
+    threshold: 512,
     filter(req, res) {
       if (req.headers["x-no-compression"]) return false;
       return compression.filter(req, res);
@@ -128,6 +128,7 @@ app.use("/api", router);
 if (process.env.NODE_ENV === "production") {
   const staticDir = path.resolve(__dirname, "../../jctm-platform/dist/public");
 
+  // Hashed JS/CSS/image assets — cache forever, vary for encoding
   app.use(
     "/assets",
     express.static(path.join(staticDir, "assets"), {
@@ -136,18 +137,28 @@ if (process.env.NODE_ENV === "production") {
       etag: false,
       setHeaders(res) {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Vary", "Accept-Encoding");
       },
     }),
   );
 
+  // Static files (fonts, images, manifest, etc.)
   app.use(
     express.static(staticDir, {
-      maxAge: "1h",
+      maxAge: "7d",
       etag: true,
+      lastModified: true,
       index: false,
       setHeaders(res, filePath) {
         if (filePath.endsWith(".html")) {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        } else if (/\.(png|jpe?g|webp|avif|svg|ico|gif)$/i.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+          res.setHeader("Vary", "Accept-Encoding");
+        } else if (/\.(woff2?|ttf|otf|eot)$/i.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (/\.(json|xml|txt)$/i.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=300");
         }
       },
     }),
