@@ -27,7 +27,7 @@ const DEFAULT_IMAGE = `${BASE_URL}/opengraph.jpg`;
 const DEFAULT_IMAGE_WIDTH = 1200;
 const DEFAULT_IMAGE_HEIGHT = 630;
 const DEFAULT_KEYWORDS =
-  "Jesus Christ Temple Ministry, JCTM, Temple TV, JCTM Warri, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, primitive Christianity Nigeria, JCTM Digital Sanctuary";
+  "Jesus Christ Temple Ministry, JCTM, Temple TV, JCTM Warri, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, primitive Christianity Nigeria, JCTM Digital Sanctuary, Temple TV rebroadcast, JCTM rebroadcast now";
 
 export function SEO({
   title,

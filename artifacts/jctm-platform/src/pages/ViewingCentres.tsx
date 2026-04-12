@@ -46,7 +46,7 @@ export default function ViewingCentres() {
     <Layout>
       <SEO
         title="Temple TV Viewing Centres — JCTM Nigeria"
-        description="Find official Temple TV viewing centres of Jesus Christ Temple Ministry (JCTM) across Nigeria and beyond. Watch live services and Temple TV broadcasts near you."
+        description="Find official Temple TV viewing centres of Jesus Christ Temple Ministry (JCTM) across Nigeria and beyond. Watch rebroadcast services and Temple TV broadcasts near you."
         path="/viewing-centres"
         keywords="Temple TV viewing centres, JCTM viewing centres, watch Temple TV Nigeria, JCTM centres Nigeria, JCTM Lagos, JCTM Abuja, JCTM Rivers, JCTM Edo, JCTM Anambra, Jesus Christ Temple Ministry branches"
         breadcrumbs={[

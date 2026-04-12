@@ -3629,7 +3629,7 @@ export default function Home() {
     <Layout>
       <SEO
         title="Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary"
-        description="Welcome to JCTM — Jesus Christ Temple Ministry, Warri Nigeria. Watch Temple TV sermons, give online, experience the Correction Mandate, and connect with Prophet Amos Evomobor's ministry."
+        description="Welcome to JCTM — Jesus Christ Temple Ministry, Warri Nigeria. Watch Temple TV sermons and rebroadcasts, give online, experience the Correction Mandate, and connect with Prophet Amos Evomobor's ministry."
         path="/"
         keywords="Jesus Christ Temple Ministry, JCTM, Temple TV, JCTM Warri Nigeria, Prophet Amos Evomobor, Correction Mandate, holiness church Nigeria, apostolic Christianity, Temple Ministry, primitive Christianity Nigeria, end time church Nigeria, holiness preaching"
         jsonLd={[
