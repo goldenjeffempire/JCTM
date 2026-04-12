@@ -86,20 +86,29 @@ function useTypewriter(words: string[], speed = 70, pauseMs = 2600) {
   return displayed;
 }
 
-// ─── Live Countdown ────────────────────────────────────────────────────────
+// ─── WAT helpers ───────────────────────────────────────────────────────────
+function getWatDate(now = new Date()) {
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs + 3600000); // WAT = UTC+1
+}
+
+// ─── Live Countdown (to next Sunday 8 AM WAT) ──────────────────────────────
 function useNextService() {
   const [cd, setCd] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   useEffect(() => {
-    const getNext = () => {
-      const now = new Date();
-      const d = new Date(now);
-      const dow = now.getDay();
-      d.setDate(now.getDate() + (dow === 0 ? (now.getHours() >= 8 ? 7 : 0) : 7 - dow));
-      d.setHours(8, 0, 0, 0);
-      return d;
+    const getNextSundayWat = () => {
+      const wat = getWatDate();
+      const dow = wat.getDay();
+      const daysUntilSun = dow === 0 ? (wat.getHours() >= 8 ? 7 : 0) : 7 - dow;
+      const next = new Date(wat);
+      next.setDate(wat.getDate() + daysUntilSun);
+      next.setHours(8, 0, 0, 0);
+      // Convert back to UTC ms for diff calculation
+      const nextUtcMs = next.getTime() - 3600000;
+      return nextUtcMs;
     };
     const tick = () => {
-      const diff = getNext().getTime() - Date.now();
+      const diff = Math.max(0, getNextSundayWat() - Date.now());
       setCd({ days: Math.floor(diff / 86400000), hours: Math.floor((diff % 86400000) / 3600000), minutes: Math.floor((diff % 3600000) / 60000), seconds: Math.floor((diff % 60000) / 1000) });
     };
     tick();
@@ -2366,67 +2375,289 @@ function CrusadeInviteSection() {
 // ═══════════════════════════════════════════════════════════════════════════
 function SundayServiceCard() {
   const countdown = useNextService();
+  const [isLive, setIsLive] = useState(false);
+  const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
+  const [showEmbed, setShowEmbed] = useState(false);
+  const [watNow, setWatNow] = useState(() => getWatDate());
+
+  // Tick WAT clock every second
+  useEffect(() => {
+    const t = setInterval(() => setWatNow(getWatDate()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Poll livestream status every 60 s
+  useEffect(() => {
+    const poll = () => {
+      fetch(`${BASE}/api/livestream/status`)
+        .then(r => r.json())
+        .then((d: { isLive?: boolean; streamUrl?: string | null; videoId?: string | null }) => {
+          setIsLive(d?.isLive ?? false);
+          const match = d?.streamUrl?.match(/[?&]v=([^&]+)/);
+          setLiveVideoId(match?.[1] ?? (d?.videoId as string | null) ?? null);
+        })
+        .catch(() => {});
+    };
+    poll();
+    const t = setInterval(poll, 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const watDay = watNow.getDay();   // 0=Sun, 1=Mon … 6=Sat
+  const watHour = watNow.getHours();
+
+  // Phase logic
+  // Monday → countdown
+  // Tuesday–Saturday + Sunday before 8 AM → upcoming (static)
+  // Sunday 8 AM+ and stream is live → live
+  const isMonday = watDay === 1;
+  const isSunday = watDay === 0;
+  const serviceStarted = isSunday && watHour >= 8;
+
+  type Phase = "countdown" | "upcoming" | "live";
+  const phase: Phase = isLive && serviceStarted ? "live" : isMonday ? "countdown" : "upcoming";
+
+  const videoId = liveVideoId ?? LIVE_STREAM_VIDEO_ID;
+
   return (
-    <motion.div variants={fadeUp}>
-      <TiltCard>
-        <div className="bg-gradient-to-br from-[#003366] to-[#0284C7] rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white/10 group relative overflow-hidden h-full flex flex-col">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.8), transparent)" }} />
-            {[...Array(6)].map((_, i) => (
-              <motion.div key={i}
-                animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.3, 1] }}
-                transition={{ duration: 4 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.7 }}
-                className="absolute rounded-full bg-white"
-                style={{ width: 2 + (i % 3), height: 2 + (i % 3), top: `${12 + i * 13}%`, left: `${8 + i * 14}%`, opacity: 0.2 }}
-              />
-            ))}
-          </div>
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent via-white/40 to-accent opacity-60" />
-
-          <div className="p-6 flex flex-col flex-1 relative z-10">
-            <div className="flex items-start justify-between mb-5">
-              <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 text-white text-center shadow-lg">
-                <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest">Every</span>
-                <span className="block font-serif font-bold text-3xl leading-none">SUN</span>
-                <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest mt-0.5">Weekly</span>
+    <>
+      {/* ── Live Embed Modal ── */}
+      <AnimatePresence>
+        {showEmbed && (
+          <motion.div
+            key="embed-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+            onClick={() => setShowEmbed(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 26 }}
+              className="relative w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-white/10"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="bg-[#0a0a0a] flex items-center justify-between px-5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
+                  </span>
+                  <span className="text-white font-bold text-sm">Live Service — Jesus Christ Temple Ministry</span>
+                </div>
+                <button
+                  onClick={() => setShowEmbed(false)}
+                  className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <X className="h-4 w-4 text-white/70" />
+                </button>
               </div>
-              <span className="bg-white/20 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-white/20">Recurring</span>
-            </div>
-
-            <h3 className="text-xl font-serif font-bold text-white mb-1 leading-tight">Sunday Worship Service</h3>
-            <p className="text-white/60 text-xs mb-4 leading-relaxed">Join us every Sunday for corporate worship, prayer, and the Word of God.</p>
-
-            <div className="space-y-2 mb-5 text-sm text-white/75 flex-1">
-              <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />8:00 AM WAT every Sunday</div>
-              <div className="flex items-start gap-2 text-white/75"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><ChurchAddressBlock variant="inline" className="leading-snug text-sm text-white/75" /></div>
-            </div>
-
-            <div className="bg-white/10 rounded-2xl p-3 mb-4 border border-white/10">
-              <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold mb-2">Next Service In</p>
-              <div className="flex gap-2">
-                {[
-                  { v: countdown.days, l: "Days" },
-                  { v: countdown.hours, l: "Hrs" },
-                  { v: countdown.minutes, l: "Min" },
-                  { v: countdown.seconds, l: "Sec" },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex-1 flex flex-col items-center bg-white/10 rounded-xl py-1.5">
-                    <span className="text-lg font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
-                    <span className="text-[8px] text-white/50 uppercase tracking-wide mt-0.5">{l}</span>
-                  </div>
-                ))}
+              <div className="relative bg-black" style={{ paddingBottom: "56.25%" }}>
+                <iframe
+                  key={videoId}
+                  src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
+                  title="JCTM Live Service"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className="absolute inset-0 w-full h-full"
+                />
               </div>
-            </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <a href="https://www.youtube.com/@JesusChristTempleMinistry" target="_blank" rel="noopener noreferrer">
-              <Button className="w-full rounded-xl bg-white/20 text-white hover:bg-white/30 border border-white/20 shadow-none transition-all duration-200 gap-2 text-sm">
-                <Radio className="h-3.5 w-3.5" /> Watch Live on YouTube
-              </Button>
-            </a>
+      <motion.div variants={fadeUp}>
+        <TiltCard>
+          <div className="bg-gradient-to-br from-[#003366] to-[#0284C7] rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white/10 group relative overflow-hidden h-full flex flex-col">
+            {/* Background decoration */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.8), transparent)" }} />
+              {[...Array(6)].map((_, i) => (
+                <motion.div key={i}
+                  animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.3, 1] }}
+                  transition={{ duration: 4 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.7 }}
+                  className="absolute rounded-full bg-white"
+                  style={{ width: 2 + (i % 3), height: 2 + (i % 3), top: `${12 + i * 13}%`, left: `${8 + i * 14}%`, opacity: 0.2 }}
+                />
+              ))}
+            </div>
+            {/* Live phase: red top bar; others: accent bar */}
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 ${phase === "live" ? "from-red-500 via-red-400 to-red-600" : "from-accent via-white/40 to-accent"}`} />
+
+            <div className="p-6 flex flex-col flex-1 relative z-10">
+              {/* Header row */}
+              <div className="flex items-start justify-between mb-5">
+                <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 text-white text-center shadow-lg">
+                  <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest">Every</span>
+                  <span className="block font-serif font-bold text-3xl leading-none">SUN</span>
+                  <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest mt-0.5">Weekly</span>
+                </div>
+                <AnimatePresence mode="wait">
+                  {phase === "live" ? (
+                    <motion.span
+                      key="badge-live"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-1.5 bg-red-500/90 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-red-400/40"
+                    >
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                        <span className="relative inline-flex rounded-full h-full w-full bg-white" />
+                      </span>
+                      Live Now
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="badge-recurring"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="bg-white/20 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-white/20"
+                    >
+                      Recurring
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Title & description */}
+              <h3 className="text-xl font-serif font-bold text-white mb-1 leading-tight">Sunday Worship Service</h3>
+              <p className="text-white/60 text-xs mb-4 leading-relaxed">Join us every Sunday for corporate worship, prayer, and the Word of God.</p>
+
+              {/* Service details — always visible */}
+              <div className="space-y-2 mb-5 text-sm text-white/75 flex-1">
+                <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />8:00 AM WAT every Sunday</div>
+                <div className="flex items-start gap-2 text-white/75"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><ChurchAddressBlock variant="inline" className="leading-snug text-sm text-white/75" /></div>
+              </div>
+
+              {/* Dynamic lower block */}
+              <AnimatePresence mode="wait">
+                {phase === "countdown" ? (
+                  /* ── MONDAY: Full countdown ── */
+                  <motion.div
+                    key="block-countdown"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="bg-white/10 rounded-2xl p-3 mb-4 border border-white/10">
+                      <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold mb-2">Next Service In</p>
+                      <div className="flex gap-2">
+                        {[
+                          { v: countdown.days, l: "Days" },
+                          { v: countdown.hours, l: "Hrs" },
+                          { v: countdown.minutes, l: "Min" },
+                          { v: countdown.seconds, l: "Sec" },
+                        ].map(({ v, l }) => (
+                          <div key={l} className="flex-1 flex flex-col items-center bg-white/10 rounded-xl py-1.5">
+                            <span className="text-lg font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
+                            <span className="text-[8px] text-white/50 uppercase tracking-wide mt-0.5">{l}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : phase === "live" ? (
+                  /* ── SUNDAY LIVE: pulsing glow block ── */
+                  <motion.div
+                    key="block-live"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="mb-4"
+                  >
+                    <motion.div
+                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="bg-red-500/20 rounded-2xl p-3 border border-red-400/30 text-center"
+                    >
+                      <p className="text-red-300 text-[10px] uppercase tracking-widest font-bold">🔴 Service is Live Now</p>
+                      <p className="text-white/50 text-[9px] mt-0.5">Stream is active on Temple TV</p>
+                    </motion.div>
+                  </motion.div>
+                ) : (
+                  /* ── TUE–SAT + SUNDAY PRE-SERVICE: Upcoming block ── */
+                  <motion.div
+                    key="block-upcoming"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="mb-4"
+                  >
+                    <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                      <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold mb-1.5">
+                        {isSunday ? "Today's Service" : "Upcoming Service"}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-white/50 shrink-0" />
+                        <div>
+                          <p className="text-white font-semibold text-sm leading-none">Sunday Worship Service</p>
+                          <p className="text-white/50 text-[10px] mt-0.5">8:00 AM WAT · Every Sunday</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* CTA Button — dynamic */}
+              <AnimatePresence mode="wait">
+                {phase === "live" ? (
+                  <motion.div
+                    key="cta-live"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Button
+                      onClick={() => setShowEmbed(true)}
+                      className="w-full rounded-xl bg-red-500 hover:bg-red-600 text-white border-none shadow-none transition-all duration-200 gap-2 text-sm font-bold"
+                    >
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                        <span className="relative inline-flex rounded-full h-full w-full bg-white" />
+                      </span>
+                      Join Live Service
+                    </Button>
+                  </motion.div>
+                ) : phase === "countdown" ? (
+                  <motion.div
+                    key="cta-countdown"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Button className="w-full rounded-xl bg-white/15 text-white hover:bg-white/25 border border-white/20 shadow-none transition-all duration-200 gap-2 text-sm">
+                      <Calendar className="h-3.5 w-3.5" /> Add to Calendar
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="cta-upcoming"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Button className="w-full rounded-xl bg-white/15 text-white hover:bg-white/25 border border-white/20 shadow-none transition-all duration-200 gap-2 text-sm">
+                      <Calendar className="h-3.5 w-3.5" /> Upcoming Service
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
-      </TiltCard>
-    </motion.div>
+        </TiltCard>
+      </motion.div>
+    </>
   );
 }
 
