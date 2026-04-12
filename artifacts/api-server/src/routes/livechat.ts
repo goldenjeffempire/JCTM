@@ -11,8 +11,18 @@ interface ChatMessage {
   reaction?: string;
 }
 
+interface PrayerRequest {
+  id: string;
+  name: string;
+  prayer: string;
+  timestamp: number;
+  prayCount: number;
+}
+
 const MAX_MESSAGES = 200;
+const MAX_PRAYERS = 50;
 const messageHistory: ChatMessage[] = [];
+const prayerHistory: PrayerRequest[] = [];
 const clients = new Set<Response>();
 
 function broadcast(data: object) {
@@ -29,17 +39,20 @@ function moderate(text: string): boolean {
   return !BLOCKED.some(w => lower.includes(w));
 }
 
-// SSE stream for live chat
+// SSE stream for live chat + prayer
 router.get("/livechat/stream", (req: Request, res: Response): void => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  // Send last 30 messages on connect
+  // Send recent chat history
   const recent = messageHistory.slice(-30);
   res.write(`data: ${JSON.stringify({ type: "history", messages: recent })}\n\n`);
   res.write(`data: ${JSON.stringify({ type: "count", count: clients.size + 1 })}\n\n`);
+
+  // Send prayer history
+  res.write(`data: ${JSON.stringify({ type: "prayer_history", prayers: prayerHistory })}\n\n`);
 
   clients.add(res);
   broadcast({ type: "count", count: clients.size });
@@ -79,7 +92,7 @@ router.post("/livechat/message", (req: Request, res: Response): void => {
   res.json({ success: true, id: msg.id });
 });
 
-// React to a message
+// React to a chat message
 router.post("/livechat/react", (req: Request, res: Response): void => {
   const { messageId, reaction } = req.body as { messageId: string; reaction: string };
   const ALLOWED_REACTIONS = ["🙏", "🔥", "❤️", "🕊️", "💯", "⚡", "👏"];
@@ -91,6 +104,53 @@ router.post("/livechat/react", (req: Request, res: Response): void => {
 
   broadcast({ type: "reaction", messageId, reaction });
   res.json({ success: true });
+});
+
+// Submit a prayer request
+router.post("/livechat/prayer", (req: Request, res: Response): void => {
+  const { name, prayer } = req.body as { name: string; prayer: string };
+
+  if (!name?.trim() || !prayer?.trim()) {
+    res.status(400).json({ error: "Name and prayer are required" });
+    return;
+  }
+  if (prayer.length > 500) {
+    res.status(400).json({ error: "Prayer too long (max 500 characters)" });
+    return;
+  }
+  if (!moderate(prayer)) {
+    res.status(400).json({ error: "Prayer request was flagged by moderation" });
+    return;
+  }
+
+  const entry: PrayerRequest = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    name: name.trim().slice(0, 40),
+    prayer: prayer.trim(),
+    timestamp: Date.now(),
+    prayCount: 0,
+  };
+
+  prayerHistory.push(entry);
+  if (prayerHistory.length > MAX_PRAYERS) prayerHistory.shift();
+
+  broadcast({ type: "prayer_new", prayer: entry });
+  res.json({ success: true, id: entry.id });
+});
+
+// Pray for a request (increments count)
+router.post("/livechat/pray", (req: Request, res: Response): void => {
+  const { prayerId } = req.body as { prayerId: string };
+  const entry = prayerHistory.find(p => p.id === prayerId);
+
+  if (!entry) {
+    res.status(404).json({ error: "Prayer request not found" });
+    return;
+  }
+
+  entry.prayCount += 1;
+  broadcast({ type: "pray_count", prayerId: entry.id, prayCount: entry.prayCount });
+  res.json({ success: true, prayCount: entry.prayCount });
 });
 
 export default router;
