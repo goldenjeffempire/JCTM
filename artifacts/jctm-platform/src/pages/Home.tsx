@@ -32,6 +32,7 @@ const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => 
 const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").then(m => ({ default: m.MinistrySlideshow })));
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const LIVE_STREAM_VIDEO_ID = "f7TOxaM2Mq4";
 
 const SCRIPTURES = [
   { verse: "\"The Bible Is Our Standard.\"", ref: "JCTM Core Mandate" },
@@ -155,65 +156,69 @@ function AnimatedCounter({ target, suffix = "", duration = 2000 }: { target: num
 // ─── Broadcast Status Notification ─────────────────────────────────────────
 function BroadcastStatusNotification({
   isLive,
-  isUpcoming,
   liveTitle,
-  scheduledStartTime,
-  countdown,
   onJoin,
   rebroadcast,
   onWatchRebroadcast,
 }: {
   isLive: boolean;
-  isUpcoming: boolean;
   liveTitle: string | null;
-  scheduledStartTime: string | null;
-  countdown: { days: number; hours: number; minutes: number; seconds: number };
   onJoin: () => void;
   rebroadcast: { videoId: string; title?: string | null } | null;
   onWatchRebroadcast: () => void;
 }) {
-  const [dismissed, setDismissed] = useState(false);
   const AUTO_DISMISS_MS = 12000;
-  const prevIsLive = useRef(isLive);
+  const [now, setNow] = useState(() => new Date());
+  const [dismissed, setDismissed] = useState(false);
+  const prevPhase = useRef<"upcoming" | "live" | "rebroadcast" | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const armDismissTimer = useCallback(() => {
-    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-    dismissTimerRef.current = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
+  const isSunday = now.getDay() === 0;
+  const isPast8AM = now.getHours() >= 8;
+  const streamEverWentLive = useRef(false);
+  if (isLive) streamEverWentLive.current = true;
+
+  const phase: "upcoming" | "live" | "rebroadcast" | null = (() => {
+    if (!isSunday) return null;
+    if (!isPast8AM) return "upcoming";
+    if (isLive) return "live";
+    if (streamEverWentLive.current) return "rebroadcast";
+    return "live";
+  })();
+
   useEffect(() => {
-    if (!isLive) armDismissTimer();
+    if (phase === prevPhase.current) return;
+    prevPhase.current = phase;
+    setDismissed(false);
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    if (phase === "rebroadcast") {
+      dismissTimerRef.current = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
+    }
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
-  }, [isLive, armDismissTimer]);
+  }, [phase]);
 
-  useEffect(() => {
-    if (isLive && !prevIsLive.current) {
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-      setDismissed(false);
-    }
-    prevIsLive.current = isLive;
-  }, [isLive]);
-
-  const scheduledLabel = scheduledStartTime
-    ? (() => {
-        const d = new Date(scheduledStartTime);
-        return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
-      })()
-    : "Sunday · 8:00 AM";
-
-  if (dismissed) return null;
+  const target8AM = new Date(now);
+  target8AM.setHours(8, 0, 0, 0);
+  const msLeft = Math.max(0, target8AM.getTime() - now.getTime());
+  const cdHours = Math.floor(msLeft / 3600000);
+  const cdMins = Math.floor((msLeft % 3600000) / 60000);
+  const cdSecs = Math.floor((msLeft % 60000) / 1000);
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  const cardKey = isLive ? "live" : isUpcoming ? "upcoming" : rebroadcast ? "rebroadcast" : "generic-upcoming";
+  if (!phase || dismissed) return null;
 
   return (
     <div className="absolute top-[4.5rem] sm:top-20 md:top-24 right-3 sm:right-4 z-20 pointer-events-auto select-none">
       <AnimatePresence mode="wait">
-        {isLive ? (
+        {phase === "live" ? (
           <motion.div
             key="live"
             initial={{ opacity: 0, x: 40, scale: 0.9 }}
@@ -269,7 +274,7 @@ function BroadcastStatusNotification({
               </div>
             </button>
           </motion.div>
-        ) : isUpcoming ? (
+        ) : phase === "upcoming" ? (
           <motion.div
             key="upcoming"
             initial={{ opacity: 0, x: 40, scale: 0.9 }}
@@ -310,7 +315,7 @@ function BroadcastStatusNotification({
                 <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-accent whitespace-nowrap">Upcoming Service</span>
               </div>
               <div>
-                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">{scheduledLabel}</p>
+                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">Today · 8:00 AM</p>
                 <p className="text-primary/40 text-[9px] sm:text-[10px] font-medium mt-0.5 truncate">Jesus Christ Temple Ministry</p>
               </div>
               <div
@@ -320,17 +325,16 @@ function BroadcastStatusNotification({
                 <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-widest text-primary/35 mb-1 sm:mb-1.5">Starts in</p>
                 <div className="flex items-center justify-between">
                   {[
-                    { val: countdown.days, label: "d" },
-                    { val: countdown.hours, label: "h" },
-                    { val: countdown.minutes, label: "m" },
-                    { val: countdown.seconds, label: "s" },
+                    { val: cdHours, label: "h" },
+                    { val: cdMins, label: "m" },
+                    { val: cdSecs, label: "s" },
                   ].map(({ val, label }, i) => (
                     <div key={label} className="flex items-center gap-0.5">
                       <div className="text-center">
                         <span className="font-black text-xs sm:text-sm text-primary tabular-nums leading-none">{pad(val)}</span>
                         <p className="text-[7px] sm:text-[8px] font-bold text-primary/30 uppercase">{label}</p>
                       </div>
-                      {i < 3 && <span className="text-primary/20 font-bold text-xs sm:text-sm mb-1 sm:mb-1.5 mx-[1px] sm:mx-0.5">:</span>}
+                      {i < 2 && <span className="text-primary/20 font-bold text-xs sm:text-sm mb-1 sm:mb-1.5 mx-[1px] sm:mx-0.5">:</span>}
                     </div>
                   ))}
                 </div>
@@ -339,18 +343,9 @@ function BroadcastStatusNotification({
                 <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
                 <p className="text-[9px] text-primary/35 font-medium truncate">Broadcasts live on Temple TV</p>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-accent/10">
-                <motion.div
-                  key={cardKey}
-                  className="h-full bg-accent/40 origin-left"
-                  initial={{ scaleX: 1 }}
-                  animate={{ scaleX: 0 }}
-                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
-                />
-              </div>
             </div>
           </motion.div>
-        ) : rebroadcast ? (
+        ) : (
           <motion.div
             key="rebroadcast"
             initial={{ opacity: 0, x: 40, scale: 0.9 }}
@@ -389,7 +384,7 @@ function BroadcastStatusNotification({
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
-                  {rebroadcast.title ?? "Watch Recent Service"}
+                  {rebroadcast?.title ?? "Watch Today's Service"}
                 </p>
                 <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
@@ -402,7 +397,7 @@ function BroadcastStatusNotification({
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-sky-400/10">
                 <motion.div
-                  key={cardKey}
+                  key="rebroadcast-bar"
                   className="h-full bg-sky-400/40 origin-left"
                   initial={{ scaleX: 1 }}
                   animate={{ scaleX: 0 }}
@@ -410,87 +405,6 @@ function BroadcastStatusNotification({
                 />
               </div>
             </button>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="generic-upcoming"
-            initial={{ opacity: 0, x: 40, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 40, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="relative"
-          >
-            <div
-              className="absolute -inset-3 rounded-[2rem] blur-xl opacity-40"
-              style={{ background: "radial-gradient(circle, rgba(56,189,248,0.3), rgba(0,51,102,0.15))" }}
-            />
-            <div
-              className="relative flex flex-col gap-2 sm:gap-2.5 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 sm:pb-3.5"
-              style={{
-                background: "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(240,248,255,0.95) 100%)",
-                backdropFilter: "blur(24px)",
-                WebkitBackdropFilter: "blur(24px)",
-                border: "1px solid rgba(56,189,248,0.22)",
-                boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 12px 40px rgba(0,51,102,0.12), inset 0 1px 0 rgba(255,255,255,0.95)",
-              }}
-            >
-              <button
-                onClick={() => setDismissed(true)}
-                className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary/6 hover:bg-primary/12 flex items-center justify-center transition-colors"
-              >
-                <X className="h-2.5 w-2.5 text-primary/35" />
-              </button>
-              <div className="flex items-center gap-1.5 pr-5">
-                <motion.div
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="h-4 w-4 sm:h-5 sm:w-5 rounded-md sm:rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.18), rgba(0,51,102,0.1))" }}
-                >
-                  <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-accent" />
-                </motion.div>
-                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-accent whitespace-nowrap">Upcoming Service</span>
-              </div>
-              <div>
-                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">Sunday · 8:00 AM</p>
-                <p className="text-primary/40 text-[9px] sm:text-[10px] font-medium mt-0.5 truncate">Jesus Christ Temple Ministry</p>
-              </div>
-              <div
-                className="rounded-lg sm:rounded-xl px-2 sm:px-3 py-2 sm:py-2.5"
-                style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.07))", border: "1px solid rgba(56,189,248,0.12)" }}
-              >
-                <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-widest text-primary/35 mb-1 sm:mb-1.5">Starts in</p>
-                <div className="flex items-center justify-between">
-                  {[
-                    { val: countdown.days, label: "d" },
-                    { val: countdown.hours, label: "h" },
-                    { val: countdown.minutes, label: "m" },
-                    { val: countdown.seconds, label: "s" },
-                  ].map(({ val, label }, i) => (
-                    <div key={label} className="flex items-center gap-0.5">
-                      <div className="text-center">
-                        <span className="font-black text-xs sm:text-sm text-primary tabular-nums leading-none">{pad(val)}</span>
-                        <p className="text-[7px] sm:text-[8px] font-bold text-primary/30 uppercase">{label}</p>
-                      </div>
-                      {i < 3 && <span className="text-primary/20 font-bold text-xs sm:text-sm mb-1 sm:mb-1.5 mx-[1px] sm:mx-0.5">:</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="hidden sm:flex items-center gap-1.5">
-                <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
-                <p className="text-[9px] text-primary/35 font-medium truncate">Broadcasts live on Temple TV</p>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-accent/10">
-                <motion.div
-                  key={cardKey}
-                  className="h-full bg-accent/40 origin-left"
-                  initial={{ scaleX: 1 }}
-                  animate={{ scaleX: 0 }}
-                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
-                />
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -801,7 +715,6 @@ function HeroSection() {
           setLiveTitle(d?.title ?? null);
           setLiveVideoId(d?.videoId ?? null);
           setScheduledStartTime(d?.scheduledStartTime ?? null);
-          if (!live) setLivePlayerOpen(false);
         })
         .catch(() => {});
     };
@@ -914,7 +827,7 @@ function HeroSection() {
                 </div>
                 <div className="flex items-center gap-2">
                   <a
-                    href={liveVideoId ? `https://www.youtube.com/watch?v=${liveVideoId}` : "https://www.youtube.com/templetvjctm"}
+                    href={`https://www.youtube.com/watch?v=${liveVideoId ?? LIVE_STREAM_VIDEO_ID}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-white/50 hover:text-white text-xs flex items-center gap-1 transition-colors"
@@ -945,13 +858,9 @@ function HeroSection() {
                   </div>
                 )}
                 <iframe
-                  key={liveVideoId ?? "channel"}
+                  key={liveVideoId ?? LIVE_STREAM_VIDEO_ID}
                   className="absolute inset-0 w-full h-full"
-                  src={
-                    liveVideoId
-                      ? `https://www.youtube.com/embed/${liveVideoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`
-                      : `https://www.youtube.com/embed?listType=user_uploads&list=templetvjctm&autoplay=1`
-                  }
+                  src={`https://www.youtube.com/embed/${liveVideoId ?? LIVE_STREAM_VIDEO_ID}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
                   title="JCTM Live Service"
@@ -1304,10 +1213,7 @@ function HeroSection() {
       {/* ── BROADCAST STATUS NOTIFICATION ── */}
       <BroadcastStatusNotification
         isLive={isLive}
-        isUpcoming={isUpcoming}
         liveTitle={liveTitle}
-        scheduledStartTime={scheduledStartTime}
-        countdown={countdown}
         onJoin={() => setLivePlayerOpen(true)}
         rebroadcast={rebroadcastForWidget}
         onWatchRebroadcast={() => setRebroadcastWidgetOpen(true)}
