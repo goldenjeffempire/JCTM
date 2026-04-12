@@ -1,23 +1,34 @@
 /**
- * useLivestreamStatus — real-time livestream status via Server-Sent Events.
+ * useLivestreamStatus — real-time livestream + rebroadcast lifecycle via SSE.
  *
- * Instead of polling REST every 30 seconds, this hook subscribes to the
- * /api/livestream/stream SSE endpoint.  The server pushes a "status" event
- * whenever the live state changes (service goes live, ends, or a manual
- * override is applied), so every connected client reacts within milliseconds.
+ * Subscribes to /api/livestream/stream.  The server pushes a "status" event
+ * whenever the live state changes (goes live, ends, rebroadcast activates,
+ * rebroadcast expires, or a manual override is applied).
+ *
+ * The payload now includes a `rebroadcast` block so the client always knows:
+ *  • isLive:              stream is currently live on YouTube
+ *  • rebroadcast.available: within the 3-day post-service window
+ *  • neither:             idle / outside any active window
  *
  * Reliability:
  *  • Exponential-backoff reconnect (1 s → 2 → 4 → 8 → 16 → 30 s cap)
- *  • Stable session-id per page load (avoids duplicate server-side sessions)
- *  • SSE keepalive comments from the server keep the socket alive through
- *    proxies that would otherwise close idle connections after 60–90 s
- *  • Falls back to the last known state while reconnecting — never flickers
- *    back to "not live" on a transient network blip
+ *  • Stable session-id per page load
+ *  • SSE keepalive comments keep the socket alive through proxies
+ *  • Falls back to last known state while reconnecting
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+export interface RebroadcastState {
+  available: boolean;
+  videoId: string | null;
+  title: string | null;
+  thumbnailUrl: string | null;
+  startedAt: string | null;
+  expiresAt: string | null;
+}
 
 export interface LivestreamStatus {
   isLive: boolean;
@@ -27,7 +38,17 @@ export interface LivestreamStatus {
   videoId: string | null;
   startedAt: string | null;
   scheduledStartTime: string | null;
+  rebroadcast: RebroadcastState;
 }
+
+const DEFAULT_REBROADCAST: RebroadcastState = {
+  available: false,
+  videoId: null,
+  title: null,
+  thumbnailUrl: null,
+  startedAt: null,
+  expiresAt: null,
+};
 
 const DEFAULT_STATUS: LivestreamStatus = {
   isLive: false,
@@ -37,20 +58,21 @@ const DEFAULT_STATUS: LivestreamStatus = {
   videoId: null,
   startedAt: null,
   scheduledStartTime: null,
+  rebroadcast: DEFAULT_REBROADCAST,
 };
 
-type SSEEvent = { type: "status" } & LivestreamStatus;
+type SSEEvent = { type: "status" } & Omit<LivestreamStatus, "rebroadcast"> & {
+  rebroadcast?: RebroadcastState;
+};
 
 export function useLivestreamStatus(): LivestreamStatus {
   const [status, setStatus] = useState<LivestreamStatus>(DEFAULT_STATUS);
 
-  const esRef             = useRef<EventSource | null>(null);
-  const retryDelayRef     = useRef(1_000);
-  const retryTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const connectFnRef      = useRef<() => void>(() => {});
-  // Stable session-id for this page load — server uses it to deduplicate
-  // reconnects and avoid inflating its own internal session count.
-  const sid               = useRef(`status-${crypto.randomUUID()}`).current;
+  const esRef         = useRef<EventSource | null>(null);
+  const retryDelayRef = useRef(1_000);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectFnRef  = useRef<() => void>(() => {});
+  const sid           = useRef(`status-${crypto.randomUUID()}`).current;
 
   const connect = useCallback(() => {
     if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
@@ -62,7 +84,6 @@ export function useLivestreamStatus(): LivestreamStatus {
     esRef.current = es;
 
     es.onopen = () => {
-      // Reset backoff on successful connection
       retryDelayRef.current = 1_000;
     };
 
@@ -71,13 +92,14 @@ export function useLivestreamStatus(): LivestreamStatus {
         const data = JSON.parse(event.data as string) as SSEEvent;
         if (data.type === "status") {
           setStatus({
-            isLive:               data.isLive    ?? false,
-            isUpcoming:           data.isUpcoming ?? false,
-            title:                data.title     ?? null,
-            streamUrl:            data.streamUrl  ?? null,
-            videoId:              data.videoId    ?? null,
-            startedAt:            data.startedAt  ?? null,
-            scheduledStartTime:   data.scheduledStartTime ?? null,
+            isLive:              data.isLive    ?? false,
+            isUpcoming:          data.isUpcoming ?? false,
+            title:               data.title     ?? null,
+            streamUrl:           data.streamUrl  ?? null,
+            videoId:             data.videoId    ?? null,
+            startedAt:           data.startedAt  ?? null,
+            scheduledStartTime:  data.scheduledStartTime ?? null,
+            rebroadcast:         data.rebroadcast ?? DEFAULT_REBROADCAST,
           });
         }
       } catch {
@@ -88,7 +110,6 @@ export function useLivestreamStatus(): LivestreamStatus {
     es.onerror = () => {
       es.close();
       esRef.current = null;
-      // Exponential backoff: 1 → 2 → 4 → 8 → 16 → 30 s (cap)
       const delay = retryDelayRef.current;
       retryDelayRef.current = Math.min(delay * 2, 30_000);
       retryTimerRef.current = setTimeout(() => connectFnRef.current(), delay);

@@ -10,7 +10,14 @@ import { desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LIVE_VIDEO_ID = "f7TOxaM2Mq4";
+const REBROADCAST_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days exactly
+const JCTM_CHANNEL_ID = "UCkiRQ9lHdRZ2_p3hRe0UQBQ";
+const CACHE_TTL_MS = 30_000;
+
+// ─── Live State ───────────────────────────────────────────────────────────────
 
 type LivestreamState = {
   isLive: boolean;
@@ -22,8 +29,6 @@ type LivestreamState = {
   scheduledStartTime: string | null;
 };
 
-const LIVE_VIDEO_ID = "f7TOxaM2Mq4";
-
 let livestreamState: LivestreamState = {
   isLive: false,
   isUpcoming: false,
@@ -34,23 +39,112 @@ let livestreamState: LivestreamState = {
   scheduledStartTime: null,
 };
 
-// ─── SSE status broadcaster ───────────────────────────────────────────────────
+// ─── Rebroadcast Lifecycle State ──────────────────────────────────────────────
 //
-// All connected clients subscribe to /api/livestream/stream.
-// Whenever the state changes (YouTube poll, manual override), we push the
-// new state to every connected client — no polling needed on the client side.
+// Tracks the 3-day post-service rebroadcast window.
+// Primary source: in-memory (updated when live→offline transition is detected).
+// Startup: initialized from DB so server restarts don't lose rebroadcast state.
+
+type RebroadcastLifecycle = {
+  available: boolean;
+  videoId: string | null;
+  title: string | null;
+  thumbnailUrl: string | null;
+  startedAt: string | null;  // ISO — when the live stream ended
+  expiresAt: string | null;  // ISO — startedAt + 3 days
+};
+
+let rebroadcastLifecycle: RebroadcastLifecycle = {
+  available: false,
+  videoId: null,
+  title: null,
+  thumbnailUrl: null,
+  startedAt: null,
+  expiresAt: null,
+};
+
+/** Compute whether the rebroadcast window is currently active. */
+function isRebroadcastActive(rb: RebroadcastLifecycle): boolean {
+  if (!rb.available || !rb.expiresAt) return false;
+  return Date.now() < new Date(rb.expiresAt).getTime();
+}
+
+/** Expire rebroadcast if its 3-day window has passed. */
+function checkRebroadcastExpiry(): void {
+  if (rebroadcastLifecycle.available && !isRebroadcastActive(rebroadcastLifecycle)) {
+    rebroadcastLifecycle = {
+      available: false,
+      videoId: null,
+      title: null,
+      thumbnailUrl: null,
+      startedAt: null,
+      expiresAt: null,
+    };
+  }
+}
+
+/** Initialize rebroadcast state from DB on startup (handles server restarts). */
+async function initRebroadcastFromDB(): Promise<void> {
+  try {
+    const rows = await db
+      .select()
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.broadcastEndedAt))
+      .limit(1);
+
+    if (!rows.length || !rows[0]) return;
+    const sermon = rows[0];
+    const endedAt = sermon.broadcastEndedAt;
+    if (!endedAt) return;
+
+    const startedAt = endedAt.toISOString();
+    const expiresAt = new Date(endedAt.getTime() + REBROADCAST_DURATION_MS).toISOString();
+
+    if (Date.now() > new Date(expiresAt).getTime()) return; // Already expired
+
+    rebroadcastLifecycle = {
+      available: true,
+      videoId: sermon.videoId,
+      title: sermon.title,
+      thumbnailUrl: sermon.thumbnailUrl,
+      startedAt,
+      expiresAt,
+    };
+  } catch {
+    // Non-critical — continue without rebroadcast state
+  }
+}
+
+// Run DB initialization immediately (non-blocking)
+setImmediate(() => { initRebroadcastFromDB().catch(() => {}); });
+
+// ─── SSE status broadcaster ───────────────────────────────────────────────────
 
 const statusSessions = new Map<string, Response>();
 
-/** Flush a payload to a single SSE response, bypassing any compression buffer. */
 function sseWrite(res: Response, payload: string): void {
   res.write(payload);
   (res as unknown as { flush?: () => void }).flush?.();
 }
 
-/** Push the current livestream state to all connected SSE clients. */
+/** Build the full status payload including rebroadcast lifecycle. */
+function buildStatusPayload(): string {
+  checkRebroadcastExpiry();
+  const rb = isRebroadcastActive(rebroadcastLifecycle) ? rebroadcastLifecycle : {
+    available: false,
+    videoId: null,
+    title: null,
+    thumbnailUrl: null,
+    startedAt: null,
+    expiresAt: null,
+  };
+  return JSON.stringify({ type: "status", ...livestreamState, rebroadcast: rb });
+}
+
+/** Push the current livestream + rebroadcast state to all connected SSE clients. */
 function broadcastStatus(state: LivestreamState): void {
-  const payload = `data: ${JSON.stringify({ type: "status", ...state })}\n\n`;
+  livestreamState = state;
+  const payload = `data: ${buildStatusPayload()}\n\n`;
   for (const [sid, res] of statusSessions) {
     try {
       sseWrite(res, payload);
@@ -60,7 +154,7 @@ function broadcastStatus(state: LivestreamState): void {
   }
 }
 
-// Keepalive heartbeat — prevents proxies killing idle SSE connections
+// Keepalive heartbeat
 const statusHeartbeat = setInterval(() => {
   for (const [sid, res] of statusSessions) {
     try {
@@ -83,9 +177,6 @@ type YouTubeCheckResult = {
 };
 
 let youtubeCheckCache: (YouTubeCheckResult & { checkedAt: number }) | null = null;
-const CACHE_TTL_MS = 30_000;
-
-const JCTM_CHANNEL_ID = "UCkiRQ9lHdRZ2_p3hRe0UQBQ";
 
 async function fetchWithRetry(url: string, retries = 3, delayMs = 1000): Promise<globalThis.Response> {
   let lastErr: unknown;
@@ -117,7 +208,13 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
     };
   }
 
-  const empty: YouTubeCheckResult = { isLive: false, isUpcoming: false, title: null, videoId: null, scheduledStartTime: null };
+  const empty: YouTubeCheckResult = {
+    isLive: false,
+    isUpcoming: false,
+    title: null,
+    videoId: null,
+    scheduledStartTime: null,
+  };
 
   try {
     const liveUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${JCTM_CHANNEL_ID}&eventType=live&type=video&key=${apiKey}`;
@@ -172,7 +269,7 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
               scheduledStartTime = detailData.items?.[0]?.liveStreamingDetails?.scheduledStartTime ?? null;
             }
           } catch {
-            // Non-critical — proceed without scheduled time
+            // Non-critical
           }
         }
 
@@ -195,24 +292,52 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
   }
 }
 
-// ─── Server-side background polling ──────────────────────────────────────────
+// ─── Sunday Service Window Detection ─────────────────────────────────────────
 //
-// Proactively checks YouTube every 30 seconds and broadcasts status changes
-// to all connected SSE clients.  This ensures every viewer sees the live
-// banner appear within 30 seconds of a service starting — without any
-// client-side polling.
+// Every Sunday between 7:50 AM – 9:30 AM US Eastern time, the system polls
+// every 5 seconds for near-instant live detection.  Outside this window, the
+// standard 30-second background poll runs as usual.
+
+function isSundayServiceWindow(): boolean {
+  const now = new Date();
+  // Eastern Time: UTC-5 (EST) / UTC-4 (EDT). Use UTC-5 conservatively so we
+  // start polling a bit early even during daylight saving.
+  const estMs = now.getTime() - 5 * 60 * 60 * 1000;
+  const est = new Date(estMs);
+  const dayOfWeek = est.getUTCDay(); // 0 = Sunday
+  const totalMinutes = est.getUTCHours() * 60 + est.getUTCMinutes();
+  return dayOfWeek === 0 && totalMinutes >= 7 * 60 + 50 && totalMinutes <= 9 * 60 + 30;
+}
+
+// ─── Background poll ──────────────────────────────────────────────────────────
 
 async function pollAndBroadcast(): Promise<void> {
   if (!process.env.YOUTUBE_API_KEY) return;
+
+  // Expire rebroadcast if window has closed
+  checkRebroadcastExpiry();
 
   // Bust the client-side cache so we always get a fresh result
   youtubeCheckCache = null;
 
   try {
     const ytStatus = await checkYouTubeLive();
+    const wasLive = livestreamState.isLive;
     let newState: LivestreamState;
 
     if (ytStatus.isLive) {
+      // If we're transitioning INTO live, clear any active rebroadcast
+      if (!wasLive && rebroadcastLifecycle.available) {
+        rebroadcastLifecycle = {
+          available: false,
+          videoId: null,
+          title: null,
+          thumbnailUrl: null,
+          startedAt: null,
+          expiresAt: null,
+        };
+      }
+
       newState = {
         isLive: true,
         isUpcoming: false,
@@ -235,7 +360,7 @@ async function pollAndBroadcast(): Promise<void> {
         scheduledStartTime: ytStatus.scheduledStartTime,
       };
     } else {
-      // Nothing live or upcoming — clear unless manually overridden
+      // Nothing live or upcoming
       if ((livestreamState.isLive || livestreamState.isUpcoming) && !livestreamState.startedAt?.includes("manual")) {
         newState = {
           isLive: false,
@@ -246,12 +371,30 @@ async function pollAndBroadcast(): Promise<void> {
           startedAt: null,
           scheduledStartTime: null,
         };
+
+        // Transition: live → offline — activate rebroadcast window
+        if (wasLive) {
+          const endedVideoId = livestreamState.videoId;
+          const endedTitle = livestreamState.title;
+          const startedAt = new Date().toISOString();
+          const expiresAt = new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString();
+
+          rebroadcastLifecycle = {
+            available: true,
+            videoId: endedVideoId,
+            title: endedTitle,
+            thumbnailUrl: endedVideoId
+              ? `https://i.ytimg.com/vi/${endedVideoId}/hqdefault.jpg`
+              : null,
+            startedAt,
+            expiresAt,
+          };
+        }
       } else {
         return; // No change — manual override stays, don't broadcast
       }
     }
 
-    // Only broadcast if something actually changed
     const changed =
       newState.isLive !== livestreamState.isLive ||
       newState.isUpcoming !== livestreamState.isUpcoming ||
@@ -268,10 +411,20 @@ async function pollAndBroadcast(): Promise<void> {
   }
 }
 
-// Start background poll immediately and then every 30 seconds
+// Standard 30-second background poll
 setImmediate(() => { pollAndBroadcast().catch(() => {}); });
 const pollInterval = setInterval(() => { pollAndBroadcast().catch(() => {}); }, 30_000);
 pollInterval.unref();
+
+// Sunday service window: poll every 5 seconds (7:50 AM – 9:30 AM EST)
+// so the live banner appears within seconds of the stream going live.
+const sundayPollInterval = setInterval(() => {
+  if (isSundayServiceWindow()) {
+    youtubeCheckCache = null; // Always bust cache in service window
+    pollAndBroadcast().catch(() => {});
+  }
+}, 5_000);
+sundayPollInterval.unref();
 
 // ─── GET /api/livestream/stream — real-time SSE status subscription ───────────
 
@@ -280,7 +433,6 @@ router.get("/livestream/stream", (req: Request, res: Response): void => {
     ? req.query.sid.slice(0, 64)
     : `status-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  // Deduplicate: close any existing connection for this sid
   const existing = statusSessions.get(sid);
   if (existing) {
     try { existing.end(); } catch { /* already gone */ }
@@ -293,8 +445,8 @@ router.get("/livestream/stream", (req: Request, res: Response): void => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  // Send current state immediately so the client doesn't wait
-  sseWrite(res, `data: ${JSON.stringify({ type: "status", ...livestreamState })}\n\n`);
+  // Send current state immediately (includes rebroadcast lifecycle)
+  sseWrite(res, `data: ${buildStatusPayload()}\n\n`);
 
   statusSessions.set(sid, res);
 
@@ -305,7 +457,7 @@ router.get("/livestream/stream", (req: Request, res: Response): void => {
   });
 });
 
-// ─── GET /api/livestream/status — REST fallback (used by SSR / robots) ────────
+// ─── GET /api/livestream/status — REST fallback ───────────────────────────────
 
 router.get("/livestream/status", async (_req, res): Promise<void> => {
   const ytStatus = await checkYouTubeLive();
@@ -327,9 +479,7 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
       isLive: false,
       isUpcoming: true,
       title: ytStatus.title,
-      streamUrl: ytStatus.videoId
-        ? `https://www.youtube.com/watch?v=${ytStatus.videoId}`
-        : null,
+      streamUrl: ytStatus.videoId ? `https://www.youtube.com/watch?v=${ytStatus.videoId}` : null,
       videoId: ytStatus.videoId,
       startedAt: null,
       scheduledStartTime: ytStatus.scheduledStartTime,
@@ -337,7 +487,6 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
   } else if (!process.env.YOUTUBE_API_KEY) {
     // No API key — leave manual in-memory state untouched
   } else {
-    // API available, nothing live or upcoming — clear unless manually set
     if ((livestreamState.isLive || livestreamState.isUpcoming) && !livestreamState.startedAt?.includes("manual")) {
       livestreamState = {
         isLive: false,
@@ -351,7 +500,6 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
     }
   }
 
-  // Push updated state to all SSE subscribers
   broadcastStatus(livestreamState);
 
   res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
@@ -386,7 +534,6 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
 
   youtubeCheckCache = null;
 
-  // Immediately push the manual override to all SSE subscribers
   broadcastStatus(livestreamState);
 
   res.json(UpdateLivestreamStatusResponse.parse(livestreamState));
@@ -394,10 +541,28 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
 
 // ─── GET /api/livestream/rebroadcast ──────────────────────────────────────────
 //
-// Always returns the most recent completed sermon as a rebroadcast.
-// No TTL restriction — rebroadcast is always available when not live.
+// Returns the currently active rebroadcast (within the 3-day window after a
+// live service ends).  Falls back to DB if in-memory state is not set.
+// Returns available: false once the 3-day window expires.
 
 router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
+  checkRebroadcastExpiry();
+
+  // Use in-memory lifecycle if active
+  if (isRebroadcastActive(rebroadcastLifecycle)) {
+    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    res.json(GetRebroadcastStatusResponse.parse({
+      available: true,
+      videoId: rebroadcastLifecycle.videoId,
+      title: rebroadcastLifecycle.title,
+      thumbnailUrl: rebroadcastLifecycle.thumbnailUrl,
+      broadcastEndedAt: rebroadcastLifecycle.startedAt,
+      expiresAt: rebroadcastLifecycle.expiresAt,
+    }));
+    return;
+  }
+
+  // Fall back to DB — useful when in-memory state isn't available yet
   try {
     const rows = await db
       .select()
@@ -406,13 +571,12 @@ router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
       .limit(1);
 
     if (rows.length === 0 || !rows[0] || !rows[0].videoId) {
-      // Fall back to the known default sermon video so rebroadcast is always available
       res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
       res.json(GetRebroadcastStatusResponse.parse({
-        available: true,
-        videoId: LIVE_VIDEO_ID,
-        title: "Holy Spirit Sunday Service — Temple TV",
-        thumbnailUrl: `https://i.ytimg.com/vi/${LIVE_VIDEO_ID}/hqdefault.jpg`,
+        available: false,
+        videoId: null,
+        title: null,
+        thumbnailUrl: null,
         broadcastEndedAt: null,
         expiresAt: null,
       }));
@@ -420,24 +584,53 @@ router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
     }
 
     const sermon = rows[0];
-    const endedAt = sermon.broadcastEndedAt ?? null;
+    const endedAt = sermon.broadcastEndedAt;
+
+    if (!endedAt) {
+      // No broadcast end time recorded — not available
+      res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+      res.json(GetRebroadcastStatusResponse.parse({
+        available: false,
+        videoId: null,
+        title: null,
+        thumbnailUrl: null,
+        broadcastEndedAt: null,
+        expiresAt: null,
+      }));
+      return;
+    }
+
+    const expiresAt = new Date(endedAt.getTime() + REBROADCAST_DURATION_MS);
+    const isAvailable = Date.now() < expiresAt.getTime();
+
+    // Sync in-memory state with DB if found and still valid
+    if (isAvailable) {
+      rebroadcastLifecycle = {
+        available: true,
+        videoId: sermon.videoId,
+        title: sermon.title,
+        thumbnailUrl: sermon.thumbnailUrl,
+        startedAt: endedAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      };
+    }
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     res.json(GetRebroadcastStatusResponse.parse({
-      available: true,
-      videoId: sermon.videoId,
-      title: sermon.title,
-      thumbnailUrl: sermon.thumbnailUrl,
-      broadcastEndedAt: endedAt ? endedAt.toISOString() : null,
-      expiresAt: null,
+      available: isAvailable,
+      videoId: isAvailable ? sermon.videoId : null,
+      title: isAvailable ? sermon.title : null,
+      thumbnailUrl: isAvailable ? sermon.thumbnailUrl : null,
+      broadcastEndedAt: endedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
     }));
   } catch {
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     res.json(GetRebroadcastStatusResponse.parse({
-      available: true,
-      videoId: LIVE_VIDEO_ID,
-      title: "Holy Spirit Sunday Service — Temple TV",
-      thumbnailUrl: `https://i.ytimg.com/vi/${LIVE_VIDEO_ID}/hqdefault.jpg`,
+      available: false,
+      videoId: null,
+      title: null,
+      thumbnailUrl: null,
       broadcastEndedAt: null,
       expiresAt: null,
     }));
