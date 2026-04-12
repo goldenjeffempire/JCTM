@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import {
   GetLivestreamStatusResponse,
   GetRebroadcastStatusResponse,
@@ -9,6 +9,8 @@ import { db, sermonsTable } from "@workspace/db";
 import { desc, gte } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// ─── State ────────────────────────────────────────────────────────────────────
 
 type LivestreamState = {
   isLive: boolean;
@@ -32,6 +34,46 @@ let livestreamState: LivestreamState = {
   scheduledStartTime: null,
 };
 
+// ─── SSE status broadcaster ───────────────────────────────────────────────────
+//
+// All connected clients subscribe to /api/livestream/stream.
+// Whenever the state changes (YouTube poll, manual override), we push the
+// new state to every connected client — no polling needed on the client side.
+
+const statusSessions = new Map<string, Response>();
+
+/** Flush a payload to a single SSE response, bypassing any compression buffer. */
+function sseWrite(res: Response, payload: string): void {
+  res.write(payload);
+  (res as unknown as { flush?: () => void }).flush?.();
+}
+
+/** Push the current livestream state to all connected SSE clients. */
+function broadcastStatus(state: LivestreamState): void {
+  const payload = `data: ${JSON.stringify({ type: "status", ...state })}\n\n`;
+  for (const [sid, res] of statusSessions) {
+    try {
+      sseWrite(res, payload);
+    } catch {
+      statusSessions.delete(sid);
+    }
+  }
+}
+
+// Keepalive heartbeat — prevents proxies killing idle SSE connections
+const statusHeartbeat = setInterval(() => {
+  for (const [sid, res] of statusSessions) {
+    try {
+      sseWrite(res, ": keepalive\n\n");
+    } catch {
+      statusSessions.delete(sid);
+    }
+  }
+}, 25_000);
+statusHeartbeat.unref();
+
+// ─── YouTube live check ───────────────────────────────────────────────────────
+
 type YouTubeCheckResult = {
   isLive: boolean;
   isUpcoming: boolean;
@@ -45,7 +87,7 @@ const CACHE_TTL_MS = 30_000;
 
 const JCTM_CHANNEL_ID = "UCkiRQ9lHdRZ2_p3hRe0UQBQ";
 
-async function fetchWithRetry(url: string, retries = 3, delayMs = 1000): Promise<Response> {
+async function fetchWithRetry(url: string, retries = 3, delayMs = 1000): Promise<globalThis.Response> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
@@ -153,6 +195,118 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
   }
 }
 
+// ─── Server-side background polling ──────────────────────────────────────────
+//
+// Proactively checks YouTube every 30 seconds and broadcasts status changes
+// to all connected SSE clients.  This ensures every viewer sees the live
+// banner appear within 30 seconds of a service starting — without any
+// client-side polling.
+
+async function pollAndBroadcast(): Promise<void> {
+  if (!process.env.YOUTUBE_API_KEY) return;
+
+  // Bust the client-side cache so we always get a fresh result
+  youtubeCheckCache = null;
+
+  try {
+    const ytStatus = await checkYouTubeLive();
+    let newState: LivestreamState;
+
+    if (ytStatus.isLive) {
+      newState = {
+        isLive: true,
+        isUpcoming: false,
+        title: ytStatus.title,
+        streamUrl: ytStatus.videoId
+          ? `https://www.youtube.com/watch?v=${ytStatus.videoId}`
+          : "https://www.youtube.com/templetvjctm",
+        videoId: ytStatus.videoId,
+        startedAt: livestreamState.isLive ? livestreamState.startedAt : new Date().toISOString(),
+        scheduledStartTime: null,
+      };
+    } else if (ytStatus.isUpcoming) {
+      newState = {
+        isLive: false,
+        isUpcoming: true,
+        title: ytStatus.title,
+        streamUrl: ytStatus.videoId ? `https://www.youtube.com/watch?v=${ytStatus.videoId}` : null,
+        videoId: ytStatus.videoId,
+        startedAt: null,
+        scheduledStartTime: ytStatus.scheduledStartTime,
+      };
+    } else {
+      // Nothing live or upcoming — clear unless manually overridden
+      if ((livestreamState.isLive || livestreamState.isUpcoming) && !livestreamState.startedAt?.includes("manual")) {
+        newState = {
+          isLive: false,
+          isUpcoming: false,
+          title: null,
+          streamUrl: null,
+          videoId: null,
+          startedAt: null,
+          scheduledStartTime: null,
+        };
+      } else {
+        return; // No change — manual override stays, don't broadcast
+      }
+    }
+
+    // Only broadcast if something actually changed
+    const changed =
+      newState.isLive !== livestreamState.isLive ||
+      newState.isUpcoming !== livestreamState.isUpcoming ||
+      newState.videoId !== livestreamState.videoId ||
+      newState.title !== livestreamState.title;
+
+    livestreamState = newState;
+
+    if (changed) {
+      broadcastStatus(livestreamState);
+    }
+  } catch {
+    // Non-fatal — silently skip this poll cycle
+  }
+}
+
+// Start background poll immediately and then every 30 seconds
+setImmediate(() => { pollAndBroadcast().catch(() => {}); });
+const pollInterval = setInterval(() => { pollAndBroadcast().catch(() => {}); }, 30_000);
+pollInterval.unref();
+
+// ─── GET /api/livestream/stream — real-time SSE status subscription ───────────
+
+router.get("/livestream/stream", (req: Request, res: Response): void => {
+  const sid = typeof req.query.sid === "string" && req.query.sid.length > 0
+    ? req.query.sid.slice(0, 64)
+    : `status-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Deduplicate: close any existing connection for this sid
+  const existing = statusSessions.get(sid);
+  if (existing) {
+    try { existing.end(); } catch { /* already gone */ }
+    statusSessions.delete(sid);
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  // Send current state immediately so the client doesn't wait
+  sseWrite(res, `data: ${JSON.stringify({ type: "status", ...livestreamState })}\n\n`);
+
+  statusSessions.set(sid, res);
+
+  req.on("close", () => {
+    if (statusSessions.get(sid) === res) {
+      statusSessions.delete(sid);
+    }
+  });
+});
+
+// ─── GET /api/livestream/status — REST fallback (used by SSR / robots) ────────
+
 router.get("/livestream/status", async (_req, res): Promise<void> => {
   const ytStatus = await checkYouTubeLive();
 
@@ -197,9 +351,14 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
     }
   }
 
+  // Push updated state to all SSE subscribers
+  broadcastStatus(livestreamState);
+
   res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
   res.json(GetLivestreamStatusResponse.parse(livestreamState));
 });
+
+// ─── POST /api/livestream/status — manual override ────────────────────────────
 
 router.post("/livestream/status", async (req, res): Promise<void> => {
   const parsed = UpdateLivestreamStatusBody.safeParse(req.body);
@@ -227,8 +386,13 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
 
   youtubeCheckCache = null;
 
+  // Immediately push the manual override to all SSE subscribers
+  broadcastStatus(livestreamState);
+
   res.json(UpdateLivestreamStatusResponse.parse(livestreamState));
 });
+
+// ─── GET /api/livestream/rebroadcast ──────────────────────────────────────────
 
 const REBROADCAST_TTL_MS = 3.5 * 24 * 60 * 60 * 1000;
 

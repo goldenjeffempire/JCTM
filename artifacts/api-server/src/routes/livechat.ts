@@ -36,13 +36,27 @@ const prayerHistory: PrayerRequest[] = [];
  */
 const sessions = new Map<string, Response>();
 
+// ─── SSE write helpers ────────────────────────────────────────────────────────
+
+/**
+ * Write an SSE frame and immediately flush it through any compression
+ * middleware.  Without flush(), the compressor may buffer small frames
+ * and delay delivery — critical for real-time chat.
+ */
+function sseWrite(res: Response, payload: string): void {
+  res.write(payload);
+  // The `compression` middleware adds a flush() shim when it wraps the stream.
+  // Calling it ensures the frame is sent immediately instead of being buffered.
+  (res as unknown as { flush?: () => void }).flush?.();
+}
+
 // ─── Broadcast ────────────────────────────────────────────────────────────────
 
 function broadcast(data: object): void {
   const payload = `data: ${JSON.stringify(data)}\n\n`;
   for (const [sid, res] of sessions) {
     try {
-      res.write(payload);
+      sseWrite(res, payload);
     } catch {
       sessions.delete(sid);
     }
@@ -50,13 +64,13 @@ function broadcast(data: object): void {
 }
 
 // ─── Keepalive heartbeat ──────────────────────────────────────────────────────
-// Proxies (Nginx, Cloudflare) kill idle connections after ~60–90 s.
+// Proxies (Nginx, Cloudflare, Replit) kill idle connections after ~60–90 s.
 // Sending an SSE comment every 25 s keeps the TCP socket alive.
 
 const heartbeat = setInterval(() => {
   for (const [sid, res] of sessions) {
     try {
-      res.write(": keepalive\n\n");
+      sseWrite(res, ": keepalive\n\n");
     } catch {
       sessions.delete(sid);
     }
@@ -137,7 +151,7 @@ function clientIp(req: Request): string {
   return req.socket.remoteAddress ?? "unknown";
 }
 
-// ─── SSE: live stream endpoint ────────────────────────────────────────────────
+// ─── SSE: live chat stream endpoint ──────────────────────────────────────────
 
 router.get("/livechat/stream", (req: Request, res: Response): void => {
   // Accept a session-id from the client to deduplicate reconnects.
@@ -161,8 +175,8 @@ router.get("/livechat/stream", (req: Request, res: Response): void => {
 
   // Immediately send the last 50 messages and all prayer history to the new client.
   const recentMessages = messageHistory.slice(-50);
-  res.write(`data: ${JSON.stringify({ type: "history", messages: recentMessages })}\n\n`);
-  res.write(`data: ${JSON.stringify({ type: "prayer_history", prayers: prayerHistory })}\n\n`);
+  sseWrite(res, `data: ${JSON.stringify({ type: "history", messages: recentMessages })}\n\n`);
+  sseWrite(res, `data: ${JSON.stringify({ type: "prayer_history", prayers: prayerHistory })}\n\n`);
 
   sessions.set(sid, res);
 

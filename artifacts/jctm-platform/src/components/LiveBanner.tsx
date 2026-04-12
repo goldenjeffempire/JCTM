@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { useGetLivestreamStatus, getGetLivestreamStatusQueryKey } from "@workspace/api-client-react";
 import { Radio, X, MessageSquare, Tv2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LiveChat } from "@/components/LiveChat";
+import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
 export function LiveBanner() {
-  const { data: status } = useGetLivestreamStatus({
-    query: { queryKey: getGetLivestreamStatusQueryKey(), refetchInterval: 30000 }
-  });
+  const status = useLivestreamStatus();
   const [showPlayer, setShowPlayer] = useState(false);
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
 
-  if (!status?.isLive) return null;
+  if (!status.isLive) return null;
 
   const videoIdMatch = status.streamUrl?.match(/[?&]v=([^&]+)/);
   const videoId = videoIdMatch?.[1] ?? "f7TOxaM2Mq4";

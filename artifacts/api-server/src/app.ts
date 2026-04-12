@@ -50,6 +50,10 @@ app.use(
     threshold: 512,
     filter(req, res) {
       if (req.headers["x-no-compression"]) return false;
+      // Never compress SSE streams — they must be flushed unbuffered in real time.
+      // EventSource clients send Accept: text/event-stream.
+      const accept = req.headers["accept"] ?? "";
+      if (accept.includes("text/event-stream")) return false;
       return compression.filter(req, res);
     },
   }),
