@@ -20,7 +20,7 @@ function Countdown({ target }: { target: string }) {
 
   const end = new Date(target);
   const now = new Date();
-  if (isPast(end)) return <span className="text-green-400 font-semibold text-sm">Live Now / In Progress</span>;
+  if (isPast(end)) return <span className="text-green-400 font-semibold text-sm">Rebroadcast Now / In Progress</span>;
 
   const days = differenceInDays(end, now);
   const hours = differenceInHours(end, now) % 24;

@@ -21,7 +21,7 @@ export function LiveBanner() {
       <div className="bg-destructive text-destructive-foreground w-full py-2 px-3 sm:px-4 flex items-center justify-center gap-2 sm:gap-3 shadow-md z-[60] relative">
         <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse shrink-0">
           <Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="font-bold text-xs sm:text-sm tracking-wide">LIVE NOW</span>
+          <span className="font-bold text-xs sm:text-sm tracking-wide">REBROADCAST NOW</span>
         </div>
         <div className="h-4 w-px bg-destructive-foreground/30 hidden sm:block shrink-0" />
         <span className="text-xs sm:text-sm font-medium hidden sm:block truncate max-w-xs md:max-w-sm lg:max-w-md">

@@ -267,7 +267,7 @@ function BroadcastStatusNotification({
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                 </span>
-                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Live Now</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Rebroadcast Now</span>
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
@@ -1071,7 +1071,7 @@ function HeroSection() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
                     </span>
-                    Live Now — Join Service
+                    Rebroadcast Now — Join Service
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -1117,7 +1117,7 @@ function HeroSection() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                     </span>
-                    Watch Live Now
+                    Watch Rebroadcast Now
                   </RippleButton>
                 ) : (
                   <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
@@ -1198,7 +1198,7 @@ function HeroSection() {
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
                     </span>
                   </div>
-                  <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider">Live Now</span>
+                  <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider">Rebroadcast Now</span>
                 </motion.button>
               ) : (
                 <motion.a
@@ -2031,7 +2031,7 @@ function SermonSpotlight() {
                           <img src={sermon.thumbnailUrl} alt={sermon.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
                           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
                           {(sermon as { isLive?: boolean }).isLive && (
-                            <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full"><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-white" /></span>LIVE NOW</div>
+                            <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full"><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-white" /></span>REBROADCAST NOW</div>
                           )}
                           <button onClick={() => setPlaying(true)} className="absolute inset-0 flex items-center justify-center" aria-label="Play sermon">
                             <motion.div whileHover={{ scale: 1.12 }} whileTap={{ scale: 0.95 }} className="h-20 w-20 bg-accent rounded-full flex items-center justify-center shadow-2xl shadow-accent/50 ring-4 ring-white/20">
@@ -2596,7 +2596,7 @@ function SundayServiceCard() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                         <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                       </span>
-                      Live Now
+                      Rebroadcast Now
                     </motion.span>
                   )}
                   {phase === "standby" && (
@@ -2716,7 +2716,7 @@ function SundayServiceCard() {
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                         className="bg-red-500/20 rounded-2xl p-3.5 border border-red-400/30 text-center"
                       >
-                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">🔴 Service is Live Now</p>
+                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">📡 Rebroadcast Now</p>
                         <p className="text-white/45 text-[9px] mt-1">Stream is active on Temple TV</p>
                       </motion.div>
                     </motion.div>

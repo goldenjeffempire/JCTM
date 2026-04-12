@@ -199,7 +199,7 @@ export default function Sermons() {
         const data = JSON.parse(e.data) as SermonItem & { isLive?: boolean; isFeatured?: boolean };
         const isLive = data.isLive;
         toast.success(
-          isLive ? "🔴 Live Now — Prophet Amos is Live!" : "New Message from Prophet Amos",
+          isLive ? "📡 Rebroadcast Now — Prophet Amos" : "New Message from Prophet Amos",
           {
             description: data.title,
             duration: 8000,
@@ -358,7 +358,7 @@ export default function Sermons() {
                   </span>
                   <Radio className="h-4 w-4 text-red-500" />
                   <span className="text-sm font-semibold text-red-600 truncate">
-                    Live Now — Join Service{liveTitle ? `: ${liveTitle}` : ""}
+                    Rebroadcast Now — Join Service{liveTitle ? `: ${liveTitle}` : ""}
                   </span>
                   <Button
                     size="sm"

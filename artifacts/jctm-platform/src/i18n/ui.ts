@@ -137,10 +137,10 @@ export const UI: UIStrings = {
     ko: "오디오만", ja: "音声のみ", id: "Audio Saja",
   },
   "Live Now": {
-    en: "Live Now", yo: "Àárọ̀ Báyìí", ig: "Live ugbu a", ha: "Rayuwa Yanzu", fr: "En direct maintenant",
-    es: "En vivo ahora", pt: "Ao vivo agora", de: "Jetzt live", ar: "مباشر الآن",
-    zh: "正在直播", hi: "अभी लाइव", sw: "Moja kwa Moja Sasa", ru: "В прямом эфире", it: "In diretta ora",
-    ko: "지금 라이브", ja: "ただいまライブ", id: "Siaran Langsung",
+    en: "Rebroadcast Now", yo: "Àtúnṣàárọ̀ Báyìí", ig: "Ntụgharị ugbu a", ha: "Sake Watsa Yanzu", fr: "Rediffusion maintenant",
+    es: "Redifusión ahora", pt: "Retransmissão agora", de: "Jetzt Wiederholung", ar: "إعادة البث الآن",
+    zh: "重播中", hi: "अभी पुनः प्रसारण", sw: "Kurudia Sasa", ru: "Повтор сейчас", it: "Replica ora",
+    ko: "지금 재방송", ja: "ただいま再放送", id: "Siaran Ulang Sekarang",
   },
   "Sync": {
     en: "Sync", yo: "Sọ̀kan", ig: "Melite", ha: "Daidaita", fr: "Synchroniser",
