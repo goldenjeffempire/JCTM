@@ -6,7 +6,7 @@ import {
   UpdateLivestreamStatusResponse,
 } from "@workspace/api-zod";
 import { db, sermonsTable } from "@workspace/db";
-import { desc, gte } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -25,12 +25,12 @@ type LivestreamState = {
 const LIVE_VIDEO_ID = "f7TOxaM2Mq4";
 
 let livestreamState: LivestreamState = {
-  isLive: true,
+  isLive: false,
   isUpcoming: false,
-  title: "Holy Spirit Sunday Service - Temple TV Live",
-  streamUrl: `https://www.youtube.com/watch?v=${LIVE_VIDEO_ID}`,
-  videoId: LIVE_VIDEO_ID,
-  startedAt: new Date().toISOString() + "_manual",
+  title: null,
+  streamUrl: null,
+  videoId: null,
+  startedAt: null,
   scheduledStartTime: null,
 };
 
@@ -393,29 +393,34 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
 });
 
 // ─── GET /api/livestream/rebroadcast ──────────────────────────────────────────
-
-const REBROADCAST_TTL_MS = 3.5 * 24 * 60 * 60 * 1000;
+//
+// Always returns the most recent completed sermon as a rebroadcast.
+// No TTL restriction — rebroadcast is always available when not live.
 
 router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
   try {
-    const cutoff = new Date(Date.now() - REBROADCAST_TTL_MS);
-
     const rows = await db
       .select()
       .from(sermonsTable)
-      .where(gte(sermonsTable.broadcastEndedAt, cutoff))
       .orderBy(desc(sermonsTable.broadcastEndedAt))
       .limit(1);
 
-    if (rows.length === 0 || !rows[0]) {
+    if (rows.length === 0 || !rows[0] || !rows[0].videoId) {
+      // Fall back to the known default sermon video so rebroadcast is always available
       res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
-      res.json(GetRebroadcastStatusResponse.parse({ available: false }));
+      res.json(GetRebroadcastStatusResponse.parse({
+        available: true,
+        videoId: LIVE_VIDEO_ID,
+        title: "Holy Spirit Sunday Service — Temple TV",
+        thumbnailUrl: `https://i.ytimg.com/vi/${LIVE_VIDEO_ID}/hqdefault.jpg`,
+        broadcastEndedAt: null,
+        expiresAt: null,
+      }));
       return;
     }
 
     const sermon = rows[0];
-    const endedAt = sermon.broadcastEndedAt!;
-    const expiresAt = new Date(endedAt.getTime() + REBROADCAST_TTL_MS);
+    const endedAt = sermon.broadcastEndedAt ?? null;
 
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     res.json(GetRebroadcastStatusResponse.parse({
@@ -423,12 +428,19 @@ router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
       videoId: sermon.videoId,
       title: sermon.title,
       thumbnailUrl: sermon.thumbnailUrl,
-      broadcastEndedAt: endedAt.toISOString(),
-      expiresAt: expiresAt.toISOString(),
+      broadcastEndedAt: endedAt ? endedAt.toISOString() : null,
+      expiresAt: null,
     }));
   } catch {
     res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
-    res.json(GetRebroadcastStatusResponse.parse({ available: false }));
+    res.json(GetRebroadcastStatusResponse.parse({
+      available: true,
+      videoId: LIVE_VIDEO_ID,
+      title: "Holy Spirit Sunday Service — Temple TV",
+      thumbnailUrl: `https://i.ytimg.com/vi/${LIVE_VIDEO_ID}/hqdefault.jpg`,
+      broadcastEndedAt: null,
+      expiresAt: null,
+    }));
   }
 });
 

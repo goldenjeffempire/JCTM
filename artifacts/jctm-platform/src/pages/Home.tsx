@@ -187,17 +187,10 @@ function BroadcastStatusNotification({
     return () => clearInterval(t);
   }, []);
 
-  const isSunday = now.getDay() === 0;
-  const isPast8AM = now.getHours() >= 8;
-  const streamEverWentLive = useRef(false);
-  if (isLive) streamEverWentLive.current = true;
-
   const phase: "upcoming" | "live" | "rebroadcast" | null = (() => {
-    if (!isSunday) return null;
-    if (!isPast8AM) return "upcoming";
     if (isLive) return "live";
-    if (streamEverWentLive.current) return "rebroadcast";
-    return "live";
+    if (rebroadcast) return "rebroadcast";
+    return null;
   })();
 
   useEffect(() => {
@@ -1061,17 +1054,17 @@ function HeroSection() {
                 Jesus Christ Temple Ministry · Warri, Nigeria
               </span>
               <AnimatePresence>
-                {isLive && (
+                {(isLive || rebroadcastForWidget) && (
                   <motion.button
-                    onClick={() => setLivePlayerOpen(true)}
+                    onClick={() => isLive ? setLivePlayerOpen(true) : setRebroadcastWidgetOpen(true)}
                     initial={{ opacity: 0, scale: 0.8, x: -10 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.8 }}
-                    className="inline-flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors cursor-pointer"
+                    className={`inline-flex items-center gap-1.5 ${isLive ? "bg-red-500 hover:bg-red-600 shadow-red-500/30" : "bg-accent hover:bg-accent/90 shadow-accent/30"} text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg transition-colors cursor-pointer`}
                   >
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
                     </span>
-                    Rebroadcast Now — Join Service
+                    {isLive ? "Rebroadcast Now — Join Service" : "Watch Rebroadcast"}
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -1108,16 +1101,16 @@ function HeroSection() {
                 </Link>
               </MagneticButton>
               <MagneticButton>
-                {isLive ? (
+                {(isLive || rebroadcastForWidget) ? (
                   <RippleButton
-                    onClick={() => setLivePlayerOpen(true)}
-                    className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-semibold text-white bg-red-500 hover:bg-red-600 shadow-xl shadow-red-500/30 transition-all duration-300 hover:-translate-y-1 min-h-[44px]"
+                    onClick={() => isLive ? setLivePlayerOpen(true) : setRebroadcastWidgetOpen(true)}
+                    className={`group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-semibold text-white shadow-xl transition-all duration-300 hover:-translate-y-1 min-h-[44px] ${isLive ? "bg-red-500 hover:bg-red-600 shadow-red-500/30" : "bg-accent hover:bg-accent/90 shadow-accent/30"}`}
                   >
                     <span className="relative flex h-2.5 w-2.5 mr-2.5 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                     </span>
-                    Watch Rebroadcast Now
+                    {isLive ? "Watch Rebroadcast Now" : "Watch Rebroadcast"}
                   </RippleButton>
                 ) : (
                   <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
@@ -1182,23 +1175,23 @@ function HeroSection() {
                 </motion.button>
                 );
               })}
-              {isLive ? (
+              {(isLive || rebroadcastForWidget) ? (
                 <motion.button
-                  onClick={() => setLivePlayerOpen(true)}
+                  onClick={() => isLive ? setLivePlayerOpen(true) : setRebroadcastWidgetOpen(true)}
                   whileHover={{ scale: 1.06, y: -4 } as never}
                   whileTap={{ scale: 0.95 } as never}
                   initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.2 }}
                   className="group relative flex flex-col items-center gap-1.5"
                 >
-                  <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-red-400/70 shadow-lg shadow-red-400/30 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center transition-all duration-300 group-hover:shadow-xl">
-                    <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-2xl bg-red-400/20" />
+                  <div className={`relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 shadow-lg flex items-center justify-center transition-all duration-300 group-hover:shadow-xl ${isLive ? "border-red-400/70 shadow-red-400/30 bg-gradient-to-br from-red-500 to-red-700" : "border-accent/70 shadow-accent/30 bg-gradient-to-br from-accent to-sky-700"}`}>
+                    <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className={`absolute inset-0 rounded-2xl ${isLive ? "bg-red-400/20" : "bg-accent/20"}`} />
                     <Play className="h-5 w-5 text-white relative z-10 fill-white" />
                     <span className="absolute top-1.5 left-1.5 flex h-1.5 w-1.5 z-10">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
                     </span>
                   </div>
-                  <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider">Rebroadcast Now</span>
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider ${isLive ? "text-red-500" : "text-accent"}`}>{isLive ? "Rebroadcast Now" : "Rebroadcast"}</span>
                 </motion.button>
               ) : (
                 <motion.a
@@ -2460,6 +2453,9 @@ function SundayServiceCard() {
   const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
   const [showEmbed, setShowEmbed] = useState(false);
   const [watNow, setWatNow] = useState(() => getWatDate());
+  const { data: rebroadcastData } = useGetRebroadcastStatus({
+    query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
+  });
 
   // Tick WAT clock every second
   useEffect(() => {
@@ -2484,27 +2480,26 @@ function SundayServiceCard() {
     return () => clearInterval(t);
   }, []);
 
-  const watDay = watNow.getDay();   // 0=Sun, 1=Mon … 6=Sat
-  const watHour = watNow.getHours();
-
-  const isSunday = watDay === 0;
+  const watDay = watNow.getDay();
   const isMonday = watDay === 1;
-  const serviceStarted = isSunday && watHour >= 8;
 
-  // 4 distinct phases:
-  // "live"      — stream IS active (any day — always takes priority)
-  // "countdown" — Monday only (no active stream)
-  // "standby"   — Sunday after 8 AM WAT, stream not yet live
-  // "upcoming"  — Tue, Wed, Thu, Fri, Sat (and Sun before 8 AM)
-  type Phase = "upcoming" | "countdown" | "standby" | "live";
+  // 5 distinct phases (in priority order):
+  // "live"        — stream IS active (any day — always takes priority)
+  // "rebroadcast" — not live but a recent sermon is available to watch
+  // "countdown"   — Monday only (no active stream, no rebroadcast)
+  // "standby"     — Sunday after 8 AM WAT, stream not yet live
+  // "upcoming"    — Tue–Sat (and Sun before 8 AM), no rebroadcast
+  type Phase = "upcoming" | "countdown" | "standby" | "live" | "rebroadcast";
+  const rebroadcastVideoId = rebroadcastData?.available ? (rebroadcastData.videoId ?? null) : null;
   const phase: Phase = (() => {
     if (isLive) return "live";
+    if (rebroadcastData?.available && rebroadcastVideoId) return "rebroadcast";
     if (isMonday) return "countdown";
-    if (isSunday && serviceStarted) return "standby";
+    if (watDay === 0 && watNow.getHours() >= 8) return "standby";
     return "upcoming";
   })();
 
-  const videoId = liveVideoId ?? LIVE_STREAM_VIDEO_ID;
+  const videoId = liveVideoId ?? rebroadcastVideoId ?? LIVE_STREAM_VIDEO_ID;
 
   return (
     <>
@@ -2573,8 +2568,8 @@ function SundayServiceCard() {
                 />
               ))}
             </div>
-            {/* Top accent bar — red when live, blue otherwise */}
-            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 transition-all duration-700 ${phase === "live" ? "from-red-500 via-red-400 to-red-600" : "from-accent via-white/40 to-accent"}`} />
+            {/* Top accent bar — red when live, sky when rebroadcast, blue otherwise */}
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 transition-all duration-700 ${phase === "live" ? "from-red-500 via-red-400 to-red-600" : phase === "rebroadcast" ? "from-sky-400 via-sky-300 to-sky-500" : "from-accent via-white/40 to-accent"}`} />
 
             <div className="p-6 flex flex-col flex-1 relative z-10">
 
@@ -2597,6 +2592,18 @@ function SundayServiceCard() {
                         <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                       </span>
                       Rebroadcast Now
+                    </motion.span>
+                  )}
+                  {phase === "rebroadcast" && (
+                    <motion.span key="badge-rebroadcast"
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-1.5 bg-sky-500/80 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-sky-400/30"
+                    >
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                        <span className="relative inline-flex rounded-full h-full w-full bg-white" />
+                      </span>
+                      Rebroadcast
                     </motion.span>
                   )}
                   {phase === "standby" && (
