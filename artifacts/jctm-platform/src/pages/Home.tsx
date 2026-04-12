@@ -166,11 +166,19 @@ function BroadcastStatusNotification({
 }) {
   const [dismissed, setDismissed] = useState(false);
   const AUTO_DISMISS_MS = 12000;
+  const prevIsLive = useRef(isLive);
 
   useEffect(() => {
     const t = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (isLive && !prevIsLive.current) {
+      setDismissed(false);
+    }
+    prevIsLive.current = isLive;
+  }, [isLive]);
 
   if (dismissed) return null;
 
@@ -649,7 +657,7 @@ function HeroSection() {
         .catch(() => {});
     };
     check();
-    const t = setInterval(check, 60000);
+    const t = setInterval(check, 30000);
     return () => clearInterval(t);
   }, []);
 
