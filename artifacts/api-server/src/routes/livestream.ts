@@ -374,8 +374,26 @@ async function pollAndBroadcast(): Promise<void> {
 
         // Transition: live → offline — activate rebroadcast window
         if (wasLive) {
-          const endedVideoId = livestreamState.videoId;
-          const endedTitle = livestreamState.title;
+          let endedVideoId = livestreamState.videoId;
+          let endedTitle = livestreamState.title;
+
+          // If the live stream had no videoId, fall back to the most recent sermon in DB
+          if (!endedVideoId) {
+            try {
+              const rows = await db
+                .select()
+                .from(sermonsTable)
+                .orderBy(desc(sermonsTable.publishedAt))
+                .limit(1);
+              if (rows[0]) {
+                endedVideoId = rows[0].videoId;
+                endedTitle = endedTitle ?? rows[0].title;
+              }
+            } catch {
+              // Non-critical — continue with whatever we have
+            }
+          }
+
           const startedAt = new Date().toISOString();
           const expiresAt = new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString();
 

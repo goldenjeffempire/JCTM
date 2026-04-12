@@ -1,8 +1,17 @@
-import { useState, useEffect, useRef } from "react";
-import { Tv2, Radio, PlayCircle, Clock, X, MessageSquare } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Tv2, Radio, PlayCircle, Clock, X, MessageSquare, Wifi, WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { LiveChat } from "@/components/LiveChat";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+interface QueueItem {
+  videoId: string;
+  title: string;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,101 +27,152 @@ function formatTimeRemaining(expiresAt: string): string {
   return `${minutes}m`;
 }
 
-// ─── Live Player Modal ────────────────────────────────────────────────────────
-
-function LiveModal({ videoId, title, onClose }: { videoId: string; title: string | null; onClose: () => void }) {
-  const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
-  const embedSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&rel=0&modestbranding=1&origin=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "")}`;
-
-  return (
-    <motion.div
-      key="live-modal-indicator"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[500] flex flex-col sm:items-center sm:justify-center bg-black/90 backdrop-blur-sm sm:p-3 md:p-5 lg:p-6"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: "100%", opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: "100%", opacity: 0 }}
-        transition={{ type: "spring", stiffness: 280, damping: 30 }}
-        className="relative w-full flex flex-col overflow-hidden shadow-2xl h-full rounded-t-2xl border-t border-white/10 sm:h-[88vh] sm:max-h-[88vh] sm:max-w-5xl lg:max-w-6xl sm:rounded-3xl sm:border sm:border-white/10 bg-[#0a0a0a]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10">
-          <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
-            </span>
-            <span className="text-white font-bold text-sm truncate">
-              {title || "Live Service — Jesus Christ Temple Ministry"}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
-            aria-label="Close player"
-          >
-            <X className="h-4 w-4 text-white/70" />
-          </button>
-        </div>
-
-        {/* Mobile tab switcher */}
-        <div className="flex md:hidden bg-[#111] border-b border-white/10 shrink-0">
-          <button
-            onClick={() => setMobileTab("video")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors touch-manipulation ${mobileTab === "video" ? "text-white border-b-2 border-red-500" : "text-white/40"}`}
-          >
-            <Tv2 className="w-4 h-4" />
-            Watch
-          </button>
-          <button
-            onClick={() => setMobileTab("chat")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors touch-manipulation ${mobileTab === "chat" ? "text-white border-b-2 border-sky-500" : "text-white/40"}`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            Live Chat
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex flex-1 min-h-0 overflow-hidden bg-[#0d0d0d]">
-          <div className={["flex-col flex-1 bg-black min-w-0 min-h-0", mobileTab === "video" ? "flex" : "hidden", "md:flex"].join(" ")}>
-            <iframe
-              key={videoId}
-              src={embedSrc}
-              title="JCTM Live Service"
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              className="w-full h-full"
-              style={{ minHeight: 0 }}
-            />
-          </div>
-          <div className={["flex-col border-l border-white/10 bg-[#111]", mobileTab === "chat" ? "flex w-full" : "hidden", "md:flex md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0"].join(" ")}>
-            <LiveChat isLive={true} embedded={true} />
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
+function buildEmbedUrl(videoId: string, isLive: boolean): string {
+  const origin = typeof window !== "undefined" ? encodeURIComponent(window.location.origin) : "";
+  const base = `https://www.youtube.com/embed/${videoId}`;
+  const params = new URLSearchParams({
+    autoplay: "1",
+    rel: "0",
+    modestbranding: "1",
+    origin: typeof window !== "undefined" ? window.location.origin : "",
+    enablejsapi: "1",
+    ...(isLive ? { mute: "0" } : { loop: "0" }),
+  });
+  return `${base}?${params.toString()}&origin=${origin}`;
 }
 
-// ─── Rebroadcast Player Modal ─────────────────────────────────────────────────
+// ─── useRebroadcastQueue — fetch recent sermons as fallback playback queue ─────
 
-function RebroadcastModal({ videoId, title, expiresAt, onClose }: { videoId: string; title: string | null; expiresAt: string | null; onClose: () => void }) {
-  const embedSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "")}`;
+function useRebroadcastQueue(primaryVideoId: string | null): QueueItem[] {
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+
+  useEffect(() => {
+    if (!primaryVideoId) { setQueue([]); return; }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${BASE}/api/sermons?limit=10`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json() as { sermons?: { videoId: string; title: string }[] };
+        const sermons = (data.sermons ?? [])
+          .filter(s => s.videoId && s.videoId !== primaryVideoId)
+          .slice(0, 8)
+          .map(s => ({ videoId: s.videoId, title: s.title }));
+        if (!cancelled) {
+          setQueue([{ videoId: primaryVideoId, title: "" }, ...sermons]);
+        }
+      } catch {
+        if (!cancelled && primaryVideoId) {
+          setQueue([{ videoId: primaryVideoId, title: "" }]);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [primaryVideoId]);
+
+  return queue;
+}
+
+// ─── useYouTubeEndDetector — listen for YouTube iframe onStateChange=0 ────────
+
+function useYouTubeEndDetector(onEnded: () => void) {
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.origin !== "https://www.youtube.com") return;
+      try {
+        const data = JSON.parse(event.data as string) as { event?: string; info?: number };
+        if (data.event === "onStateChange" && data.info === 0) {
+          onEndedRef.current();
+        }
+      } catch {
+        // Malformed postMessage — ignore
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+}
+
+// ─── Unified Player Modal ─────────────────────────────────────────────────────
+//
+// Single modal that morphs between Live and Rebroadcast content in-place,
+// providing zero-downtime seamless transitions. When the live stream ends,
+// the modal stays open and the iframe swaps to the rebroadcast video without
+// any blank screen.
+
+interface UnifiedPlayerModalProps {
+  isLive: boolean;
+  liveVideoId: string | null;
+  liveTitle: string | null;
+  rebroadcastVideoId: string | null;
+  rebroadcastTitle: string | null;
+  rebroadcastExpiresAt: string | null;
+  onClose: () => void;
+}
+
+function UnifiedPlayerModal({
+  isLive,
+  liveVideoId,
+  liveTitle,
+  rebroadcastVideoId,
+  rebroadcastTitle,
+  rebroadcastExpiresAt,
+  onClose,
+}: UnifiedPlayerModalProps) {
+  const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
+  const [queueIndex, setQueueIndex] = useState(0);
+  const [timeDisplay, setTimeDisplay] = useState("");
+
+  const rebroadcastQueue = useRebroadcastQueue(rebroadcastVideoId);
+
+  // Advance queue when a video ends (rebroadcast mode only)
+  const handleVideoEnded = useCallback(() => {
+    if (isLive) return;
+    setQueueIndex(i => Math.min(i + 1, Math.max(0, rebroadcastQueue.length - 1)));
+  }, [isLive, rebroadcastQueue.length]);
+
+  useYouTubeEndDetector(handleVideoEnded);
+
+  // Reset queue index when primary video changes
+  useEffect(() => { setQueueIndex(0); }, [rebroadcastVideoId]);
+
+  // Reset queue when transitioning from live → rebroadcast
+  useEffect(() => {
+    if (!isLive) setQueueIndex(0);
+  }, [isLive]);
+
+  // Countdown ticker
+  useEffect(() => {
+    if (!rebroadcastExpiresAt) return;
+    const update = () => setTimeDisplay(formatTimeRemaining(rebroadcastExpiresAt));
+    update();
+    const timer = setInterval(update, 60_000);
+    return () => clearInterval(timer);
+  }, [rebroadcastExpiresAt]);
+
+  // Determine what's playing right now
+  const currentVideoId = isLive
+    ? (liveVideoId ?? "f7TOxaM2Mq4")
+    : rebroadcastQueue[queueIndex]?.videoId ?? rebroadcastVideoId ?? "f7TOxaM2Mq4";
+
+  const currentTitle = isLive
+    ? (liveTitle ?? "Live Service — Jesus Christ Temple Ministry")
+    : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
+
+  const embedSrc = buildEmbedUrl(currentVideoId, isLive);
 
   return (
     <motion.div
-      key="rebroadcast-modal-indicator"
+      key="unified-player-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
       className="fixed inset-0 z-[500] flex flex-col sm:items-center sm:justify-center bg-black/90 backdrop-blur-sm sm:p-3 md:p-5 lg:p-6"
       onClick={onClose}
     >
@@ -121,45 +181,165 @@ function RebroadcastModal({ videoId, title, expiresAt, onClose }: { videoId: str
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", stiffness: 280, damping: 30 }}
-        className="relative w-full flex flex-col overflow-hidden shadow-2xl h-full rounded-t-2xl border-t border-white/10 sm:h-[80vh] sm:max-h-[80vh] sm:max-w-4xl sm:rounded-3xl sm:border sm:border-white/10 bg-[#0a0a0a]"
-        onClick={(e) => e.stopPropagation()}
+        className={[
+          "relative w-full flex flex-col overflow-hidden shadow-2xl",
+          "h-full rounded-t-2xl border-t border-white/10",
+          isLive
+            ? "sm:h-[88vh] sm:max-h-[88vh] sm:max-w-5xl lg:max-w-6xl"
+            : "sm:h-[80vh] sm:max-h-[80vh] sm:max-w-4xl",
+          "sm:rounded-3xl sm:border sm:border-white/10 bg-[#0a0a0a]",
+        ].join(" ")}
+        onClick={e => e.stopPropagation()}
       >
-        <div className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10">
-          <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="relative inline-flex rounded-full h-full w-full bg-amber-500" />
-            </span>
-            <div className="flex flex-col min-w-0">
-              <span className="text-white font-bold text-sm truncate">
-                {title || "Sunday Service — Jesus Christ Temple Ministry"}
-              </span>
-              {expiresAt && (
-                <span className="text-amber-400/70 text-xs flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatTimeRemaining(expiresAt)} remaining
+        {/* ── Header — morphs between Live and Rebroadcast ─────────────────── */}
+        <AnimatePresence mode="wait">
+          {isLive ? (
+            <motion.div
+              key="live-header"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                 </span>
+                <span className="text-white font-bold text-sm truncate">{currentTitle}</span>
+              </div>
+              <button
+                onClick={onClose}
+                className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
+                aria-label="Close player"
+              >
+                <X className="h-4 w-4 text-white/70" />
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="rebroadcast-header"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="relative inline-flex rounded-full h-full w-full bg-amber-500" />
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-white font-bold text-sm truncate">{currentTitle}</span>
+                  {rebroadcastExpiresAt && timeDisplay && (
+                    <span className="text-amber-400/70 text-xs flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {timeDisplay} remaining
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Queue navigation */}
+              {rebroadcastQueue.length > 1 && (
+                <div className="flex items-center gap-1 mr-2">
+                  <button
+                    onClick={() => setQueueIndex(i => Math.max(0, i - 1))}
+                    disabled={queueIndex === 0}
+                    className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center text-white/70 text-xs font-bold transition-colors touch-manipulation"
+                    aria-label="Previous video"
+                  >
+                    ‹
+                  </button>
+                  <span className="text-white/40 text-[10px] font-medium min-w-[2.5rem] text-center">
+                    {queueIndex + 1} / {rebroadcastQueue.length}
+                  </span>
+                  <button
+                    onClick={() => setQueueIndex(i => Math.min(rebroadcastQueue.length - 1, i + 1))}
+                    disabled={queueIndex >= rebroadcastQueue.length - 1}
+                    className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center text-white/70 text-xs font-bold transition-colors touch-manipulation"
+                    aria-label="Next video"
+                  >
+                    ›
+                  </button>
+                </div>
               )}
-            </div>
+              <button
+                onClick={onClose}
+                className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
+                aria-label="Close player"
+              >
+                <X className="h-4 w-4 text-white/70" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Mobile Tab Switcher (Live only) ─────────────────────────────── */}
+        {isLive && (
+          <div className="flex md:hidden bg-[#111] border-b border-white/10 shrink-0">
+            <button
+              onClick={() => setMobileTab("video")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors touch-manipulation ${
+                mobileTab === "video" ? "text-white border-b-2 border-red-500" : "text-white/40"
+              }`}
+            >
+              <Tv2 className="w-4 h-4" />
+              Watch
+            </button>
+            <button
+              onClick={() => setMobileTab("chat")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors touch-manipulation ${
+                mobileTab === "chat" ? "text-white border-b-2 border-sky-500" : "text-white/40"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Live Chat
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
-            aria-label="Close player"
+        )}
+
+        {/* ── Main Content — iframe morphs seamlessly ──────────────────────── */}
+        <div className="flex flex-1 min-h-0 overflow-hidden bg-[#0d0d0d]">
+          {/* Video pane */}
+          <div
+            className={[
+              "flex-col flex-1 bg-black min-w-0 min-h-0 relative",
+              !isLive || mobileTab === "video" ? "flex" : "hidden",
+              "md:flex",
+            ].join(" ")}
           >
-            <X className="h-4 w-4 text-white/70" />
-          </button>
-        </div>
-        <div className="flex flex-1 min-h-0 bg-black">
-          <iframe
-            key={videoId}
-            src={embedSrc}
-            title="JCTM Service Rebroadcast"
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            className="w-full h-full"
-            style={{ minHeight: 0 }}
-          />
+            {/* Crossfade overlay for seamless video swaps */}
+            <AnimatePresence mode="wait">
+              <motion.iframe
+                key={`${currentVideoId}-${isLive ? "live" : "rb"}`}
+                src={embedSrc}
+                title={currentTitle}
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                className="w-full h-full absolute inset-0"
+                style={{ minHeight: 0, border: "none" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+              />
+            </AnimatePresence>
+          </div>
+
+          {/* Chat pane (Live only) */}
+          {isLive && (
+            <div
+              className={[
+                "flex-col border-l border-white/10 bg-[#111]",
+                mobileTab === "chat" ? "flex w-full" : "hidden",
+                "md:flex md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0",
+              ].join(" ")}
+            >
+              <LiveChat isLive={true} embedded={true} />
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -171,24 +351,31 @@ function RebroadcastModal({ videoId, title, expiresAt, onClose }: { videoId: str
 export function BroadcastStatusIndicator() {
   const status = useLivestreamStatus();
   const [showPlayer, setShowPlayer] = useState(false);
-  const [timeDisplay, setTimeDisplay] = useState("");
   const [dismissed, setDismissed] = useState(false);
+  const [timeDisplay, setTimeDisplay] = useState("");
   const prevStatusRef = useRef({ isLive: false, available: false });
 
   const { rebroadcast } = status;
   const isActive = status.isLive || rebroadcast.available;
 
-  // Re-show whenever a new broadcast begins
+  // Re-show when a new broadcast begins; auto-clear dismiss when nothing is active
   useEffect(() => {
     const prev = prevStatusRef.current;
-    const nowActive = status.isLive || rebroadcast.available;
     const becameActive =
       (!prev.isLive && status.isLive) ||
       (!prev.available && rebroadcast.available);
     if (becameActive) setDismissed(false);
     prevStatusRef.current = { isLive: status.isLive, available: rebroadcast.available };
-    if (!nowActive) setDismissed(false);
-  }, [status.isLive, rebroadcast.available]);
+    if (!isActive) setDismissed(false);
+  }, [status.isLive, rebroadcast.available, isActive]);
+
+  // Keep modal open during live→rebroadcast transition (don't close on intermediate states)
+  // Only close modal if truly nothing is playing
+  useEffect(() => {
+    if (showPlayer && !status.isLive && !rebroadcast.available) {
+      setShowPlayer(false);
+    }
+  }, [showPlayer, status.isLive, rebroadcast.available]);
 
   // Countdown ticker
   useEffect(() => {
@@ -199,55 +386,40 @@ export function BroadcastStatusIndicator() {
     return () => clearInterval(timer);
   }, [rebroadcast.available, rebroadcast.expiresAt]);
 
-  // Auto-close modal when broadcast ends
-  useEffect(() => {
-    if (showPlayer && !status.isLive && !rebroadcast.available) {
-      setShowPlayer(false);
-    }
-  }, [showPlayer, status.isLive, rebroadcast.available]);
+  const liveVideoId = status.videoId;
+  const rebroadcastVideoId = rebroadcast.videoId;
 
-  const liveVideoId = status.videoId ?? "f7TOxaM2Mq4";
-  const rebroadcastVideoId = rebroadcast.videoId ?? "f7TOxaM2Mq4";
-
-  // ── Offline (idle) — always render a subtle indicator ─────────────────────
+  // ── IDLE STATE: Always show a subtle "TempleTV" indicator ─────────────────
   if (!isActive) {
     return (
-      <>
-        <div
-          className="fixed top-[4.5rem] right-3 sm:right-4 z-[200] pointer-events-none"
-          aria-hidden="true"
+      <div className="fixed top-[4.5rem] right-3 sm:right-4 z-[200]">
+        <a
+          href="https://www.youtube.com/@templetvjctm"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="JCTM Temple TV on YouTube"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full
+            bg-black/20 dark:bg-white/5 border border-white/10
+            text-white/25 hover:text-white/50 hover:bg-black/40 hover:border-white/20
+            transition-all duration-300 backdrop-blur-md cursor-pointer select-none
+            text-[10px] font-semibold tracking-widest uppercase"
         >
-          <a
-            href="https://www.youtube.com/@templetvjctm"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="JCTM Temple TV on YouTube"
-            className="pointer-events-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-full
-              bg-black/30 dark:bg-white/5 border border-white/10
-              text-white/30 hover:text-white/60 hover:bg-black/50 hover:border-white/20
-              transition-all duration-300 backdrop-blur-md cursor-pointer select-none
-              text-[10px] font-semibold tracking-widest uppercase"
-          >
-            <Tv2 className="h-3 w-3 shrink-0 opacity-60" />
-            <span className="hidden sm:inline">Temple TV</span>
-          </a>
-        </div>
-
-        {/* Modals portal (no active state) */}
-        <AnimatePresence>{/* nothing */}</AnimatePresence>
-      </>
+          <Tv2 className="h-3 w-3 shrink-0 opacity-50" />
+          <span className="hidden sm:inline">Temple TV</span>
+          <WifiOff className="h-2.5 w-2.5 shrink-0 opacity-40" />
+        </a>
+      </div>
     );
   }
 
-  // ── Active — dismissed by user → show compact re-open tab ────────────────
+  // ── DISMISSED: Compact re-open pull tab on the right edge ────────────────
   if (dismissed) {
     return (
       <>
         <motion.button
-          key="reopen-tab"
-          initial={{ opacity: 0, scale: 0.8, x: 20 }}
-          animate={{ opacity: 1, scale: 1, x: 0 }}
-          exit={{ opacity: 0, scale: 0.8, x: 20 }}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => setDismissed(false)}
           aria-label={status.isLive ? "Rejoin live service" : "Reopen rebroadcast"}
@@ -278,19 +450,26 @@ export function BroadcastStatusIndicator() {
           )}
         </motion.button>
 
+        {/* Modal still available even when dismissed indicator is shown */}
         <AnimatePresence>
-          {showPlayer && status.isLive && (
-            <LiveModal key="live-modal" videoId={liveVideoId} title={status.title} onClose={() => setShowPlayer(false)} />
-          )}
-          {showPlayer && !status.isLive && rebroadcast.available && (
-            <RebroadcastModal key="rebroadcast-modal" videoId={rebroadcastVideoId} title={rebroadcast.title} expiresAt={rebroadcast.expiresAt} onClose={() => setShowPlayer(false)} />
+          {showPlayer && (
+            <UnifiedPlayerModal
+              key="unified-modal"
+              isLive={status.isLive}
+              liveVideoId={liveVideoId}
+              liveTitle={status.title}
+              rebroadcastVideoId={rebroadcastVideoId}
+              rebroadcastTitle={rebroadcast.title}
+              rebroadcastExpiresAt={rebroadcast.expiresAt}
+              onClose={() => setShowPlayer(false)}
+            />
           )}
         </AnimatePresence>
       </>
     );
   }
 
-  // ── Active — full indicator visible ──────────────────────────────────────
+  // ── ACTIVE: Full floating pill indicator ──────────────────────────────────
   return (
     <>
       <AnimatePresence mode="wait">
@@ -304,12 +483,10 @@ export function BroadcastStatusIndicator() {
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
             className="fixed top-[4.5rem] right-3 sm:right-4 z-[200] flex flex-col items-end gap-1.5 max-w-[min(calc(100vw-1.5rem),340px)]"
           >
-            {/* Badge row */}
             <div className="flex items-center gap-0 rounded-full shadow-xl overflow-hidden border border-red-400/30 bg-red-600">
-              {/* Pulse dot + label */}
               <button
                 onClick={() => setShowPlayer(true)}
-                className="flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer touch-manipulation group"
+                className="flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer touch-manipulation"
                 aria-label="Watch live service"
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
@@ -320,16 +497,12 @@ export function BroadcastStatusIndicator() {
                   🔴 Live Service
                 </span>
               </button>
-
-              {/* CTA */}
               <button
                 onClick={() => setShowPlayer(true)}
                 className="bg-white text-red-600 text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-2 hover:bg-red-50 active:scale-95 transition-all touch-manipulation whitespace-nowrap leading-none"
               >
                 Join
               </button>
-
-              {/* Dismiss */}
               <button
                 onClick={() => setDismissed(true)}
                 className="flex items-center justify-center w-7 h-full bg-red-700/60 hover:bg-red-800/80 active:bg-red-900 transition-colors touch-manipulation px-1.5"
@@ -339,7 +512,6 @@ export function BroadcastStatusIndicator() {
               </button>
             </div>
 
-            {/* Title chip */}
             {status.title && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
@@ -364,7 +536,6 @@ export function BroadcastStatusIndicator() {
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
             className="fixed top-[4.5rem] right-3 sm:right-4 z-[200] flex flex-col items-end gap-1.5 max-w-[min(calc(100vw-1.5rem),340px)]"
           >
-            {/* Badge row */}
             <div className="flex items-center gap-0 rounded-full shadow-xl overflow-hidden border border-amber-400/30 bg-amber-600">
               <button
                 onClick={() => setShowPlayer(true)}
@@ -382,16 +553,12 @@ export function BroadcastStatusIndicator() {
                   </span>
                 )}
               </button>
-
-              {/* CTA */}
               <button
                 onClick={() => setShowPlayer(true)}
                 className="bg-white text-amber-700 text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-2 hover:bg-amber-50 active:scale-95 transition-all touch-manipulation whitespace-nowrap leading-none"
               >
                 Watch
               </button>
-
-              {/* Dismiss */}
               <button
                 onClick={() => setDismissed(true)}
                 className="flex items-center justify-center w-7 h-full bg-amber-700/60 hover:bg-amber-800/80 active:bg-amber-900 transition-colors touch-manipulation px-1.5"
@@ -401,7 +568,6 @@ export function BroadcastStatusIndicator() {
               </button>
             </div>
 
-            {/* Title chip */}
             {rebroadcast.title && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
@@ -417,13 +583,19 @@ export function BroadcastStatusIndicator() {
         )}
       </AnimatePresence>
 
-      {/* ── Video Modals ──────────────────────────────────────────────────────── */}
+      {/* ── Unified Video Modal ───────────────────────────────────────────── */}
       <AnimatePresence>
-        {showPlayer && status.isLive && (
-          <LiveModal key="live-modal" videoId={liveVideoId} title={status.title} onClose={() => setShowPlayer(false)} />
-        )}
-        {showPlayer && !status.isLive && rebroadcast.available && (
-          <RebroadcastModal key="rebroadcast-modal" videoId={rebroadcastVideoId} title={rebroadcast.title} expiresAt={rebroadcast.expiresAt} onClose={() => setShowPlayer(false)} />
+        {showPlayer && (status.isLive || rebroadcast.available) && (
+          <UnifiedPlayerModal
+            key="unified-modal"
+            isLive={status.isLive}
+            liveVideoId={liveVideoId}
+            liveTitle={status.title}
+            rebroadcastVideoId={rebroadcastVideoId}
+            rebroadcastTitle={rebroadcast.title}
+            rebroadcastExpiresAt={rebroadcast.expiresAt}
+            onClose={() => setShowPlayer(false)}
+          />
         )}
       </AnimatePresence>
     </>

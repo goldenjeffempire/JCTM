@@ -3,6 +3,7 @@ import { Footer } from "./Footer";
 import { BackToTop } from "./BackToTop";
 import { TempleBots } from "../TempleBots";
 import { BroadcastStatusIndicator } from "../BroadcastStatusIndicator";
+import { LiveBanner } from "../LiveBanner";
 import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
 
 interface LayoutProps {
@@ -12,6 +13,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground overflow-x-hidden">
+      <LiveBanner />
       <Navbar />
       <main className="flex-1 w-full">
         {children}
