@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import { SiZoom } from "react-icons/si";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -706,16 +705,34 @@ export function TempleBots() {
             </div>
 
             {/* Input */}
-            <div className="p-3 border-t border-border/40 shrink-0" style={{ background: "rgba(255,255,255,0.7)", backdropFilter: "blur(12px)" }}>
-              <form onSubmit={handleSend} className="flex gap-2">
-                <Input
-                  value={input} onChange={(e) => setInput(e.target.value)}
+            <div className="p-3 border-t border-border/40 shrink-0" style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)" }}>
+              <form onSubmit={handleSend} className="flex gap-2 items-center">
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
                   placeholder="Ask about doctrine, giving, JCTM..."
-                  className="flex-1 bg-white/80 border-border/40 focus-visible:ring-1 focus-visible:ring-accent min-h-[44px] rounded-xl text-sm placeholder:text-muted-foreground/60"
                   disabled={isStreaming}
+                  autoComplete="off"
+                  enterKeyHint="send"
+                  className={[
+                    "flex-1 min-h-[44px] rounded-xl px-4 py-2.5",
+                    "bg-white border border-gray-200",
+                    // Explicit text + placeholder colours — never inherits invisibly
+                    "text-gray-900 text-base sm:text-sm leading-normal",
+                    "placeholder:text-gray-400",
+                    // Focus ring
+                    "outline-none focus:border-accent focus:ring-2 focus:ring-accent/20",
+                    // Disabled state
+                    "disabled:cursor-not-allowed disabled:opacity-60",
+                    "transition-colors duration-150",
+                    // Prevent iOS Safari from zooming on focus (requires font-size ≥ 16px)
+                    // text-base above is 1rem = 16px which satisfies this requirement
+                  ].join(" ")}
+                  aria-label="Type your message"
                 />
                 <Button type="submit" size="icon" disabled={!input.trim() || isStreaming}
-                  className="bg-accent hover:bg-accent/90 text-white shrink-0 min-h-[44px] min-w-[44px] rounded-xl shadow-md shadow-accent/25"
+                  className="bg-accent hover:bg-accent/90 active:bg-accent/80 text-white shrink-0 min-h-[44px] min-w-[44px] rounded-xl shadow-md shadow-accent/25 transition-colors"
                   aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />
