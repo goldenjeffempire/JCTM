@@ -675,13 +675,11 @@ function HeroSection() {
   const [isUpcoming, setIsUpcoming] = useState(false);
   const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
   const [liveTitle, setLiveTitle] = useState<string | null>(null);
-  const [scheduledStartTime, setScheduledStartTime] = useState<string | null>(null);
   const [livePlayerOpen, setLivePlayerOpen] = useState(false);
   const [rebroadcastWidgetOpen, setRebroadcastWidgetOpen] = useState(false);
   const [playerLoading, setPlayerLoading] = useState(true);
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const countdown = useNextService();
 
   const { data: rebroadcastData } = useGetRebroadcastStatus({
     query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
@@ -707,14 +705,13 @@ function HeroSection() {
     const check = () => {
       fetch(`${BASE}/api/livestream/status`)
         .then(r => r.json())
-        .then((d: { isLive?: boolean; isUpcoming?: boolean; title?: string | null; videoId?: string | null; scheduledStartTime?: string | null }) => {
+        .then((d: { isLive?: boolean; isUpcoming?: boolean; title?: string | null; videoId?: string | null }) => {
           const live = d?.isLive ?? false;
           const upcoming = d?.isUpcoming ?? false;
           setIsLive(live);
           setIsUpcoming(upcoming);
           setLiveTitle(d?.title ?? null);
           setLiveVideoId(d?.videoId ?? null);
-          setScheduledStartTime(d?.scheduledStartTime ?? null);
         })
         .catch(() => {});
     };
