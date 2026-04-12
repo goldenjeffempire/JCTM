@@ -165,6 +165,12 @@ function BroadcastStatusNotification({
   onJoin: () => void;
 }) {
   const [dismissed, setDismissed] = useState(false);
+  const AUTO_DISMISS_MS = 12000;
+
+  useEffect(() => {
+    const t = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   if (dismissed) return null;
 
@@ -237,6 +243,16 @@ function BroadcastStatusNotification({
                 >
                   <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                 </motion.div>
+              </div>
+
+              {/* Auto-dismiss progress bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-white/10">
+                <motion.div
+                  className="h-full bg-red-400/60 origin-left"
+                  initial={{ scaleX: 1 }}
+                  animate={{ scaleX: 0 }}
+                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
+                />
               </div>
             </button>
           </motion.div>
@@ -319,6 +335,16 @@ function BroadcastStatusNotification({
               <div className="hidden sm:flex items-center gap-1.5">
                 <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
                 <p className="text-[9px] text-primary/35 font-medium truncate">Broadcasts live on Temple TV</p>
+              </div>
+
+              {/* Auto-dismiss progress bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-accent/10">
+                <motion.div
+                  className="h-full bg-accent/40 origin-left"
+                  initial={{ scaleX: 1 }}
+                  animate={{ scaleX: 0 }}
+                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
+                />
               </div>
             </div>
           </motion.div>
