@@ -171,7 +171,7 @@ function BroadcastStatusNotification({
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <div className="absolute bottom-20 right-3 lg:right-36 xl:right-44 z-20 pointer-events-auto select-none">
+    <div className="absolute top-24 right-4 z-20 pointer-events-auto select-none">
       <AnimatePresence mode="wait">
         {isLive ? (
           <motion.div
