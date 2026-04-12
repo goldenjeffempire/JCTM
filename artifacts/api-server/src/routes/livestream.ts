@@ -539,6 +539,72 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
   res.json(UpdateLivestreamStatusResponse.parse(livestreamState));
 });
 
+// ─── POST /api/livestream/rebroadcast — manual rebroadcast trigger ────────────
+//
+// Immediately activates rebroadcast mode for a given video (or the most recent
+// sermon in the DB if no videoId is supplied).  Broadcasts the new state to all
+// connected SSE clients so every viewer's banner updates in real time.
+
+router.post("/livestream/rebroadcast", async (req, res): Promise<void> => {
+  let { videoId, title, thumbnailUrl } = req.body as {
+    videoId?: string;
+    title?: string;
+    thumbnailUrl?: string;
+  };
+
+  // If no videoId supplied, fall back to the most recent sermon in the DB
+  if (!videoId) {
+    try {
+      const rows = await db
+        .select()
+        .from(sermonsTable)
+        .orderBy(desc(sermonsTable.publishedAt))
+        .limit(1);
+      if (rows[0]) {
+        videoId     = rows[0].videoId;
+        title       = title       ?? rows[0].title;
+        thumbnailUrl = thumbnailUrl ?? rows[0].thumbnailUrl;
+      }
+    } catch {
+      // continue with whatever we have
+    }
+  }
+
+  if (!videoId) {
+    res.status(400).json({ error: "No videoId supplied and no sermons found in database." });
+    return;
+  }
+
+  const startedAt = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString();
+
+  rebroadcastLifecycle = {
+    available: true,
+    videoId,
+    title:        title        ?? "Sunday Service — Jesus Christ Temple Ministry",
+    thumbnailUrl: thumbnailUrl ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    startedAt,
+    expiresAt,
+  };
+
+  // Make sure we're not showing "live" at the same time
+  if (livestreamState.isLive) {
+    livestreamState = {
+      ...livestreamState,
+      isLive: false,
+      startedAt: null,
+    };
+  }
+
+  // Push to every connected SSE client immediately
+  broadcastStatus(livestreamState);
+
+  res.json({
+    success: true,
+    rebroadcast: rebroadcastLifecycle,
+  });
+});
+
 // ─── GET /api/livestream/rebroadcast ──────────────────────────────────────────
 //
 // Returns the currently active rebroadcast (within the 3-day window after a
