@@ -152,6 +152,182 @@ function AnimatedCounter({ target, suffix = "", duration = 2000 }: { target: num
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
+// ─── Broadcast Status Notification ─────────────────────────────────────────
+function BroadcastStatusNotification({
+  isLive,
+  liveTitle,
+  countdown,
+  onJoin,
+}: {
+  isLive: boolean;
+  liveTitle: string | null;
+  countdown: { days: number; hours: number; minutes: number; seconds: number };
+  onJoin: () => void;
+}) {
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) return null;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <div className="absolute bottom-20 right-3 lg:right-36 xl:right-44 z-20 pointer-events-auto select-none">
+      <AnimatePresence mode="wait">
+        {isLive ? (
+          <motion.div
+            key="live"
+            initial={{ opacity: 0, x: 48, scale: 0.88 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 48, scale: 0.88 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            className="relative"
+          >
+            {/* Glow halo */}
+            <motion.div
+              animate={{ opacity: [0.45, 0.75, 0.45], scale: [1, 1.08, 1] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -inset-4 rounded-[2rem] blur-2xl"
+              style={{ background: "radial-gradient(circle, rgba(239,68,68,0.45), rgba(185,28,28,0.25))" }}
+            />
+            <button
+              onClick={onJoin}
+              className="relative flex flex-col gap-2 w-[198px] rounded-[1.5rem] px-4 pt-4 pb-3.5 text-left cursor-pointer group"
+              style={{
+                background: "linear-gradient(145deg, rgba(20,0,0,0.92) 0%, rgba(80,10,10,0.96) 100%)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: "1px solid rgba(239,68,68,0.35)",
+                boxShadow: "0 0 0 1px rgba(239,68,68,0.18), 0 12px 40px rgba(185,28,28,0.35), inset 0 1px 0 rgba(255,255,255,0.07)",
+              }}
+            >
+              {/* Dismiss */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+                className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+              >
+                <X className="h-2.5 w-2.5 text-white/50" />
+              </button>
+
+              {/* Header */}
+              <div className="flex items-center gap-2 pr-5">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-red-400">Live Now</span>
+              </div>
+
+              {/* Title */}
+              <div className="pr-2">
+                <p className="text-white font-serif font-bold text-sm leading-snug line-clamp-2">
+                  {liveTitle ?? "Temple TV — Live Service"}
+                </p>
+                <p className="text-white/40 text-[10px] mt-0.5 font-medium">Jesus Christ Temple Ministry</p>
+              </div>
+
+              {/* CTA */}
+              <div
+                className="mt-0.5 flex items-center justify-between rounded-xl px-3 py-2 transition-all duration-200 group-hover:opacity-90"
+                style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.9), rgba(220,38,38,0.8))" }}
+              >
+                <span className="text-white font-bold text-[11px] uppercase tracking-widest">Join Service</span>
+                <motion.div
+                  animate={{ x: [0, 3, 0] }}
+                  transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <ChevronRight className="h-3.5 w-3.5 text-white" />
+                </motion.div>
+              </div>
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="upcoming"
+            initial={{ opacity: 0, x: 48, scale: 0.88 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 48, scale: 0.88 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            className="relative"
+          >
+            {/* Subtle glow */}
+            <div
+              className="absolute -inset-3 rounded-[2rem] blur-xl opacity-40"
+              style={{ background: "radial-gradient(circle, rgba(56,189,248,0.3), rgba(0,51,102,0.15))" }}
+            />
+            <div
+              className="relative flex flex-col gap-2.5 w-[198px] rounded-[1.5rem] px-4 pt-4 pb-3.5"
+              style={{
+                background: "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(240,248,255,0.95) 100%)",
+                backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
+                border: "1px solid rgba(56,189,248,0.22)",
+                boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 12px 40px rgba(0,51,102,0.12), inset 0 1px 0 rgba(255,255,255,0.95)",
+              }}
+            >
+              {/* Dismiss */}
+              <button
+                onClick={() => setDismissed(true)}
+                className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary/6 hover:bg-primary/12 flex items-center justify-center transition-colors"
+              >
+                <X className="h-2.5 w-2.5 text-primary/35" />
+              </button>
+
+              {/* Header */}
+              <div className="flex items-center gap-2 pr-5">
+                <motion.div
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="h-5 w-5 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.18), rgba(0,51,102,0.1))" }}
+                >
+                  <Calendar className="h-3 w-3 text-accent" />
+                </motion.div>
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-accent">Upcoming Service</span>
+              </div>
+
+              {/* Service time */}
+              <div>
+                <p className="text-primary font-serif font-bold text-sm leading-tight">Sunday · 8:00 AM</p>
+                <p className="text-primary/40 text-[10px] font-medium mt-0.5">Jesus Christ Temple Ministry</p>
+              </div>
+
+              {/* Countdown */}
+              <div
+                className="rounded-xl px-3 py-2.5"
+                style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.07))", border: "1px solid rgba(56,189,248,0.12)" }}
+              >
+                <p className="text-[8px] font-bold uppercase tracking-widest text-primary/35 mb-1.5">Starts in</p>
+                <div className="flex items-center justify-between">
+                  {[
+                    { val: countdown.days, label: "d" },
+                    { val: countdown.hours, label: "h" },
+                    { val: countdown.minutes, label: "m" },
+                    { val: countdown.seconds, label: "s" },
+                  ].map(({ val, label }, i) => (
+                    <div key={label} className="flex items-center gap-0.5">
+                      <div className="text-center">
+                        <span className="font-black text-sm text-primary tabular-nums leading-none">{pad(val)}</span>
+                        <p className="text-[8px] font-bold text-primary/30 uppercase">{label}</p>
+                      </div>
+                      {i < 3 && <span className="text-primary/20 font-bold text-sm mb-1.5 mx-0.5">:</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notification hint */}
+              <div className="flex items-center gap-1.5">
+                <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
+                <p className="text-[9px] text-primary/35 font-medium">Broadcasts live on Temple TV</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Scripture Ticker ──────────────────────────────────────────────────────
 function ScriptureTicker() {
   const [idx, setIdx] = useState(0);
@@ -417,6 +593,7 @@ function HeroSection() {
   const [livePlayerOpen, setLivePlayerOpen] = useState(false);
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const countdown = useNextService();
 
   const leftImages = HERO_IMAGES.slice(0, 3);
   const rightImages = HERO_IMAGES.slice(3, 6);
@@ -845,6 +1022,14 @@ function HeroSection() {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* ── BROADCAST STATUS NOTIFICATION ── */}
+      <BroadcastStatusNotification
+        isLive={isLive}
+        liveTitle={liveTitle}
+        countdown={countdown}
+        onJoin={() => setLivePlayerOpen(true)}
+      />
 
       {/* Scroll indicator */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 }} className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
