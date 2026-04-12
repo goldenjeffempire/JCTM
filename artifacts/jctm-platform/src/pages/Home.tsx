@@ -171,14 +171,14 @@ function BroadcastStatusNotification({
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <div className="absolute top-24 right-4 z-20 pointer-events-auto select-none">
+    <div className="absolute top-[4.5rem] sm:top-20 md:top-24 right-3 sm:right-4 z-20 pointer-events-auto select-none">
       <AnimatePresence mode="wait">
         {isLive ? (
           <motion.div
             key="live"
-            initial={{ opacity: 0, x: 48, scale: 0.88 }}
+            initial={{ opacity: 0, x: 40, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 48, scale: 0.88 }}
+            exit={{ opacity: 0, x: 40, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
             className="relative"
           >
@@ -191,7 +191,7 @@ function BroadcastStatusNotification({
             />
             <button
               onClick={onJoin}
-              className="relative flex flex-col gap-2 w-[198px] rounded-[1.5rem] px-4 pt-4 pb-3.5 text-left cursor-pointer group"
+              className="relative flex flex-col gap-1.5 sm:gap-2 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 text-left cursor-pointer group"
               style={{
                 background: "linear-gradient(145deg, rgba(20,0,0,0.92) 0%, rgba(80,10,10,0.96) 100%)",
                 backdropFilter: "blur(20px)",
@@ -203,39 +203,39 @@ function BroadcastStatusNotification({
               {/* Dismiss */}
               <button
                 onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-                className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                className="absolute top-2 right-2 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
               >
                 <X className="h-2.5 w-2.5 text-white/50" />
               </button>
 
               {/* Header */}
-              <div className="flex items-center gap-2 pr-5">
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <div className="flex items-center gap-1.5 pr-5">
+                <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                  <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-red-400">Live Now</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Live Now</span>
               </div>
 
               {/* Title */}
-              <div className="pr-2">
-                <p className="text-white font-serif font-bold text-sm leading-snug line-clamp-2">
+              <div className="pr-1">
+                <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
                   {liveTitle ?? "Temple TV — Live Service"}
                 </p>
-                <p className="text-white/40 text-[10px] mt-0.5 font-medium">Jesus Christ Temple Ministry</p>
+                <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
 
               {/* CTA */}
               <div
-                className="mt-0.5 flex items-center justify-between rounded-xl px-3 py-2 transition-all duration-200 group-hover:opacity-90"
+                className="mt-0.5 flex items-center justify-between rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-200 group-hover:opacity-90"
                 style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.9), rgba(220,38,38,0.8))" }}
               >
-                <span className="text-white font-bold text-[11px] uppercase tracking-widest">Join Service</span>
+                <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">Join Service</span>
                 <motion.div
                   animate={{ x: [0, 3, 0] }}
                   transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <ChevronRight className="h-3.5 w-3.5 text-white" />
+                  <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                 </motion.div>
               </div>
             </button>
@@ -243,9 +243,9 @@ function BroadcastStatusNotification({
         ) : (
           <motion.div
             key="upcoming"
-            initial={{ opacity: 0, x: 48, scale: 0.88 }}
+            initial={{ opacity: 0, x: 40, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 48, scale: 0.88 }}
+            exit={{ opacity: 0, x: 40, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
             className="relative"
           >
@@ -255,7 +255,7 @@ function BroadcastStatusNotification({
               style={{ background: "radial-gradient(circle, rgba(56,189,248,0.3), rgba(0,51,102,0.15))" }}
             />
             <div
-              className="relative flex flex-col gap-2.5 w-[198px] rounded-[1.5rem] px-4 pt-4 pb-3.5"
+              className="relative flex flex-col gap-2 sm:gap-2.5 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 sm:pb-3.5"
               style={{
                 background: "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(240,248,255,0.95) 100%)",
                 backdropFilter: "blur(24px)",
@@ -267,36 +267,36 @@ function BroadcastStatusNotification({
               {/* Dismiss */}
               <button
                 onClick={() => setDismissed(true)}
-                className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary/6 hover:bg-primary/12 flex items-center justify-center transition-colors"
+                className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary/6 hover:bg-primary/12 flex items-center justify-center transition-colors"
               >
                 <X className="h-2.5 w-2.5 text-primary/35" />
               </button>
 
               {/* Header */}
-              <div className="flex items-center gap-2 pr-5">
+              <div className="flex items-center gap-1.5 pr-5">
                 <motion.div
                   animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="h-5 w-5 rounded-lg flex items-center justify-center shrink-0"
+                  className="h-4 w-4 sm:h-5 sm:w-5 rounded-md sm:rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.18), rgba(0,51,102,0.1))" }}
                 >
-                  <Calendar className="h-3 w-3 text-accent" />
+                  <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-accent" />
                 </motion.div>
-                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-accent">Upcoming Service</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-accent whitespace-nowrap">Upcoming Service</span>
               </div>
 
               {/* Service time */}
               <div>
-                <p className="text-primary font-serif font-bold text-sm leading-tight">Sunday · 8:00 AM</p>
-                <p className="text-primary/40 text-[10px] font-medium mt-0.5">Jesus Christ Temple Ministry</p>
+                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">Sunday · 8:00 AM</p>
+                <p className="text-primary/40 text-[9px] sm:text-[10px] font-medium mt-0.5 truncate">Jesus Christ Temple Ministry</p>
               </div>
 
               {/* Countdown */}
               <div
-                className="rounded-xl px-3 py-2.5"
+                className="rounded-lg sm:rounded-xl px-2 sm:px-3 py-2 sm:py-2.5"
                 style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.07))", border: "1px solid rgba(56,189,248,0.12)" }}
               >
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary/35 mb-1.5">Starts in</p>
+                <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-widest text-primary/35 mb-1 sm:mb-1.5">Starts in</p>
                 <div className="flex items-center justify-between">
                   {[
                     { val: countdown.days, label: "d" },
@@ -306,19 +306,19 @@ function BroadcastStatusNotification({
                   ].map(({ val, label }, i) => (
                     <div key={label} className="flex items-center gap-0.5">
                       <div className="text-center">
-                        <span className="font-black text-sm text-primary tabular-nums leading-none">{pad(val)}</span>
-                        <p className="text-[8px] font-bold text-primary/30 uppercase">{label}</p>
+                        <span className="font-black text-xs sm:text-sm text-primary tabular-nums leading-none">{pad(val)}</span>
+                        <p className="text-[7px] sm:text-[8px] font-bold text-primary/30 uppercase">{label}</p>
                       </div>
-                      {i < 3 && <span className="text-primary/20 font-bold text-sm mb-1.5 mx-0.5">:</span>}
+                      {i < 3 && <span className="text-primary/20 font-bold text-xs sm:text-sm mb-1 sm:mb-1.5 mx-[1px] sm:mx-0.5">:</span>}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Notification hint */}
-              <div className="flex items-center gap-1.5">
+              {/* Notification hint — hidden on smallest screens to save space */}
+              <div className="hidden sm:flex items-center gap-1.5">
                 <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
-                <p className="text-[9px] text-primary/35 font-medium">Broadcasts live on Temple TV</p>
+                <p className="text-[9px] text-primary/35 font-medium truncate">Broadcasts live on Temple TV</p>
               </div>
             </div>
           </motion.div>
