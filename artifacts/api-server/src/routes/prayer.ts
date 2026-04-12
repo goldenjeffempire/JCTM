@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { pool } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -73,6 +74,76 @@ Create a heartfelt, biblically grounded prayer that directly addresses this spec
     const msg = err instanceof Error ? err.message : "Prayer generation failed";
     res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
     res.end();
+  }
+});
+
+router.get("/prayer/requests", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, category, request, pray_count, created_at
+       FROM prayer_requests
+       WHERE is_public = true
+       ORDER BY created_at DESC
+       LIMIT 30`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load prayer requests" });
+  }
+});
+
+router.post("/prayer/requests", async (req: Request, res: Response): Promise<void> => {
+  const { name, category, request: reqText, visitorId } = req.body as {
+    name?: string; category?: string; request?: string; visitorId?: string;
+  };
+
+  if (!reqText || !reqText.trim()) {
+    res.status(400).json({ error: "Prayer request text is required." });
+    return;
+  }
+
+  if (reqText.trim().length > 500) {
+    res.status(400).json({ error: "Prayer request must be 500 characters or less." });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO prayer_requests (name, category, request, visitor_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, category, request, pray_count, created_at`,
+      [
+        (name?.trim() || "Anonymous").slice(0, 60),
+        category || "general",
+        reqText.trim(),
+        visitorId || null,
+      ]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to submit prayer request" });
+  }
+});
+
+router.post("/prayer/requests/:id/pray", async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(req.params["id"] ?? "0", 10);
+  if (!id || isNaN(id)) {
+    res.status(400).json({ error: "Invalid prayer request ID" });
+    return;
+  }
+
+  try {
+    await pool.query(
+      `UPDATE prayer_requests SET pray_count = pray_count + 1 WHERE id = $1`,
+      [id]
+    );
+    const updated = await pool.query(
+      `SELECT pray_count FROM prayer_requests WHERE id = $1`,
+      [id]
+    );
+    res.json({ prayCount: updated.rows[0]?.pray_count ?? 0 });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update prayer count" });
   }
 });
 

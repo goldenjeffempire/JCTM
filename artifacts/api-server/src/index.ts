@@ -126,6 +126,20 @@ async function runStartupMigrations() {
       ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS broadcast_ended_at timestamptz
     `);
 
+    // ── Community Prayer Wall ────────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS prayer_requests (
+        id serial PRIMARY KEY,
+        name text NOT NULL DEFAULT 'Anonymous',
+        category text NOT NULL DEFAULT 'general',
+        request text NOT NULL,
+        pray_count integer NOT NULL DEFAULT 0,
+        is_public boolean NOT NULL DEFAULT true,
+        visitor_id text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
     // ── pgvector cosine similarity search function ───────────────────────────
     try {
       await pool.query(`

@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SEO } from "@/components/SEO";
 import {
   Heart, Sparkles, BookOpen, Copy, Check, RefreshCw,
-  ChevronDown, Flame, Shield, Star, Sun, Users, Home as HomeIcon,
+  Flame, Shield, Star, Sun, Users, Home as HomeIcon,
+  Send, MessageSquarePlus, Clock,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -37,6 +39,272 @@ const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 80, damping: 18 } },
 };
+
+function getVisitorId(): string {
+  const key = "jctm_visitor_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+const CAT_LABEL: Record<string, string> = {
+  healing: "Healing",
+  deliverance: "Deliverance",
+  guidance: "Guidance",
+  peace: "Peace",
+  provision: "Provision",
+  family: "Family",
+  protection: "Protection",
+  salvation: "Salvation",
+  strength: "Strength",
+  general: "General",
+};
+
+interface PrayerRequest {
+  id: number;
+  name: string;
+  category: string;
+  request: string;
+  pray_count: number;
+  created_at: string;
+}
+
+function PrayerWall() {
+  const [requests, setRequests] = useState<PrayerRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [prayedFor, setPrayedFor] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem("jctm_prayed_for");
+      return stored ? new Set(JSON.parse(stored)) : new Set<number>();
+    } catch { return new Set<number>(); }
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ name: "", category: "general", request: "" });
+
+  const fetchRequests = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}/api/prayer/requests`);
+      if (res.ok) setRequests(await res.json());
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  const pray = async (id: number) => {
+    if (prayedFor.has(id)) return;
+    const newSet = new Set([...prayedFor, id]);
+    setPrayedFor(newSet);
+    localStorage.setItem("jctm_prayed_for", JSON.stringify([...newSet]));
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, pray_count: r.pray_count + 1 } : r));
+    try {
+      await fetch(`${BASE}/api/prayer/requests/${id}/pray`, { method: "POST" });
+    } catch {}
+    toast.success("🙏 You prayed for this need!");
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.request.trim()) {
+      toast.error("Please describe your prayer need.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${BASE}/api/prayer/requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, visitorId: getVisitorId() }),
+      });
+      if (!res.ok) throw new Error();
+      const newReq: PrayerRequest = await res.json();
+      setRequests(prev => [newReq, ...prev]);
+      setForm({ name: "", category: "general", request: "" });
+      setShowForm(false);
+      toast.success("Your prayer request has been shared with the community.");
+    } catch {
+      toast.error("Could not submit your request. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-12 max-w-3xl">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ type: "spring", stiffness: 70 }}
+      >
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-primary">Community Prayer Wall</h2>
+            <p className="text-sm text-muted-foreground mt-1">Pray for your brothers and sisters in Christ</p>
+          </div>
+          <Button
+            onClick={() => setShowForm(s => !s)}
+            size="sm"
+            className="rounded-full font-semibold flex items-center gap-2"
+            style={{ background: showForm ? "hsl(var(--muted))" : "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%)", color: showForm ? "hsl(var(--foreground))" : "white", border: "none" }}
+          >
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            {showForm ? "Cancel" : "Add Prayer Request"}
+          </Button>
+        </div>
+
+        {/* Submission form */}
+        <AnimatePresence>
+          {showForm && (
+            <motion.form
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              onSubmit={submit}
+              className="glass-panel rounded-2xl p-5 mb-6 space-y-4 overflow-hidden"
+            >
+              <h3 className="font-semibold text-primary text-sm">Share Your Prayer Need</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Your Name (optional)</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Anonymous"
+                    className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    style={{ borderColor: "rgba(0,51,102,0.15)" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Category</label>
+                  <select
+                    value={form.category}
+                    onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    style={{ borderColor: "rgba(0,51,102,0.15)" }}
+                  >
+                    {CATEGORIES.map(c => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Your Prayer Need *</label>
+                <textarea
+                  value={form.request}
+                  onChange={e => setForm(f => ({ ...f, request: e.target.value.slice(0, 500) }))}
+                  placeholder="Share what is on your heart…"
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
+                  style={{ borderColor: "rgba(0,51,102,0.15)" }}
+                />
+                <p className="text-xs text-muted-foreground/60 mt-1 text-right">{form.request.length}/500</p>
+              </div>
+              <Button
+                type="submit"
+                disabled={submitting || !form.request.trim()}
+                className="w-full h-10 rounded-xl font-semibold flex items-center gap-2"
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%)", color: "white", border: "none" }}
+              >
+                {submitting ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                    <Sparkles className="h-4 w-4" />
+                  </motion.div>
+                ) : <Send className="h-4 w-4" />}
+                {submitting ? "Submitting…" : "Share to Prayer Wall"}
+              </Button>
+            </motion.form>
+          )}
+        </AnimatePresence>
+
+        {/* Prayer requests list */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="glass-panel rounded-2xl p-5 animate-pulse">
+                <div className="flex justify-between mb-3">
+                  <div className="h-3.5 bg-muted rounded w-24" />
+                  <div className="h-3.5 bg-muted rounded w-16" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-muted rounded w-full" />
+                  <div className="h-3 bg-muted rounded w-4/5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="text-center py-12 glass-panel rounded-2xl">
+            <Heart className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+            <p className="text-muted-foreground text-sm">No prayer requests yet.</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">Be the first to share your need with the community.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((req, i) => (
+              <motion.div
+                key={req.id}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.04, type: "spring", stiffness: 80 }}
+                className="glass-panel rounded-2xl p-5"
+              >
+                <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))" }}
+                    >
+                      {req.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="text-sm font-semibold text-primary">{req.name}</span>
+                      <span className="mx-1.5 text-muted-foreground/40">·</span>
+                      <span
+                        className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border"
+                        style={{ background: "rgba(56,189,248,0.07)", borderColor: "rgba(56,189,248,0.2)", color: "hsl(var(--accent))" }}
+                      >
+                        {CAT_LABEL[req.category] ?? req.category}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                    <Clock className="h-2.5 w-2.5" />
+                    {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                  </span>
+                </div>
+
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">{req.request}</p>
+
+                <motion.button
+                  whileTap={{ scale: 0.93 }}
+                  onClick={() => pray(req.id)}
+                  disabled={prayedFor.has(req.id)}
+                  className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all"
+                  style={{
+                    background: prayedFor.has(req.id) ? "rgba(56,189,248,0.12)" : "transparent",
+                    borderColor: prayedFor.has(req.id) ? "rgba(56,189,248,0.3)" : "rgba(0,51,102,0.15)",
+                    color: prayedFor.has(req.id) ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))",
+                    cursor: prayedFor.has(req.id) ? "default" : "pointer",
+                  }}
+                >
+                  🙏 {prayedFor.has(req.id) ? "Prayed" : "Pray"} · {req.pray_count}
+                </motion.button>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 
 export default function Prayer() {
   const [need, setNeed] = useState("");
@@ -492,13 +760,21 @@ export default function Prayer() {
               ))}
             </motion.div>
 
-            <div className="mt-8 pb-16 text-center">
+            <div className="mt-8 pb-8 text-center">
               <p className="text-xs text-muted-foreground/60 max-w-md mx-auto">
                 "The effectual fervent prayer of a righteous man availeth much." — James 5:16 (KJV)
               </p>
             </div>
           </div>
         </div>
+
+        {/* Divider */}
+        <div className="border-t border-border/30 mx-auto max-w-3xl" />
+
+        {/* Community Prayer Wall */}
+        <PrayerWall />
+
+        <div className="pb-16" />
       </div>
     </Layout>
   );

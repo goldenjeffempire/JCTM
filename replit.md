@@ -129,6 +129,29 @@ Served at root level (not under `/api`) in `app.ts`:
 
 ---
 
+## Recent Enhancements (April 2026)
+
+### Sermon Detail Page (`/sermons/:id`) — Complete Rebuild
+- **Two-column layout** — Main player + sidebar on desktop; single column on mobile
+- **Related sermons sidebar** — Auto-fetches 6 related sermons by keyword from current sermon title
+- **Share functionality** — WhatsApp, X (Twitter), Copy Link (dropdown + sidebar quick buttons)
+- **"Ask AI about this sermon"** — Contextual card linking to SermonAssistant with pre-filled query
+- **"Watch on YouTube" card** — Quick CTA in sidebar
+- **Improved meta** — Cleaner title, date, and view count display with Temple TV badge
+
+### Community Prayer Wall (`/prayer` + API)
+- **New database table**: `prayer_requests` (id, name, category, request, pray_count, is_public, visitor_id, created_at)
+- **GET /api/prayer/requests** — Fetch 30 most recent public prayer requests
+- **POST /api/prayer/requests** — Submit a new prayer request (500-char limit)
+- **POST /api/prayer/requests/:id/pray** — Increment pray count (anonymous, persisted in localStorage)
+- **UI**: Full community prayer wall below the AI generator with animated cards, category badges, pray button with optimistic update
+
+### BroadcastStatusIndicator
+- Persistent floating badge (top-right, always on top) replacing the old LiveBanner
+- Idle: subtle "Temple TV" ghost pill; Live: pulsing red badge; Rebroadcast: amber badge with countdown
+
+---
+
 ## Real-time Features
 
 - **YouTube WebSub** — Push subscriptions for instant new sermon notifications (no polling)
