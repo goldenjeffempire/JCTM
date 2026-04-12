@@ -7,7 +7,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import {
   Calendar, ArrowRight, MapPin, ShieldCheck, Flame, Users,
-  Radio, BookOpen, Heart, Sparkles, ChevronRight, ChevronLeft, Globe,
+  Radio, BookOpen, Heart, Sparkles, ChevronRight, Globe,
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
   Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
   Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X,
@@ -995,6 +995,11 @@ function HeroSection() {
                 onMouseEnter={() => setImgHovered(img.key)}
                 onMouseLeave={() => setImgHovered(null)}
               >
+                {/* Shimmer skeleton — visible until image paints */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)", backgroundSize: "200% 100%", animation: "slideShimmer 1.6s infinite" }} />
+                </div>
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={img.key}
@@ -1007,6 +1012,7 @@ function HeroSection() {
                     className="w-full h-full object-cover absolute inset-0"
                     loading="eager"
                     decoding="async"
+                    fetchPriority={i === 0 ? "high" : "auto"}
                   />
                 </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
@@ -1212,50 +1218,6 @@ function HeroSection() {
               )}
               </div>
 
-              {/* ── Slideshow Navigation: Prev / Dots / Next ── */}
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 }} className="flex items-center gap-3 mt-1">
-                <motion.button
-                  onClick={goPrev}
-                  whileHover={{ scale: 1.12 } as never}
-                  whileTap={{ scale: 0.92 } as never}
-                  className="h-8 w-8 rounded-full flex items-center justify-center border border-primary/12 bg-white/70 backdrop-blur-md shadow-sm hover:bg-white hover:border-accent/40 hover:shadow-accent/15 hover:shadow-md transition-all duration-200"
-                  aria-label="Previous slide"
-                >
-                  <ChevronLeft className="h-4 w-4 text-primary/60" />
-                </motion.button>
-                <div className="flex items-center gap-1.5">
-                  {HERO_IMAGES.map((_, i) => (
-                    <motion.button
-                      key={i}
-                      onClick={() => setActiveSlide(i)}
-                      aria-label={`Go to slide ${i + 1}`}
-                      className="relative overflow-hidden rounded-full transition-all duration-300"
-                      style={{ width: i === activeSlide ? 20 : 6, height: 6 }}
-                    >
-                      <motion.div
-                        className="absolute inset-0 rounded-full"
-                        animate={{ background: i === activeSlide ? "rgba(56,189,248,1)" : "rgba(0,51,102,0.2)" }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      {i === activeSlide && (
-                        <motion.div
-                          layoutId="slideDot"
-                          className="absolute inset-0 rounded-full bg-accent"
-                        />
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
-                <motion.button
-                  onClick={goNext}
-                  whileHover={{ scale: 1.12 } as never}
-                  whileTap={{ scale: 0.92 } as never}
-                  className="h-8 w-8 rounded-full flex items-center justify-center border border-primary/12 bg-white/70 backdrop-blur-md shadow-sm hover:bg-white hover:border-accent/40 hover:shadow-accent/15 hover:shadow-md transition-all duration-200"
-                  aria-label="Next slide"
-                >
-                  <ChevronRight className="h-4 w-4 text-primary/60" />
-                </motion.button>
-              </motion.div>
             </motion.div>
           </motion.div>
         </div>
@@ -1289,6 +1251,11 @@ function HeroSection() {
                 onMouseEnter={() => setImgHovered(img.key)}
                 onMouseLeave={() => setImgHovered(null)}
               >
+                {/* Shimmer skeleton — visible until image paints */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)", backgroundSize: "200% 100%", animation: "slideShimmer 1.6s infinite" }} />
+                </div>
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={img.key}
@@ -1301,6 +1268,7 @@ function HeroSection() {
                     className="w-full h-full object-cover absolute inset-0"
                     loading="eager"
                     decoding="async"
+                    fetchPriority={i === 0 ? "high" : "auto"}
                   />
                 </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
