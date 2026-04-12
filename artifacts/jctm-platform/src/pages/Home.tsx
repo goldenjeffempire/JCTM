@@ -928,11 +928,24 @@ function HeroSection() {
                 </Link>
               </MagneticButton>
               <MagneticButton>
-                <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
-                  <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary bg-white/65 hover:bg-white/90 border border-primary/10 backdrop-blur-md transition-all duration-300 shadow-md hover:-translate-y-1 min-h-[44px]">
-                    <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch on Temple TV
+                {isLive ? (
+                  <RippleButton
+                    onClick={() => setLivePlayerOpen(true)}
+                    className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-semibold text-white bg-red-500 hover:bg-red-600 shadow-xl shadow-red-500/30 transition-all duration-300 hover:-translate-y-1 min-h-[44px]"
+                  >
+                    <span className="relative flex h-2.5 w-2.5 mr-2.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+                    </span>
+                    Watch Live Now
                   </RippleButton>
-                </a>
+                ) : (
+                  <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
+                    <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary bg-white/65 hover:bg-white/90 border border-primary/10 backdrop-blur-md transition-all duration-300 shadow-md hover:-translate-y-1 min-h-[44px]">
+                      <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch on Temple TV
+                    </RippleButton>
+                  </a>
+                )}
               </MagneticButton>
             </motion.div>
 
@@ -981,20 +994,40 @@ function HeroSection() {
                   <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-accent transition-colors">{img.tag}</span>
                 </motion.button>
               ))}
-              <motion.a
-                href="https://www.youtube.com/templetvjctm"
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.06, y: -4 } as never}
-                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.2 }}
-                className="group relative flex flex-col items-center gap-1.5"
-              >
-                <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center transition-all duration-300 group-hover:border-red-400/70 group-hover:shadow-red-400/30 group-hover:shadow-xl">
-                  <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-2xl bg-red-400/20" />
-                  <Youtube className="h-6 w-6 text-white relative z-10" />
-                </div>
-                <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-red-500 transition-colors">Temple TV</span>
-              </motion.a>
+              {isLive ? (
+                <motion.button
+                  onClick={() => setLivePlayerOpen(true)}
+                  whileHover={{ scale: 1.06, y: -4 } as never}
+                  whileTap={{ scale: 0.95 } as never}
+                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.2 }}
+                  className="group relative flex flex-col items-center gap-1.5"
+                >
+                  <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-red-400/70 shadow-lg shadow-red-400/30 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center transition-all duration-300 group-hover:shadow-xl">
+                    <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-2xl bg-red-400/20" />
+                    <Play className="h-5 w-5 text-white relative z-10 fill-white" />
+                    <span className="absolute top-1.5 left-1.5 flex h-1.5 w-1.5 z-10">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider">Live Now</span>
+                </motion.button>
+              ) : (
+                <motion.a
+                  href="https://www.youtube.com/templetvjctm"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.06, y: -4 } as never}
+                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.2 }}
+                  className="group relative flex flex-col items-center gap-1.5"
+                >
+                  <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center transition-all duration-300 group-hover:border-red-400/70 group-hover:shadow-red-400/30 group-hover:shadow-xl">
+                    <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-2xl bg-red-400/20" />
+                    <Youtube className="h-6 w-6 text-white relative z-10" />
+                  </div>
+                  <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-red-500 transition-colors">Temple TV</span>
+                </motion.a>
+              )}
             </motion.div>
           </motion.div>
         </div>
