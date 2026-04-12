@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useGetLivestreamStatus, getGetLivestreamStatusQueryKey } from "@workspace/api-client-react";
-import { Radio, X } from "lucide-react";
+import { Radio, X, MessageSquare, Tv2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { LiveChat } from "@/components/LiveChat";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -10,6 +11,7 @@ export function LiveBanner() {
     query: { queryKey: getGetLivestreamStatusQueryKey(), refetchInterval: 30000 }
   });
   const [showPlayer, setShowPlayer] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
 
   if (!status?.isLive) return null;
 
@@ -37,7 +39,7 @@ export function LiveBanner() {
         </button>
       </div>
 
-      {/* ── Embedded Player Modal ── */}
+      {/* ── Live Player + Chat Modal ── */}
       <AnimatePresence>
         {showPlayer && (
           <motion.div
@@ -45,7 +47,7 @@ export function LiveBanner() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 md:p-6"
             onClick={() => setShowPlayer(false)}
           >
             <motion.div
@@ -53,10 +55,12 @@ export function LiveBanner() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.92, opacity: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 26 }}
-              className="relative w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-white/10"
+              className="relative w-full max-w-6xl rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col"
+              style={{ height: "88vh", maxHeight: "88vh" }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="bg-[#0a0a0a] flex items-center justify-between px-5 py-3">
+              {/* ── Header bar ── */}
+              <div className="bg-[#0a0a0a] flex items-center justify-between px-5 py-3 shrink-0">
                 <div className="flex items-center gap-2.5">
                   <span className="relative flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -71,16 +75,58 @@ export function LiveBanner() {
                   <X className="h-4 w-4 text-white/70" />
                 </button>
               </div>
-              <div className="relative bg-black" style={{ paddingBottom: "56.25%" }}>
-                <iframe
-                  key={videoId}
-                  src={embedSrc}
-                  title="JCTM Live Service"
-                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  className="absolute inset-0 w-full h-full"
-                />
+
+              {/* ── Mobile tab switcher ── */}
+              <div className="flex md:hidden bg-[#111] border-b border-white/10 shrink-0">
+                <button
+                  onClick={() => setMobileTab("video")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
+                    mobileTab === "video" ? "text-white border-b-2 border-red-500" : "text-white/40"
+                  }`}
+                >
+                  <Tv2 className="w-4 h-4" />
+                  Watch
+                </button>
+                <button
+                  onClick={() => setMobileTab("chat")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
+                    mobileTab === "chat" ? "text-white border-b-2 border-sky-500" : "text-white/40"
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Live Chat
+                </button>
+              </div>
+
+              {/* ── Content: side-by-side on desktop, tabbed on mobile ── */}
+              <div className="flex flex-1 min-h-0 overflow-hidden bg-[#0d0d0d]">
+
+                {/* Video panel — flex-1 so it fills remaining width beside chat */}
+                <div
+                  className={`${
+                    mobileTab === "video" ? "flex" : "hidden"
+                  } md:flex flex-col flex-1 bg-black min-w-0`}
+                >
+                  <iframe
+                    key={videoId}
+                    src={embedSrc}
+                    title="JCTM Live Service"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="w-full h-full"
+                    style={{ minHeight: "260px" }}
+                  />
+                </div>
+
+                {/* Chat panel — fixed 320px sidebar on desktop, full-width on mobile */}
+                <div
+                  className={`${
+                    mobileTab === "chat" ? "flex" : "hidden"
+                  } md:flex flex-col border-l border-white/10 bg-[#111] w-full md:w-80 md:flex-shrink-0`}
+                >
+                  <LiveChat isLive={true} embedded={true} />
+                </div>
               </div>
             </motion.div>
           </motion.div>
