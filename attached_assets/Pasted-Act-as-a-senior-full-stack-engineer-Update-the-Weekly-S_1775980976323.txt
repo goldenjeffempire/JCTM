@@ -1,0 +1,91 @@
+Act as a senior full-stack engineer.
+
+Update the “Weekly Service” section and all Live Service buttons across the platform to reflect an ACTIVE live stream state using the provided YouTube link.
+
+========================
+🔴 LIVE STREAM (ACTIVE NOW)
+========================
+Use this live stream as the current active service:
+https://www.youtube.com/watch?v=f7TOxaM2Mq4
+
+Convert and use ONLY the embed format for playback:
+https://www.youtube.com/embed/f7TOxaM2Mq4
+
+========================
+🎯 CORE REQUIREMENTS
+========================
+- The platform must detect and treat this stream as LIVE NOW
+- All “Live Service” buttons across the platform must:
+  → Display: “🔴 Live Now — Join Service”
+  → Open the stream INSIDE the platform (NO redirect to YouTube)
+
+========================
+📺 PLAYER IMPLEMENTATION
+========================
+- Use embedded iframe or WebView
+- Enable:
+  - Autoplay (muted for browser compliance)
+  - Fullscreen support
+  - Responsive layout
+
+Example:
+<iframe 
+  src="https://www.youtube.com/embed/f7TOxaM2Mq4?autoplay=1&mute=1"
+  allow="autoplay; encrypted-media; picture-in-picture"
+  allowfullscreen>
+</iframe>
+
+========================
+📅 WEEKLY SERVICE SECTION (OVERRIDE STATE)
+========================
+Because the stream is currently LIVE:
+
+- Override all default states (Upcoming / Countdown)
+- Force display:
+  → “🔴 Live Now — Join Service”
+
+- Hide:
+  - “Upcoming Service”
+  - Countdown timer
+  - “Watch on YouTube” text
+
+========================
+🎨 HERO SECTION BEHAVIOR
+========================
+- Show floating side notification:
+  → “🔴 Live Now — Join Service”
+- Clicking it:
+  → Opens embedded player inside the platform
+
+========================
+📚 SERMON PAGE UPDATE
+========================
+- Display pulsing red badge:
+  → “🔴 Live Now — Join Service”
+- Badge must be visible at the top
+- Clicking opens embedded player (no redirect)
+
+========================
+🔁 FALLBACK (WHEN STREAM ENDS)
+========================
+When the live stream stops:
+
+- Replace with:
+  → “Rebroadcast” button (visible for 3–4 days)
+- After expiry:
+  → Return to normal weekly service logic
+
+========================
+⚙️ NON-NEGOTIABLE RULES
+========================
+- NO redirect to YouTube at any time
+- ALL playback must happen inside the platform
+- Ensure fast load and smooth playback
+- Fully production-ready implementation
+
+========================
+🎯 FINAL RESULT
+========================
+- Users see “🔴 Live Now”
+- Click → instantly watch inside the platform
+- Full TV-like streaming experience

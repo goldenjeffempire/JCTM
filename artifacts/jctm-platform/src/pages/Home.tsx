@@ -242,8 +242,11 @@ function BroadcastStatusNotification({
               className="absolute -inset-4 rounded-[2rem] blur-2xl"
               style={{ background: "radial-gradient(circle, rgba(239,68,68,0.45), rgba(185,28,28,0.25))" }}
             />
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               onClick={onJoin}
+              onKeyDown={e => e.key === "Enter" && onJoin()}
               className="relative flex flex-col gap-1.5 sm:gap-2 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 text-left cursor-pointer group"
               style={{
                 background: "linear-gradient(145deg, rgba(20,0,0,0.92) 0%, rgba(80,10,10,0.96) 100%)",
@@ -281,7 +284,7 @@ function BroadcastStatusNotification({
                   <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                 </motion.div>
               </div>
-            </button>
+            </div>
           </motion.div>
         ) : phase === "upcoming" ? (
           <motion.div
@@ -832,18 +835,9 @@ function HeroSection() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`https://www.youtube.com/watch?v=${liveVideoId ?? LIVE_STREAM_VIDEO_ID}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-white/50 hover:text-white text-xs flex items-center gap-1 transition-colors"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <ExternalLink className="h-3 w-3" /> YouTube
-                  </a>
                   <button
                     onClick={() => setLivePlayerOpen(false)}
-                    className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors ml-1"
+                    className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -2411,15 +2405,15 @@ function SundayServiceCard() {
   const serviceStarted = isSunday && watHour >= 8;
 
   // 4 distinct phases:
-  // "upcoming"  — Tue, Wed, Thu, Fri, Sat (and Sun before 8 AM if not live)
-  // "countdown" — Monday only
-  // "standby"   — Sunday after 8 AM, stream NOT yet active
-  // "live"      — Sunday after 8 AM, stream IS active
+  // "live"      — stream IS active (any day — always takes priority)
+  // "countdown" — Monday only (no active stream)
+  // "standby"   — Sunday after 8 AM WAT, stream not yet live
+  // "upcoming"  — Tue, Wed, Thu, Fri, Sat (and Sun before 8 AM)
   type Phase = "upcoming" | "countdown" | "standby" | "live";
   const phase: Phase = (() => {
+    if (isLive) return "live";
     if (isMonday) return "countdown";
-    if (isSunday && serviceStarted && isLive) return "live";
-    if (isSunday && serviceStarted && !isLive) return "standby";
+    if (isSunday && serviceStarted) return "standby";
     return "upcoming";
   })();
 
