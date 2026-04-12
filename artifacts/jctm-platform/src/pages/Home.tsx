@@ -2386,7 +2386,7 @@ function SundayServiceCard() {
     return () => clearInterval(t);
   }, []);
 
-  // Poll livestream status every 60 s
+  // Poll livestream status every 30 s
   useEffect(() => {
     const poll = () => {
       fetch(`${BASE}/api/livestream/status`)
@@ -2399,23 +2399,29 @@ function SundayServiceCard() {
         .catch(() => {});
     };
     poll();
-    const t = setInterval(poll, 60000);
+    const t = setInterval(poll, 30000);
     return () => clearInterval(t);
   }, []);
 
   const watDay = watNow.getDay();   // 0=Sun, 1=Mon … 6=Sat
   const watHour = watNow.getHours();
 
-  // Phase logic
-  // Monday → countdown
-  // Tuesday–Saturday + Sunday before 8 AM → upcoming (static)
-  // Sunday 8 AM+ and stream is live → live
-  const isMonday = watDay === 1;
   const isSunday = watDay === 0;
+  const isMonday = watDay === 1;
   const serviceStarted = isSunday && watHour >= 8;
 
-  type Phase = "countdown" | "upcoming" | "live";
-  const phase: Phase = isLive && serviceStarted ? "live" : isMonday ? "countdown" : "upcoming";
+  // 4 distinct phases:
+  // "upcoming"  — Tue, Wed, Thu, Fri, Sat (and Sun before 8 AM if not live)
+  // "countdown" — Monday only
+  // "standby"   — Sunday after 8 AM, stream NOT yet active
+  // "live"      — Sunday after 8 AM, stream IS active
+  type Phase = "upcoming" | "countdown" | "standby" | "live";
+  const phase: Phase = (() => {
+    if (isMonday) return "countdown";
+    if (isSunday && serviceStarted && isLive) return "live";
+    if (isSunday && serviceStarted && !isLive) return "standby";
+    return "upcoming";
+  })();
 
   const videoId = liveVideoId ?? LIVE_STREAM_VIDEO_ID;
 
@@ -2486,25 +2492,24 @@ function SundayServiceCard() {
                 />
               ))}
             </div>
-            {/* Live phase: red top bar; others: accent bar */}
-            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 ${phase === "live" ? "from-red-500 via-red-400 to-red-600" : "from-accent via-white/40 to-accent"}`} />
+            {/* Top accent bar — red when live, blue otherwise */}
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 transition-all duration-700 ${phase === "live" ? "from-red-500 via-red-400 to-red-600" : "from-accent via-white/40 to-accent"}`} />
 
             <div className="p-6 flex flex-col flex-1 relative z-10">
-              {/* Header row */}
+
+              {/* ── Header: day badge + status badge ── */}
               <div className="flex items-start justify-between mb-5">
                 <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 text-white text-center shadow-lg">
                   <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest">Every</span>
                   <span className="block font-serif font-bold text-3xl leading-none">SUN</span>
                   <span className="block text-white/70 font-bold text-[9px] uppercase tracking-widest mt-0.5">Weekly</span>
                 </div>
+
                 <AnimatePresence mode="wait">
-                  {phase === "live" ? (
-                    <motion.span
-                      key="badge-live"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-1.5 bg-red-500/90 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-red-400/40"
+                  {phase === "live" && (
+                    <motion.span key="badge-live"
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-1.5 bg-red-500 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-red-400/40"
                     >
                       <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
@@ -2512,12 +2517,22 @@ function SundayServiceCard() {
                       </span>
                       Live Now
                     </motion.span>
-                  ) : (
-                    <motion.span
-                      key="badge-recurring"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
+                  )}
+                  {phase === "standby" && (
+                    <motion.span key="badge-standby"
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-1.5 bg-amber-500/80 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-amber-400/30"
+                    >
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                        <span className="relative inline-flex rounded-full h-full w-full bg-white" />
+                      </span>
+                      Today
+                    </motion.span>
+                  )}
+                  {(phase === "upcoming" || phase === "countdown") && (
+                    <motion.span key="badge-recurring"
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                       className="bg-white/20 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-white/20"
                     >
                       Recurring
@@ -2526,132 +2541,164 @@ function SundayServiceCard() {
                 </AnimatePresence>
               </div>
 
-              {/* Title & description */}
+              {/* ── Title & description — always shown ── */}
               <h3 className="text-xl font-serif font-bold text-white mb-1 leading-tight">Sunday Worship Service</h3>
               <p className="text-white/60 text-xs mb-4 leading-relaxed">Join us every Sunday for corporate worship, prayer, and the Word of God.</p>
 
-              {/* Service details — always visible */}
-              <div className="space-y-2 mb-5 text-sm text-white/75 flex-1">
-                <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />8:00 AM WAT every Sunday</div>
-                <div className="flex items-start gap-2 text-white/75"><MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" /><ChurchAddressBlock variant="inline" className="leading-snug text-sm text-white/75" /></div>
+              {/* ── Service details — always shown ── */}
+              <div className="space-y-2 mb-5 text-sm text-white/75">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-white/60 shrink-0" />
+                  8:00 AM WAT every Sunday
+                </div>
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-white/60 shrink-0 mt-0.5" />
+                  <span className="leading-snug">Ebrumede Roundabout, Effurun, Delta State, Nigeria</span>
+                </div>
               </div>
 
-              {/* Dynamic lower block */}
-              <AnimatePresence mode="wait">
-                {phase === "countdown" ? (
-                  /* ── MONDAY: Full countdown ── */
-                  <motion.div
-                    key="block-countdown"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="bg-white/10 rounded-2xl p-3 mb-4 border border-white/10">
-                      <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold mb-2">Next Service In</p>
-                      <div className="flex gap-2">
-                        {[
-                          { v: countdown.days, l: "Days" },
-                          { v: countdown.hours, l: "Hrs" },
-                          { v: countdown.minutes, l: "Min" },
-                          { v: countdown.seconds, l: "Sec" },
-                        ].map(({ v, l }) => (
-                          <div key={l} className="flex-1 flex flex-col items-center bg-white/10 rounded-xl py-1.5">
-                            <span className="text-lg font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
-                            <span className="text-[8px] text-white/50 uppercase tracking-wide mt-0.5">{l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : phase === "live" ? (
-                  /* ── SUNDAY LIVE: pulsing glow block ── */
-                  <motion.div
-                    key="block-live"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="mb-4"
-                  >
-                    <motion.div
-                      animate={{ opacity: [0.6, 1, 0.6] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="bg-red-500/20 rounded-2xl p-3 border border-red-400/30 text-center"
+              {/* ── Dynamic status block ── */}
+              <div className="flex-1 mb-4">
+                <AnimatePresence mode="wait">
+
+                  {/* PHASE: upcoming — Tue through Sat */}
+                  {phase === "upcoming" && (
+                    <motion.div key="block-upcoming"
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
                     >
-                      <p className="text-red-300 text-[10px] uppercase tracking-widest font-bold">🔴 Service is Live Now</p>
-                      <p className="text-white/50 text-[9px] mt-0.5">Stream is active on Temple TV</p>
-                    </motion.div>
-                  </motion.div>
-                ) : (
-                  /* ── TUE–SAT + SUNDAY PRE-SERVICE: Upcoming block ── */
-                  <motion.div
-                    key="block-upcoming"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="mb-4"
-                  >
-                    <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                      <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold mb-1.5">
-                        {isSunday ? "Today's Service" : "Upcoming Service"}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-white/50 shrink-0" />
-                        <div>
-                          <p className="text-white font-semibold text-sm leading-none">Sunday Worship Service</p>
-                          <p className="text-white/50 text-[10px] mt-0.5">8:00 AM WAT · Every Sunday</p>
+                      <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
+                        <p className="text-white/50 text-[9px] uppercase tracking-widest font-bold mb-2">Upcoming Service</p>
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-9 w-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
+                            <Calendar className="h-4 w-4 text-white/60" />
+                          </div>
+                          <div>
+                            <p className="text-white font-semibold text-sm leading-none">Sunday Worship Service</p>
+                            <p className="text-white/45 text-[10px] mt-1">8:00 AM WAT · Every Sunday</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  )}
 
-              {/* CTA Button — dynamic */}
-              <AnimatePresence mode="wait">
-                {phase === "live" ? (
-                  <motion.div
-                    key="cta-live"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <Button
-                      onClick={() => setShowEmbed(true)}
-                      className="w-full rounded-xl bg-red-500 hover:bg-red-600 text-white border-none shadow-none transition-all duration-200 gap-2 text-sm font-bold"
+                  {/* PHASE: countdown — Monday only */}
+                  {phase === "countdown" && (
+                    <motion.div key="block-countdown"
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
                     >
-                      <span className="relative flex h-2 w-2">
+                      <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10">
+                        <p className="text-white/50 text-[9px] uppercase tracking-widest font-bold mb-2.5">Next Service In</p>
+                        <div className="flex gap-2">
+                          {[
+                            { v: countdown.days, l: "Days" },
+                            { v: countdown.hours, l: "Hrs" },
+                            { v: countdown.minutes, l: "Min" },
+                            { v: countdown.seconds, l: "Sec" },
+                          ].map(({ v, l }) => (
+                            <div key={l} className="flex-1 flex flex-col items-center bg-white/10 rounded-xl py-2">
+                              <span className="text-xl font-black text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
+                              <span className="text-[8px] text-white/45 uppercase tracking-wide mt-1">{l}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* PHASE: standby — Sunday after 8 AM, stream not yet live */}
+                  {phase === "standby" && (
+                    <motion.div key="block-standby"
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <motion.div
+                        animate={{ opacity: [0.7, 1, 0.7] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="bg-amber-500/15 rounded-2xl p-3.5 border border-amber-400/25 text-center"
+                      >
+                        <p className="text-amber-300 text-[11px] uppercase tracking-widest font-bold">⏳ Preparing for Live Service</p>
+                        <p className="text-white/45 text-[9px] mt-1">Stream will begin shortly — stay tuned</p>
+                      </motion.div>
+                    </motion.div>
+                  )}
+
+                  {/* PHASE: live — Sunday + stream active */}
+                  {phase === "live" && (
+                    <motion.div key="block-live"
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <motion.div
+                        animate={{ opacity: [0.7, 1, 0.7] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        className="bg-red-500/20 rounded-2xl p-3.5 border border-red-400/30 text-center"
+                      >
+                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">🔴 Service is Live Now</p>
+                        <p className="text-white/45 text-[9px] mt-1">Stream is active on Temple TV</p>
+                      </motion.div>
+                    </motion.div>
+                  )}
+
+                </AnimatePresence>
+              </div>
+
+              {/* ── CTA Button ── */}
+              <AnimatePresence mode="wait">
+
+                {/* Live → big red Join button */}
+                {phase === "live" && (
+                  <motion.div key="cta-live"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <button
+                      onClick={() => setShowEmbed(true)}
+                      className="w-full rounded-xl py-3 flex items-center justify-center gap-2.5 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", boxShadow: "0 0 20px rgba(239,68,68,0.5)" }}
+                    >
+                      <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                         <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                       </span>
                       Join Live Service
-                    </Button>
-                  </motion.div>
-                ) : phase === "countdown" ? (
-                  <motion.div
-                    key="cta-countdown"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <Button className="w-full rounded-xl bg-white/15 text-white hover:bg-white/25 border border-white/20 shadow-none transition-all duration-200 gap-2 text-sm">
-                      <Calendar className="h-3.5 w-3.5" /> Add to Calendar
-                    </Button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="cta-upcoming"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <Button className="w-full rounded-xl bg-white/15 text-white hover:bg-white/25 border border-white/20 shadow-none transition-all duration-200 gap-2 text-sm">
-                      <Calendar className="h-3.5 w-3.5" /> Upcoming Service
-                    </Button>
+                    </button>
                   </motion.div>
                 )}
+
+                {/* Standby → muted disabled-style button */}
+                {phase === "standby" && (
+                  <motion.div key="cta-standby"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <div className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-semibold text-white/50 border border-white/15 cursor-not-allowed select-none">
+                      <Tv className="h-3.5 w-3.5" /> Stream Starting Soon…
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Countdown → info label */}
+                {phase === "countdown" && (
+                  <motion.div key="cta-countdown"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <div className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-semibold text-white/70 bg-white/10 border border-white/15">
+                      <Radio className="h-3.5 w-3.5 text-accent" /> Live this Sunday · 8:00 AM WAT
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Upcoming → info label */}
+                {phase === "upcoming" && (
+                  <motion.div key="cta-upcoming"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <div className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-semibold text-white/70 bg-white/10 border border-white/15">
+                      <Calendar className="h-3.5 w-3.5 text-accent" /> Upcoming Service
+                    </div>
+                  </motion.div>
+                )}
+
               </AnimatePresence>
             </div>
           </div>
