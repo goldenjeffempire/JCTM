@@ -7,7 +7,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import {
   Calendar, ArrowRight, MapPin, ShieldCheck, Flame, Users,
-  Radio, BookOpen, Heart, Sparkles, ChevronRight, Globe,
+  Radio, BookOpen, Heart, Sparkles, ChevronRight, ChevronLeft, Globe,
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
   Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
   Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X,
@@ -664,8 +664,8 @@ function RebroadcastBanner() {
 // HERO — Cinematic Multi-Image Sanctuary: Immersive Full-Viewport
 // ═══════════════════════════════════════════════════════════════════════════
 const HERO_IMAGES = [
-  { key: "img1", src: "/founder/DSC_0615.jpg", label: "Ministry", tag: "Service", title: "Ministry in Action", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img2", src: "/founder/DSC_0649.jpg", label: "Fellowship", tag: "Community", title: "Fellowship & Community", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img1", src: "/founder/DSC_9074.jpg", label: "Prophetic Word", tag: "Prophet", title: "Prophetic Declaration", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img2", src: "/founder/DSC_9075.jpg", label: "Apostolic Voice", tag: "Ministry", title: "Apostolic Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img3", src: "/founder/DSC1657.jpg", label: "Worship", tag: "Praise", title: "Corporate Worship", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach", title: "Crusade & Evangelism", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry", title: "The Preaching Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
@@ -692,6 +692,9 @@ function HeroSection() {
   const [playerLoading, setPlayerLoading] = useState(true);
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
 
   const { data: rebroadcastData } = useGetRebroadcastStatus({
     query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
@@ -701,8 +704,9 @@ function HeroSection() {
     ? { videoId: rebroadcastData.videoId, title: rebroadcastData.title }
     : null;
 
-  const leftImages = HERO_IMAGES.slice(0, 3);
-  const rightImages = HERO_IMAGES.slice(3, 6);
+  const n = HERO_IMAGES.length;
+  const leftImages = [0, 1, 2].map(offset => HERO_IMAGES[(activeSlide + offset) % n]);
+  const rightImages = [3, 4, 5].map(offset => HERO_IMAGES[(activeSlide + offset) % n]);
   const lightboxImg = HERO_IMAGES.find(i => i.key === lightbox) ?? null;
 
   const typeword = useTypewriter([
@@ -742,6 +746,23 @@ function HeroSection() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (isPaused || lightbox) return;
+    const t = setInterval(() => setActiveSlide(prev => (prev + 1) % HERO_IMAGES.length), 6000);
+    return () => clearInterval(t);
+  }, [isPaused, lightbox]);
+
+  const goPrev = () => setActiveSlide(prev => (prev - 1 + HERO_IMAGES.length) % HERO_IMAGES.length);
+  const goNext = () => setActiveSlide(prev => (prev + 1) % HERO_IMAGES.length);
+
+  const handlePointerDown = (e: React.PointerEvent) => setSwipeStartX(e.clientX);
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (swipeStartX === null) return;
+    const diff = e.clientX - swipeStartX;
+    if (Math.abs(diff) > 60) diff < 0 ? goNext() : goPrev();
+    setSwipeStartX(null);
+  };
+
   const metrics = [
     { value: 479, suffix: "+", label: "Sermons", icon: Mic2 },
     { value: 40, suffix: "+", label: "Nations", icon: Globe },
@@ -749,7 +770,13 @@ function HeroSection() {
   ];
 
   return (
-    <section ref={ref} className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: "#FFFFFF" }}>
+    <section
+      ref={ref}
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
+      style={{ background: "#FFFFFF" }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
       <CursorMesh />
 
       {/* ── LIGHTBOX OVERLAY ── */}
@@ -940,17 +967,19 @@ function HeroSection() {
         ))}
       </motion.div>
 
-      {/* ── LEFT: 3 Floating Image Cards ── */}
+      {/* ── LEFT: 3 Floating Image Cards (Slideshow) ── */}
       <motion.div
         style={{ y: yLeft }}
         initial={{ opacity: 0, x: -80 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: "spring", stiffness: 42, damping: 18, delay: 0.7 }}
         className="absolute left-2 xl:left-8 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-4"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
       >
         {leftImages.map((img, i) => (
           <motion.div
-            key={img.key}
+            key={i}
             animate={{ y: [0, i % 2 === 0 ? 12 : -12, 0] }}
             transition={{ duration: 7 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.8 }}
             className="cursor-pointer"
@@ -966,16 +995,33 @@ function HeroSection() {
                 onMouseEnter={() => setImgHovered(img.key)}
                 onMouseLeave={() => setImgHovered(null)}
               >
-                <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-700" style={{ transform: imgHovered === img.key ? "scale(1.12)" : "scale(1)" }} loading="eager" decoding="async" />
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={img.key}
+                    src={img.src}
+                    alt={img.label}
+                    initial={{ opacity: 0, scale: 1.08 }}
+                    animate={{ opacity: 1, scale: imgHovered === img.key ? 1.12 : 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.7, ease: "easeInOut" }}
+                    className="w-full h-full object-cover absolute inset-0"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
                 <motion.div animate={{ opacity: imgHovered === img.key ? 1 : 0 }} transition={{ duration: 0.2 }} className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
                     <ExternalLink className="h-3 w-3 text-white" />
                   </div>
                 </motion.div>
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <p className="text-white font-serif font-bold text-xs leading-tight">{img.label}</p>
-                  <p className="text-accent text-[9px] font-semibold">{img.tag}</p>
+                <div className="absolute bottom-0 left-0 right-0 p-2.5 z-10">
+                  <AnimatePresence mode="wait">
+                    <motion.div key={img.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.4 }}>
+                      <p className="text-white font-serif font-bold text-xs leading-tight">{img.label}</p>
+                      <p className="text-accent text-[9px] font-semibold">{img.tag}</p>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </div>
               {i === 0 && (
@@ -1098,30 +1144,38 @@ function HeroSection() {
               ))}
             </motion.div>
 
-            {/* ── Ministry Gallery Strip (all 6 images) ── */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }} className="flex items-center justify-center gap-2 flex-wrap">
-              <p className="text-primary/30 text-[10px] uppercase tracking-widest font-medium w-full mb-1">Ministry Gallery</p>
-              {HERO_IMAGES.map((img, i) => (
+            {/* ── Ministry Gallery Strip + Slideshow Controls ── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }} className="flex flex-col items-center gap-3">
+              <p className="text-primary/30 text-[10px] uppercase tracking-widest font-medium">Ministry Gallery</p>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+              {HERO_IMAGES.map((img, i) => {
+                const isActive = i === activeSlide;
+                return (
                 <motion.button
                   key={img.key}
-                  onClick={() => setLightbox(img.key)}
+                  onClick={() => setActiveSlide(i)}
                   whileHover={{ scale: 1.06, y: -4 } as never}
                   whileTap={{ scale: 0.95 } as never}
                   initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.7 + i * 0.08 }}
                   className="group relative flex flex-col items-center gap-1.5"
+                  aria-label={`Go to slide ${i + 1}: ${img.label}`}
                 >
-                  <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg transition-all duration-300 group-hover:border-accent/60 group-hover:shadow-accent/20 group-hover:shadow-xl">
+                  <div className={`relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 shadow-lg transition-all duration-300 ${isActive ? "border-accent shadow-accent/30 shadow-xl scale-105" : "border-white/80 group-hover:border-accent/60 group-hover:shadow-accent/20 group-hover:shadow-xl"}`}>
                     <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/70 via-transparent to-transparent" />
+                    {isActive && (
+                      <motion.div layoutId="activeGalleryIndicator" className="absolute inset-0 border-2 border-accent/50 rounded-2xl" />
+                    )}
                     <motion.div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <div className="bg-white/25 backdrop-blur-sm rounded-full p-1.5">
                         <ExternalLink className="h-3 w-3 text-white" />
                       </div>
                     </motion.div>
                   </div>
-                  <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-accent transition-colors">{img.tag}</span>
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider transition-colors ${isActive ? "text-accent" : "text-primary/50 group-hover:text-accent"}`}>{img.tag}</span>
                 </motion.button>
-              ))}
+                );
+              })}
               {isLive ? (
                 <motion.button
                   onClick={() => setLivePlayerOpen(true)}
@@ -1156,22 +1210,70 @@ function HeroSection() {
                   <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-red-500 transition-colors">Temple TV</span>
                 </motion.a>
               )}
+              </div>
+
+              {/* ── Slideshow Navigation: Prev / Dots / Next ── */}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 }} className="flex items-center gap-3 mt-1">
+                <motion.button
+                  onClick={goPrev}
+                  whileHover={{ scale: 1.12 } as never}
+                  whileTap={{ scale: 0.92 } as never}
+                  className="h-8 w-8 rounded-full flex items-center justify-center border border-primary/12 bg-white/70 backdrop-blur-md shadow-sm hover:bg-white hover:border-accent/40 hover:shadow-accent/15 hover:shadow-md transition-all duration-200"
+                  aria-label="Previous slide"
+                >
+                  <ChevronLeft className="h-4 w-4 text-primary/60" />
+                </motion.button>
+                <div className="flex items-center gap-1.5">
+                  {HERO_IMAGES.map((_, i) => (
+                    <motion.button
+                      key={i}
+                      onClick={() => setActiveSlide(i)}
+                      aria-label={`Go to slide ${i + 1}`}
+                      className="relative overflow-hidden rounded-full transition-all duration-300"
+                      style={{ width: i === activeSlide ? 20 : 6, height: 6 }}
+                    >
+                      <motion.div
+                        className="absolute inset-0 rounded-full"
+                        animate={{ background: i === activeSlide ? "rgba(56,189,248,1)" : "rgba(0,51,102,0.2)" }}
+                        transition={{ duration: 0.3 }}
+                      />
+                      {i === activeSlide && (
+                        <motion.div
+                          layoutId="slideDot"
+                          className="absolute inset-0 rounded-full bg-accent"
+                        />
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+                <motion.button
+                  onClick={goNext}
+                  whileHover={{ scale: 1.12 } as never}
+                  whileTap={{ scale: 0.92 } as never}
+                  className="h-8 w-8 rounded-full flex items-center justify-center border border-primary/12 bg-white/70 backdrop-blur-md shadow-sm hover:bg-white hover:border-accent/40 hover:shadow-accent/15 hover:shadow-md transition-all duration-200"
+                  aria-label="Next slide"
+                >
+                  <ChevronRight className="h-4 w-4 text-primary/60" />
+                </motion.button>
+              </motion.div>
             </motion.div>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* ── RIGHT: 3 Floating Image Cards ── */}
+      {/* ── RIGHT: 3 Floating Image Cards (Slideshow) ── */}
       <motion.div
         style={{ y: yRight }}
         initial={{ opacity: 0, x: 80 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: "spring", stiffness: 42, damping: 18, delay: 0.9 }}
         className="absolute right-2 xl:right-8 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-4"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
       >
         {rightImages.map((img, i) => (
           <motion.div
-            key={img.key}
+            key={i}
             animate={{ y: [0, i % 2 === 0 ? -12 : 12, 0] }}
             transition={{ duration: 6.5 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.9 }}
             className="cursor-pointer"
@@ -1187,16 +1289,33 @@ function HeroSection() {
                 onMouseEnter={() => setImgHovered(img.key)}
                 onMouseLeave={() => setImgHovered(null)}
               >
-                <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-700" style={{ transform: imgHovered === img.key ? "scale(1.12)" : "scale(1)" }} loading="eager" decoding="async" />
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={img.key}
+                    src={img.src}
+                    alt={img.label}
+                    initial={{ opacity: 0, scale: 1.08 }}
+                    animate={{ opacity: 1, scale: imgHovered === img.key ? 1.12 : 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.7, ease: "easeInOut" }}
+                    className="w-full h-full object-cover absolute inset-0"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
                 <motion.div animate={{ opacity: imgHovered === img.key ? 1 : 0 }} transition={{ duration: 0.2 }} className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
                     <ExternalLink className="h-3 w-3 text-white" />
                   </div>
                 </motion.div>
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <p className="text-white font-serif font-bold text-xs leading-tight">{img.label}</p>
-                  <p className="text-accent text-[9px] font-semibold">{img.tag}</p>
+                <div className="absolute bottom-0 left-0 right-0 p-2.5 z-10">
+                  <AnimatePresence mode="wait">
+                    <motion.div key={img.key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.4 }}>
+                      <p className="text-white font-serif font-bold text-xs leading-tight">{img.label}</p>
+                      <p className="text-accent text-[9px] font-semibold">{img.tag}</p>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </div>
               {i === 0 && (
