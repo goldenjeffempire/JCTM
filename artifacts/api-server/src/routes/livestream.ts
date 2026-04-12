@@ -27,7 +27,7 @@ const LIVE_VIDEO_ID = "f7TOxaM2Mq4";
 let livestreamState: LivestreamState = {
   isLive: true,
   isUpcoming: false,
-  title: "Sunday Worship Service — Temple TV Live",
+  title: "Holy Spirit Sunday Service - Temple TV Live",
   streamUrl: `https://www.youtube.com/watch?v=${LIVE_VIDEO_ID}`,
   videoId: LIVE_VIDEO_ID,
   startedAt: new Date().toISOString() + "_manual",
