@@ -1035,14 +1035,21 @@ components:
       properties:
         isLive:
           type: boolean
+        isUpcoming:
+          type: boolean
         title:
           type: ["string", "null"]
         streamUrl:
           type: ["string", "null"]
+        videoId:
+          type: ["string", "null"]
         startedAt:
+          type: ["string", "null"]
+        scheduledStartTime:
           type: ["string", "null"]
       required:
         - isLive
+        - isUpcoming
 
     UpdateLivestreamBody:
       type: object

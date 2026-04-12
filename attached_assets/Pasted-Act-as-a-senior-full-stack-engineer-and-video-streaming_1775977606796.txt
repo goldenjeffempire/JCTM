@@ -1,0 +1,155 @@
+Act as a senior full-stack engineer and video streaming systems architect.
+
+Your task is to build a complete, production-ready live streaming system for the JCTM platform that embeds and plays YouTube live streams directly within the platform (web and mobile) without redirecting users externally.
+
+========================
+🎯 CORE OBJECTIVE
+========================
+- Ensure all live streams are detected automatically
+- Streams must play INSIDE the platform (no redirect to YouTube)
+- Deliver a seamless “TV station” experience
+- Ensure reliability, scalability, and real-time responsiveness
+
+========================
+📺 LIVE STREAM INTEGRATION
+========================
+Use the following live stream as the primary source:
+https://www.youtube.com/watch?v=f7TOxaM2Mq4
+
+Convert and use the embed format:
+https://www.youtube.com/embed/f7TOxaM2Mq4
+
+Implement:
+- Embedded video player (iframe/webview)
+- Autoplay enabled (muted for browser compliance)
+- Fullscreen support
+- Responsive design (mobile, tablet, desktop)
+
+========================
+🧠 LIVE STATUS DETECTION SYSTEM
+========================
+Integrate YouTube Data API to:
+
+- Detect if the stream is:
+  - LIVE
+  - UPCOMING
+  - ENDED
+
+- Fetch metadata:
+  - Title
+  - Thumbnail
+  - Start time
+
+Implement polling or event-based updates:
+- Refresh every 15–30 seconds
+
+Logic:
+IF status == LIVE:
+    show "🔴 Live Now"
+    enable "Join Service" button
+    load embedded player
+
+IF status == UPCOMING:
+    show "Upcoming Service – [time]"
+
+IF status == ENDED:
+    show "Rebroadcast" button (visible for 3–4 days)
+
+========================
+🎯 HERO SECTION UI
+========================
+Build a floating notification-style component:
+
+- Positioned at the SIDE of the hero section (not centered)
+- Appears as a pop-up alert
+
+States:
+1. Upcoming:
+   - “Upcoming Service – 8:00 AM”
+
+2. Live:
+   - Pulsing red “🔴 Live Now — Join Service”
+
+3. Ended:
+   - “Rebroadcast” button
+
+Interaction:
+- Clicking opens embedded player (modal or inline)
+- Must NOT redirect to YouTube
+
+========================
+🔁 FALLBACK SYSTEM (CRITICAL)
+========================
+If no live stream is active:
+
+- Automatically switch to:
+  - Sermon video queue
+  - Continuous playback mode
+
+- Ensure:
+  - No blank screen
+  - No downtime
+  - Always playing content
+
+========================
+📱 MOBILE APP SUPPORT
+========================
+- Use WebView (React Native / Flutter)
+- Ensure:
+  - Smooth playback
+  - Fullscreen support
+  - No external app redirection
+
+========================
+⚙️ PERFORMANCE OPTIMIZATION
+========================
+- Lazy load player
+- Add loading skeleton
+- Optimize buffering
+- Handle slow networks gracefully
+
+========================
+🔐 SECURITY & RELIABILITY
+========================
+- Validate video ID
+- Handle API failures
+- Add retry logic
+- Prevent broken embeds
+
+========================
+🧪 TESTING REQUIREMENTS
+========================
+Test all scenarios:
+- Live active
+- Upcoming state
+- Stream ended
+- Network failure
+- Mobile responsiveness
+
+========================
+📁 OUTPUT REQUIREMENTS
+========================
+Provide:
+
+1. Full frontend implementation (React / Next.js)
+2. Backend live detection service (Node.js)
+3. API integration with YouTube
+4. Reusable video player component
+5. Hero notification component
+6. Deployment-ready configuration
+
+========================
+⚠️ NON-NEGOTIABLE
+========================
+- NO redirect to YouTube at any point
+- Everything must play inside the platform
+- Must be fully production-ready
+- No mock or placeholder logic
+
+========================
+🎯 FINAL RESULT
+========================
+A complete live streaming system where:
+- Users see “Live Now”
+- Click and instantly watch inside the platform
+- Experience a real TV-like broadcast system

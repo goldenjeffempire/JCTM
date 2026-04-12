@@ -413,9 +413,12 @@ export const GetRebroadcastStatusResponse = zod.object({
  */
 export const GetLivestreamStatusResponse = zod.object({
   isLive: zod.boolean(),
+  isUpcoming: zod.boolean(),
   title: zod.string().nullish(),
   streamUrl: zod.string().nullish(),
+  videoId: zod.string().nullish(),
   startedAt: zod.string().nullish(),
+  scheduledStartTime: zod.string().nullish(),
 });
 
 /**

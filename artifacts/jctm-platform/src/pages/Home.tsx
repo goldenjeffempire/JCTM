@@ -155,34 +155,60 @@ function AnimatedCounter({ target, suffix = "", duration = 2000 }: { target: num
 // ─── Broadcast Status Notification ─────────────────────────────────────────
 function BroadcastStatusNotification({
   isLive,
+  isUpcoming,
   liveTitle,
+  scheduledStartTime,
   countdown,
   onJoin,
+  rebroadcast,
+  onWatchRebroadcast,
 }: {
   isLive: boolean;
+  isUpcoming: boolean;
   liveTitle: string | null;
+  scheduledStartTime: string | null;
   countdown: { days: number; hours: number; minutes: number; seconds: number };
   onJoin: () => void;
+  rebroadcast: { videoId: string; title?: string | null } | null;
+  onWatchRebroadcast: () => void;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const AUTO_DISMISS_MS = 12000;
   const prevIsLive = useRef(isLive);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
-    return () => clearTimeout(t);
+  const armDismissTimer = useCallback(() => {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
   }, []);
 
   useEffect(() => {
+    if (!isLive) armDismissTimer();
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
+  }, [isLive, armDismissTimer]);
+
+  useEffect(() => {
     if (isLive && !prevIsLive.current) {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
       setDismissed(false);
     }
     prevIsLive.current = isLive;
   }, [isLive]);
 
+  const scheduledLabel = scheduledStartTime
+    ? (() => {
+        const d = new Date(scheduledStartTime);
+        return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+      })()
+    : "Sunday · 8:00 AM";
+
   if (dismissed) return null;
 
   const pad = (n: number) => String(n).padStart(2, "0");
+
+  const cardKey = isLive ? "live" : isUpcoming ? "upcoming" : rebroadcast ? "rebroadcast" : "generic-upcoming";
 
   return (
     <div className="absolute top-[4.5rem] sm:top-20 md:top-24 right-3 sm:right-4 z-20 pointer-events-auto select-none">
@@ -196,7 +222,6 @@ function BroadcastStatusNotification({
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
             className="relative"
           >
-            {/* Glow halo */}
             <motion.div
               animate={{ opacity: [0.45, 0.75, 0.45], scale: [1, 1.08, 1] }}
               transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
@@ -214,15 +239,12 @@ function BroadcastStatusNotification({
                 boxShadow: "0 0 0 1px rgba(239,68,68,0.18), 0 12px 40px rgba(185,28,28,0.35), inset 0 1px 0 rgba(255,255,255,0.07)",
               }}
             >
-              {/* Dismiss */}
               <button
                 onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
                 className="absolute top-2 right-2 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
               >
                 <X className="h-2.5 w-2.5 text-white/50" />
               </button>
-
-              {/* Header */}
               <div className="flex items-center gap-1.5 pr-5">
                 <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -230,41 +252,24 @@ function BroadcastStatusNotification({
                 </span>
                 <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Live Now</span>
               </div>
-
-              {/* Title */}
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
                   {liveTitle ?? "Temple TV — Live Service"}
                 </p>
                 <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
-
-              {/* CTA */}
               <div
                 className="mt-0.5 flex items-center justify-between rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-200 group-hover:opacity-90"
                 style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.9), rgba(220,38,38,0.8))" }}
               >
                 <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">Join Service</span>
-                <motion.div
-                  animate={{ x: [0, 3, 0] }}
-                  transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                >
+                <motion.div animate={{ x: [0, 3, 0] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}>
                   <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                 </motion.div>
               </div>
-
-              {/* Auto-dismiss progress bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-white/10">
-                <motion.div
-                  className="h-full bg-red-400/60 origin-left"
-                  initial={{ scaleX: 1 }}
-                  animate={{ scaleX: 0 }}
-                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
-                />
-              </div>
             </button>
           </motion.div>
-        ) : (
+        ) : isUpcoming ? (
           <motion.div
             key="upcoming"
             initial={{ opacity: 0, x: 40, scale: 0.9 }}
@@ -273,7 +278,6 @@ function BroadcastStatusNotification({
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
             className="relative"
           >
-            {/* Subtle glow */}
             <div
               className="absolute -inset-3 rounded-[2rem] blur-xl opacity-40"
               style={{ background: "radial-gradient(circle, rgba(56,189,248,0.3), rgba(0,51,102,0.15))" }}
@@ -288,15 +292,12 @@ function BroadcastStatusNotification({
                 boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 12px 40px rgba(0,51,102,0.12), inset 0 1px 0 rgba(255,255,255,0.95)",
               }}
             >
-              {/* Dismiss */}
               <button
                 onClick={() => setDismissed(true)}
                 className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary/6 hover:bg-primary/12 flex items-center justify-center transition-colors"
               >
                 <X className="h-2.5 w-2.5 text-primary/35" />
               </button>
-
-              {/* Header */}
               <div className="flex items-center gap-1.5 pr-5">
                 <motion.div
                   animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
@@ -308,14 +309,10 @@ function BroadcastStatusNotification({
                 </motion.div>
                 <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-accent whitespace-nowrap">Upcoming Service</span>
               </div>
-
-              {/* Service time */}
               <div>
-                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">Sunday · 8:00 AM</p>
+                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">{scheduledLabel}</p>
                 <p className="text-primary/40 text-[9px] sm:text-[10px] font-medium mt-0.5 truncate">Jesus Christ Temple Ministry</p>
               </div>
-
-              {/* Countdown */}
               <div
                 className="rounded-lg sm:rounded-xl px-2 sm:px-3 py-2 sm:py-2.5"
                 style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.07))", border: "1px solid rgba(56,189,248,0.12)" }}
@@ -338,16 +335,155 @@ function BroadcastStatusNotification({
                   ))}
                 </div>
               </div>
-
-              {/* Notification hint — hidden on smallest screens to save space */}
               <div className="hidden sm:flex items-center gap-1.5">
                 <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
                 <p className="text-[9px] text-primary/35 font-medium truncate">Broadcasts live on Temple TV</p>
               </div>
-
-              {/* Auto-dismiss progress bar */}
               <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-accent/10">
                 <motion.div
+                  key={cardKey}
+                  className="h-full bg-accent/40 origin-left"
+                  initial={{ scaleX: 1 }}
+                  animate={{ scaleX: 0 }}
+                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        ) : rebroadcast ? (
+          <motion.div
+            key="rebroadcast"
+            initial={{ opacity: 0, x: 40, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 40, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            className="relative"
+          >
+            <div
+              className="absolute -inset-3 rounded-[2rem] blur-xl opacity-35"
+              style={{ background: "radial-gradient(circle, rgba(14,165,233,0.3), rgba(0,51,102,0.15))" }}
+            />
+            <button
+              onClick={onWatchRebroadcast}
+              className="relative flex flex-col gap-1.5 sm:gap-2 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 text-left cursor-pointer group"
+              style={{
+                background: "linear-gradient(145deg, rgba(0,30,60,0.93) 0%, rgba(2,132,199,0.18) 100%)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: "1px solid rgba(14,165,233,0.3)",
+                boxShadow: "0 0 0 1px rgba(14,165,233,0.12), 0 12px 40px rgba(0,51,102,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
+              }}
+            >
+              <button
+                onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+                className="absolute top-2 right-2 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+              >
+                <X className="h-2.5 w-2.5 text-white/40" />
+              </button>
+              <div className="flex items-center gap-1.5 pr-5">
+                <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
+                  <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-full w-full bg-sky-400" />
+                </span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-sky-400 whitespace-nowrap">Rebroadcast</span>
+              </div>
+              <div className="pr-1">
+                <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
+                  {rebroadcast.title ?? "Watch Recent Service"}
+                </p>
+                <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
+              </div>
+              <div
+                className="mt-0.5 flex items-center justify-between rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-200 group-hover:opacity-90"
+                style={{ background: "linear-gradient(90deg, rgba(14,165,233,0.85), rgba(2,132,199,0.75))" }}
+              >
+                <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">Watch Now</span>
+                <Play className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white fill-white" />
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-sky-400/10">
+                <motion.div
+                  key={cardKey}
+                  className="h-full bg-sky-400/40 origin-left"
+                  initial={{ scaleX: 1 }}
+                  animate={{ scaleX: 0 }}
+                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
+                />
+              </div>
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="generic-upcoming"
+            initial={{ opacity: 0, x: 40, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 40, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            className="relative"
+          >
+            <div
+              className="absolute -inset-3 rounded-[2rem] blur-xl opacity-40"
+              style={{ background: "radial-gradient(circle, rgba(56,189,248,0.3), rgba(0,51,102,0.15))" }}
+            />
+            <div
+              className="relative flex flex-col gap-2 sm:gap-2.5 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 sm:pb-3.5"
+              style={{
+                background: "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(240,248,255,0.95) 100%)",
+                backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
+                border: "1px solid rgba(56,189,248,0.22)",
+                boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 12px 40px rgba(0,51,102,0.12), inset 0 1px 0 rgba(255,255,255,0.95)",
+              }}
+            >
+              <button
+                onClick={() => setDismissed(true)}
+                className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary/6 hover:bg-primary/12 flex items-center justify-center transition-colors"
+              >
+                <X className="h-2.5 w-2.5 text-primary/35" />
+              </button>
+              <div className="flex items-center gap-1.5 pr-5">
+                <motion.div
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="h-4 w-4 sm:h-5 sm:w-5 rounded-md sm:rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.18), rgba(0,51,102,0.1))" }}
+                >
+                  <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-accent" />
+                </motion.div>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-accent whitespace-nowrap">Upcoming Service</span>
+              </div>
+              <div>
+                <p className="text-primary font-serif font-bold text-xs sm:text-sm leading-tight">Sunday · 8:00 AM</p>
+                <p className="text-primary/40 text-[9px] sm:text-[10px] font-medium mt-0.5 truncate">Jesus Christ Temple Ministry</p>
+              </div>
+              <div
+                className="rounded-lg sm:rounded-xl px-2 sm:px-3 py-2 sm:py-2.5"
+                style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.07))", border: "1px solid rgba(56,189,248,0.12)" }}
+              >
+                <p className="text-[7px] sm:text-[8px] font-bold uppercase tracking-widest text-primary/35 mb-1 sm:mb-1.5">Starts in</p>
+                <div className="flex items-center justify-between">
+                  {[
+                    { val: countdown.days, label: "d" },
+                    { val: countdown.hours, label: "h" },
+                    { val: countdown.minutes, label: "m" },
+                    { val: countdown.seconds, label: "s" },
+                  ].map(({ val, label }, i) => (
+                    <div key={label} className="flex items-center gap-0.5">
+                      <div className="text-center">
+                        <span className="font-black text-xs sm:text-sm text-primary tabular-nums leading-none">{pad(val)}</span>
+                        <p className="text-[7px] sm:text-[8px] font-bold text-primary/30 uppercase">{label}</p>
+                      </div>
+                      {i < 3 && <span className="text-primary/20 font-bold text-xs sm:text-sm mb-1 sm:mb-1.5 mx-[1px] sm:mx-0.5">:</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-1.5">
+                <Radio className="h-2.5 w-2.5 text-accent/60 shrink-0" />
+                <p className="text-[9px] text-primary/35 font-medium truncate">Broadcasts live on Temple TV</p>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-accent/10">
+                <motion.div
+                  key={cardKey}
                   className="h-full bg-accent/40 origin-left"
                   initial={{ scaleX: 1 }}
                   animate={{ scaleX: 0 }}
@@ -622,12 +758,24 @@ function HeroSection() {
   const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
   const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
   const [isLive, setIsLive] = useState(false);
+  const [isUpcoming, setIsUpcoming] = useState(false);
   const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
   const [liveTitle, setLiveTitle] = useState<string | null>(null);
+  const [scheduledStartTime, setScheduledStartTime] = useState<string | null>(null);
   const [livePlayerOpen, setLivePlayerOpen] = useState(false);
+  const [rebroadcastWidgetOpen, setRebroadcastWidgetOpen] = useState(false);
+  const [playerLoading, setPlayerLoading] = useState(true);
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const countdown = useNextService();
+
+  const { data: rebroadcastData } = useGetRebroadcastStatus({
+    query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
+  });
+
+  const rebroadcastForWidget = (rebroadcastData?.available && rebroadcastData.videoId && !isLive && !isUpcoming)
+    ? { videoId: rebroadcastData.videoId, title: rebroadcastData.title }
+    : null;
 
   const leftImages = HERO_IMAGES.slice(0, 3);
   const rightImages = HERO_IMAGES.slice(3, 6);
@@ -645,13 +793,14 @@ function HeroSection() {
     const check = () => {
       fetch(`${BASE}/api/livestream/status`)
         .then(r => r.json())
-        .then((d: { isLive?: boolean; title?: string | null; streamUrl?: string | null }) => {
+        .then((d: { isLive?: boolean; isUpcoming?: boolean; title?: string | null; videoId?: string | null; scheduledStartTime?: string | null }) => {
           const live = d?.isLive ?? false;
+          const upcoming = d?.isUpcoming ?? false;
           setIsLive(live);
+          setIsUpcoming(upcoming);
           setLiveTitle(d?.title ?? null);
-          // extract videoId from streamUrl e.g. https://www.youtube.com/watch?v=VIDEO_ID
-          const match = d?.streamUrl?.match(/[?&]v=([^&]+)/);
-          setLiveVideoId(match ? match[1] ?? null : null);
+          setLiveVideoId(d?.videoId ?? null);
+          setScheduledStartTime(d?.scheduledStartTime ?? null);
           if (!live) setLivePlayerOpen(false);
         })
         .catch(() => {});
@@ -662,7 +811,11 @@ function HeroSection() {
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setLightbox(null); setLivePlayerOpen(false); } };
+    if (livePlayerOpen) setPlayerLoading(true);
+  }, [livePlayerOpen]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setLightbox(null); setLivePlayerOpen(false); setRebroadcastWidgetOpen(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -779,8 +932,20 @@ function HeroSection() {
               </div>
 
               {/* Embedded player */}
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ paddingBottom: "56.25%" }}>
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black" style={{ paddingBottom: "56.25%" }}>
+                {playerLoading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 bg-black">
+                    <span className="relative flex h-10 w-10">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-40" />
+                      <span className="relative inline-flex rounded-full h-10 w-10 bg-red-500/20 border border-red-500/40 items-center justify-center">
+                        <Play className="h-4 w-4 text-red-400 fill-red-400" />
+                      </span>
+                    </span>
+                    <p className="text-white/40 text-xs uppercase tracking-widest font-medium">Loading stream…</p>
+                  </div>
+                )}
                 <iframe
+                  key={liveVideoId ?? "channel"}
                   className="absolute inset-0 w-full h-full"
                   src={
                     liveVideoId
@@ -790,9 +955,55 @@ function HeroSection() {
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
                   title="JCTM Live Service"
+                  onLoad={() => setPlayerLoading(false)}
                 />
               </div>
 
+              <p className="text-center text-white/25 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── REBROADCAST WIDGET PLAYER OVERLAY ── */}
+      <AnimatePresence>
+        {rebroadcastWidgetOpen && rebroadcastForWidget && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[115] flex items-center justify-center"
+            style={{ backdropFilter: "blur(20px)", background: "rgba(0,5,20,0.93)" }}
+            onClick={() => setRebroadcastWidgetOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 240, damping: 26 }}
+              className="relative w-full max-w-4xl mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="absolute -inset-8 rounded-[3rem] blur-3xl opacity-30" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.6), rgba(0,51,102,0.4))" }} />
+              <div className="relative flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span className="text-white/80 text-sm font-medium tracking-wide">Rebroadcast</span>
+                  {rebroadcastForWidget.title && (
+                    <span className="text-white/50 text-xs hidden sm:inline truncate max-w-[300px]">— {rebroadcastForWidget.title}</span>
+                  )}
+                </div>
+                <button onClick={() => setRebroadcastWidgetOpen(false)} className="h-8 w-8 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video bg-black">
+                <iframe
+                  src={`https://www.youtube.com/embed/${rebroadcastForWidget.videoId}?autoplay=1&rel=0`}
+                  title={rebroadcastForWidget.title ?? "Rebroadcast"}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full"
+                />
+              </div>
               <p className="text-center text-white/25 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>
             </motion.div>
           </motion.div>
@@ -1093,9 +1304,13 @@ function HeroSection() {
       {/* ── BROADCAST STATUS NOTIFICATION ── */}
       <BroadcastStatusNotification
         isLive={isLive}
+        isUpcoming={isUpcoming}
         liveTitle={liveTitle}
+        scheduledStartTime={scheduledStartTime}
         countdown={countdown}
         onJoin={() => setLivePlayerOpen(true)}
+        rebroadcast={rebroadcastForWidget}
+        onWatchRebroadcast={() => setRebroadcastWidgetOpen(true)}
       />
 
       {/* Scroll indicator */}

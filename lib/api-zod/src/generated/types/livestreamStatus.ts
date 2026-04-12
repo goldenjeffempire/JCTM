@@ -8,10 +8,15 @@
 
 export interface LivestreamStatus {
   isLive: boolean;
+  isUpcoming: boolean;
   /** @nullable */
   title?: string | null;
   /** @nullable */
   streamUrl?: string | null;
   /** @nullable */
+  videoId?: string | null;
+  /** @nullable */
   startedAt?: string | null;
+  /** @nullable */
+  scheduledStartTime?: string | null;
 }
