@@ -151,6 +151,7 @@ export function Navbar() {
     { href: "/", label: t("Home") },
     { href: "/sermons", label: t("Sermons") },
     { href: "/moments", label: `🎬 ${t("Moments")}`, momentsHighlight: true },
+    { href: "/intro-videos", label: `📖 ${t("Intro")}`, momentsHighlight: true },
     { href: "/crusade", label: `🔥 ${t("Crusade")}`, highlight: true },
     { href: "/prayer", label: `✦ ${t("Prayer")}`, prayerHighlight: true },
   ];

@@ -26,6 +26,7 @@ const Crusade = lazy(() => import("@/pages/Crusade"));
 const ViewingCentres = lazy(() => import("@/pages/ViewingCentres"));
 const Prayer = lazy(() => import("@/pages/Prayer"));
 const Moments = lazy(() => import("@/pages/Moments"));
+const IntroVideos = lazy(() => import("@/pages/IntroVideos"));
 const SermonAssistant = lazy(() => import("@/pages/SermonAssistant"));
 const Leadership = lazy(() => import("@/pages/Leadership"));
 const Topics = lazy(() => import("@/pages/Topics"));
@@ -90,6 +91,7 @@ function Router() {
         <Route path="/viewing-centres" component={ViewingCentres} />
         <Route path="/prayer" component={Prayer} />
         <Route path="/moments" component={Moments} />
+        <Route path="/intro-videos" component={IntroVideos} />
         <Route path="/sermon-assistant" component={SermonAssistant} />
         <Route path="/leadership" component={Leadership} />
         <Route path="/topics" component={Topics} />

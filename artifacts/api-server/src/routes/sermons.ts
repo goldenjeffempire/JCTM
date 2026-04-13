@@ -141,6 +141,39 @@ router.get("/sermons/stats", async (req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
+// GET /sermons/intro  — Videos 50–70 minutes long (Intro / Full Teaching feed)
+// Pulls a large pool, filters by duration in JS (ISO 8601 stored in DB).
+// Falls back to the 10 most recently published sermons if none qualify.
+// ──────────────────────────────────────────────────────
+router.get("/sermons/intro", async (_req, res): Promise<void> => {
+  const MIN_SECONDS = 50 * 60;  // 50 minutes
+  const MAX_SECONDS = 70 * 60;  // 70 minutes (1h 10m)
+
+  const pool = await db
+    .select()
+    .from(sermonsTable)
+    .orderBy(desc(sermonsTable.publishedAt))
+    .limit(300);
+
+  let intros = pool.filter(s => {
+    if (!s.duration) return false;
+    const secs = iso8601ToSeconds(s.duration);
+    return secs >= MIN_SECONDS && secs <= MAX_SECONDS;
+  });
+
+  if (intros.length === 0) {
+    intros = pool.slice(0, 10);
+  }
+
+  const serialized = intros.map(s => ({
+    ...s,
+    publishedAt: s.publishedAt instanceof Date ? s.publishedAt.toISOString() : s.publishedAt,
+    createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
+  }));
+  res.json(ListSermonsResponse.parse(serialized));
+});
+
+// ──────────────────────────────────────────────────────
 // GET /sermons/:id
 // ──────────────────────────────────────────────────────
 router.get("/sermons/:id", async (req, res): Promise<void> => {

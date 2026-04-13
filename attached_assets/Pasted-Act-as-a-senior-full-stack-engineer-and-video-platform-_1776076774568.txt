@@ -1,0 +1,104 @@
+Act as a senior full-stack engineer and video platform architect.
+
+Your task is to design and implement a new “Intro Videos” page for the JCTM platform with a modern, immersive, TikTok-style video experience.
+
+========================
+🎯 CORE OBJECTIVE
+========================
+- Create a dedicated page that displays only selected “Intro” videos
+- Videos must be filtered strictly by duration:
+  → Minimum: 50 minutes
+  → Maximum: 1 hour 10 minutes
+- Source videos exclusively from the YouTube channel
+
+========================
+📡 VIDEO SOURCE & FILTERING
+========================
+- Integrate with YouTube Data API
+- Scan the entire channel and fetch videos
+- Filter videos based on:
+  - Duration between 50min and 1hr 10min
+  - Exclude shorts, clips, and unrelated content
+
+- Store filtered results in database/cache for performance
+
+========================
+📱 UI/UX — TIKTOK-STYLE VIDEO EXPERIENCE
+========================
+Implement a vertical, immersive video feed similar to TikTok:
+
+- Full-screen vertical video player
+- One video per screen
+- Swipe up/down navigation between videos
+- Auto-play on scroll
+- Loop playback
+- Smooth transitions between videos
+
+Overlay UI elements:
+- Video title
+- Short description
+- Duration
+- Engagement actions (like, share, save)
+
+Controls:
+- Tap to pause/play
+- Swipe gestures for navigation
+- Mute/unmute toggle
+
+========================
+📺 PLAYER REQUIREMENTS
+========================
+- Use embedded YouTube player (no redirect)
+- Optimize for mobile-first experience
+- Ensure:
+  - Fast load times
+  - Adaptive playback
+  - Smooth buffering
+
+========================
+⚙️ BACKEND LOGIC
+========================
+- Create endpoint:
+  GET /api/intro-videos
+
+- Logic:
+  - Fetch videos from YouTube
+  - Parse ISO 8601 durations
+  - Filter within required time range
+  - Return structured response
+
+- Implement caching layer (Redis or DB)
+- Schedule cron job to refresh content periodically
+
+========================
+📊 PERFORMANCE OPTIMIZATION
+========================
+- Lazy load videos
+- Preload next video
+- Use skeleton loaders
+- Optimize API calls
+
+========================
+📱 RESPONSIVENESS
+========================
+- Fully responsive across:
+  - Mobile (primary)
+  - Tablet
+  - Desktop
+
+========================
+🔐 PRODUCTION REQUIREMENTS
+========================
+- No broken videos or empty states
+- Graceful fallback if no videos found
+- Error handling for API failures
+- Clean, modular, maintainable code
+
+========================
+🎯 FINAL RESULT
+========================
+A fully functional “Intro Videos” page that:
+- Automatically pulls long-form intro sermons
+- Displays them in a TikTok-style vertical feed
+- Delivers a smooth, modern, and engaging viewing experience
+- Is fully production-ready and scalable

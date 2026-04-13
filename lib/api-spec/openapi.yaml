@@ -114,6 +114,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/SermonStats"
 
+  /sermons/intro:
+    get:
+      operationId: getIntroVideos
+      tags: [sermons]
+      summary: Get intro videos (50–70 min long-form sermons)
+      responses:
+        "200":
+          description: List of intro sermons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sermon"
+
   /sermons/{id}:
     get:
       operationId: getSermon
