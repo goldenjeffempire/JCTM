@@ -141,16 +141,16 @@ router.get("/sermons/stats", async (req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
-// GET /sermons/intro  — Full Teaching feed: focused teachings between 45 min and 2 hours.
+// GET /sermons/intro  — Full Teaching feed: focused teachings between 45 and 80 minutes.
 // This range captures individual sermons, deliverance services, crusade sessions,
-// and interviews while excluding marathon all-day live streams (3+ hours).
+// and interviews — the same format as the Intro Videos page on YouTube.
 // Scans the complete sermon archive (no pool cap) so older content is not missed.
 // Returns the 100 most recently published qualifying sermons.
 // Falls back to the 10 most recently published sermons if none qualify.
 // ──────────────────────────────────────────────────────
 router.get("/sermons/intro", async (_req, res): Promise<void> => {
-  const MIN_SECONDS = 45 * 60;   // 45 minutes
-  const MAX_SECONDS = 120 * 60;  // 2 hours — exclude multi-hour live streams
+  const MIN_SECONDS = 45 * 60;  // 45 minutes
+  const MAX_SECONDS = 80 * 60;  // 80 minutes — focused teaching length
 
   // Scan every sermon in the archive, newest first
   const pool = await db
