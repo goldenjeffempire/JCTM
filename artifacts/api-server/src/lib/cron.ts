@@ -18,6 +18,8 @@ let metadataCronHandle:  ReturnType<typeof setInterval> | null = null;
 let reminderCronHandle:  ReturnType<typeof setInterval> | null = null;
 
 let quotaPausedUntil: number | null = null;
+let openaiQuotaPausedUntil: number | null = null;
+const OPENAI_QUOTA_BACKOFF_MS = 60 * 60 * 1000; // 1 hour cooldown after 429
 let lastWebSubRenewal: Date | null = null;
 let webSubCallbackUrl: string | null = null;
 let lastRSSSync: Date | null = null;
@@ -163,13 +165,29 @@ async function renewWebSub(log: Logger): Promise<void> {
 // ─── AI Metadata enrichment ───────────────────────────────────────────────────
 
 async function runMetadataEnrichment(log: Logger): Promise<void> {
+  if (openaiQuotaPausedUntil !== null && Date.now() < openaiQuotaPausedUntil) {
+    const resumesInMinutes = Math.ceil((openaiQuotaPausedUntil - Date.now()) / 60_000);
+    log.info({ resumesInMinutes }, "AI metadata enrichment paused — OpenAI quota exceeded, skipping batch");
+    return;
+  }
+
   try {
     const enriched = await enrichNextSermonBatch(5, log);
     if (enriched > 0) {
       log.info({ count: enriched }, "AI metadata enrichment batch complete");
     }
+    // Successful run — clear any prior quota pause
+    openaiQuotaPausedUntil = null;
   } catch (err) {
-    log.warn({ err }, "Metadata enrichment batch failed (non-fatal)");
+    const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    const isQuota = errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("insufficient_quota") || errMsg.includes("rate");
+    if (isQuota) {
+      openaiQuotaPausedUntil = Date.now() + OPENAI_QUOTA_BACKOFF_MS;
+      const resumesAt = new Date(openaiQuotaPausedUntil).toISOString();
+      log.warn({ resumesAt }, "OpenAI quota exceeded — AI metadata enrichment paused for 1 hour");
+    } else {
+      log.warn({ err }, "Metadata enrichment batch failed (non-fatal)");
+    }
   }
 }
 

@@ -107,7 +107,7 @@ router.get("/visitors/stream", async (req: Request, res: Response): Promise<void
     } catch {
       clearInterval(heartbeat);
     }
-  }, 30_000);
+  }, 15_000);
 
   req.on("close", () => {
     clearInterval(heartbeat);
