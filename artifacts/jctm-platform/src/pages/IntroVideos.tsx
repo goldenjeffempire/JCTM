@@ -810,9 +810,6 @@ export default function IntroVideos() {
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-amber-400" />
               <span className="text-sm font-bold text-primary">Intro Teachings</span>
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] ml-1">
-                50–70 min
-              </Badge>
             </div>
             {videos.length > 0 && (
               <span className="text-xs text-muted-foreground">
@@ -850,7 +847,7 @@ export default function IntroVideos() {
                 <p className="text-muted-foreground text-sm">
                   {error
                     ? "Check your connection and try again."
-                    : "Videos in the 50–70 minute range will appear here once synced from YouTube."}
+                    : "Videos will appear here once synced from YouTube."}
                 </p>
               </div>
               <button
