@@ -156,6 +156,14 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
   const limit  = Math.min(Math.max(parseInt(String(req.query.limit  ?? "20")), 1), 100);
   const offset = Math.max(parseInt(String(req.query.offset ?? "0")), 0);
 
+  // Keywords whose presence in a title disqualifies a video from the Intro feed
+  const EXCLUDED_TITLE_PATTERNS = [
+    /deliverance/i,
+    /testimon/i,
+  ];
+  const isExcluded = (title: string | null) =>
+    title != null && EXCLUDED_TITLE_PATTERNS.some(re => re.test(title));
+
   // Scan every sermon in the archive, newest first
   const pool = await db
     .select()
@@ -163,27 +171,31 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
     .orderBy(desc(sermonsTable.publishedAt))
     .limit(5000);
 
-  // Strict filter: 50–70 min, must have duration, exclude Shorts (< 60s)
+  // Strict filter: 50–70 min, must have duration, exclude Shorts (< 60s), exclude deliverance/testimony
   let intros = pool.filter(s => {
     if (!s.duration) return false;
+    if (isExcluded(s.title)) return false;
     const secs = iso8601ToSeconds(s.duration);
     if (secs < 60) return false; // exclude Shorts
     return secs >= MIN_SECONDS && secs <= MAX_SECONDS;
   });
 
-  // Fallback: broaden to 40–90 min if strict range yields nothing
+  // Fallback: broaden duration to 40–90 min (still exclude deliverance/testimony)
   if (intros.length === 0) {
     intros = pool.filter(s => {
       if (!s.duration) return false;
+      if (isExcluded(s.title)) return false;
       const secs = iso8601ToSeconds(s.duration);
       if (secs < 60) return false;
       return secs >= FALLBACK_MIN && secs <= FALLBACK_MAX;
     });
   }
 
-  // Last resort: just take the 20 most recent with any duration
+  // Last resort: most recent with any duration, still applying exclusions
   if (intros.length === 0) {
-    intros = pool.filter(s => s.duration && iso8601ToSeconds(s.duration) > 60).slice(0, 20);
+    intros = pool
+      .filter(s => s.duration && iso8601ToSeconds(s.duration) > 60 && !isExcluded(s.title))
+      .slice(0, 20);
   }
 
   const total   = intros.length;
