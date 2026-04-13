@@ -85,8 +85,18 @@ function initials(name: string): string {
   return name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
 }
 
-async function fetchIntroVideos(): Promise<IntroItem[]> {
-  const res = await fetch(`${BASE}/api/sermons/intro`);
+const PAGE_SIZE = 30;
+
+interface IntroPage {
+  videos: IntroItem[];
+  total: number;
+  hasMore: boolean;
+  offset: number;
+  limit: number;
+}
+
+async function fetchIntroPage(offset: number, limit = PAGE_SIZE): Promise<IntroPage> {
+  const res = await fetch(`${BASE}/api/sermons/intro?offset=${offset}&limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch intro videos");
   return res.json();
 }

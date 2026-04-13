@@ -144,13 +144,15 @@ router.get("/sermons/stats", async (req, res): Promise<void> => {
 // GET /sermons/intro  — Full Teaching feed: focused teachings between 45 and 80 minutes.
 // This range captures individual sermons, deliverance services, crusade sessions,
 // and interviews — the same format as the Intro Videos page on YouTube.
-// Scans the complete sermon archive (no pool cap) so older content is not missed.
-// Returns the 100 most recently published qualifying sermons.
+// Scans the complete sermon archive so older content is never missed.
+// Supports pagination via ?offset=0&limit=30 query params.
 // Falls back to the 10 most recently published sermons if none qualify.
 // ──────────────────────────────────────────────────────
-router.get("/sermons/intro", async (_req, res): Promise<void> => {
+router.get("/sermons/intro", async (req, res): Promise<void> => {
   const MIN_SECONDS = 45 * 60;  // 45 minutes
   const MAX_SECONDS = 80 * 60;  // 80 minutes — focused teaching length
+  const limit  = Math.min(Math.max(parseInt(String(req.query.limit  ?? "30")), 1), 100);
+  const offset = Math.max(parseInt(String(req.query.offset ?? "0")), 0);
 
   // Scan every sermon in the archive, newest first
   const pool = await db
@@ -169,15 +171,17 @@ router.get("/sermons/intro", async (_req, res): Promise<void> => {
     intros = pool.slice(0, 10);
   }
 
-  // Return the 100 freshest qualifying full teachings
-  const page = intros.slice(0, 100);
+  const total   = intros.length;
+  const page    = intros.slice(offset, offset + limit);
+  const hasMore = offset + limit < total;
 
   const serialized = page.map(s => ({
     ...s,
     publishedAt: s.publishedAt instanceof Date ? s.publishedAt.toISOString() : s.publishedAt,
     createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
   }));
-  res.json(ListSermonsResponse.parse(serialized));
+
+  res.json({ videos: serialized, total, hasMore, offset, limit });
 });
 
 // ──────────────────────────────────────────────────────
