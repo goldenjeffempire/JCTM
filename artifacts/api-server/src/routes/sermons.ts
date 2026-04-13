@@ -208,6 +208,7 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
     "we are saved by the grace of god part i",
     "watch how this woman delivered in the church during a mass prayer day 2",
     "punishment is coming for the sinners",
+    "confessions from the kingdom of darkness about ornament, makeup, jewelry, and worldly dressing",
   ]);
 
   const isExcluded = (title: string | null) => {
