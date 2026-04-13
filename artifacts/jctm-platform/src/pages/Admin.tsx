@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Radio, Tv2, RefreshCw, CheckCircle, AlertCircle, Clock,
   BarChart3, Zap, Calendar, PlayCircle, Settings, Activity,
-  Wifi, WifiOff, ChevronRight, Eye
+  ChevronRight, Eye, Users, MessageSquare, Check, Trash2,
+  BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -103,7 +105,7 @@ function formatCountdown(iso: string): string {
 export default function Admin() {
   const qc = useQueryClient();
   const liveStatus = useLivestreamStatus();
-  const [activeTab, setActiveTab] = useState<"overview" | "queue" | "schedule" | "metrics">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "queue" | "schedule" | "metrics" | "testimonies" | "platform">("overview");
 
   const { data: broadcastStatus, isLoading: statusLoading } = useQuery<BroadcastStatus>({
     queryKey: ["broadcast-status"],
@@ -194,7 +196,7 @@ export default function Admin() {
 
           {/* Tabs */}
           <div className="flex gap-1 mt-3">
-            {(["overview", "queue", "schedule", "metrics"] as const).map(tab => (
+            {(["overview", "queue", "schedule", "metrics", "testimonies", "platform"] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -528,9 +530,366 @@ export default function Admin() {
               ) : null}
             </motion.div>
           )}
+          {/* ── TESTIMONIES TAB ──────────────────────────────────────── */}
+          {activeTab === "testimonies" && (
+            <TestimoniesTab key="testimonies" />
+          )}
+
+          {/* ── PLATFORM TAB ─────────────────────────────────────────── */}
+          {activeTab === "platform" && (
+            <PlatformTab key="platform" />
+          )}
+
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// ─── Testimonies Moderation Tab ────────────────────────────────────────────────
+
+interface TestimonyItem {
+  id: number;
+  author: string;
+  title: string | null;
+  content: string;
+  category: string | null;
+  approved: boolean;
+  createdAt: string;
+}
+
+function TestimoniesTab() {
+  const qc = useQueryClient();
+  const token = localStorage.getItem("jctm_token") ?? "";
+
+  const { data, isLoading, refetch } = useQuery<{ testimonies: TestimonyItem[] }>({
+    queryKey: ["admin-testimonies"],
+    queryFn: () =>
+      fetch(`${BASE}/api/testimonies?all=true&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.json()),
+    staleTime: 0,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
+      const res = await fetch(`${BASE}/api/testimonies/${id}/approve`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ approved }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: (_, { approved }) => {
+      toast.success(approved ? "Testimony approved" : "Testimony unapproved");
+      qc.invalidateQueries({ queryKey: ["admin-testimonies"] });
+    },
+    onError: () => toast.error("Action failed"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/testimonies/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Testimony deleted");
+      qc.invalidateQueries({ queryKey: ["admin-testimonies"] });
+    },
+    onError: () => toast.error("Delete failed"),
+  });
+
+  const testimonies = data?.testimonies ?? [];
+  const pending = testimonies.filter(t => !t.approved);
+  const approved = testimonies.filter(t => t.approved);
+
+  return (
+    <motion.div key="testimonies" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-primary" /> Testimony Moderation
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isLoading ? "Loading..." : `${pending.length} pending · ${approved.length} published`}
+          </p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors"
+        >
+          <RefreshCw className="w-3 h-3" /> Refresh
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" /> Pending Review ({pending.length})
+              </h3>
+              {pending.map(t => (
+                <TestimonyCard
+                  key={t.id}
+                  t={t}
+                  onApprove={() => approveMutation.mutate({ id: t.id, approved: true })}
+                  onDelete={() => deleteMutation.mutate(t.id)}
+                  isPending={approveMutation.isPending || deleteMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+
+          {approved.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-emerald-500 uppercase tracking-wide flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" /> Published ({approved.length})
+              </h3>
+              {approved.map(t => (
+                <TestimonyCard
+                  key={t.id}
+                  t={t}
+                  onUnapprove={() => approveMutation.mutate({ id: t.id, approved: false })}
+                  onDelete={() => deleteMutation.mutate(t.id)}
+                  isPending={approveMutation.isPending || deleteMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+
+          {testimonies.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No testimonies yet</p>
+            </div>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+function TestimonyCard({
+  t,
+  onApprove,
+  onUnapprove,
+  onDelete,
+  isPending,
+}: {
+  t: TestimonyItem;
+  onApprove?: () => void;
+  onUnapprove?: () => void;
+  onDelete: () => void;
+  isPending: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className={`rounded-xl border p-4 ${t.approved ? "border-emerald-500/20 bg-emerald-500/5" : "border-border bg-card"}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm">{t.author}</span>
+            {t.category && (
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full capitalize">{t.category}</span>
+            )}
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              {new Date(t.createdAt).toLocaleDateString("en-NG")}
+            </span>
+          </div>
+          {t.title && <p className="text-xs font-semibold text-foreground mb-1">{t.title}</p>}
+          <p className={`text-xs text-muted-foreground leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
+            {t.content}
+          </p>
+          {t.content.length > 120 && (
+            <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-primary mt-1">
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!t.approved && onApprove && (
+            <button
+              onClick={onApprove}
+              disabled={isPending}
+              title="Approve"
+              className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {t.approved && onUnapprove && (
+            <button
+              onClick={onUnapprove}
+              disabled={isPending}
+              title="Unapprove"
+              className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            onClick={onDelete}
+            disabled={isPending}
+            title="Delete"
+            className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Platform Analytics Tab ────────────────────────────────────────────────────
+
+interface PlatformMetrics {
+  platform?: {
+    sermons?: number;
+    blogs?: number;
+    members?: number;
+    conversations?: number;
+    testimonies?: number;
+  };
+  ai?: {
+    totalFeedback?: number;
+    averageRating?: string | null;
+    averageLatencyMs?: string | null;
+    tierBreakdown?: Record<string, number>;
+  };
+}
+
+function PlatformTab() {
+  const token = localStorage.getItem("jctm_token") ?? "";
+  const [blogTopic, setBlogTopic] = useState("holiness");
+  const [generating, setGenerating] = useState(false);
+
+  const { data: metrics, isLoading } = useQuery<PlatformMetrics>({
+    queryKey: ["platform-metrics"],
+    queryFn: () =>
+      fetch(`${BASE}/api/admin/metrics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  const generateBlog = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/blog/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ topic: blogTopic }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Blog article "${data.post?.title ?? "Article"}" generated!`);
+      } else {
+        toast.error(data.error ?? "Generation failed");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const BLOG_TOPICS = [
+    "holiness", "correction-mandate", "prayer", "faith", "repentance",
+    "bible-doctrine", "apostolic-order", "prophetic-insight", "end-times", "revival",
+  ];
+
+  return (
+    <motion.div key="platform" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+      <div>
+        <h2 className="font-semibold flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" /> Platform Analytics
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Live platform health overview</p>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />
+          ))}
+        </div>
+      ) : metrics ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Members", value: metrics.platform?.members ?? 0, icon: <Users className="w-4 h-4" /> },
+            { label: "Sermons", value: metrics.platform?.sermons ?? 0, icon: <BookOpen className="w-4 h-4" /> },
+            { label: "Conversations", value: metrics.platform?.conversations ?? 0, icon: <MessageSquare className="w-4 h-4" /> },
+            { label: "Testimonies", value: metrics.platform?.testimonies ?? 0, icon: <CheckCircle className="w-4 h-4" /> },
+            { label: "Blog Posts", value: metrics.platform?.blogs ?? 0, icon: <Sparkles className="w-4 h-4" /> },
+            { label: "AI Feedback", value: metrics.ai?.totalFeedback ?? 0, icon: <Activity className="w-4 h-4" /> },
+            { label: "Avg Rating", value: metrics.ai?.averageRating ? `${metrics.ai.averageRating}/5` : "—", icon: <CheckCircle className="w-4 h-4" /> },
+            { label: "Avg Latency", value: metrics.ai?.averageLatencyMs ? `${metrics.ai.averageLatencyMs}ms` : "—", icon: <Zap className="w-4 h-4" /> },
+          ].map(m => (
+            <div key={m.label} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1.5 text-xs">
+                {m.icon} {m.label}
+              </div>
+              <p className="text-2xl font-bold text-primary">{m.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground text-sm">Could not load metrics</div>
+      )}
+
+      {/* Blog Generator */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-violet-400" /> AI Blog Generator
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Generate a theologically rich blog article using AI, grounded in JCTM doctrine.
+        </p>
+        <div className="flex gap-3 flex-wrap items-end">
+          <div className="flex-1 min-w-[180px]">
+            <label className="text-xs text-muted-foreground mb-1 block">Topic</label>
+            <select
+              value={blogTopic}
+              onChange={e => setBlogTopic(e.target.value)}
+              className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {BLOG_TOPICS.map(t => (
+                <option key={t} value={t}>{t.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>
+              ))}
+            </select>
+          </div>
+          <Button
+            onClick={generateBlog}
+            disabled={generating}
+            className="gap-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg"
+            size="sm"
+          >
+            {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {generating ? "Generating..." : "Generate Article"}
+          </Button>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 

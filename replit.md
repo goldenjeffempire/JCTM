@@ -39,11 +39,32 @@ The Vite dev server proxies all `/api/*` requests to `localhost:8080` (configure
 
 ---
 
-## Pages (24 total)
+## Pages (26 total)
 
 All routes verified HTTP 200:
 
-`/` · `/sermons` · `/sermons/:id` · `/devotion` · `/prayer` · `/testimonies` · `/events` · `/give` · `/about` · `/leadership` · `/members` · `/moments` · `/join` · `/crusade` · `/topics` · `/topics/:slug` · `/timeline` · `/scripture-study` · `/sermon-assistant` · `/spiritual-insight` · `/viewing-centres` · `/privacy` · `/terms` · `/*` (404)
+`/` · `/sermons` · `/sermons/:id` · `/devotion` · `/prayer` · `/testimonies` · `/events` · `/give` · `/about` · `/leadership` · `/members` · `/moments` · `/join` · `/crusade` · `/topics` · `/topics/:slug` · `/timeline` · `/scripture-study` · `/sermon-assistant` · `/spiritual-insight` · `/viewing-centres` · `/privacy` · `/terms` · `/blog` · `/blog/:slug` · `/*` (404)
+
+## Recent Enhancements
+
+### Blog Frontend (`/blog`, `/blog/:slug`)
+- `Blog.tsx` — full list view with topic filters, search, pagination (12/page)
+- `BlogPost.tsx` — full article view with markdown renderer, share button, related posts, and CTA
+- Routes added to `App.tsx`, "Ministry Blog" added to Navbar Resources dropdown
+
+### Member Profile Editing
+- `PUT /auth/profile` backend endpoint with name, phone, and optional password change
+- `Join.tsx` dashboard shows "Edit Profile" button → slide to edit form (name, phone, password)
+- Proper current-password verification before new password is accepted
+
+### Admin Content Moderation (`/admin/broadcast`)
+- New **Testimonies** tab: view all testimonies (pending/published), approve/unapprove, delete
+- New **Platform** tab: real-time analytics (members, sermons, conversations, blogs, AI stats), AI blog generator with topic selector
+- Backend: `PATCH /testimonies/:id/approve`, `DELETE /testimonies/:id` (admin-protected)
+
+### Push Notification Bell (Navbar)
+- `usePushNotifications` hook manages VAPID subscribe/unsubscribe lifecycle
+- Bell/BellOff icon in desktop nav shows subscription state; triggers browser permission flow
 
 ---
 

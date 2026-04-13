@@ -1,14 +1,16 @@
-import { Router, type IRouter } from "express";
-import { eq, desc, and } from "drizzle-orm";
+import { Router, type IRouter, type Request, type Response } from "express";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import { db, testimoniesTable } from "@workspace/db";
 import {
   ListTestimoniesQueryParams,
   ListTestimoniesResponse,
   SubmitTestimonyBody,
 } from "@workspace/api-zod";
+import { requireAdmin } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 
+// ── GET /api/testimonies ──────────────────────────────────────────────────────
 router.get("/testimonies", async (req, res): Promise<void> => {
   const parsed = ListTestimoniesQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -18,8 +20,9 @@ router.get("/testimonies", async (req, res): Promise<void> => {
 
   const { limit = 20, offset = 0 } = parsed.data;
   const category = req.query.category as string | undefined;
+  const all = req.query.all === "true"; // admin: include unapproved
 
-  const conditions = [eq(testimoniesTable.approved, true)];
+  const conditions = all ? [] : [eq(testimoniesTable.approved, true)];
   if (category) {
     conditions.push(eq(testimoniesTable.category, category));
   }
@@ -27,7 +30,7 @@ router.get("/testimonies", async (req, res): Promise<void> => {
   const testimonies = await db
     .select()
     .from(testimoniesTable)
-    .where(and(...conditions))
+    .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(testimoniesTable.createdAt))
     .limit(limit)
     .offset(offset);
@@ -39,6 +42,7 @@ router.get("/testimonies", async (req, res): Promise<void> => {
   res.json(ListTestimoniesResponse.parse(serialized));
 });
 
+// ── POST /api/testimonies ─────────────────────────────────────────────────────
 router.post("/testimonies", async (req, res): Promise<void> => {
   const parsed = SubmitTestimonyBody.safeParse(req.body);
   if (!parsed.success) {
@@ -57,6 +61,7 @@ router.post("/testimonies", async (req, res): Promise<void> => {
   });
 });
 
+// ── POST /api/testimonies/:id/like ────────────────────────────────────────────
 router.post("/testimonies/:id/like", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
@@ -78,5 +83,67 @@ router.post("/testimonies/:id/like", async (req, res): Promise<void> => {
 
   res.json({ likeCount: updated.likeCount });
 });
+
+// ── PATCH /api/testimonies/:id/approve — Admin: approve a testimony ───────────
+router.patch(
+  "/testimonies/:id/approve",
+  requireAdmin as unknown as (req: Request, res: Response) => void,
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid testimony ID" });
+      return;
+    }
+
+    const { approved } = req.body as { approved?: boolean };
+    if (typeof approved !== "boolean") {
+      res.status(400).json({ error: "approved (boolean) is required" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(testimoniesTable)
+      .set({ approved })
+      .where(eq(testimoniesTable.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Testimony not found" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      id,
+      approved,
+      message: approved ? "Testimony approved and published." : "Testimony unapproved.",
+    });
+  },
+);
+
+// ── DELETE /api/testimonies/:id — Admin: delete a testimony ───────────────────
+router.delete(
+  "/testimonies/:id",
+  requireAdmin as unknown as (req: Request, res: Response) => void,
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid testimony ID" });
+      return;
+    }
+
+    const [deleted] = await db
+      .delete(testimoniesTable)
+      .where(eq(testimoniesTable.id, id))
+      .returning({ id: testimoniesTable.id });
+
+    if (!deleted) {
+      res.status(404).json({ error: "Testimony not found" });
+      return;
+    }
+
+    res.json({ success: true, id, message: "Testimony deleted." });
+  },
+);
 
 export default router;

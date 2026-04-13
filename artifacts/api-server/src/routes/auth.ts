@@ -36,6 +36,7 @@ function serializeMember(member: typeof memberAuthTable.$inferSelect) {
     lastName: member.lastName,
     email: member.email,
     phone: member.phone,
+    role: member.role,
     createdAt: member.createdAt instanceof Date ? member.createdAt.toISOString() : member.createdAt,
   };
 }
@@ -50,6 +51,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   if (typeof password !== "string" || password.length < 6) {
     res.status(400).json({ error: "Password must be at least 6 characters." });
+    return;
+  }
+
+  if (typeof email !== "string" || !email.includes("@")) {
+    res.status(400).json({ error: "A valid email address is required." });
     return;
   }
 
@@ -72,8 +78,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       .insert(memberAuthTable)
       .values({
         email: email.toLowerCase(),
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         passwordHash,
         token,
         phone: phone ?? null,
@@ -150,6 +156,78 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "Auth check failed");
     res.status(500).json({ error: "Authentication check failed. Please try again." });
+  }
+});
+
+// ── PUT /auth/profile — update member profile ─────────────────────────────────
+router.put("/auth/profile", async (req, res): Promise<void> => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Authorization required." });
+    return;
+  }
+
+  const token = auth.slice(7);
+  const { firstName, lastName, phone, currentPassword, newPassword } = req.body as {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  };
+
+  try {
+    const [member] = await db
+      .select()
+      .from(memberAuthTable)
+      .where(eq(memberAuthTable.token, token))
+      .limit(1);
+
+    if (!member) {
+      res.status(401).json({ error: "Invalid or expired token." });
+      return;
+    }
+
+    const updates: Partial<typeof memberAuthTable.$inferInsert> = {};
+
+    if (firstName?.trim()) updates.firstName = firstName.trim();
+    if (lastName?.trim()) updates.lastName = lastName.trim();
+    if (phone !== undefined) updates.phone = phone || null;
+
+    if (newPassword) {
+      if (!currentPassword) {
+        res.status(400).json({ error: "Current password is required to set a new password." });
+        return;
+      }
+      if (!verifyPassword(currentPassword, member.passwordHash)) {
+        res.status(401).json({ error: "Current password is incorrect." });
+        return;
+      }
+      if (newPassword.length < 6) {
+        res.status(400).json({ error: "New password must be at least 6 characters." });
+        return;
+      }
+      updates.passwordHash = hashPassword(newPassword);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "No valid fields to update." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(memberAuthTable)
+      .set(updates)
+      .where(eq(memberAuthTable.id, member.id))
+      .returning();
+
+    res.json({
+      member: serializeMember(updated),
+      message: "Profile updated successfully.",
+    });
+  } catch (err) {
+    req.log.error({ err }, "Profile update failed");
+    res.status(500).json({ error: "Profile update failed. Please try again." });
   }
 });
 

@@ -1,15 +1,104 @@
 import { Link, useLocation } from "wouter";
-import { Menu, X, Moon, Sun, ChevronDown } from "lucide-react";
+import { Menu, X, Moon, Sun, ChevronDown, Bell, BellOff } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { toast } from "sonner";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function usePushNotifications() {
+  const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [supported, setSupported] = useState(false);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      setSupported(true);
+      navigator.serviceWorker.ready.then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          setSubscribed(!!sub);
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, []);
+
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  };
+
+  const subscribe = async () => {
+    if (!supported || loading) return;
+    setLoading(true);
+    try {
+      const keyRes = await fetch(`${BASE}/api/push/vapid-key`);
+      const { publicKey } = await keyRes.json();
+      const reg = await navigator.serviceWorker.ready;
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        toast.error("Notification permission denied");
+        return;
+      }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+      const subJson = sub.toJSON() as {
+        endpoint: string;
+        keys: { p256dh: string; auth: string };
+      };
+      await fetch(`${BASE}/api/push/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: subJson, deviceType: "web" }),
+      });
+      setSubscribed(true);
+      toast.success("Live service alerts enabled!");
+    } catch (err) {
+      toast.error("Failed to enable notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unsubscribe = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch(`${BASE}/api/push/unsubscribe`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        });
+        await sub.unsubscribe();
+      }
+      setSubscribed(false);
+      toast.success("Notifications disabled");
+    } catch {
+      toast.error("Failed to unsubscribe");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { subscribed, loading, supported, subscribe, unsubscribe };
+}
 
 export function Navbar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { subscribed, loading: pushLoading, supported: pushSupported, subscribe, unsubscribe } = usePushNotifications();
   const [scrolled, setScrolled] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [openDropdown, setOpenDropdown] = useState<"resources" | "about" | null>(null);
@@ -68,6 +157,7 @@ export function Navbar() {
 
   const resourcesItems = [
     { href: "/topics", label: t("Bible Topics"), description: t("8 in-depth teaching topic clusters") },
+    { href: "/blog", label: `📝 ${t("Ministry Blog")}`, description: t("Theological insights & reflections") },
     { href: "/scripture-study", label: `📖 ${t("Scripture Study")}`, description: t("Deep AI exegetical Bible analysis"), aiHighlight: true },
     { href: "/spiritual-insight", label: `✦ ${t("Spiritual Insight")}`, description: t("Personalized prophetic guidance"), aiHighlight: true },
     { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
@@ -202,6 +292,30 @@ export function Navbar() {
           </div>
 
           <LanguageSelector />
+
+          {/* Push notification bell */}
+          {pushSupported && (
+            <motion.button
+              onClick={subscribed ? unsubscribe : subscribe}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              disabled={pushLoading}
+              aria-label={subscribed ? "Unsubscribe from live alerts" : "Subscribe to live service alerts"}
+              title={subscribed ? "Click to disable live alerts" : "Get notified when JCTM goes live"}
+              className="flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-300 cursor-pointer disabled:opacity-50"
+              style={{
+                background: subscribed
+                  ? "rgba(56,189,248,0.18)"
+                  : isDark ? "rgba(56,189,248,0.08)" : "rgba(0,51,102,0.06)",
+                borderColor: subscribed
+                  ? "rgba(56,189,248,0.5)"
+                  : isDark ? "rgba(56,189,248,0.2)" : "rgba(0,51,102,0.12)",
+                color: subscribed ? "hsl(var(--accent))" : isDark ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))",
+              }}
+            >
+              {subscribed ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
+            </motion.button>
+          )}
 
           {/* Theme toggle — icon only */}
           <motion.button

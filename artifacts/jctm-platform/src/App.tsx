@@ -34,6 +34,8 @@ const ScriptureStudy = lazy(() => import("@/pages/ScriptureStudy"));
 const SpiritualInsight = lazy(() => import("@/pages/SpiritualInsight"));
 const Devotion = lazy(() => import("@/pages/Devotion"));
 const Admin = lazy(() => import("@/pages/Admin"));
+const Blog = lazy(() => import("@/pages/Blog"));
+const BlogPost = lazy(() => import("@/pages/BlogPost"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -96,6 +98,8 @@ function Router() {
         <Route path="/spiritual-insight" component={SpiritualInsight} />
         <Route path="/devotion" component={Devotion} />
         <Route path="/admin/broadcast" component={Admin} />
+        <Route path="/blog" component={Blog} />
+        <Route path="/blog/:slug" component={BlogPost} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
