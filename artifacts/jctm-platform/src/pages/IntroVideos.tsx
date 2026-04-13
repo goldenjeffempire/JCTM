@@ -3,7 +3,7 @@ import {
   ChevronUp, ChevronDown,
   Sparkles, Radio, Clock, Share2, BookOpen,
   Volume2, VolumeX, Heart, MessageCircle, Eye,
-  X, Send, Youtube, PlayCircle,
+  X, Send, Youtube, PlayCircle, RefreshCw,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const PAGE_SIZE = 20;
 
 function getVisitorId(): string {
   const key = "jctm_visitor_id";
@@ -33,6 +34,14 @@ interface IntroItem {
   viewCount?: number | null;
   isLive?: boolean;
   duration?: string | null;
+}
+
+interface IntroPage {
+  videos: IntroItem[];
+  total: number;
+  hasMore: boolean;
+  offset: number;
+  limit: number;
 }
 
 interface NativeLikes {
@@ -83,16 +92,6 @@ function formatDuration(iso: string | null | undefined): string {
 
 function initials(name: string): string {
   return name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
-}
-
-const PAGE_SIZE = 30;
-
-interface IntroPage {
-  videos: IntroItem[];
-  total: number;
-  hasMore: boolean;
-  offset: number;
-  limit: number;
 }
 
 async function fetchIntroPage(offset: number, limit = PAGE_SIZE): Promise<IntroPage> {
@@ -164,6 +163,30 @@ async function fetchYTViews(videoId: string): Promise<YTViews | null> {
   } catch {
     return null;
   }
+}
+
+function CardSkeleton({ gradient }: { gradient: string }) {
+  return (
+    <div className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}>
+      <div className="absolute inset-0 flex flex-col">
+        <div className="flex items-center gap-3 p-4">
+          <div className="h-8 w-8 rounded-full bg-white/10 animate-pulse" />
+          <div className="space-y-1.5">
+            <div className="h-2.5 w-24 rounded bg-white/10 animate-pulse" />
+            <div className="h-2 w-16 rounded bg-white/8 animate-pulse" />
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <PlayCircle className="h-16 w-16 text-white/10 animate-pulse" />
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="h-5 w-3/4 rounded bg-white/15 animate-pulse" />
+          <div className="h-4 w-1/2 rounded bg-white/10 animate-pulse" />
+          <div className="h-4 w-2/3 rounded bg-white/8 animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CommentPanel({
@@ -285,7 +308,7 @@ function CommentPanel({
           onChange={e => setName(e.target.value)}
           placeholder="Your name"
           maxLength={80}
-          className="w-full bg-white/8 border border-white/15 rounded-xl px-3 py-2 text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-amber-500/60 focus:bg-white/12 transition-colors"
+          className="w-full border border-white/15 rounded-xl px-3 py-2 text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-amber-500/60 transition-colors"
           style={{ background: "rgba(255,255,255,0.06)" }}
         />
         <div className="flex gap-2">
@@ -295,7 +318,7 @@ function CommentPanel({
             onChange={e => setBody(e.target.value)}
             placeholder="Add a comment…"
             maxLength={1000}
-            className="flex-1 bg-white/8 border border-white/15 rounded-xl px-3 py-2 text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-amber-500/60 focus:bg-white/12 transition-colors"
+            className="flex-1 border border-white/15 rounded-xl px-3 py-2 text-white text-xs placeholder:text-white/30 focus:outline-none focus:border-amber-500/60 transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}
           />
           <button
@@ -318,6 +341,7 @@ function IntroCard({
   visitorId,
   onToggleMute,
   isActive,
+  isPreload,
 }: {
   video: IntroItem;
   index: number;
@@ -325,16 +349,19 @@ function IntroCard({
   visitorId: string;
   onToggleMute: () => void;
   isActive: boolean;
+  isPreload: boolean;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeReady, setIframeReady] = useState(false);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
 
-  const embedSrc = isActive
-    ? `https://www.youtube.com/embed/${video.videoId}` +
-      `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${video.videoId}` +
-      `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` +
-      `&origin=${encodeURIComponent(window.location.origin)}`
-    : null;
+  const buildSrc = (active: boolean, muted: boolean) =>
+    `https://www.youtube.com/embed/${video.videoId}` +
+    `?autoplay=${active ? 1 : 0}&mute=${muted ? 1 : 0}&loop=1&playlist=${video.videoId}` +
+    `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` +
+    `&origin=${encodeURIComponent(window.location.origin)}`;
+
+  const embedSrc = (isActive || isPreload) ? buildSrc(isActive, isActive ? muted : 1) : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });
   const [liking, setLiking] = useState(false);
@@ -353,6 +380,8 @@ function IntroCard({
   }, [isActive, video.videoId, visitorId]);
 
   const handleLoad = () => {
+    setIframeReady(true);
+    if (!isActive) return;
     const pump = (n: number) => {
       iframeRef.current?.contentWindow?.postMessage(
         JSON.stringify({ event: "command", func: "setVolume", args: [100] }),
@@ -415,10 +444,10 @@ function IntroCard({
 
   return (
     <div className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}>
-      {isActive && embedSrc ? (
+      {embedSrc ? (
         <div className="absolute inset-0 bg-black">
           <iframe
-            key={`${video.videoId}-${muted}`}
+            key={`${video.videoId}-${isActive}`}
             ref={iframeRef}
             src={embedSrc}
             title={video.title}
@@ -427,6 +456,7 @@ function IntroCard({
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             onLoad={handleLoad}
+            style={{ opacity: isPreload && !isActive ? 0 : 1, pointerEvents: isActive ? "auto" : "none" }}
           />
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.1) 40%, transparent 65%)" }} />
@@ -438,7 +468,8 @@ function IntroCard({
           <img
             src={video.thumbnailUrl}
             alt={video.title}
-            className="w-full h-full object-cover opacity-30 scale-105"
+            className="w-full h-full object-cover opacity-40 scale-105"
+            loading="lazy"
             onError={e => {
               (e.target as HTMLImageElement).src =
                 `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`;
@@ -449,6 +480,18 @@ function IntroCard({
           </div>
           <div className="absolute inset-0"
             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.25) 100%)" }} />
+        </div>
+      )}
+
+      {/* Fade-in overlay when iframe is loading */}
+      {isActive && embedSrc && !iframeReady && (
+        <div className="absolute inset-0 z-5 flex items-center justify-center bg-black/50 pointer-events-none">
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              <div className="h-12 w-12 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+            </div>
+            <p className="text-white/60 text-xs">Loading video…</p>
+          </div>
         </div>
       )}
 
@@ -483,7 +526,6 @@ function IntroCard({
 
         {/* Right-side action buttons */}
         <div className="absolute right-4 bottom-36 flex flex-col items-center gap-5 pointer-events-auto z-20">
-
           <button
             onClick={handleLike}
             disabled={liking}
@@ -605,57 +647,101 @@ function IntroCard({
 export default function IntroVideos() {
   const [videos, setVideos] = useState<IntroItem[]>([]);
   const [current, setCurrent] = useState(0);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true); // start muted for autoplay compliance
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [visitorId] = useState(() => getVisitorId());
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const loadVideos = useCallback(() => {
+  const loadInitial = useCallback(async () => {
     setError(false);
-    return fetchIntroVideos()
-      .then(data => setVideos(data))
-      .catch(() => {
-        setError(true);
-        toast.error("Could not load Intro Videos");
-      })
-      .finally(() => setLoading(false));
+    setLoading(true);
+    try {
+      const data = await fetchIntroPage(0, PAGE_SIZE);
+      setVideos(data.videos);
+      setHasMore(data.hasMore);
+      setCurrent(0);
+    } catch {
+      setError(true);
+      toast.error("Could not load Intro Videos. Check your connection.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    loadVideos();
-  }, [loadVideos]);
+  const loadMore = useCallback(async (currentVideoCount: number) => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await fetchIntroPage(currentVideoCount, PAGE_SIZE);
+      setVideos(prev => {
+        const existingIds = new Set(prev.map(v => v.videoId));
+        const newVideos = data.videos.filter(v => !existingIds.has(v.videoId));
+        return [...prev, ...newVideos];
+      });
+      setHasMore(data.hasMore);
+    } catch {
+      // silent fail — will try again on next scroll
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore]);
 
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
+
+  // SSE: refresh when new sermons are synced from YouTube
   useEffect(() => {
     const es = new EventSource(`${BASE}/api/sermons/stream`);
     es.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data) as { type?: string };
-        if (msg.type === "sync_complete") loadVideos();
+        if (msg.type === "sync_complete") loadInitial();
       } catch {}
     };
     es.onerror = () => {};
     return () => es.close();
-  }, [loadVideos]);
+  }, [loadInitial]);
 
+  // IntersectionObserver: track active card and trigger load-more
   useEffect(() => {
     if (videos.length === 0) return;
-    const observer = new IntersectionObserver(
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             const idx = cardRefs.current.findIndex(ref => ref === entry.target);
-            if (idx !== -1) setCurrent(idx);
+            if (idx !== -1) {
+              setCurrent(idx);
+              // Trigger load-more when within 5 cards of the end
+              if (idx >= cardRefs.current.length - 5) {
+                setVideos(prev => {
+                  loadMore(prev.length);
+                  return prev;
+                });
+              }
+            }
           }
         });
       },
-      { threshold: 0.6, root: scrollContainerRef.current },
+      { threshold: 0.6, root: container },
     );
-    cardRefs.current.forEach(ref => { if (ref) observer.observe(ref); });
-    return () => observer.disconnect();
-  }, [videos]);
+
+    cardRefs.current.forEach(ref => { if (ref) observerRef.current!.observe(ref); });
+    return () => observerRef.current?.disconnect();
+  }, [videos, loadMore]);
 
   const scrollTo = useCallback((idx: number) => {
     const clamped = Math.max(0, Math.min(idx, videos.length - 1));
@@ -678,6 +764,11 @@ export default function IntroVideos() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev, toggleMute]);
+
+  const handleRetry = () => {
+    setRetryCount(c => c + 1);
+    loadInitial();
+  };
 
   return (
     <Layout>
@@ -725,32 +816,48 @@ export default function IntroVideos() {
             </div>
             {videos.length > 0 && (
               <span className="text-xs text-muted-foreground">
-                {current + 1} / {videos.length}
+                {current + 1} / {videos.length}{hasMore ? "+" : ""}
               </span>
             )}
           </div>
 
           {loading ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4">
-              <div className="relative">
-                <BookOpen className="h-10 w-10 text-amber-400/60" />
-                <div className="absolute inset-0 animate-ping rounded-full bg-amber-400/20" />
+            <div className="flex-1 overflow-hidden">
+              <div
+                style={{
+                  height: "100%",
+                  scrollSnapType: "y mandatory",
+                  overflow: "hidden",
+                  scrollbarWidth: "none",
+                }}
+              >
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ height: "100%", scrollSnapAlign: "start", scrollSnapStop: "always" }}>
+                    <CardSkeleton gradient={GRADIENT_THEMES[i % GRADIENT_THEMES.length]!} />
+                  </div>
+                ))}
               </div>
-              <p className="text-muted-foreground text-sm">Loading Intro Teachings…</p>
             </div>
           ) : error || videos.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8 text-center">
-              <BookOpen className="h-12 w-12 text-muted-foreground/40" />
+              <div className="relative">
+                <BookOpen className="h-12 w-12 text-muted-foreground/40" />
+              </div>
               <div>
-                <p className="text-primary font-semibold mb-1">No intro videos found</p>
+                <p className="text-primary font-semibold mb-1">
+                  {error ? "Could not load videos" : "No intro videos found"}
+                </p>
                 <p className="text-muted-foreground text-sm">
-                  Videos in the 50–70 minute range will appear here once synced from YouTube.
+                  {error
+                    ? "Check your connection and try again."
+                    : "Videos in the 50–70 minute range will appear here once synced from YouTube."}
                 </p>
               </div>
               <button
-                onClick={() => { setLoading(true); loadVideos(); }}
-                className="mt-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-semibold hover:bg-amber-500/30 transition-colors"
+                onClick={handleRetry}
+                className="mt-2 px-5 py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-semibold hover:bg-amber-500/30 transition-colors flex items-center gap-2"
               >
+                <RefreshCw className="h-3.5 w-3.5" />
                 Try again
               </button>
             </div>
@@ -784,19 +891,51 @@ export default function IntroVideos() {
                       visitorId={visitorId}
                       onToggleMute={toggleMute}
                       isActive={i === current}
+                      isPreload={i === current + 1}
                     />
                   </div>
                 ))}
+
+                {/* Load-more indicator at end */}
+                {loadingMore && (
+                  <div
+                    style={{ height: "100%", scrollSnapAlign: "start", scrollSnapStop: "always" }}
+                    className="w-full flex-shrink-0 flex items-center justify-center bg-black"
+                  >
+                    <div className="flex flex-col items-center gap-3 text-white/40">
+                      <div className="h-10 w-10 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+                      <p className="text-sm">Loading more teachings…</p>
+                    </div>
+                  </div>
+                )}
+
+                {!hasMore && videos.length > 0 && (
+                  <div
+                    style={{ height: "20%", scrollSnapAlign: "start" }}
+                    className="w-full flex-shrink-0 flex items-center justify-center"
+                  >
+                    <div className="flex flex-col items-center gap-2 text-white/30">
+                      <Sparkles className="h-5 w-5 text-amber-400/40" />
+                      <p className="text-xs">You've seen all {videos.length} teachings</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Nav arrows */}
               <div className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
-                <button onClick={goPrev} disabled={current === 0}
-                  className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-amber-400/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
+                <button
+                  onClick={goPrev}
+                  disabled={current === 0}
+                  className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-amber-400/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg"
+                >
                   <ChevronUp className="h-4 w-4" />
                 </button>
-                <button onClick={goNext} disabled={current === videos.length - 1}
-                  className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-amber-400/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg">
+                <button
+                  onClick={goNext}
+                  disabled={current >= videos.length - 1 && !hasMore}
+                  className="h-9 w-9 rounded-full bg-black/40 backdrop-blur-md border border-amber-400/20 flex items-center justify-center text-white disabled:opacity-20 hover:bg-black/60 transition-colors shadow-lg"
+                >
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </div>

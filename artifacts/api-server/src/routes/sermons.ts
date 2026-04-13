@@ -141,17 +141,19 @@ router.get("/sermons/stats", async (req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
-// GET /sermons/intro  — Full Teaching feed: focused teachings between 45 and 80 minutes.
-// This range captures individual sermons, deliverance services, crusade sessions,
-// and interviews — the same format as the Intro Videos page on YouTube.
-// Scans the complete sermon archive so older content is never missed.
+// GET /sermons/intro  — Full Teaching feed: strictly 50 min–1h10min videos.
+// Excludes Shorts, clips, and anything outside the 50–70 minute window.
+// Scans the full sermon archive (newest first) for maximum coverage.
 // Supports pagination via ?offset=0&limit=30 query params.
-// Falls back to the 10 most recently published sermons if none qualify.
+// Falls back to best available sermons closest to the target range only if
+// none qualify strictly, so the page never shows an empty state.
 // ──────────────────────────────────────────────────────
 router.get("/sermons/intro", async (req, res): Promise<void> => {
-  const MIN_SECONDS = 45 * 60;  // 45 minutes
-  const MAX_SECONDS = 80 * 60;  // 80 minutes — focused teaching length
-  const limit  = Math.min(Math.max(parseInt(String(req.query.limit  ?? "30")), 1), 100);
+  const MIN_SECONDS = 50 * 60;        // 50 minutes — strict lower bound
+  const MAX_SECONDS = 70 * 60;        // 1 hour 10 minutes — strict upper bound
+  const FALLBACK_MIN = 40 * 60;       // Fallback: 40 min if nothing in strict range
+  const FALLBACK_MAX = 90 * 60;       // Fallback: 90 min
+  const limit  = Math.min(Math.max(parseInt(String(req.query.limit  ?? "20")), 1), 100);
   const offset = Math.max(parseInt(String(req.query.offset ?? "0")), 0);
 
   // Scan every sermon in the archive, newest first
@@ -161,14 +163,27 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
     .orderBy(desc(sermonsTable.publishedAt))
     .limit(5000);
 
+  // Strict filter: 50–70 min, must have duration, exclude Shorts (< 60s)
   let intros = pool.filter(s => {
     if (!s.duration) return false;
     const secs = iso8601ToSeconds(s.duration);
+    if (secs < 60) return false; // exclude Shorts
     return secs >= MIN_SECONDS && secs <= MAX_SECONDS;
   });
 
+  // Fallback: broaden to 40–90 min if strict range yields nothing
   if (intros.length === 0) {
-    intros = pool.slice(0, 10);
+    intros = pool.filter(s => {
+      if (!s.duration) return false;
+      const secs = iso8601ToSeconds(s.duration);
+      if (secs < 60) return false;
+      return secs >= FALLBACK_MIN && secs <= FALLBACK_MAX;
+    });
+  }
+
+  // Last resort: just take the 20 most recent with any duration
+  if (intros.length === 0) {
+    intros = pool.filter(s => s.duration && iso8601ToSeconds(s.duration) > 60).slice(0, 20);
   }
 
   const total   = intros.length;
@@ -298,7 +313,15 @@ router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> =>
       `https://www.googleapis.com/youtube/v3/videos` +
       `?part=statistics&id=${encodeURIComponent(videoId)}&key=${YOUTUBE_API_KEY}`;
     const ytRes = await fetch(url);
-    if (!ytRes.ok) throw new Error(`YouTube API error: ${ytRes.status}`);
+    if (!ytRes.ok) {
+      // Quota exceeded or API error — fall back to stored data gracefully
+      const [row] = await db
+        .select({ viewCount: sermonsTable.viewCount })
+        .from(sermonsTable)
+        .where(eq(sermonsTable.videoId, videoId));
+      res.json({ likeCount: null, commentCount: null, viewCount: row?.viewCount ?? 0 });
+      return;
+    }
     const data = await ytRes.json() as {
       items?: { statistics?: { likeCount?: string; commentCount?: string; viewCount?: string } }[]
     };
@@ -309,8 +332,13 @@ router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> =>
       viewCount: stats.viewCount != null ? parseInt(stats.viewCount) : 0,
     });
   } catch (err) {
-    req.log.error({ err }, "Failed to fetch YouTube stats");
-    res.status(500).json({ error: "Failed to fetch YouTube stats" });
+    req.log.warn({ err }, "YouTube stats unavailable — returning stored data");
+    // Always return stored view count rather than a 500
+    const [row] = await db
+      .select({ viewCount: sermonsTable.viewCount })
+      .from(sermonsTable)
+      .where(eq(sermonsTable.videoId, videoId));
+    res.json({ likeCount: null, commentCount: null, viewCount: row?.viewCount ?? 0 });
   }
 });
 
