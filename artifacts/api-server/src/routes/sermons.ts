@@ -161,8 +161,61 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
     /deliverance/i,
     /testimon/i,
   ];
-  const isExcluded = (title: string | null) =>
-    title != null && EXCLUDED_TITLE_PATTERNS.some(re => re.test(title));
+
+  // Exact titles explicitly excluded from the Intro feed (case-insensitive, trimmed)
+  const EXCLUDED_EXACT_TITLES = new Set([
+    "26-7-23 first wednesday service program",
+    "a must-watch!!!!! what did the bible say about baptism in the name of jesus christ",
+    "5-6-22 holy ghost sunday service",
+    "2nd january 2022 1st sunday service",
+    "28-10-21 abraka crusade day 1",
+    "18-4-21 super sunday service",
+    "31-1-21 sunday service",
+    "24-1-21 super sunday service",
+    "3-1-21 thanksgiving service",
+    "okpe isoko crusade day 2",
+    "30-8-20 super sunday service",
+    "16-8-20 super sunday service",
+    "19-1-20 sunday service",
+    "25-12-19 christmas service",
+    "prayer of the holy spirit",
+    "16-8-19 family liberation program day 3",
+    "21-7-19 super sunday live service",
+    "13-3-19 wednesday live service",
+    "6-3-19 wednesday live service",
+    "27-1-19 sunday live service",
+    "16-12-18 sunday live service",
+    "25-11-18 sunday live service (holy ghost service)",
+    "7-11-18 wednesday live service",
+    "16-9-18 sunday live service",
+    "22-8-18 wednesday service",
+    "day 1, no one can stop me jesus is alive 10-8-18 friday service (temple tv live stream)",
+    "25-7-18 wednesday service (temple tv live stream)",
+    "10-6-18 sunday service( prophetic declaration)",
+    "3-6-18",
+    "27-5-18 day 5 (oh lord show me mercy)",
+    "24-5-18 day 2 (oh lord show me mercy)",
+    "23-5-18 day 1 (oh lord show me mercy)",
+    "6-5-18 sunday service praise & worship",
+    "8-8-18 sunday service",
+    "14th march 2018 wednesday service",
+    "21 febraury 2018 mass prayer time.",
+    "4th feb 2018, mass prayer",
+    "cross over service",
+    "meditate in the life you live as a christian.",
+    "don't put your trust in man.",
+    "watch how a demon entered a girl who was sleeping in the church",
+    "we are saved by the grace of god part i",
+    "watch how this woman delivered in the church during a mass prayer day 2",
+    "punishment is coming for the sinners",
+  ]);
+
+  const isExcluded = (title: string | null) => {
+    if (title == null) return false;
+    if (EXCLUDED_TITLE_PATTERNS.some(re => re.test(title))) return true;
+    if (EXCLUDED_EXACT_TITLES.has(title.trim().toLowerCase())) return true;
+    return false;
+  };
 
   // Scan every sermon in the archive, newest first
   const pool = await db
