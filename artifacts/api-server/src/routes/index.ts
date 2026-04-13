@@ -23,6 +23,7 @@ import aiRouter from "./ai";
 import blogRouter from "./blog";
 import adminRouter from "./admin";
 import broadcastRouter from "./broadcast";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -52,6 +53,7 @@ router.use(aiRouter);
 router.use(blogRouter);
 router.use(adminRouter);
 router.use(broadcastRouter);
+router.use(pushRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

@@ -1,9 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startCron } from "./lib/cron.js";
+import { startCron, setWebSubCallbackUrl } from "./lib/cron.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { initSentry } from "./lib/sentry.js";
+import { initVapidKeys } from "./lib/push-manager.js";
 import { pool } from "@workspace/db";
 import OpenAI from "openai";
 
@@ -168,6 +169,39 @@ async function runStartupMigrations() {
       logger.warn({ err: fnErr }, "Could not create similarity search function — pgvector may not be available");
     }
 
+    // ── Sermon AI metadata enrichment columns ────────────────────────────────
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS ai_summary text
+    `);
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS tags text[] NOT NULL DEFAULT '{}'
+    `);
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'sermon'
+    `);
+    await pool.query(`
+      ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS metadata_generated_at timestamptz
+    `);
+
+    // ── Push Notification Subscriptions ──────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id serial PRIMARY KEY,
+        endpoint text NOT NULL UNIQUE,
+        p256dh text NOT NULL,
+        auth text NOT NULL,
+        device_type text NOT NULL DEFAULT 'web',
+        visitor_id text,
+        is_active boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS push_subscriptions_active_idx
+      ON push_subscriptions (is_active) WHERE is_active = true
+    `);
+
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
@@ -204,6 +238,9 @@ const server = app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
+  // Initialize VAPID keys for push notifications
+  initVapidKeys(logger);
+
   // Start the 30-minute YouTube sync cron
   startCron(logger);
 
@@ -223,7 +260,9 @@ const server = app.listen(port, (err) => {
     callbackBase = "https://jctm.org.ng";
   }
 
-  subscribeToWebSub(`${callbackBase}/api/sermons/websub`, logger);
+  const websubCallback = `${callbackBase}/api/sermons/websub`;
+  setWebSubCallbackUrl(websubCallback);
+  subscribeToWebSub(websubCallback, logger);
 
   // ── Populate JCTM knowledge base into pgvector store (non-blocking) ──────────
   // Uses the direct OPENAI_API_KEY (not the Replit proxy) because the embeddings

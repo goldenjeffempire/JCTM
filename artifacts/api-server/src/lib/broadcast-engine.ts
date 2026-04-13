@@ -11,7 +11,8 @@
  */
 
 import { db, sermonsTable } from "@workspace/db";
-import { desc, ne, sql, and, isNotNull } from "drizzle-orm";
+import { desc, ne, sql, and, isNotNull, isNull, eq } from "drizzle-orm";
+import { pool } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
 
@@ -270,6 +271,154 @@ export async function generateSermonMetadata(
   }
 
   return null;
+}
+
+// ─── Auto-Enrichment Pipeline ─────────────────────────────────────────────────
+
+/**
+ * Enrich the next batch of sermons that have no AI-generated metadata.
+ * Called by the cron every 10 minutes. Returns count of sermons enriched.
+ */
+export async function enrichNextSermonBatch(
+  batchSize: number = 5,
+  log?: Logger
+): Promise<number> {
+  if (!process.env.OPENAI_API_KEY) return 0;
+
+  try {
+    const unenriched = await pool.query<{
+      id: number;
+      video_id: string;
+      title: string;
+    }>(
+      `SELECT id, video_id, title FROM sermon_data
+       WHERE metadata_generated_at IS NULL
+       ORDER BY published_at DESC
+       LIMIT $1`,
+      [batchSize]
+    );
+
+    if (unenriched.rows.length === 0) return 0;
+
+    let count = 0;
+    for (const sermon of unenriched.rows) {
+      const metadata = await generateSermonMetadata(sermon.title, log);
+      if (!metadata) continue;
+
+      await pool.query(
+        `UPDATE sermon_data
+         SET ai_summary = $1,
+             tags = $2,
+             category = $3,
+             metadata_generated_at = now()
+         WHERE id = $4`,
+        [metadata.summary, metadata.tags, metadata.category, sermon.id]
+      );
+      count++;
+    }
+
+    return count;
+  } catch (err) {
+    log?.warn({ err }, "Sermon batch enrichment failed (non-fatal)");
+    return 0;
+  }
+}
+
+// ─── AI Recommendation Engine ─────────────────────────────────────────────────
+
+export interface SermonRecommendation {
+  videoId: string;
+  title: string;
+  thumbnailUrl: string;
+  publishedAt: string;
+  viewCount: number | null;
+  category: string;
+  tags: string[];
+  aiSummary: string | null;
+  score: number;
+  reason: string;
+}
+
+/**
+ * Get AI-powered sermon recommendations based on category affinity and scoring.
+ * Falls back to pure algorithmic scoring if AI is unavailable.
+ */
+export async function getSermonRecommendations(opts: {
+  excludeVideoId?: string;
+  category?: string;
+  limit?: number;
+  log?: Logger;
+}): Promise<SermonRecommendation[]> {
+  const { excludeVideoId, category, limit = 8, log } = opts;
+
+  try {
+    let query = `
+      SELECT id, video_id, title, thumbnail_url, published_at, view_count,
+             COALESCE(category, 'sermon') as category,
+             COALESCE(tags, '{}') as tags,
+             ai_summary
+      FROM sermon_data
+      WHERE is_live = false
+      ${excludeVideoId ? `AND video_id != '${excludeVideoId.replace(/'/g, "''")}'` : ""}
+      ${category && category !== "all" ? `AND category ILIKE '%${category.replace(/'/g, "''")}%'` : ""}
+      ORDER BY published_at DESC
+      LIMIT 80
+    `;
+
+    const result = await pool.query<{
+      id: number;
+      video_id: string;
+      title: string;
+      thumbnail_url: string;
+      published_at: Date;
+      view_count: number | null;
+      category: string;
+      tags: string[];
+      ai_summary: string | null;
+    }>(query);
+
+    if (result.rows.length === 0) return [];
+
+    const scored: SermonRecommendation[] = result.rows.map(s => ({
+      videoId: s.video_id,
+      title: s.title,
+      thumbnailUrl: s.thumbnail_url,
+      publishedAt: s.published_at instanceof Date ? s.published_at.toISOString() : String(s.published_at),
+      viewCount: s.view_count,
+      category: s.category,
+      tags: Array.isArray(s.tags) ? s.tags : [],
+      aiSummary: s.ai_summary,
+      score: scoreSermon({
+        title: s.title,
+        viewCount: s.view_count,
+        publishedAt: s.published_at,
+        isFeatured: false,
+      }),
+      reason: s.ai_summary ? "ai-enriched" : "algorithmic",
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
+  } catch (err) {
+    log?.error({ err }, "Sermon recommendation engine failed");
+    return [];
+  }
+}
+
+/**
+ * Get distinct sermon categories from the DB for filtering.
+ */
+export async function getSermonCategories(): Promise<string[]> {
+  try {
+    const result = await pool.query<{ category: string }>(
+      `SELECT DISTINCT category FROM sermon_data
+       WHERE category IS NOT NULL AND category != 'sermon'
+       ORDER BY category`
+    );
+    return result.rows.map(r => r.category);
+  } catch {
+    return [];
+  }
 }
 
 // ─── Broadcast Lifecycle Statistics ──────────────────────────────────────────
