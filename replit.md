@@ -18,14 +18,15 @@ Full-stack pnpm monorepo for **Jesus Christ Temple Ministry (JCTM)**, Warri, Nig
 
 ---
 
-## Workflows
+## Replit Workflows
 
 | Workflow | Command | Purpose |
 |----------|---------|---------|
-| **Backend API** | `PORT=8080 pnpm --filter @workspace/api-server run dev` | Express API server on port 8080 |
-| **Start application** | `pnpm --filter @workspace/jctm-platform run dev` | Vite dev server on port 3000 |
+| **artifacts/api-server: API Server** | `pnpm --filter @workspace/api-server run dev` | Express API server on port 8080 |
+| **artifacts/jctm-platform: web** | `pnpm --filter @workspace/jctm-platform run dev` | Vite dev server on port 3000 |
+| **artifacts/jctm-mobile: expo** | `pnpm --filter @workspace/jctm-mobile run dev` | Expo mobile preview on port 26034 |
 
-The Vite dev server proxies all `/api/*` requests to `localhost:8080` (configured in `artifacts/jctm-platform/vite.config.ts`).
+The Vite dev server proxies all `/api/*` requests to `localhost:8080` (configured in `artifacts/jctm-platform/vite.config.ts`). Duplicate legacy workflows from the original import were removed during Replit migration so the registered Replit artifact services own the active ports cleanly.
 
 ---
 
@@ -118,6 +119,13 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 | `PORT` | Server port (8080 dev, 10000 Render) | Auto-set |
 | `NODE_ENV` | `development` or `production` | Auto-set |
 | `BASE_PATH` | Vite base URL (`/`) | Auto-set |
+
+## Replit Migration Status
+
+- Dependencies installed with `pnpm install`.
+- Active Replit services verified running: web, API, and Expo mobile preview.
+- Web preview verified at `/` with API health returning OK.
+- Client/server secret separation checked: sensitive keys are referenced from the API server, not the browser client.
 
 ---
 
