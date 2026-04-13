@@ -15,6 +15,7 @@ import { desc, ne, sql, and, isNotNull, isNull, eq } from "drizzle-orm";
 import { pool } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
+import { ingestSermonSummary } from "./knowledge-ingestion.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,6 +315,20 @@ export async function enrichNextSermonBatch(
          WHERE id = $4`,
         [metadata.summary, metadata.tags, metadata.category, sermon.id]
       );
+
+      // Auto-ingest sermon summary into the RAG knowledge base
+      // so TempleBots can answer questions about specific sermons
+      ingestSermonSummary({
+        videoId: sermon.video_id,
+        title: sermon.title,
+        summary: metadata.summary,
+        category: metadata.category,
+        tags: metadata.tags,
+        log,
+      }).catch(err => {
+        log?.warn({ err, videoId: sermon.video_id }, "Sermon knowledge ingestion failed (non-fatal, async)");
+      });
+
       count++;
     }
 

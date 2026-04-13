@@ -74,6 +74,20 @@ async function runStartupMigrations() {
       ALTER TABLE member_auth ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'member'
     `);
 
+    // ── Knowledge chunks unique constraint for sermon UPSERT support ─────────
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'knowledge_chunks_source_chunk_idx'
+        ) THEN
+          ALTER TABLE knowledge_chunks
+            ADD CONSTRAINT knowledge_chunks_source_chunk_idx
+            UNIQUE (source, chunk_index);
+        END IF;
+      END $$
+    `);
+
     // ── AI Feedback Loop table ───────────────────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ai_feedback (

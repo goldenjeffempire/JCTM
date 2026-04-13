@@ -4,6 +4,10 @@
  * Runs at server startup (non-blocking) to populate the knowledge_chunks
  * table with JCTM-specific content.
  *
+ * Also exports ingestSermonSummary() — called by the AI enrichment cron
+ * after each sermon is AI-enriched so TempleBots can reference specific
+ * sermon content via RAG search.
+ *
  * Strategy:
  *  - Embeddings via text-embedding-3-small when the OPENAI_API_KEY quota allows.
  *  - If quota is exhausted (429), chunks are stored as plain text (embedding = NULL)
@@ -172,6 +176,86 @@ export async function ingestKnowledgeIfEmpty(
     );
   } catch (err) {
     log.error({ err }, "Knowledge ingestion failed — TempleBots will work without RAG context");
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Ingest a single sermon AI summary into the knowledge_chunks table.
+ *
+ * Called by the AI metadata enrichment cron (broadcast-engine.ts) after
+ * each sermon is enriched so TempleBots can retrieve specific sermon content.
+ * Uses UPSERT (INSERT … ON CONFLICT) keyed on `source = 'sermon-<videoId>'`
+ * so re-enriching a sermon updates rather than duplicates the chunk.
+ *
+ * Embedding generation is best-effort — if OpenAI quota is exhausted the
+ * chunk is stored as text-only so keyword search still works.
+ */
+export async function ingestSermonSummary(opts: {
+  videoId: string;
+  title: string;
+  summary: string;
+  category?: string | null;
+  tags?: string[] | null;
+  log?: Logger;
+}): Promise<void> {
+  const { videoId, title, summary, category, tags, log } = opts;
+  if (!videoId || !summary) return;
+
+  const source = `sermon-${videoId}`;
+
+  const content = [
+    `Sermon: "${title}"`,
+    `Category: ${category ?? "teaching"}`,
+    tags && tags.length > 0 ? `Tags: ${tags.join(", ")}` : "",
+    `Summary: ${summary}`,
+    `Watch: https://www.youtube.com/watch?v=${videoId}`,
+  ].filter(Boolean).join("\n");
+
+  const client = await pool.connect();
+  try {
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (openaiKey) {
+      try {
+        const ai = new OpenAI({ apiKey: openaiKey });
+        const res = await ai.embeddings.create({
+          model: "text-embedding-3-small",
+          input: content,
+        });
+        const embedding = res.data[0].embedding;
+        const vectorStr = `[${embedding.join(",")}]`;
+
+        await client.query(
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+           VALUES ($1, $2, 0, $3::vector)
+           ON CONFLICT (source, chunk_index)
+           DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+          [content, source, vectorStr],
+        );
+
+        log?.info({ videoId, source }, "Sermon summary ingested with embedding");
+        return;
+      } catch (err) {
+        if (!isQuotaError(err)) {
+          log?.warn({ err, source }, "Sermon embedding failed — storing as text-only");
+        }
+      }
+    }
+
+    // Fallback: text-only (keyword search still works)
+    await client.query(
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+       VALUES ($1, $2, 0, NULL)
+       ON CONFLICT (source, chunk_index)
+       DO UPDATE SET content = EXCLUDED.content`,
+      [content, source],
+    );
+
+    log?.info({ videoId, source }, "Sermon summary ingested as text-only");
+  } catch (err) {
+    log?.warn({ err, source }, "Sermon knowledge ingestion failed (non-fatal)");
   } finally {
     client.release();
   }
