@@ -7,14 +7,15 @@ import {
 } from "@workspace/api-zod";
 import { db, sermonsTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
+import { buildSmartRebroadcastQueue } from "../lib/broadcast-engine.js";
 
 const router: IRouter = Router();
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const LIVE_VIDEO_ID = "f7TOxaM2Mq4";
-const REBROADCAST_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days exactly
-const JCTM_CHANNEL_ID = "UCkiRQ9lHdRZ2_p3hRe0UQBQ";
+const REBROADCAST_DURATION_MS = 4 * 24 * 60 * 60 * 1000; // 4 days (Sunday → Thursday)
+// Correct JCTM Temple TV channel ID (matches youtube-sync.ts & WebSub subscription)
+const JCTM_CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
 const CACHE_TTL_MS = 30_000;
 
 // ─── Live State ───────────────────────────────────────────────────────────────
@@ -294,19 +295,19 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
 
 // ─── Sunday Service Window Detection ─────────────────────────────────────────
 //
-// Every Sunday between 7:50 AM – 9:30 AM US Eastern time, the system polls
-// every 5 seconds for near-instant live detection.  Outside this window, the
-// standard 30-second background poll runs as usual.
+// JCTM is based in Warri, Nigeria — West Africa Time (WAT) = UTC+1.
+// Sunday service is at 08:00 WAT.  Poll every 5 seconds from 07:45–10:30 WAT
+// for near-instant live detection.  Outside this window the 30-second poll runs.
 
 function isSundayServiceWindow(): boolean {
   const now = new Date();
-  // Eastern Time: UTC-5 (EST) / UTC-4 (EDT). Use UTC-5 conservatively so we
-  // start polling a bit early even during daylight saving.
-  const estMs = now.getTime() - 5 * 60 * 60 * 1000;
-  const est = new Date(estMs);
-  const dayOfWeek = est.getUTCDay(); // 0 = Sunday
-  const totalMinutes = est.getUTCHours() * 60 + est.getUTCMinutes();
-  return dayOfWeek === 0 && totalMinutes >= 7 * 60 + 50 && totalMinutes <= 9 * 60 + 30;
+  // WAT = UTC+1 (no DST)
+  const watMs = now.getTime() + 1 * 60 * 60 * 1000;
+  const wat = new Date(watMs);
+  const dayOfWeek = wat.getUTCDay(); // 0 = Sunday
+  const totalMinutes = wat.getUTCHours() * 60 + wat.getUTCMinutes();
+  // 07:45 WAT → 465 min, 10:30 WAT → 630 min
+  return dayOfWeek === 0 && totalMinutes >= 465 && totalMinutes <= 630;
 }
 
 // ─── Background poll ──────────────────────────────────────────────────────────
@@ -372,41 +373,44 @@ async function pollAndBroadcast(): Promise<void> {
           scheduledStartTime: null,
         };
 
-        // Transition: live → offline — activate rebroadcast window
+        // Transition: live → offline — activate AI-curated rebroadcast window
         if (wasLive) {
-          let endedVideoId = livestreamState.videoId;
-          let endedTitle = livestreamState.title;
+          try {
+            const justEndedVideoId = livestreamState.videoId;
+            const selection = await buildSmartRebroadcastQueue(justEndedVideoId);
+            const primary = selection.primary;
 
-          // If the live stream had no videoId, fall back to the most recent sermon in DB
-          if (!endedVideoId) {
-            try {
-              const rows = await db
-                .select()
-                .from(sermonsTable)
-                .orderBy(desc(sermonsTable.publishedAt))
-                .limit(1);
-              if (rows[0]) {
-                endedVideoId = rows[0].videoId;
-                endedTitle = endedTitle ?? rows[0].title;
-              }
-            } catch {
-              // Non-critical — continue with whatever we have
+            const startedAt = new Date().toISOString();
+            const expiresAt = new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString();
+
+            rebroadcastLifecycle = {
+              available: true,
+              videoId: primary.videoId,
+              title: primary.title,
+              thumbnailUrl: primary.thumbnailUrl ??
+                `https://i.ytimg.com/vi/${primary.videoId}/hqdefault.jpg`,
+              startedAt,
+              expiresAt,
+            };
+          } catch {
+            // Fallback: use last known videoId or latest from DB
+            let endedVideoId = livestreamState.videoId;
+            let endedTitle = livestreamState.title;
+            if (!endedVideoId) {
+              try {
+                const rows = await db.select().from(sermonsTable).orderBy(desc(sermonsTable.publishedAt)).limit(1);
+                if (rows[0]) { endedVideoId = rows[0].videoId; endedTitle = endedTitle ?? rows[0].title; }
+              } catch { /* ignore */ }
             }
+            rebroadcastLifecycle = {
+              available: true,
+              videoId: endedVideoId,
+              title: endedTitle,
+              thumbnailUrl: endedVideoId ? `https://i.ytimg.com/vi/${endedVideoId}/hqdefault.jpg` : null,
+              startedAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString(),
+            };
           }
-
-          const startedAt = new Date().toISOString();
-          const expiresAt = new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString();
-
-          rebroadcastLifecycle = {
-            available: true,
-            videoId: endedVideoId,
-            title: endedTitle,
-            thumbnailUrl: endedVideoId
-              ? `https://i.ytimg.com/vi/${endedVideoId}/hqdefault.jpg`
-              : null,
-            startedAt,
-            expiresAt,
-          };
         }
       } else {
         return; // No change — manual override stays, don't broadcast

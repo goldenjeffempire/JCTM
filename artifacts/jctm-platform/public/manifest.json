@@ -1,15 +1,18 @@
 {
-  "name": "JCTM Digital Sanctuary",
-  "short_name": "JCTM",
-  "description": "The official digital sanctuary of Jesus Christ Temple Ministry. Sermons, giving, testimonies, and the Correction Mandate of Prophet Amos Evomobor.",
+  "name": "JCTM Digital Sanctuary — Temple TV",
+  "short_name": "Temple TV",
+  "description": "The official digital sanctuary of Jesus Christ Temple Ministry. Watch Temple TV live and rebroadcast sermons, give online, access prophetic teachings and the Correction Mandate.",
   "id": "com.onomelabs.jctm",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#FFFFFF",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#0a0a0a",
   "theme_color": "#003366",
-  "categories": ["religion", "lifestyle", "education"],
-  "lang": "en",
+  "categories": ["religion", "lifestyle", "education", "entertainment"],
+  "lang": "en-NG",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -22,11 +25,63 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
-  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Watch Live",
+      "short_name": "Live",
+      "description": "Watch JCTM Temple TV live service",
+      "url": "/?source=shortcut-live",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sermon Library",
+      "short_name": "Sermons",
+      "description": "Browse 479+ sermon teachings",
+      "url": "/sermons?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sermon Assistant",
+      "short_name": "TempleBot",
+      "description": "Chat with AI-powered TempleBot",
+      "url": "/sermon-assistant?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Give",
+      "short_name": "Give",
+      "description": "Support JCTM ministry",
+      "url": "/give?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "JCTM Digital Sanctuary Home"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "handle_links": "preferred",
   "permissions": [
-    "notifications",
-    "camera"
+    "notifications"
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+jctm",
+      "url": "/?intent=%s"
+    }
   ]
 }

@@ -152,12 +152,48 @@ Served at root level (not under `/api`) in `app.ts`:
 
 ---
 
+## Broadcast Automation Engine (April 2026)
+
+### Critical Bug Fixes
+- **Channel ID corrected**: `UCkiRQ9lHdRZ2_p3hRe0UQBQ` → `UCPFFvkE-KGpR37qJgvYriJg` (livestream.ts now matches youtube-sync.ts & WebSub)
+- **Timezone corrected**: Sunday service window now uses WAT (UTC+1, Africa/Lagos) instead of EST — 7:45–10:30 AM WAT 5-second polling
+
+### New: Broadcast Intelligence Layer (`artifacts/api-server/src/lib/broadcast-engine.ts`)
+- **AI-powered rebroadcast curation** — When live stream ends, `buildSmartRebroadcastQueue()` uses GPT-4o-mini to select the best sermon for rebroadcast from top-20 algorithmically-ranked candidates
+- **Algorithmic scoring** — Ranks 60 sermons by recency (max 30pts), view count (max 25pts), featured flag (15pts), keyword relevance (max 20pts), Sunday service boost (10pts)
+- **Auto-metadata generation** — `generateSermonMetadata()` generates tags, 2-sentence summary, and category for any sermon title using AI
+- **Broadcast statistics** — `getBroadcastStats()` for library health metrics
+
+### Extended Rebroadcast Window
+- Changed from 3 days to **4 days** (Sunday → Thursday coverage)
+
+### New: Broadcast Admin API
+- `GET /api/broadcast/status` — Full automation status, next Sunday countdown, library stats
+- `GET /api/broadcast/queue` — AI-curated rebroadcast queue (8 candidates + primary)
+- `GET /api/broadcast/schedule` — Next 4 Sundays' service schedule in WAT
+- `GET /api/broadcast/metrics` — Library metrics (total views, avg, top sermons)
+
+### Enhanced SSE Events (`sse-broadcaster.ts`)
+Added `broadcast_started`, `broadcast_ended`, `rebroadcast_started`, `rebroadcast_ended` event types for lifecycle tracking
+
+### PWA — Progressive Web App
+- **Service Worker** (`/sw.js`) — Cache-first static, network-first API (30s TTL), offline fallback, Push notification handler
+- **Enhanced manifest** — Shortcuts (Live, Sermons, TempleBot, Give), screenshots, `display_override`
+- **SW registration** in `main.tsx` with update detection
+
+### Admin Dashboard
+- **`/admin/broadcast`** — Broadcast Control dashboard with Overview/Queue/Schedule/Metrics tabs
+- Shows real-time live status, automation engine config, AI curation queue, Sunday schedule, and library metrics
+
+---
+
 ## Real-time Features
 
 - **YouTube WebSub** — Push subscriptions for instant new sermon notifications (no polling)
-- **YouTube sync cron** — Full resync every 30 minutes (2,027 sermons as of April 2026)
+- **YouTube sync cron** — Full resync every 30 minutes (2,030+ sermons as of April 2026)
 - **Global altar counter** — Real-time SSE stream of worldwide worshippers
-- **Livestream status** — SSE stream for live service indicator
+- **Livestream status** — SSE stream for live service indicator (5s poll during Sunday window, 30s otherwise)
+- **Smart rebroadcast** — AI-curated content automatically selected when live stream ends
 
 ---
 

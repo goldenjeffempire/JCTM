@@ -48,3 +48,25 @@ createRoot(document.getElementById("root")!).render(
     </HelmetProvider>
   </RootErrorBoundary>
 );
+
+// ─── Service Worker Registration ──────────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/" })
+      .then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              console.info("[SW] New version available — will activate on next reload");
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn("[SW] Registration failed:", err);
+      });
+  });
+}

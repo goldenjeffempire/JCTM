@@ -18,7 +18,26 @@ export type SSEEvent = {
   };
 } | {
   type: "sync_complete";
-  data: { synced: number; featured: number };
+  data: { synced: number; featured?: number; source?: string };
+} | {
+  type: "broadcast_started";
+  data: { videoId: string | null; title: string | null; startedAt: string };
+} | {
+  type: "broadcast_ended";
+  data: { videoId: string | null; endedAt: string };
+} | {
+  type: "rebroadcast_started";
+  data: {
+    videoId: string | null;
+    title: string | null;
+    thumbnailUrl: string | null;
+    startedAt: string;
+    expiresAt: string;
+    strategy?: string;
+  };
+} | {
+  type: "rebroadcast_ended";
+  data: { expiredAt: string };
 } | {
   type: "ping";
   data: Record<string, never>;

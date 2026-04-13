@@ -22,6 +22,7 @@ import momentsRouter from "./moments";
 import aiRouter from "./ai";
 import blogRouter from "./blog";
 import adminRouter from "./admin";
+import broadcastRouter from "./broadcast";
 
 const router: IRouter = Router();
 
@@ -50,6 +51,7 @@ router.use(momentsRouter);
 router.use(aiRouter);
 router.use(blogRouter);
 router.use(adminRouter);
+router.use(broadcastRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {
