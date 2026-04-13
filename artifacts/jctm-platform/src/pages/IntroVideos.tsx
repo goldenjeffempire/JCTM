@@ -647,7 +647,7 @@ function IntroCard({
 export default function IntroVideos() {
   const [videos, setVideos] = useState<IntroItem[]>([]);
   const [current, setCurrent] = useState(0);
-  const [muted, setMuted] = useState(true); // start muted for autoplay compliance
+  const [muted, setMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
