@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
+import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => ({ default: m.GlobalAltar3D })));
 const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").then(m => ({ default: m.MinistrySlideshow })));
@@ -3606,9 +3607,15 @@ export default function Home() {
       />
       <RebroadcastBanner />
       <HeroSection />
+      <div className="container mx-auto px-4 py-4">
+        <AdSlot slot={ADSENSE_SLOTS.homeHero} minHeight={120} className="mx-auto max-w-5xl" lazy={false} />
+      </div>
       <PlatformBar />
       <DailyDevotionSection />
       <BentoGrid />
+      <div className="container mx-auto px-4 py-8">
+        <AdSlot slot={ADSENSE_SLOTS.homeMid} minHeight={250} className="mx-auto max-w-4xl" />
+      </div>
       <TestimoniesMarquee />
       <ProphetSection />
       <MandateReveal />

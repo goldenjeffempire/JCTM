@@ -15,6 +15,7 @@ import { CrusadeAdBanner } from "@/pages/Crusade";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl } from "@/components/DualStreamToggle";
 import { LiveChat } from "@/components/LiveChat";
 import { toast } from "sonner";
+import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -446,6 +447,8 @@ export default function SermonDetail() {
                 </div>
               </div>
 
+              <AdSlot slot={ADSENSE_SLOTS.liveBelowPlayer} minHeight={120} className="bg-background/70" lazy={false} />
+
               {/* Sermon title + meta */}
               <div>
                 <h1 className="text-xl md:text-2xl font-serif font-bold text-primary leading-tight mb-2">
@@ -535,6 +538,10 @@ export default function SermonDetail() {
                     {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
                 </div>
+              </div>
+
+              <div className="hidden lg:block">
+                <AdSlot slot={ADSENSE_SLOTS.sermonSidebar} minHeight={300} format="rectangle" className="sticky top-24" />
               </div>
 
               {/* Related sermons */}

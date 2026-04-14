@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Fragment, useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetSermonStats, getGetSermonStatsQueryKey, useSyncSermons } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
+import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const CATEGORIES = [
   { id: "all", label: "All Sermons", emoji: "📖" },
@@ -525,14 +526,20 @@ export default function Sermons() {
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
                 >
                   {filteredSermons.map((sermon, i) => (
-                    <SermonCard
-                      key={sermon.id}
-                      sermon={sermon}
-                      index={i}
-                      playingId={playingId}
-                      onPlay={(id) => { setPlayingId(id); setLivePlaying(false); }}
-                      onClose={() => setPlayingId(null)}
-                    />
+                    <Fragment key={sermon.id}>
+                      <SermonCard
+                        sermon={sermon}
+                        index={i}
+                        playingId={playingId}
+                        onPlay={(id) => { setPlayingId(id); setLivePlaying(false); }}
+                        onClose={() => setPlayingId(null)}
+                      />
+                      {(i === 3 || ((i + 1) % 16 === 0 && i < filteredSermons.length - 1)) && (
+                        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                          <AdSlot slot={ADSENSE_SLOTS.sermonFeed} minHeight={140} className="my-1" />
+                        </div>
+                      )}
+                    </Fragment>
                   ))}
                 </motion.div>
               </AnimatePresence>

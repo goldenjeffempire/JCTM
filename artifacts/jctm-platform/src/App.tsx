@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { GeoProvider } from "@/contexts/GeoContext";
 import { VoiceTempleBots } from "@/components/VoiceTempleBots";
+import { AdSenseHead } from "@/components/ads/AdSense";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -116,6 +117,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ErrorBoundary>
+            <AdSenseHead />
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>

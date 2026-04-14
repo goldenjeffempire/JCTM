@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Fragment, useState, useEffect, useRef, useCallback } from "react";
 import {
   ChevronUp, ChevronDown,
   Sparkles, Radio, Clock, Share2, BookOpen,
@@ -10,6 +10,7 @@ import { SEO } from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -871,26 +872,41 @@ export default function IntroVideos() {
                 }}
               >
                 {videos.map((video, i) => (
-                  <div
-                    key={video.videoId}
-                    ref={el => { cardRefs.current[i] = el; }}
-                    style={{
-                      scrollSnapAlign: "start",
-                      scrollSnapStop: "always",
-                      height: "100%",
-                    }}
-                    className="w-full flex-shrink-0"
-                  >
-                    <IntroCard
-                      video={video}
-                      index={i}
-                      muted={muted}
-                      visitorId={visitorId}
-                      onToggleMute={toggleMute}
-                      isActive={i === current}
-                      isPreload={i === current + 1}
-                    />
-                  </div>
+                  <Fragment key={video.videoId}>
+                    <div
+                      ref={el => { cardRefs.current[i] = el; }}
+                      style={{
+                        scrollSnapAlign: "start",
+                        scrollSnapStop: "always",
+                        height: "100%",
+                      }}
+                      className="w-full flex-shrink-0"
+                    >
+                      <IntroCard
+                        video={video}
+                        index={i}
+                        muted={muted}
+                        visitorId={visitorId}
+                        onToggleMute={toggleMute}
+                        isActive={i === current}
+                        isPreload={i === current + 1}
+                      />
+                    </div>
+                    {(i + 1) % 4 === 0 && i < videos.length - 1 && (
+                      <div
+                        style={{
+                          scrollSnapAlign: "start",
+                          scrollSnapStop: "always",
+                          height: "100%",
+                        }}
+                        className="w-full flex-shrink-0 flex items-center justify-center bg-black px-4"
+                      >
+                        <div className="w-full max-w-3xl">
+                          <AdSlot slot={ADSENSE_SLOTS.introFeed} minHeight={280} className="border-white/10 bg-white/5 text-white" />
+                        </div>
+                      </div>
+                    )}
+                  </Fragment>
                 ))}
 
                 {/* Load-more indicator at end */}

@@ -119,6 +119,22 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 | `PORT` | Server port (8080 dev, 10000 Render) | Auto-set |
 | `NODE_ENV` | `development` or `production` | Auto-set |
 | `BASE_PATH` | Vite base URL (`/`) | Auto-set |
+| `VITE_ADSENSE_CLIENT_ID` | Google AdSense publisher client ID (`ca-pub-...`) | Required for ads |
+| `VITE_ADSENSE_SLOT_HOME_HERO` | Homepage hero banner ad slot ID | Required for that placement |
+| `VITE_ADSENSE_SLOT_HOME_MID` | Homepage mid-page ad slot ID | Required for that placement |
+| `VITE_ADSENSE_SLOT_SERMON_FEED` | Sermon listing in-feed ad slot ID | Required for that placement |
+| `VITE_ADSENSE_SLOT_SERMON_SIDEBAR` | Sermon detail desktop sidebar ad slot ID | Required for that placement |
+| `VITE_ADSENSE_SLOT_INTRO_FEED` | Intro videos between-card ad slot ID | Required for that placement |
+| `VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER` | Video/live player below-player ad slot ID | Required for that placement |
+| `VITE_ADSENSE_ENABLE` | Allows AdSense rendering during development when set to `true`; production builds enable automatically when IDs are valid | Optional |
+
+## AdSense Monetization
+
+- AdSense head integration is handled by `AdSenseHead`, which injects the async Google script and `google-adsense-account` meta tag only when a valid `ca-pub-...` client ID is configured.
+- Reusable responsive ad slots live in `artifacts/jctm-platform/src/components/ads/AdSense.tsx`.
+- Policy-safe placements are configured on the homepage, sermon listing in-feed, sermon detail below-player, sermon detail desktop sidebar, and intro video feed between cards.
+- Ads are not placed inside YouTube iframes, live players, or chat surfaces. Below-fold slots lazy load with fixed minimum heights to reduce layout shift.
+- Production builds generate `public/ads.txt` from `VITE_ADSENSE_CLIENT_ID` when the publisher ID is configured.
 
 ## Replit Migration Status
 
