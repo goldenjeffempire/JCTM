@@ -78,6 +78,11 @@
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="dns-prefetch" href="https://www.googleapis.com" />
+    <!-- AdSense network preconnect (reduces ad load latency) -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
+    <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+    <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net" />
+    <link rel="dns-prefetch" href="https://adservice.google.com" />
 
     <!-- LCP critical image preloads -->
     <link rel="preload" as="image" href="/jctm-logo-sm.jpeg" fetchpriority="high" />
@@ -403,6 +408,8 @@
       }
     }
     </script>
+    <!-- Google AdSense — loaded async so it never blocks initial render -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=%VITE_ADSENSE_CLIENT_ID%" crossorigin="anonymous"></script>
   </head>
   <body>
     <div id="root"></div>
