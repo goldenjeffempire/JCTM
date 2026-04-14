@@ -231,6 +231,19 @@ export interface AutoMetadata {
   category: string;
 }
 
+function isOpenAIQuotaError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+
+  const errorWithDetails = err as Error & {
+    status?: number;
+    code?: string;
+    error?: { code?: string; message?: string };
+  };
+  const message = `${err.message} ${errorWithDetails.code ?? ""} ${errorWithDetails.error?.code ?? ""} ${errorWithDetails.error?.message ?? ""}`.toLowerCase();
+
+  return errorWithDetails.status === 429 || message.includes("quota") || message.includes("insufficient_quota") || message.includes("rate limit");
+}
+
 /**
  * Auto-generate tags, summary, and category for a sermon using AI.
  */
@@ -268,6 +281,9 @@ export async function generateSermonMetadata(
       };
     }
   } catch (err) {
+    if (isOpenAIQuotaError(err)) {
+      throw err;
+    }
     log?.warn({ err, title }, "Auto-metadata generation failed");
   }
 
@@ -334,6 +350,9 @@ export async function enrichNextSermonBatch(
 
     return count;
   } catch (err) {
+    if (isOpenAIQuotaError(err)) {
+      throw err;
+    }
     log?.warn({ err }, "Sermon batch enrichment failed (non-fatal)");
     return 0;
   }
