@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Facebook, Youtube, Mail, Video, Lock } from "lucide-react";
+import { Facebook, Youtube, Mail, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
 const SOCIAL = [
@@ -166,15 +166,6 @@ export function Footer() {
                 youtube.com/templetvjctm
               </a>
             </div>
-            <span className="opacity-30">·</span>
-            <Link
-              href="/admin/broadcast"
-              className="flex items-center gap-1 text-muted-foreground/50 hover:text-muted-foreground transition-colors select-none"
-              title="Admin dashboard"
-            >
-              <Lock className="h-3 w-3" />
-              <span>Admin</span>
-            </Link>
           </div>
         </div>
       </div>

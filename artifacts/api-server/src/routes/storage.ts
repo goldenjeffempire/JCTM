@@ -6,7 +6,7 @@ import {
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
-import { requireGalleryAdmin } from "../lib/galleryAdminAuth";
+import { requireGalleryAdmin } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
