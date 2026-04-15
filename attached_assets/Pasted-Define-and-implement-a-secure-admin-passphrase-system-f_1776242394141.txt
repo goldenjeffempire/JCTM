@@ -1,0 +1,71 @@
+Define and implement a secure admin passphrase system for the Gallery Page that restricts image upload and management capabilities to authorized personnel only.
+
+
+The admin passphrase should be configurable (via environment variables or a secure admin settings panel), encrypted at rest, and validated through a protected authentication layer before granting access to upload features.
+
+
+Upon successful passphrase verification, the admin should gain access to a dedicated upload dashboard with capabilities such as bulk image upload, category selection (e.g., Crusade, Sunday Service, Special Programs), image preview, and deletion/edit controls.
+
+
+Ensure that:
+
+
+Automatic Content Sync
+
+
+All images uploaded through the gallery are automatically indexed and made available across the platform.
+
+
+Newly uploaded images should dynamically reflect in the “Ministry in Pictures” slideshow section on the homepage without requiring manual refresh or redeployment.
+
+
+
+
+Category-Based Organization
+
+
+Images must be tagged and stored based on predefined or dynamically created categories (e.g., Crusade, Sunday Service, Outreach).
+
+
+The gallery UI should allow users to filter or browse images by these categories for better content discoverability.
+
+
+
+
+Performance & Optimization
+
+
+Implement image compression, CDN delivery (if applicable), and lazy loading to ensure fast load times.
+
+
+Ensure responsive rendering across devices (mobile, tablet, desktop).
+
+
+
+
+Security Best Practices
+
+
+Do not hardcode the passphrase in the frontend.
+
+
+Use secure API endpoints for authentication and uploads.
+
+
+Apply rate limiting and basic protection against unauthorized access attempts.
+
+
+
+
+Enterprise Readiness
+
+
+The entire system should be robust, scalable, and production-ready, with clean architecture separating frontend, backend, and storage layers.
+
+
+Ensure fault tolerance and proper error handling during uploads.
+
+
+
+
+This ensures a professional, secure, and scalable gallery management system with seamless integration into the homepage slideshow.
