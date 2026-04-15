@@ -82,4 +82,7 @@ VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER = "2069402391"
 VITE_ADSENSE_ENABLE = "true"
 GCS_PROJECT_ID = "jctm-492511"
 GCS_CLIENT_EMAIL = "jeffemuodafe124-gmail-com-633@jctm-492511.iam.gserviceaccount.com"
+DEFAULT_OBJECT_STORAGE_BUCKET_ID = "jctm-uploads"
+PUBLIC_OBJECT_SEARCH_PATHS = "/jctm-uploads/public"
+PRIVATE_OBJECT_DIR = "/jctm-uploads/.private"
   
