@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Facebook, Youtube, Mail, Video } from "lucide-react";
+import { Facebook, Youtube, Mail, Video, Lock } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 
 const SOCIAL = [
@@ -152,16 +152,29 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Jesus Christ Temple Ministry. All rights reserved.</p>
-          <div className="flex items-center gap-2 text-xs">
-            <Facebook className="h-3.5 w-3.5" />
-            <a href="https://www.facebook.com/templetvjctm" target="_blank" rel="noopener noreferrer" className="hover:text-[#1877F2] transition-colors">
-              facebook.com/templetvjctm
-            </a>
-            <span className="mx-1">·</span>
-            <Youtube className="h-3.5 w-3.5" />
-            <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer" className="hover:text-[#FF0000] transition-colors">
-              youtube.com/templetvjctm
-            </a>
+          <div className="flex items-center gap-3 text-xs flex-wrap justify-center">
+            <div className="flex items-center gap-2">
+              <Facebook className="h-3.5 w-3.5" />
+              <a href="https://www.facebook.com/templetvjctm" target="_blank" rel="noopener noreferrer" className="hover:text-[#1877F2] transition-colors">
+                facebook.com/templetvjctm
+              </a>
+            </div>
+            <span className="opacity-30">·</span>
+            <div className="flex items-center gap-2">
+              <Youtube className="h-3.5 w-3.5" />
+              <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer" className="hover:text-[#FF0000] transition-colors">
+                youtube.com/templetvjctm
+              </a>
+            </div>
+            <span className="opacity-30">·</span>
+            <Link
+              href="/admin/broadcast"
+              className="flex items-center gap-1 text-muted-foreground/50 hover:text-muted-foreground transition-colors select-none"
+              title="Admin dashboard"
+            >
+              <Lock className="h-3 w-3" />
+              <span>Admin</span>
+            </Link>
           </div>
         </div>
       </div>

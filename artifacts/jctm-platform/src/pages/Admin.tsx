@@ -6,11 +6,11 @@ import {
   BarChart3, Zap, Calendar, PlayCircle, Settings, Activity,
   ChevronRight, Eye, Users, MessageSquare, Check, Trash2,
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
-  Lock, Power, Repeat2,
+  Power, Repeat2, LayoutDashboard, Image, FileText,
+  Shield, Menu, KeyRound,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 
@@ -20,1177 +20,111 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface BroadcastStatus {
   automation: {
-    enabled: boolean;
-    pollingInterval: string;
-    sundayServiceWindowActive: boolean;
-    rebroadcastDurationDays: number;
-    smartCurationEnabled: boolean;
-    timezone: string;
-    channelId: string;
-    youtubeApiConfigured: boolean;
+    enabled: boolean; pollingInterval: string; sundayServiceWindowActive: boolean;
+    rebroadcastDurationDays: number; smartCurationEnabled: boolean;
+    timezone: string; channelId: string; youtubeApiConfigured: boolean;
   };
   nextScheduled: { sunday8amWAT: string; description: string };
-  library: {
-    totalSermons: number;
-    lastSyncedAt: string | null;
-    avgViewCount: number;
-    topSermons: { videoId: string; title: string; viewCount: number }[];
-  };
-  serverTime: string;
-  serverTimeWAT: string;
+  library: { totalSermons: number; lastSyncedAt: string | null; avgViewCount: number; topSermons: { videoId: string; title: string; viewCount: number }[] };
+  serverTime: string; serverTimeWAT: string;
 }
 
 interface BroadcastQueue {
-  strategy: "ai" | "algorithmic" | "fallback";
-  curatedAt: string;
-  primary: {
-    videoId: string;
-    title: string;
-    thumbnailUrl: string | null;
-    score: number;
-    reason: string;
-    viewCount: number | null;
-  };
-  queue: Array<{
-    videoId: string;
-    title: string;
-    thumbnailUrl: string | null;
-    score: number;
-    reason: string;
-    viewCount: number | null;
-  }>;
+  strategy: "ai" | "algorithmic" | "fallback"; curatedAt: string;
+  primary: { videoId: string; title: string; thumbnailUrl: string | null; score: number; reason: string; viewCount: number | null };
+  queue: { videoId: string; title: string; thumbnailUrl: string | null; score: number; reason: string; viewCount: number | null }[];
 }
 
 interface BroadcastMetrics {
-  overview: {
-    totalViews: number;
-    maxViews: number;
-    avgViews: number;
-    totalSermons: number;
-    liveCount: number;
-    featuredCount: number;
-  };
-  recentSermons: Array<{
-    videoId: string;
-    title: string;
-    publishedAt: string;
-    viewCount: number | null;
-    isFeatured: boolean;
-    isLive: boolean;
-  }>;
+  overview: { totalViews: number; maxViews: number; avgViews: number; totalSermons: number; liveCount: number; featuredCount: number };
+  recentSermons: { videoId: string; title: string; publishedAt: string; viewCount: number | null; isFeatured: boolean; isLive: boolean }[];
 }
-
-// ─── Helper ────────────────────────────────────────────────────────────────────
-
-function formatRelativeTime(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(ms / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function formatCountdown(iso: string): string {
-  const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return "Now";
-  const days = Math.floor(ms / 86400000);
-  const hours = Math.floor((ms % 86400000) / 3600000);
-  const mins = Math.floor((ms % 3600000) / 60000);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-// ─── Livestream Manual Panel ────────────────────────────────────────────────────
-
-interface LivestreamManualPanelProps {
-  auth: ReturnType<typeof useAdminAuth>;
-  liveStatus: ReturnType<typeof useLivestreamStatus>;
-}
-
-function LivestreamManualPanel({ auth, liveStatus }: LivestreamManualPanelProps) {
-  const qc = useQueryClient();
-  const [videoId, setVideoId] = useState("");
-  const [busySend, setBusySend] = useState(false);
-  const [busyStop, setBusyStop] = useState(false);
-  const [busyRebroadcast, setBusyRebroadcast] = useState(false);
-
-  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
-
-  const goLive = async () => {
-    if (!videoId.trim()) { toast.error("Enter a YouTube video ID"); return; }
-    setBusySend(true);
-    try {
-      const res = await fetch(`${BASE}/api/livestream/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify({ isLive: true, videoId: videoId.trim() }),
-      });
-      if (!res.ok) {
-        if (res.status === 401) auth.logout();
-        const d = await res.json().catch(() => ({}));
-        toast.error(d?.error ?? "Failed to go live");
-        return;
-      }
-      toast.success("Stream set to LIVE");
-      qc.invalidateQueries({ queryKey: ["livestream-status"] });
-      setVideoId("");
-    } finally { setBusySend(false); }
-  };
-
-  const stopLive = async () => {
-    setBusyStop(true);
-    try {
-      const res = await fetch(`${BASE}/api/livestream/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify({ isLive: false }),
-      });
-      if (!res.ok) {
-        if (res.status === 401) auth.logout();
-        const d = await res.json().catch(() => ({}));
-        toast.error(d?.error ?? "Failed to stop stream");
-        return;
-      }
-      toast.success("Stream stopped");
-      qc.invalidateQueries({ queryKey: ["livestream-status"] });
-    } finally { setBusyStop(false); }
-  };
-
-  const triggerRebroadcast = async () => {
-    setBusyRebroadcast(true);
-    try {
-      const res = await fetch(`${BASE}/api/livestream/rebroadcast`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
-        body: JSON.stringify(videoId.trim() ? { videoId: videoId.trim() } : {}),
-      });
-      if (!res.ok) {
-        if (res.status === 401) auth.logout();
-        const d = await res.json().catch(() => ({}));
-        toast.error(d?.error ?? "Failed to trigger rebroadcast");
-        return;
-      }
-      toast.success("Rebroadcast activated");
-      qc.invalidateQueries({ queryKey: ["livestream-status"] });
-    } finally { setBusyRebroadcast(false); }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-xs text-muted-foreground font-medium">YouTube Video ID (optional for rebroadcast)</label>
-        <input
-          value={videoId}
-          onChange={e => setVideoId(e.target.value)}
-          placeholder="e.g. dQw4w9WgXcQ"
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={goLive}
-          disabled={busySend || !videoId.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors"
-        >
-          {busySend ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
-          Go Live
-        </button>
-        <button
-          onClick={triggerRebroadcast}
-          disabled={busyRebroadcast}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
-        >
-          {busyRebroadcast ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat2 className="h-3.5 w-3.5" />}
-          Rebroadcast
-        </button>
-        {liveStatus.isLive && (
-          <button
-            onClick={stopLive}
-            disabled={busyStop}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors"
-          >
-            {busyStop ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-            Stop Stream
-          </button>
-        )}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Current status: <span className={`font-semibold ${liveStatus.isLive ? "text-red-500" : liveStatus.rebroadcast.available ? "text-amber-500" : "text-muted-foreground"}`}>
-          {liveStatus.isLive ? "LIVE" : liveStatus.rebroadcast.available ? "REBROADCAST" : "OFF AIR"}
-        </span>
-      </p>
-    </div>
-  );
-}
-
-// ─── Sermon Sync Panel ─────────────────────────────────────────────────────────
-
-interface SermonSyncPanelProps {
-  auth: ReturnType<typeof useAdminAuth>;
-}
-
-function SermonSyncPanel({ auth }: SermonSyncPanelProps) {
-  const qc = useQueryClient();
-  const [busySync, setBusySync] = useState(false);
-  const [busyHarvest, setBusyHarvest] = useState(false);
-  const [lastResult, setLastResult] = useState<string | null>(null);
-
-  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
-
-  const runSync = async (harvest: boolean) => {
-    const setter = harvest ? setBusyHarvest : setBusySync;
-    setter(true);
-    setLastResult(null);
-    try {
-      const url = `${BASE}/api/sermons${harvest ? "?harvest=true" : ""}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
-      });
-      if (!res.ok) {
-        if (res.status === 401) auth.logout();
-        const d = await res.json().catch(() => ({}));
-        toast.error(d?.error ?? "Sync failed");
-        return;
-      }
-      const data = await res.json();
-      const msg = harvest
-        ? `Full harvest: ${data.inserted ?? 0} inserted, ${data.updated ?? 0} updated`
-        : `Sync: ${data.inserted ?? 0} new, ${data.updated ?? 0} updated`;
-      toast.success(msg);
-      setLastResult(msg);
-      qc.invalidateQueries({ queryKey: ["broadcast-status"] });
-    } finally { setter(false); }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => runSync(false)}
-          disabled={busySync || busyHarvest}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          {busySync ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          Incremental Sync
-        </button>
-        <button
-          onClick={() => {
-            if (!confirm("This will do a full YouTube harvest. It may use significant API quota. Continue?")) return;
-            runSync(true);
-          }}
-          disabled={busySync || busyHarvest}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors"
-        >
-          {busyHarvest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
-          Full Harvest
-        </button>
-      </div>
-      {lastResult && (
-        <p className="text-xs text-green-600 font-medium">{lastResult}</p>
-      )}
-      <p className="text-xs text-muted-foreground">
-        Incremental sync checks for new videos. Full harvest re-imports the entire library (high API quota cost).
-      </p>
-    </div>
-  );
-}
-
-// ─── Admin Page ────────────────────────────────────────────────────────────────
-
-export default function Admin() {
-  const qc = useQueryClient();
-  const liveStatus = useLivestreamStatus();
-  const [activeTab, setActiveTab] = useState<"overview" | "queue" | "schedule" | "metrics" | "testimonies" | "platform">("overview");
-  const livestreamAuth = useAdminAuth("livestream");
-  const sermonAuth = useAdminAuth("sermon");
-  const [liveControlsOpen, setLiveControlsOpen] = useState(false);
-  const [sermonControlsOpen, setSermonControlsOpen] = useState(false);
-
-  const { data: broadcastStatus, isLoading: statusLoading } = useQuery<BroadcastStatus>({
-    queryKey: ["broadcast-status"],
-    queryFn: async () => {
-      const res = await fetch(`${BASE}/api/broadcast/status`);
-      if (!res.ok) throw new Error("Failed to fetch broadcast status");
-      return res.json();
-    },
-    refetchInterval: 30_000,
-  });
-
-  const { data: queueData, isLoading: queueLoading, refetch: refetchQueue } = useQuery<BroadcastQueue>({
-    queryKey: ["broadcast-queue"],
-    queryFn: async () => {
-      const res = await fetch(`${BASE}/api/broadcast/queue`);
-      if (!res.ok) throw new Error("Failed to fetch queue");
-      return res.json();
-    },
-    enabled: activeTab === "queue",
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: metrics, isLoading: metricsLoading } = useQuery<BroadcastMetrics>({
-    queryKey: ["broadcast-metrics"],
-    queryFn: async () => {
-      const res = await fetch(`${BASE}/api/broadcast/metrics`);
-      if (!res.ok) throw new Error("Failed to fetch metrics");
-      return res.json();
-    },
-    enabled: activeTab === "metrics",
-    refetchInterval: 60_000,
-  });
-
-  const scheduleQuery = useQuery<{ schedule: Array<{ date: string; timeWAT: string; timeUTC: string; label: string }> }>({
-    queryKey: ["broadcast-schedule"],
-    queryFn: async () => {
-      const res = await fetch(`${BASE}/api/broadcast/schedule`);
-      if (!res.ok) throw new Error("Failed to fetch schedule");
-      return res.json();
-    },
-    enabled: activeTab === "schedule",
-    staleTime: 30 * 60 * 1000,
-  });
-
-  const requeueMutation = useMutation({
-    mutationFn: async () => {
-      await refetchQueue();
-    },
-    onSuccess: () => {
-      toast.success("Rebroadcast queue refreshed with latest AI curation");
-    },
-    onError: () => {
-      toast.error("Failed to refresh queue");
-    },
-  });
-
-  const isLive = liveStatus.isLive;
-  const hasRebroadcast = liveStatus.rebroadcast.available;
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Settings className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <h1 className="font-bold text-base">Broadcast Control</h1>
-                <p className="text-xs text-muted-foreground">Automation Dashboard</p>
-              </div>
-            </div>
-
-            {/* Live Status Pill */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-              isLive
-                ? "bg-red-500/10 border-red-500/30 text-red-400"
-                : hasRebroadcast
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                : "bg-muted border-border text-muted-foreground"
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${isLive ? "bg-red-500 animate-pulse" : hasRebroadcast ? "bg-amber-400" : "bg-muted-foreground"}`} />
-              {isLive ? "LIVE NOW" : hasRebroadcast ? "REBROADCAST" : "OFF AIR"}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 mt-3">
-            {(["overview", "queue", "schedule", "metrics", "testimonies", "platform"] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
-                  activeTab === tab
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        <AnimatePresence mode="wait">
-
-          {/* ── OVERVIEW TAB ─────────────────────────────────────────────── */}
-          {activeTab === "overview" && (
-            <motion.div key="overview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
-
-              {/* Live Status Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatusCard
-                  icon={<Radio className="w-4 h-4" />}
-                  label="Live Stream"
-                  value={isLive ? "LIVE" : "Off Air"}
-                  status={isLive ? "live" : "idle"}
-                />
-                <StatusCard
-                  icon={<Tv2 className="w-4 h-4" />}
-                  label="Rebroadcast"
-                  value={hasRebroadcast ? "Active" : "Inactive"}
-                  status={hasRebroadcast ? "active" : "idle"}
-                />
-                <StatusCard
-                  icon={<Zap className="w-4 h-4" />}
-                  label="Poll Rate"
-                  value={broadcastStatus?.automation.sundayServiceWindowActive ? "5s" : "30s"}
-                  status="info"
-                />
-                <StatusCard
-                  icon={<Activity className="w-4 h-4" />}
-                  label="AI Curation"
-                  value={broadcastStatus?.automation.smartCurationEnabled ? "On" : "Off"}
-                  status={broadcastStatus?.automation.smartCurationEnabled ? "active" : "idle"}
-                />
-              </div>
-
-              {/* Automation Config */}
-              {statusLoading ? (
-                <div className="h-48 rounded-2xl bg-card border border-border animate-pulse" />
-              ) : broadcastStatus ? (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-                  <h2 className="font-semibold text-sm flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-primary" />
-                    Automation Engine
-                  </h2>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <ConfigRow label="Channel ID" value={broadcastStatus.automation.channelId} mono />
-                    <ConfigRow label="Timezone" value={broadcastStatus.automation.timezone} />
-                    <ConfigRow label="Rebroadcast Window" value={`${broadcastStatus.automation.rebroadcastDurationDays} days`} />
-                    <ConfigRow label="YouTube API" value={broadcastStatus.automation.youtubeApiConfigured ? "Configured" : "Not set"} status={broadcastStatus.automation.youtubeApiConfigured ? "ok" : "warn"} />
-                    <ConfigRow label="Sunday Window" value={broadcastStatus.automation.sundayServiceWindowActive ? "Active (5s poll)" : "Inactive (30s poll)"} status={broadcastStatus.automation.sundayServiceWindowActive ? "ok" : "info"} />
-                    <ConfigRow label="Server WAT Time" value={new Date(broadcastStatus.serverTimeWAT).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} />
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Current Live/Rebroadcast Info */}
-              {(isLive || hasRebroadcast) && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h2 className="font-semibold text-sm">
-                    {isLive ? "🔴 Current Live Stream" : "📡 Current Rebroadcast"}
-                  </h2>
-                  {isLive ? (
-                    <div className="space-y-1">
-                      <p className="font-medium">{liveStatus.title ?? "Live Service"}</p>
-                      {liveStatus.videoId && (
-                        <a href={`https://youtube.com/watch?v=${liveStatus.videoId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
-                          youtube.com/watch?v={liveStatus.videoId}
-                        </a>
-                      )}
-                      {liveStatus.startedAt && (
-                        <p className="text-xs text-muted-foreground">Started {formatRelativeTime(liveStatus.startedAt)}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="font-medium">{liveStatus.rebroadcast.title ?? "Rebroadcast"}</p>
-                      {liveStatus.rebroadcast.expiresAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Expires in {formatCountdown(liveStatus.rebroadcast.expiresAt)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Library Stats */}
-              {broadcastStatus?.library && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-                  <h2 className="font-semibold text-sm flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-primary" />
-                    Sermon Library
-                  </h2>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-primary">{broadcastStatus.library.totalSermons.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Total Sermons</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-primary">{broadcastStatus.library.avgViewCount.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Avg Views</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-primary mt-1">{broadcastStatus.library.lastSyncedAt ? formatRelativeTime(broadcastStatus.library.lastSyncedAt) : "—"}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Last Sync</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Next Sunday */}
-              {broadcastStatus?.nextScheduled && (
-                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
-                  <Calendar className="w-8 h-8 text-primary shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Next Sunday Service (8:00 AM WAT)</p>
-                    <p className="font-semibold text-sm">
-                      {new Date(broadcastStatus.nextScheduled.sunday8amWAT).toLocaleDateString("en-NG", {
-                        weekday: "long", month: "long", day: "numeric"
-                      })}
-                    </p>
-                    <p className="text-xs text-primary font-medium">
-                      In {formatCountdown(broadcastStatus.nextScheduled.sunday8amWAT)}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Manual Livestream Controls ─────────────────────────────── */}
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                <button
-                  onClick={() => setLiveControlsOpen(v => !v)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold text-sm">Manual Livestream Controls</span>
-                    {livestreamAuth.isAdmin && <AdminBadge role="livestream" auth={livestreamAuth} />}
-                  </div>
-                  <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${liveControlsOpen ? "rotate-90" : ""}`} />
-                </button>
-
-                <AnimatePresence>
-                  {liveControlsOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden border-t border-border"
-                    >
-                      <div className="p-4">
-                        <AdminLoginGate role="livestream" auth={livestreamAuth} title="Livestream Controls">
-                          <LivestreamManualPanel auth={livestreamAuth} liveStatus={liveStatus} />
-                        </AdminLoginGate>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* ── Manual Sermon Sync Controls ────────────────────────────── */}
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                <button
-                  onClick={() => setSermonControlsOpen(v => !v)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold text-sm">Sermon Sync Controls</span>
-                    {sermonAuth.isAdmin && <AdminBadge role="sermon" auth={sermonAuth} />}
-                  </div>
-                  <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${sermonControlsOpen ? "rotate-90" : ""}`} />
-                </button>
-
-                <AnimatePresence>
-                  {sermonControlsOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden border-t border-border"
-                    >
-                      <div className="p-4">
-                        <AdminLoginGate role="sermon" auth={sermonAuth} title="Sermon Sync Controls">
-                          <SermonSyncPanel auth={sermonAuth} />
-                        </AdminLoginGate>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-            </motion.div>
-          )}
-
-          {/* ── QUEUE TAB ────────────────────────────────────────────────── */}
-          {activeTab === "queue" && (
-            <motion.div key="queue" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold">AI Rebroadcast Queue</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Auto-curated content selected for post-service rebroadcast
-                  </p>
-                </div>
-                <button
-                  onClick={() => requeueMutation.mutate()}
-                  disabled={queueLoading || requeueMutation.isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3 h-3 ${requeueMutation.isPending ? "animate-spin" : ""}`} />
-                  Refresh
-                </button>
-              </div>
-
-              {queueLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />
-                  ))}
-                </div>
-              ) : queueData ? (
-                <div className="space-y-3">
-                  {/* Strategy badge */}
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      queueData.strategy === "ai"
-                        ? "bg-violet-500/10 text-violet-400 border border-violet-500/20"
-                        : queueData.strategy === "algorithmic"
-                        ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                        : "bg-muted text-muted-foreground border border-border"
-                    }`}>
-                      {queueData.strategy === "ai" ? "🤖 AI-Curated" : queueData.strategy === "algorithmic" ? "📊 Algorithmic" : "⚡ Fallback"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">Curated {formatRelativeTime(queueData.curatedAt)}</span>
-                  </div>
-
-                  {queueData.queue.map((item, idx) => (
-                    <div key={item.videoId} className={`rounded-xl border p-4 flex items-center gap-3 ${
-                      idx === 0 ? "border-primary/30 bg-primary/5" : "border-border bg-card"
-                    }`}>
-                      {item.thumbnailUrl ? (
-                        <img src={item.thumbnailUrl} alt="" className="w-16 h-10 rounded-lg object-cover shrink-0 bg-muted" />
-                      ) : (
-                        <div className="w-16 h-10 rounded-lg bg-muted shrink-0 flex items-center justify-center">
-                          <PlayCircle className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          {idx === 0 && <span className="text-[10px] font-bold text-primary uppercase tracking-wide">Primary</span>}
-                          <span className="text-[10px] text-muted-foreground capitalize">{item.reason}</span>
-                        </div>
-                        <p className="text-sm font-medium leading-snug truncate">{item.title}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            {(item.viewCount ?? 0).toLocaleString()}
-                          </span>
-                          <span className="text-xs text-muted-foreground">Score: {item.score}</span>
-                        </div>
-                      </div>
-                      <a
-                        href={`https://youtube.com/watch?v=${item.videoId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Tv2 className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">Could not load queue</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* ── SCHEDULE TAB ────────────────────────────────────────────── */}
-          {activeTab === "schedule" && (
-            <motion.div key="schedule" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div>
-                <h2 className="font-semibold">Sunday Service Schedule</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">West Africa Time (WAT = UTC+1, Africa/Lagos)</p>
-              </div>
-
-              {scheduleQuery.isLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-16 rounded-xl bg-card border border-border animate-pulse" />
-                  ))}
-                </div>
-              ) : scheduleQuery.data ? (
-                <div className="space-y-3">
-                  {scheduleQuery.data.schedule.map((item, idx) => (
-                    <div key={item.date} className={`rounded-xl border p-4 flex items-center gap-4 ${
-                      idx === 0 ? "border-primary/30 bg-primary/5" : "border-border bg-card"
-                    }`}>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        idx === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      }`}>
-                        <Calendar className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm">{item.timeWAT}</p>
-                        <p className="text-xs text-muted-foreground">UTC: {new Date(item.timeUTC).toLocaleString("en-NG")}</p>
-                      </div>
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        idx === 0
-                          ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}>
-                        {idx === 0
-                          ? `In ${formatCountdown(item.timeUTC)}`
-                          : item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
-                  Detection Window
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Every Sunday from <strong className="text-foreground">7:45 AM – 10:30 AM WAT</strong>, the system polls YouTube every <strong className="text-foreground">5 seconds</strong> to detect when the service goes live. Outside this window, it polls every 30 seconds. This ensures the live banner appears within seconds of the stream starting.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── METRICS TAB ────────────────────────────────────────────── */}
-          {activeTab === "metrics" && (
-            <motion.div key="metrics" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-              <h2 className="font-semibold">Broadcast Metrics</h2>
-
-              {metricsLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="h-28 rounded-xl bg-card border border-border animate-pulse" />
-                  ))}
-                </div>
-              ) : metrics ? (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <MetricCard label="Total Sermons" value={metrics.overview.totalSermons.toLocaleString()} />
-                    <MetricCard label="Total Views" value={(metrics.overview.totalViews ?? 0).toLocaleString()} />
-                    <MetricCard label="Avg Views" value={(metrics.overview.avgViews ?? 0).toLocaleString()} />
-                    <MetricCard label="Featured" value={metrics.overview.featuredCount?.toLocaleString() ?? "—"} />
-                    <MetricCard label="Live Count" value={metrics.overview.liveCount?.toLocaleString() ?? "—"} />
-                    <MetricCard label="Top Views" value={metrics.overview.maxViews?.toLocaleString() ?? "—"} />
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                    <h3 className="text-sm font-semibold">Recently Synced</h3>
-                    <div className="space-y-2">
-                      {metrics.recentSermons.map(sermon => (
-                        <div key={sermon.videoId} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{sermon.title}</p>
-                            <p className="text-xs text-muted-foreground">{formatRelativeTime(sermon.publishedAt)}</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {sermon.isLive && <span className="text-[10px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded-full">Live</span>}
-                            {sermon.isFeatured && <span className="text-[10px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded-full">Featured</span>}
-                            <span className="text-xs text-muted-foreground">{(sermon.viewCount ?? 0).toLocaleString()} views</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </motion.div>
-          )}
-          {/* ── TESTIMONIES TAB ──────────────────────────────────────── */}
-          {activeTab === "testimonies" && (
-            <TestimoniesTab key="testimonies" />
-          )}
-
-          {/* ── PLATFORM TAB ─────────────────────────────────────────── */}
-          {activeTab === "platform" && (
-            <PlatformTab key="platform" />
-          )}
-
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-// ─── Testimonies Moderation Tab ────────────────────────────────────────────────
 
 interface TestimonyItem {
-  id: number;
-  author: string;
-  title: string | null;
-  content: string;
-  category: string | null;
-  approved: boolean;
-  createdAt: string;
+  id: number; author: string; title: string | null; content: string;
+  category: string | null; approved: boolean; createdAt: string;
 }
-
-function TestimoniesTab() {
-  const qc = useQueryClient();
-  const token = localStorage.getItem("jctm_token") ?? "";
-
-  const { data, isLoading, refetch } = useQuery<{ testimonies: TestimonyItem[] }>({
-    queryKey: ["admin-testimonies"],
-    queryFn: () =>
-      fetch(`${BASE}/api/testimonies?all=true&limit=50`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then(r => r.json()),
-    staleTime: 0,
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
-      const res = await fetch(`${BASE}/api/testimonies/${id}/approve`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ approved }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    onSuccess: (_, { approved }) => {
-      toast.success(approved ? "Testimony approved" : "Testimony unapproved");
-      qc.invalidateQueries({ queryKey: ["admin-testimonies"] });
-    },
-    onError: () => toast.error("Action failed"),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`${BASE}/api/testimonies/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success("Testimony deleted");
-      qc.invalidateQueries({ queryKey: ["admin-testimonies"] });
-    },
-    onError: () => toast.error("Delete failed"),
-  });
-
-  const testimonies = data?.testimonies ?? [];
-  const pending = testimonies.filter(t => !t.approved);
-  const approved = testimonies.filter(t => t.approved);
-
-  return (
-    <motion.div key="testimonies" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-semibold flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-primary" /> Testimony Moderation
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isLoading ? "Loading..." : `${pending.length} pending · ${approved.length} published`}
-          </p>
-        </div>
-        <button
-          onClick={() => refetch()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" /> Refresh
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <>
-          {pending.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5" /> Pending Review ({pending.length})
-              </h3>
-              {pending.map(t => (
-                <TestimonyCard
-                  key={t.id}
-                  t={t}
-                  onApprove={() => approveMutation.mutate({ id: t.id, approved: true })}
-                  onDelete={() => deleteMutation.mutate(t.id)}
-                  isPending={approveMutation.isPending || deleteMutation.isPending}
-                />
-              ))}
-            </div>
-          )}
-
-          {approved.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-emerald-500 uppercase tracking-wide flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" /> Published ({approved.length})
-              </h3>
-              {approved.map(t => (
-                <TestimonyCard
-                  key={t.id}
-                  t={t}
-                  onUnapprove={() => approveMutation.mutate({ id: t.id, approved: false })}
-                  onDelete={() => deleteMutation.mutate(t.id)}
-                  isPending={approveMutation.isPending || deleteMutation.isPending}
-                />
-              ))}
-            </div>
-          )}
-
-          {testimonies.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No testimonies yet</p>
-            </div>
-          )}
-        </>
-      )}
-    </motion.div>
-  );
-}
-
-function TestimonyCard({
-  t,
-  onApprove,
-  onUnapprove,
-  onDelete,
-  isPending,
-}: {
-  t: TestimonyItem;
-  onApprove?: () => void;
-  onUnapprove?: () => void;
-  onDelete: () => void;
-  isPending: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className={`rounded-xl border p-4 ${t.approved ? "border-emerald-500/20 bg-emerald-500/5" : "border-border bg-card"}`}>
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-sm">{t.author}</span>
-            {t.category && (
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full capitalize">{t.category}</span>
-            )}
-            <span className="text-[10px] text-muted-foreground ml-auto">
-              {new Date(t.createdAt).toLocaleDateString("en-NG")}
-            </span>
-          </div>
-          {t.title && <p className="text-xs font-semibold text-foreground mb-1">{t.title}</p>}
-          <p className={`text-xs text-muted-foreground leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
-            {t.content}
-          </p>
-          {t.content.length > 120 && (
-            <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-primary mt-1">
-              {expanded ? "Show less" : "Show more"}
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {!t.approved && onApprove && (
-            <button
-              onClick={onApprove}
-              disabled={isPending}
-              title="Approve"
-              className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
-            >
-              <Check className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {t.approved && onUnapprove && (
-            <button
-              onClick={onUnapprove}
-              disabled={isPending}
-              title="Unapprove"
-              className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={onDelete}
-            disabled={isPending}
-            title="Delete"
-            className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Platform Analytics Tab ────────────────────────────────────────────────────
 
 interface PlatformMetrics {
-  platform?: {
-    sermons?: number;
-    blogs?: number;
-    members?: number;
-    conversations?: number;
-    testimonies?: number;
-  };
-  ai?: {
-    totalFeedback?: number;
-    averageRating?: string | null;
-    averageLatencyMs?: string | null;
-    tierBreakdown?: Record<string, number>;
-  };
+  platform?: { sermons?: number; blogs?: number; members?: number; conversations?: number; testimonies?: number };
+  ai?: { totalFeedback?: number; averageRating?: string | null; averageLatencyMs?: string | null; tierBreakdown?: Record<string, number> };
 }
 
-function PlatformTab() {
-  const token = localStorage.getItem("jctm_token") ?? "";
-  const [blogTopic, setBlogTopic] = useState("holiness");
-  const [generating, setGenerating] = useState(false);
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
-  const { data: metrics, isLoading } = useQuery<PlatformMetrics>({
-    queryKey: ["platform-metrics"],
-    queryFn: () =>
-      fetch(`${BASE}/api/admin/metrics`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then(r => r.json()),
-    staleTime: 60_000,
-  });
-
-  const generateBlog = async () => {
-    setGenerating(true);
-    try {
-      const res = await fetch(`${BASE}/api/admin/blog/generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ topic: blogTopic }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`Blog article "${data.post?.title ?? "Article"}" generated!`);
-      } else {
-        toast.error(data.error ?? "Generation failed");
-      }
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const BLOG_TOPICS = [
-    "holiness", "correction-mandate", "prayer", "faith", "repentance",
-    "bible-doctrine", "apostolic-order", "prophetic-insight", "end-times", "revival",
-  ];
-
-  return (
-    <motion.div key="platform" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
-      <div>
-        <h2 className="font-semibold flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-primary" /> Platform Analytics
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Live platform health overview</p>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />
-          ))}
-        </div>
-      ) : metrics ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Members", value: metrics.platform?.members ?? 0, icon: <Users className="w-4 h-4" /> },
-            { label: "Sermons", value: metrics.platform?.sermons ?? 0, icon: <BookOpen className="w-4 h-4" /> },
-            { label: "Conversations", value: metrics.platform?.conversations ?? 0, icon: <MessageSquare className="w-4 h-4" /> },
-            { label: "Testimonies", value: metrics.platform?.testimonies ?? 0, icon: <CheckCircle className="w-4 h-4" /> },
-            { label: "Blog Posts", value: metrics.platform?.blogs ?? 0, icon: <Sparkles className="w-4 h-4" /> },
-            { label: "AI Feedback", value: metrics.ai?.totalFeedback ?? 0, icon: <Activity className="w-4 h-4" /> },
-            { label: "Avg Rating", value: metrics.ai?.averageRating ? `${metrics.ai.averageRating}/5` : "—", icon: <CheckCircle className="w-4 h-4" /> },
-            { label: "Avg Latency", value: metrics.ai?.averageLatencyMs ? `${metrics.ai.averageLatencyMs}ms` : "—", icon: <Zap className="w-4 h-4" /> },
-          ].map(m => (
-            <div key={m.label} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1.5 text-xs">
-                {m.icon} {m.label}
-              </div>
-              <p className="text-2xl font-bold text-primary">{m.value.toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8 text-muted-foreground text-sm">Could not load metrics</div>
-      )}
-
-      {/* Blog Generator */}
-      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-violet-400" /> AI Blog Generator
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Generate a theologically rich blog article using AI, grounded in JCTM doctrine.
-        </p>
-        <div className="flex gap-3 flex-wrap items-end">
-          <div className="flex-1 min-w-[180px]">
-            <label className="text-xs text-muted-foreground mb-1 block">Topic</label>
-            <select
-              value={blogTopic}
-              onChange={e => setBlogTopic(e.target.value)}
-              className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {BLOG_TOPICS.map(t => (
-                <option key={t} value={t}>{t.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>
-              ))}
-            </select>
-          </div>
-          <Button
-            onClick={generateBlog}
-            disabled={generating}
-            className="gap-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg"
-            size="sm"
-          >
-            {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            {generating ? "Generating..." : "Generate Article"}
-          </Button>
-        </div>
-      </div>
-    </motion.div>
-  );
+function rel(iso: string) {
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
+function countdown(iso: string) {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "Now";
+  const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), mn = Math.floor((ms % 3600000) / 60000);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${mn}m`;
+  return `${mn}m`;
+}
 
-function StatusCard({ icon, label, value, status }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  status: "live" | "active" | "idle" | "info";
-}) {
-  const colorMap = {
-    live: "border-red-500/30 bg-red-500/5 text-red-400",
-    active: "border-amber-500/30 bg-amber-500/5 text-amber-400",
-    idle: "border-border bg-card text-muted-foreground",
-    info: "border-blue-500/30 bg-blue-500/5 text-blue-400",
-  };
+// ─── Nav sections ──────────────────────────────────────────────────────────────
+
+type Section = "overview" | "broadcast" | "sermons" | "gallery" | "testimonies" | "platform" | "credentials";
+
+const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
+  { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: "broadcast",    label: "Broadcast",    icon: <Radio className="w-4 h-4" /> },
+  { id: "sermons",      label: "Sermons",      icon: <BookOpen className="w-4 h-4" /> },
+  { id: "gallery",      label: "Gallery",      icon: <Image className="w-4 h-4" /> },
+  { id: "testimonies",  label: "Testimonies",  icon: <MessageSquare className="w-4 h-4" /> },
+  { id: "platform",     label: "Platform",     icon: <BarChart3 className="w-4 h-4" /> },
+  { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
+];
+
+// ─── Shared sub-components ────────────────────────────────────────────────────
+
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-2xl border border-border bg-card p-5 ${className}`}>{children}</div>;
+}
+
+function SectionHeader({ title, description }: { title: string; description?: string }) {
   return (
-    <div className={`rounded-xl border p-4 ${colorMap[status]}`}>
-      <div className="flex items-center gap-2 mb-2 opacity-70">{icon}<span className="text-xs">{label}</span></div>
-      <p className="font-bold text-base text-foreground">{value}</p>
+    <div className="mb-5">
+      <h2 className="font-bold text-lg">{title}</h2>
+      {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
     </div>
   );
 }
 
-function ConfigRow({ label, value, mono, status }: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  status?: "ok" | "warn" | "info";
-}) {
+function StatusPill({ label, status }: { label: string; status: "live" | "rebroadcast" | "off" }) {
+  const map = {
+    live: "bg-red-500/10 border-red-500/30 text-red-400",
+    rebroadcast: "bg-amber-500/10 border-amber-500/30 text-amber-400",
+    off: "bg-muted border-border text-muted-foreground",
+  };
+  const dot = { live: "bg-red-500 animate-pulse", rebroadcast: "bg-amber-400", off: "bg-muted-foreground" };
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${map[status]}`}>
+      <span className={`w-2 h-2 rounded-full ${dot[status]}`} />
+      {label}
+    </div>
+  );
+}
+
+function MetricCard({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      {icon && <div className="text-muted-foreground mb-2 text-xs flex items-center gap-1.5">{icon}{label}</div>}
+      {!icon && <p className="text-xs text-muted-foreground mb-1">{label}</p>}
+      <p className="text-2xl font-bold text-primary">{typeof value === "number" ? value.toLocaleString() : value}</p>
+    </div>
+  );
+}
+
+function ConfigRow({ label, value, mono, status }: { label: string; value: string; mono?: boolean; status?: "ok" | "warn" | "info" }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
       <span className="text-xs text-muted-foreground">{label}</span>
@@ -1204,11 +138,698 @@ function ConfigRow({ label, value, mono, status }: {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+// ─── Overview ─────────────────────────────────────────────────────────────────
+
+function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLivestreamStatus> }) {
+  const { data, isLoading } = useQuery<BroadcastStatus>({
+    queryKey: ["broadcast-status"],
+    queryFn: () => fetch(`${BASE}/api/broadcast/status`).then(r => r.json()),
+    refetchInterval: 30_000,
+  });
+
+  const isLive = liveStatus.isLive;
+  const hasRebroadcast = liveStatus.rebroadcast.available;
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4 text-center">
-      <p className="text-xl font-bold text-primary">{value}</p>
-      <p className="text-xs text-muted-foreground mt-1">{label}</p>
+    <div className="space-y-5">
+      <SectionHeader title="Overview" description="Live platform status and automation engine" />
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { icon: <Radio className="w-4 h-4" />, label: "Live Stream", value: isLive ? "LIVE" : "Off Air", color: isLive ? "border-red-500/30 bg-red-500/5 text-red-400" : "" },
+          { icon: <Tv2 className="w-4 h-4" />, label: "Rebroadcast", value: hasRebroadcast ? "Active" : "Inactive", color: hasRebroadcast ? "border-amber-500/30 bg-amber-500/5 text-amber-400" : "" },
+          { icon: <Zap className="w-4 h-4" />, label: "Poll Rate", value: data?.automation.sundayServiceWindowActive ? "5s" : "30s", color: "border-blue-500/30 bg-blue-500/5 text-blue-400" },
+          { icon: <Activity className="w-4 h-4" />, label: "AI Curation", value: data?.automation.smartCurationEnabled ? "On" : "Off", color: data?.automation.smartCurationEnabled ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400" : "" },
+        ].map(s => (
+          <div key={s.label} className={`rounded-xl border p-4 ${s.color || "border-border bg-card text-muted-foreground"}`}>
+            <div className="flex items-center gap-2 mb-2 opacity-70">{s.icon}<span className="text-xs">{s.label}</span></div>
+            <p className="font-bold text-base text-foreground">{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {isLoading ? <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" /> : data && (
+        <Card>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-4"><Settings className="w-4 h-4 text-primary" /> Automation Engine</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
+            <ConfigRow label="Channel ID" value={data.automation.channelId} mono />
+            <ConfigRow label="Timezone" value={data.automation.timezone} />
+            <ConfigRow label="Rebroadcast Window" value={`${data.automation.rebroadcastDurationDays} days`} />
+            <ConfigRow label="YouTube API" value={data.automation.youtubeApiConfigured ? "Configured" : "Not set"} status={data.automation.youtubeApiConfigured ? "ok" : "warn"} />
+            <ConfigRow label="Sunday Window" value={data.automation.sundayServiceWindowActive ? "Active (5s poll)" : "Inactive (30s)"} status={data.automation.sundayServiceWindowActive ? "ok" : "info"} />
+            <ConfigRow label="Server WAT" value={new Date(data.serverTimeWAT).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} />
+          </div>
+        </Card>
+      )}
+
+      {data?.library && (
+        <Card>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-4"><BarChart3 className="w-4 h-4 text-primary" /> Sermon Library</h3>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div><p className="text-2xl font-bold text-primary">{data.library.totalSermons.toLocaleString()}</p><p className="text-xs text-muted-foreground mt-0.5">Total Sermons</p></div>
+            <div><p className="text-2xl font-bold text-primary">{data.library.avgViewCount.toLocaleString()}</p><p className="text-xs text-muted-foreground mt-0.5">Avg Views</p></div>
+            <div><p className="text-sm font-bold text-primary mt-2">{data.library.lastSyncedAt ? rel(data.library.lastSyncedAt) : "—"}</p><p className="text-xs text-muted-foreground mt-0.5">Last Sync</p></div>
+          </div>
+        </Card>
+      )}
+
+      {data?.nextScheduled && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
+          <Calendar className="w-8 h-8 text-primary shrink-0" />
+          <div>
+            <p className="text-xs text-muted-foreground">Next Sunday Service (8:00 AM WAT)</p>
+            <p className="font-semibold text-sm">{new Date(data.nextScheduled.sunday8amWAT).toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric" })}</p>
+            <p className="text-xs text-primary font-medium">In {countdown(data.nextScheduled.sunday8amWAT)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Broadcast ────────────────────────────────────────────────────────────────
+
+function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof useLivestreamStatus>; auth: ReturnType<typeof useAdminAuth> }) {
+  const qc = useQueryClient();
+  const [videoId, setVideoId] = useState("");
+  const [busy, setBusy] = useState<"live" | "stop" | "rebroadcast" | null>(null);
+
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+
+  const action = async (type: "live" | "stop" | "rebroadcast") => {
+    setBusy(type);
+    try {
+      let url = `${BASE}/api/livestream/status`;
+      let body: object = type === "live" ? { isLive: true, videoId: videoId.trim() } : type === "stop" ? { isLive: false } : {};
+      if (type === "rebroadcast") url = `${BASE}/api/livestream/rebroadcast`;
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...authHeader }, body: JSON.stringify(body) });
+      if (!res.ok) { if (res.status === 401) auth.logout(); const d = await res.json().catch(() => ({})); toast.error(d?.error ?? "Action failed"); return; }
+      toast.success(type === "live" ? "Stream set to LIVE" : type === "stop" ? "Stream stopped" : "Rebroadcast activated");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+      if (type === "live") setVideoId("");
+    } finally { setBusy(null); }
+  };
+
+  const { data: queueData, isLoading: queueLoading, refetch: refetchQueue } = useQuery<BroadcastQueue>({
+    queryKey: ["broadcast-queue"],
+    queryFn: () => fetch(`${BASE}/api/broadcast/queue`).then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Broadcast Control" description="Manually manage the live stream and rebroadcast queue" />
+
+      <AdminLoginGate role="livestream" auth={auth} title="Livestream Controls">
+        <div className="space-y-5">
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Power className="w-4 h-4 text-red-500" /> Manual Controls</h3>
+              <AdminBadge role="livestream" auth={auth} />
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground font-medium block mb-1.5">YouTube Video ID</label>
+                <input value={videoId} onChange={e => setVideoId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => action("live")} disabled={!!busy || !videoId.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors">
+                  {busy === "live" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />} Go Live
+                </button>
+                <button onClick={() => action("rebroadcast")} disabled={!!busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors">
+                  {busy === "rebroadcast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat2 className="h-3.5 w-3.5" />} Rebroadcast
+                </button>
+                {liveStatus.isLive && (
+                  <button onClick={() => action("stop")} disabled={!!busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors">
+                    {busy === "stop" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />} Stop Stream
+                  </button>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Status: <span className={`font-semibold ${liveStatus.isLive ? "text-red-500" : liveStatus.rebroadcast.available ? "text-amber-500" : "text-muted-foreground"}`}>
+                  {liveStatus.isLive ? "LIVE" : liveStatus.rebroadcast.available ? "REBROADCAST" : "OFF AIR"}
+                </span>
+              </p>
+            </div>
+          </Card>
+        </div>
+      </AdminLoginGate>
+
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-sm flex items-center gap-2"><Tv2 className="w-4 h-4 text-primary" /> AI Rebroadcast Queue</h3>
+          <button onClick={() => refetchQueue()} disabled={queueLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors disabled:opacity-50">
+            <RefreshCw className={`w-3 h-3 ${queueLoading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
+
+        {queueLoading ? (
+          <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse" />)}</div>
+        ) : queueData ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${queueData.strategy === "ai" ? "bg-violet-500/10 text-violet-400 border border-violet-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                {queueData.strategy === "ai" ? "🤖 AI-Curated" : "📊 Algorithmic"}
+              </span>
+              <span className="text-xs text-muted-foreground">{rel(queueData.curatedAt)}</span>
+            </div>
+            {queueData.queue.map((item, idx) => (
+              <div key={item.videoId} className={`rounded-xl border p-3 flex items-center gap-3 ${idx === 0 ? "border-primary/30 bg-primary/5" : "border-border"}`}>
+                {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="w-14 h-9 rounded-lg object-cover shrink-0" /> : <div className="w-14 h-9 rounded-lg bg-muted shrink-0 flex items-center justify-center"><PlayCircle className="w-3.5 h-3.5 text-muted-foreground" /></div>}
+                <div className="flex-1 min-w-0">
+                  {idx === 0 && <span className="text-[10px] font-bold text-primary uppercase tracking-wide">Primary Pick</span>}
+                  <p className="text-sm font-medium leading-snug truncate">{item.title}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1"><Eye className="w-3 h-3" />{(item.viewCount ?? 0).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">Score: {item.score}</span>
+                  </div>
+                </div>
+                <a href={`https://youtube.com/watch?v=${item.videoId}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground shrink-0"><ChevronRight className="w-4 h-4" /></a>
+              </div>
+            ))}
+          </div>
+        ) : <p className="text-sm text-muted-foreground text-center py-6">Could not load queue</p>}
+      </Card>
+    </div>
+  );
+}
+
+// ─── Sermons ──────────────────────────────────────────────────────────────────
+
+function SermonsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<"sync" | "harvest" | null>(null);
+  const [lastResult, setLastResult] = useState<string | null>(null);
+
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+
+  const runSync = async (harvest: boolean) => {
+    if (!confirm(harvest ? "Full harvest uses significant API quota. Continue?" : undefined as unknown as string) && harvest) return;
+    setBusy(harvest ? "harvest" : "sync");
+    setLastResult(null);
+    try {
+      const res = await fetch(`${BASE}/api/sermons${harvest ? "?harvest=true" : ""}`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeader } });
+      if (!res.ok) { if (res.status === 401) auth.logout(); const d = await res.json().catch(() => ({})); toast.error(d?.error ?? "Sync failed"); return; }
+      const data = await res.json();
+      const msg = harvest ? `Full harvest: ${data.inserted ?? 0} inserted, ${data.updated ?? 0} updated` : `Sync: ${data.inserted ?? 0} new, ${data.updated ?? 0} updated`;
+      toast.success(msg); setLastResult(msg);
+      qc.invalidateQueries({ queryKey: ["broadcast-status"] });
+    } finally { setBusy(null); }
+  };
+
+  const { data: scheduleData } = useQuery<{ schedule: { date: string; timeWAT: string; timeUTC: string; label: string }[] }>({
+    queryKey: ["broadcast-schedule"],
+    queryFn: () => fetch(`${BASE}/api/broadcast/schedule`).then(r => r.json()),
+    staleTime: 30 * 60 * 1000,
+  });
+
+  const { data: metrics, isLoading: metricsLoading } = useQuery<BroadcastMetrics>({
+    queryKey: ["broadcast-metrics"],
+    queryFn: () => fetch(`${BASE}/api/broadcast/metrics`).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Sermon Library" description="Sync YouTube library and review sermon metrics" />
+
+      <AdminLoginGate role="sermon" auth={auth} title="Sermon Sync">
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2"><RefreshCw className="w-4 h-4 text-primary" /> Sync Controls</h3>
+            <AdminBadge role="sermon" auth={auth} />
+          </div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button onClick={() => runSync(false)} disabled={!!busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {busy === "sync" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Incremental Sync
+            </button>
+            <button onClick={() => runSync(true)} disabled={!!busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors">
+              {busy === "harvest" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />} Full Harvest
+            </button>
+          </div>
+          {lastResult && <p className="text-xs text-emerald-600 font-medium mb-2">{lastResult}</p>}
+          <p className="text-xs text-muted-foreground">Incremental sync checks for new videos. Full harvest re-imports the entire library (uses API quota).</p>
+        </Card>
+      </AdminLoginGate>
+
+      {scheduleData && (
+        <Card>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-4"><Calendar className="w-4 h-4 text-primary" /> Sunday Schedule</h3>
+          <div className="space-y-2">
+            {scheduleData.schedule.map((item, idx) => (
+              <div key={item.date} className={`rounded-xl border p-3 flex items-center gap-3 ${idx === 0 ? "border-primary/30 bg-primary/5" : "border-border"}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${idx === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                  <Calendar className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">{item.timeWAT}</p>
+                  <p className="text-xs text-muted-foreground">UTC: {new Date(item.timeUTC).toLocaleString("en-NG")}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${idx === 0 ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                  {idx === 0 ? `In ${countdown(item.timeUTC)}` : item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 p-3 rounded-xl bg-muted/40 text-xs text-muted-foreground leading-relaxed">
+            <Clock className="w-3.5 h-3.5 inline-block mr-1" />
+            Detection window: <strong className="text-foreground">7:45 AM – 10:30 AM WAT</strong> every Sunday — 5s poll. Outside this window: 30s poll.
+          </div>
+        </Card>
+      )}
+
+      {metricsLoading ? <div className="h-32 rounded-2xl bg-card border border-border animate-pulse" /> : metrics && (
+        <Card>
+          <h3 className="font-semibold text-sm flex items-center gap-2 mb-4"><BarChart3 className="w-4 h-4 text-primary" /> Broadcast Metrics</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+            {[
+              { label: "Total Sermons", value: metrics.overview.totalSermons },
+              { label: "Total Views", value: metrics.overview.totalViews ?? 0 },
+              { label: "Avg Views", value: metrics.overview.avgViews ?? 0 },
+              { label: "Featured", value: metrics.overview.featuredCount ?? 0 },
+              { label: "Live Count", value: metrics.overview.liveCount ?? 0 },
+              { label: "Top Views", value: metrics.overview.maxViews ?? 0 },
+            ].map(m => (
+              <div key={m.label} className="rounded-xl border border-border bg-background p-3 text-center">
+                <p className="text-xl font-bold text-primary">{m.value.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{m.label}</p>
+              </div>
+            ))}
+          </div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Recently Synced</h4>
+          <div className="space-y-0">
+            {metrics.recentSermons.slice(0, 8).map(s => (
+              <div key={s.videoId} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{s.title}</p>
+                  <p className="text-xs text-muted-foreground">{rel(s.publishedAt)}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {s.isLive && <span className="text-[10px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded-full">Live</span>}
+                  {s.isFeatured && <span className="text-[10px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded-full">Featured</span>}
+                  <span className="text-xs text-muted-foreground">{(s.viewCount ?? 0).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── Gallery ──────────────────────────────────────────────────────────────────
+
+function GallerySection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Gallery Management" description="Upload and manage ministry photos" />
+      <AdminLoginGate role="gallery" auth={auth} title="Gallery Admin">
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2"><Image className="w-4 h-4 text-violet-500" /> Gallery Controls</h3>
+            <AdminBadge role="gallery" auth={auth} />
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Gallery uploads and image management are handled on the Gallery page where you can upload, categorise, and publish photos.
+          </p>
+          <a href={`${BASE}/gallery`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition-colors">
+            <Image className="w-4 h-4" /> Open Gallery Manager →
+          </a>
+        </Card>
+      </AdminLoginGate>
+    </div>
+  );
+}
+
+// ─── Testimonies ──────────────────────────────────────────────────────────────
+
+function TestimonyCard({ t, onApprove, onUnapprove, onDelete, isPending }: { t: TestimonyItem; onApprove?: () => void; onUnapprove?: () => void; onDelete: () => void; isPending: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className={`rounded-xl border p-4 ${t.approved ? "border-emerald-500/20 bg-emerald-500/5" : "border-border bg-card"}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-medium text-sm">{t.author}</span>
+            {t.category && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full capitalize">{t.category}</span>}
+            <span className="text-[10px] text-muted-foreground ml-auto">{new Date(t.createdAt).toLocaleDateString("en-NG")}</span>
+          </div>
+          {t.title && <p className="text-xs font-semibold mb-1">{t.title}</p>}
+          <p className={`text-xs text-muted-foreground leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>{t.content}</p>
+          {t.content.length > 120 && <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-primary mt-1">{expanded ? "Show less" : "Show more"}</button>}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!t.approved && onApprove && <button onClick={onApprove} disabled={isPending} title="Approve" className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center disabled:opacity-50"><Check className="w-3.5 h-3.5" /></button>}
+          {t.approved && onUnapprove && <button onClick={onUnapprove} disabled={isPending} title="Unapprove" className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 flex items-center justify-center disabled:opacity-50"><X className="w-3.5 h-3.5" /></button>}
+          <button onClick={onDelete} disabled={isPending} title="Delete" className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TestimoniesSection() {
+  const qc = useQueryClient();
+  const token = localStorage.getItem("jctm_token") ?? "";
+
+  const { data, isLoading, refetch } = useQuery<{ testimonies: TestimonyItem[] }>({
+    queryKey: ["admin-testimonies"],
+    queryFn: () => fetch(`${BASE}/api/testimonies?all=true&limit=50`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    staleTime: 0,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
+      const res = await fetch(`${BASE}/api/testimonies/${id}/approve`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ approved }) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: (_, { approved }) => { toast.success(approved ? "Approved" : "Unapproved"); qc.invalidateQueries({ queryKey: ["admin-testimonies"] }); },
+    onError: () => toast.error("Action failed"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/testimonies/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["admin-testimonies"] }); },
+    onError: () => toast.error("Delete failed"),
+  });
+
+  const testimonies = data?.testimonies ?? [];
+  const pending  = testimonies.filter(t => !t.approved);
+  const approved = testimonies.filter(t => t.approved);
+  const isPending = approveMutation.isPending || deleteMutation.isPending;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <SectionHeader title="Testimonies" description={isLoading ? "Loading…" : `${pending.length} pending · ${approved.length} published`} />
+        <button onClick={() => refetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-muted border border-border hover:bg-muted/80 transition-colors text-muted-foreground"><RefreshCw className="w-3 h-3" /> Refresh</button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />)}</div>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> Pending Review ({pending.length})</p>
+              {pending.map(t => <TestimonyCard key={t.id} t={t} onApprove={() => approveMutation.mutate({ id: t.id, approved: true })} onDelete={() => deleteMutation.mutate(t.id)} isPending={isPending} />)}
+            </div>
+          )}
+          {approved.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> Published ({approved.length})</p>
+              {approved.map(t => <TestimonyCard key={t.id} t={t} onUnapprove={() => approveMutation.mutate({ id: t.id, approved: false })} onDelete={() => deleteMutation.mutate(t.id)} isPending={isPending} />)}
+            </div>
+          )}
+          {testimonies.length === 0 && <div className="text-center py-12 text-muted-foreground"><MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-30" /><p className="text-sm">No testimonies yet</p></div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Platform ─────────────────────────────────────────────────────────────────
+
+function PlatformSection() {
+  const token = localStorage.getItem("jctm_token") ?? "";
+  const [blogTopic, setBlogTopic] = useState("holiness");
+  const [generating, setGenerating] = useState(false);
+
+  const { data: metrics, isLoading } = useQuery<PlatformMetrics>({
+    queryKey: ["platform-metrics"],
+    queryFn: () => fetch(`${BASE}/api/admin/metrics`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  const generateBlog = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/blog/generate`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ topic: blogTopic }) });
+      const data = await res.json();
+      res.ok ? toast.success(`"${data.post?.title ?? "Article"}" generated!`) : toast.error(data.error ?? "Generation failed");
+    } catch { toast.error("Network error"); } finally { setGenerating(false); }
+  };
+
+  const BLOG_TOPICS = ["holiness", "correction-mandate", "prayer", "faith", "repentance", "bible-doctrine", "apostolic-order", "prophetic-insight", "end-times", "revival"];
+
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Platform Analytics" description="Live platform health and AI content generation" />
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />)}</div>
+      ) : metrics ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Members",       value: metrics.platform?.members ?? 0,       icon: <Users className="w-4 h-4" /> },
+            { label: "Sermons",       value: metrics.platform?.sermons ?? 0,       icon: <BookOpen className="w-4 h-4" /> },
+            { label: "Conversations", value: metrics.platform?.conversations ?? 0, icon: <MessageSquare className="w-4 h-4" /> },
+            { label: "Testimonies",   value: metrics.platform?.testimonies ?? 0,   icon: <CheckCircle className="w-4 h-4" /> },
+            { label: "Blog Posts",    value: metrics.platform?.blogs ?? 0,         icon: <FileText className="w-4 h-4" /> },
+            { label: "AI Feedback",   value: metrics.ai?.totalFeedback ?? 0,       icon: <Activity className="w-4 h-4" /> },
+            { label: "Avg Rating",    value: metrics.ai?.averageRating ? `${metrics.ai.averageRating}/5` : "—", icon: <CheckCircle className="w-4 h-4" /> },
+            { label: "Avg Latency",   value: metrics.ai?.averageLatencyMs ? `${metrics.ai.averageLatencyMs}ms` : "—", icon: <Zap className="w-4 h-4" /> },
+          ].map(m => <MetricCard key={m.label} {...m} />)}
+        </div>
+      ) : null}
+
+      <Card>
+        <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-violet-400" /> AI Blog Generator</h3>
+        <p className="text-xs text-muted-foreground mb-4">Generate a theologically rich article using AI, grounded in JCTM doctrine.</p>
+        <div className="flex gap-3 flex-wrap items-end">
+          <div className="flex-1 min-w-[180px]">
+            <label className="text-xs text-muted-foreground mb-1 block">Topic</label>
+            <select value={blogTopic} onChange={e => setBlogTopic(e.target.value)} className="w-full text-sm rounded-xl border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20">
+              {BLOG_TOPICS.map(t => <option key={t} value={t}>{t.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+            </select>
+          </div>
+          <button onClick={generateBlog} disabled={generating} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors">
+            {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {generating ? "Generating…" : "Generate Article"}
+          </button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Credentials ──────────────────────────────────────────────────────────────
+
+function CredentialsSection({
+  galleryAuth, sermonAuth, livestreamAuth,
+}: {
+  galleryAuth: ReturnType<typeof useAdminAuth>;
+  sermonAuth: ReturnType<typeof useAdminAuth>;
+  livestreamAuth: ReturnType<typeof useAdminAuth>;
+}) {
+  const roles: { auth: ReturnType<typeof useAdminAuth>; label: string; description: string; color: string; dotColor: string }[] = [
+    { auth: galleryAuth,    label: "Gallery",    description: "Manage and upload ministry photos",      color: "border-violet-500/30 bg-violet-500/5", dotColor: "bg-violet-500" },
+    { auth: sermonAuth,     label: "Sermon",     description: "Manage YouTube sync and sermon library", color: "border-blue-500/30 bg-blue-500/5",     dotColor: "bg-blue-500" },
+    { auth: livestreamAuth, label: "Livestream", description: "Control live broadcast and rebroadcast", color: "border-red-500/30 bg-red-500/5",       dotColor: "bg-red-500" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <SectionHeader title="Admin Credentials" description="Manage passphrase access for each admin role" />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {roles.map(({ auth, label, description, color, dotColor }) => (
+          <div key={label} className={`rounded-2xl border p-5 space-y-4 ${color}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full ${dotColor} ${auth.isAdmin ? "" : "opacity-30"}`} />
+              <div>
+                <p className="font-semibold text-sm">{label} Admin</p>
+                <p className="text-xs text-muted-foreground">{description}</p>
+              </div>
+              {auth.isAdmin && (
+                <span className="ml-auto flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Active
+                </span>
+              )}
+            </div>
+            <AdminLoginGate role={auth === galleryAuth ? "gallery" : auth === sermonAuth ? "sermon" : "livestream"} auth={auth}>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60 text-xs text-emerald-700 font-medium">
+                  <CheckCircle className="w-3.5 h-3.5" /> Authenticated — session active
+                </div>
+                <ChangePassInline auth={auth} />
+              </div>
+            </AdminLoginGate>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground leading-relaxed">
+        <KeyRound className="w-3.5 h-3.5 inline-block mr-1.5" />
+        Passphrases are stored as scrypt hashes in the database and <strong className="text-foreground">persist across all deployments</strong> automatically — no environment variable management needed.
+      </div>
+    </div>
+  );
+}
+
+function ChangePassInline({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!current || !next || !confirm) return;
+    setBusy(true);
+    const ok = await auth.changePassphrase(current.trim(), next.trim(), confirm.trim());
+    setBusy(false);
+    if (ok) { setOpen(false); setCurrent(""); setNext(""); setConfirm(""); }
+  };
+
+  return (
+    <div>
+      <button onClick={() => setOpen(v => !v)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+        <KeyRound className="w-3 h-3" /> {open ? "Cancel" : "Change passphrase"}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className="pt-3 space-y-2">
+              {[{ v: current, s: setCurrent, p: "Current" }, { v: next, s: setNext, p: "New (min 8 chars)" }, { v: confirm, s: setConfirm, p: "Confirm new" }].map(({ v, s, p }) => (
+                <input key={p} type="password" value={v} onChange={e => s(e.target.value)} placeholder={p} className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-accent/30" />
+              ))}
+              <button onClick={submit} disabled={busy || !current || !next || !confirm} className="w-full py-1.5 rounded-lg bg-accent text-white text-xs font-semibold disabled:opacity-50 transition-colors flex items-center justify-center gap-1">
+                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} Update Passphrase
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Main Admin Page ───────────────────────────────────────────────────────────
+
+export default function Admin() {
+  const liveStatus = useLivestreamStatus();
+  const galleryAuth    = useAdminAuth("gallery");
+  const sermonAuth     = useAdminAuth("sermon");
+  const livestreamAuth = useAdminAuth("livestream");
+
+  const [section, setSection] = useState<Section>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isLive = liveStatus.isLive;
+  const hasRebroadcast = liveStatus.rebroadcast.available;
+  const broadcastStatus = isLive ? "live" : hasRebroadcast ? "rebroadcast" : "off";
+  const broadcastLabel  = isLive ? "LIVE NOW" : hasRebroadcast ? "REBROADCAST" : "OFF AIR";
+
+  const authenticated = [galleryAuth, sermonAuth, livestreamAuth].filter(a => a.isAdmin).length;
+
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+
+      {/* ── Top Bar ──────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(v => !v)} className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <Menu className="w-4 h-4" />
+            </button>
+            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              <Settings className="w-4 h-4 text-primary" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="font-bold text-sm leading-none">Admin Dashboard</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">JCTM Platform Control</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {authenticated > 0 && (
+              <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" /> {authenticated}/3 active
+              </span>
+            )}
+            <StatusPill label={broadcastLabel} status={broadcastStatus} />
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 container mx-auto px-4 py-6 gap-6 max-w-6xl">
+
+        {/* ── Sidebar (desktop) ─────────────────────────────────────────── */}
+        <aside className="hidden lg:block w-52 shrink-0">
+          <nav className="sticky top-24 space-y-1">
+            {NAV.map(({ id, label, icon }) => {
+              const isActive = section === id;
+              const hasAuth = id === "broadcast" ? livestreamAuth.isAdmin
+                : id === "sermons"  ? sermonAuth.isAdmin
+                : id === "gallery"  ? galleryAuth.isAdmin
+                : false;
+              return (
+                <button key={id} onClick={() => setSection(id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                  {icon}
+                  {label}
+                  {hasAuth && !isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* ── Mobile sidebar drawer ─────────────────────────────────────── */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-40 lg:hidden" />
+              <motion.aside initial={{ x: -260 }} animate={{ x: 0 }} exit={{ x: -260 }} className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border z-50 p-5 lg:hidden">
+                <div className="flex items-center gap-2 mb-6">
+                  <Settings className="w-5 h-5 text-primary" />
+                  <span className="font-bold text-base">Admin Dashboard</span>
+                </div>
+                <nav className="space-y-1">
+                  {NAV.map(({ id, label, icon }) => (
+                    <button key={id} onClick={() => { setSection(id); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${section === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                      {icon} {label}
+                    </button>
+                  ))}
+                </nav>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ── Main content ──────────────────────────────────────────────── */}
+        <main className="flex-1 min-w-0">
+          {/* Mobile tab scroll */}
+          <div className="flex gap-1 overflow-x-auto pb-3 mb-5 lg:hidden scrollbar-hide">
+            {NAV.map(({ id, label }) => (
+              <button key={id} onClick={() => setSection(id)} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${section === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground bg-muted"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>
+              {section === "overview"    && <OverviewSection liveStatus={liveStatus} />}
+              {section === "broadcast"   && <BroadcastSection liveStatus={liveStatus} auth={livestreamAuth} />}
+              {section === "sermons"     && <SermonsSection auth={sermonAuth} />}
+              {section === "gallery"     && <GallerySection auth={galleryAuth} />}
+              {section === "testimonies" && <TestimoniesSection />}
+              {section === "platform"    && <PlatformSection />}
+              {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 }

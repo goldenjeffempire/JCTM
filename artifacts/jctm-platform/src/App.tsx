@@ -101,6 +101,7 @@ function Router() {
         <Route path="/scripture-study" component={ScriptureStudy} />
         <Route path="/spiritual-insight" component={SpiritualInsight} />
         <Route path="/devotion" component={Devotion} />
+        <Route path="/admin" component={Admin} />
         <Route path="/admin/broadcast" component={Admin} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
