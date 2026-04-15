@@ -568,7 +568,7 @@ export default function Gallery() {
             <p className="text-lg font-semibold text-muted-foreground">No photos yet</p>
             <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs">
               {isAdmin
-                ? "Click "Upload Photos" above to add images to the gallery."
+                ? 'Click \u201cUpload Photos\u201d above to add images to the gallery.'
                 : "Check back soon — new photos will appear here after each service."}
             </p>
           </motion.div>

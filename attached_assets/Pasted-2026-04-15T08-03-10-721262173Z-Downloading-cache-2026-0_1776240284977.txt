@@ -1,0 +1,49 @@
+2026-04-15T08:03:10.721262173Z ==> Downloading cache...
+2026-04-15T08:03:10.777899206Z ==> Cloning from https://github.com/goldenjeffempire/JCTM
+2026-04-15T08:03:18.680315134Z ==> Checking out commit 8ea6a6a2260d5e95ed236e5c2c7081745d373d88 in branch main
+2026-04-15T08:03:48.620887034Z ==> Downloaded 281MB in 6s. Extraction took 28s.
+2026-04-15T08:04:00.37454221Z ==> Using Node.js version 22.22.0 (default)
+2026-04-15T08:04:00.424467402Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-04-15T08:04:00.605289263Z ==> Running build command 'npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build && pnpm --filter @workspace/api-server run build'...
+2026-04-15T08:04:01.971287027Z 
+2026-04-15T08:04:01.971311528Z changed 1 package in 1s
+2026-04-15T08:04:01.971314658Z 
+2026-04-15T08:04:01.971317829Z 1 package is looking for funding
+2026-04-15T08:04:01.971328689Z   run `npm fund` for details
+2026-04-15T08:04:06.449810497Z 
+2026-04-15T08:04:06.449849769Z > @workspace/jctm-platform@0.0.0 build /opt/render/project/src/artifacts/jctm-platform
+2026-04-15T08:04:06.449855339Z > node scripts/write-ads-txt.mjs && vite build --config vite.config.ts
+2026-04-15T08:04:06.449857639Z 
+2026-04-15T08:04:06.924266576Z vite v7.3.1 building client environment for production...
+2026-04-15T08:04:06.98919576Z (!) %VITE_ADSENSE_CLIENT_ID% is not defined in env variables found in /index.html. Is the variable mistyped?
+2026-04-15T08:04:07.063574984Z transforming...
+2026-04-15T08:04:10.303662425Z ✗ Build failed in 3.32s
+2026-04-15T08:04:10.303686976Z error during build:
+2026-04-15T08:04:10.303690976Z [vite:esbuild] Transform failed with 1 error:
+2026-04-15T08:04:10.303694757Z /opt/render/project/src/artifacts/jctm-platform/src/pages/Gallery.tsx:571:26: ERROR: Expected ":" but found "Upload"
+2026-04-15T08:04:10.303698297Z file: /opt/render/project/src/artifacts/jctm-platform/src/pages/Gallery.tsx:571:26
+2026-04-15T08:04:10.303700907Z 
+2026-04-15T08:04:10.303703977Z Expected ":" but found "Upload"
+2026-04-15T08:04:10.303706877Z 569 |              <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs">
+2026-04-15T08:04:10.303709707Z 570 |                {isAdmin
+2026-04-15T08:04:10.303712447Z 571 |                  ? "Click "Upload Photos" above to add images to the gallery."
+2026-04-15T08:04:10.303715198Z     |                            ^
+2026-04-15T08:04:10.303718008Z 572 |                  : "Check back soon — new photos will appear here after each service."}
+2026-04-15T08:04:10.303720798Z 573 |              </p>
+2026-04-15T08:04:10.303723378Z 
+2026-04-15T08:04:10.303726288Z     at failureErrorWithLog (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1467:15)
+2026-04-15T08:04:10.303730239Z     at /opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:736:50
+2026-04-15T08:04:10.303733819Z     at responseCallbacks.<computed> (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:603:9)
+2026-04-15T08:04:10.303736669Z     at handleIncomingPacket (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:658:12)
+2026-04-15T08:04:10.303739509Z     at Socket.readFromStdout (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:581:7)
+2026-04-15T08:04:10.303746109Z     at Socket.emit (node:events:519:28)
+2026-04-15T08:04:10.303768201Z     at addChunk (node:internal/streams/readable:561:12)
+2026-04-15T08:04:10.303772051Z     at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-04-15T08:04:10.303774941Z     at Readable.push (node:internal/streams/readable:392:5)
+2026-04-15T08:04:10.303777861Z     at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+2026-04-15T08:04:10.303810173Z ✓ 2111 modules transformed.
+2026-04-15T08:04:10.418902333Z /opt/render/project/src/artifacts/jctm-platform:
+2026-04-15T08:04:10.418942226Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/jctm-platform@0.0.0 build: `node scripts/write-ads-txt.mjs && vite build --config vite.config.ts`
+2026-04-15T08:04:10.418947476Z Exit status 1
+2026-04-15T08:04:10.490058279Z ==> Build failed 😞
+2026-04-15T08:04:10.490078481Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
