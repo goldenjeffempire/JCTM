@@ -399,8 +399,8 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-3.5 w-3.5 text-accent shrink-0" />
             <span>
-              {format(start, "EEEE, MMMM d, yyyy")}
-              {event.endDate ? ` – ${format(new Date(event.endDate), "MMMM d, yyyy")}` : ""}
+              {format(start, "EEEE, MMMM d")}
+              {event.endDate ? ` – ${format(new Date(event.endDate), "EEEE, MMMM d, yyyy")}` : `, ${format(start, "yyyy")}`}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
