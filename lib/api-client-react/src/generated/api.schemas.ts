@@ -13,6 +13,19 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface GalleryAdminLoginBody {
+  passphrase: string;
+}
+
+export interface GalleryAdminLoginResponse {
+  token: string;
+  expiresAt: string;
+}
+
+export interface GalleryAdminSessionResponse {
+  authenticated: boolean;
+}
+
 export interface Sermon {
   id: number;
   videoId: string;
@@ -349,6 +362,11 @@ export interface RebroadcastStatus {
   /** @nullable */
   expiresAt?: string | null;
 }
+
+/**
+ * Bearer gallery admin token returned by `/gallery/admin/login`.
+ */
+export type GalleryAdminAuthorizationParameter = string;
 
 export type ListSermonsParams = {
   limit?: number;

@@ -614,7 +614,9 @@ paths:
     post:
       operationId: requestUploadUrl
       tags: [storage]
-      summary: Request a presigned upload URL
+      summary: Request a presigned gallery image upload URL
+      parameters:
+        - $ref: "#/components/parameters/GalleryAdminAuthorization"
       requestBody:
         required: true
         content:
@@ -643,6 +645,61 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GalleryImage"
+
+  /gallery/categories:
+    get:
+      operationId: listGalleryCategories
+      tags: [gallery]
+      summary: List available gallery categories
+      responses:
+        "200":
+          description: List of gallery categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /gallery/admin/login:
+    post:
+      operationId: loginGalleryAdmin
+      tags: [gallery]
+      summary: Create a temporary gallery admin token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GalleryAdminLoginBody"
+      responses:
+        "200":
+          description: Gallery admin token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryAdminLoginResponse"
+        "401":
+          description: Invalid passphrase
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /gallery/admin/session:
+    get:
+      operationId: getGalleryAdminSession
+      tags: [gallery]
+      summary: Validate a gallery admin token
+      parameters:
+        - $ref: "#/components/parameters/GalleryAdminAuthorization"
+      responses:
+        "200":
+          description: Gallery admin session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryAdminSessionResponse"
 
   /gallery:
     get:
@@ -677,6 +734,8 @@ paths:
       operationId: createGalleryImage
       tags: [gallery]
       summary: Add an image to the gallery
+      parameters:
+        - $ref: "#/components/parameters/GalleryAdminAuthorization"
       requestBody:
         required: true
         content:
@@ -697,6 +756,7 @@ paths:
       tags: [gallery]
       summary: Update a gallery image's metadata
       parameters:
+        - $ref: "#/components/parameters/GalleryAdminAuthorization"
         - name: id
           in: path
           required: true
@@ -720,6 +780,7 @@ paths:
       tags: [gallery]
       summary: Delete a gallery image
       parameters:
+        - $ref: "#/components/parameters/GalleryAdminAuthorization"
         - name: id
           in: path
           required: true
@@ -734,6 +795,15 @@ paths:
                 $ref: "#/components/schemas/SuccessResponse"
 
 components:
+  parameters:
+    GalleryAdminAuthorization:
+      name: Authorization
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Bearer gallery admin token returned by `/gallery/admin/login`.
+
   schemas:
     HealthStatus:
       type: object
@@ -750,6 +820,33 @@ components:
           type: string
       required:
         - error
+
+    GalleryAdminLoginBody:
+      type: object
+      properties:
+        passphrase:
+          type: string
+      required:
+        - passphrase
+
+    GalleryAdminLoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+      required:
+        - token
+        - expiresAt
+
+    GalleryAdminSessionResponse:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+      required:
+        - authenticated
 
     Sermon:
       type: object

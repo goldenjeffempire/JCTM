@@ -459,8 +459,16 @@ export const UpdateLivestreamStatusResponse = zod.object({
 });
 
 /**
- * @summary Request a presigned upload URL
+ * @summary Request a presigned gallery image upload URL
  */
+export const RequestUploadUrlHeader = zod.object({
+  Authorization: zod
+    .string()
+    .describe(
+      "Bearer gallery admin token returned by `\/gallery\/admin\/login`.",
+    ),
+});
+
 export const RequestUploadUrlBody = zod.object({
   name: zod.string(),
   size: zod.number(),
@@ -491,6 +499,41 @@ export const ListFeaturedGalleryImagesResponseItem = zod.object({
 export const ListFeaturedGalleryImagesResponse = zod.array(
   ListFeaturedGalleryImagesResponseItem,
 );
+
+/**
+ * @summary List available gallery categories
+ */
+export const ListGalleryCategoriesResponseItem = zod.string();
+export const ListGalleryCategoriesResponse = zod.array(
+  ListGalleryCategoriesResponseItem,
+);
+
+/**
+ * @summary Create a temporary gallery admin token
+ */
+export const LoginGalleryAdminBody = zod.object({
+  passphrase: zod.string(),
+});
+
+export const LoginGalleryAdminResponse = zod.object({
+  token: zod.string(),
+  expiresAt: zod.string(),
+});
+
+/**
+ * @summary Validate a gallery admin token
+ */
+export const GetGalleryAdminSessionHeader = zod.object({
+  Authorization: zod
+    .string()
+    .describe(
+      "Bearer gallery admin token returned by `\/gallery\/admin\/login`.",
+    ),
+});
+
+export const GetGalleryAdminSessionResponse = zod.object({
+  authenticated: zod.boolean(),
+});
 
 /**
  * @summary List gallery images
@@ -524,6 +567,14 @@ export const ListGalleryImagesResponse = zod.array(
 /**
  * @summary Add an image to the gallery
  */
+export const CreateGalleryImageHeader = zod.object({
+  Authorization: zod
+    .string()
+    .describe(
+      "Bearer gallery admin token returned by `\/gallery\/admin\/login`.",
+    ),
+});
+
 export const CreateGalleryImageBody = zod.object({
   title: zod.string().optional(),
   description: zod.string().nullish(),
@@ -541,6 +592,14 @@ export const CreateGalleryImageBody = zod.object({
  */
 export const UpdateGalleryImageParams = zod.object({
   id: zod.coerce.number(),
+});
+
+export const UpdateGalleryImageHeader = zod.object({
+  Authorization: zod
+    .string()
+    .describe(
+      "Bearer gallery admin token returned by `\/gallery\/admin\/login`.",
+    ),
 });
 
 export const UpdateGalleryImageBody = zod.object({
@@ -573,6 +632,14 @@ export const UpdateGalleryImageResponse = zod.object({
  */
 export const DeleteGalleryImageParams = zod.object({
   id: zod.coerce.number(),
+});
+
+export const DeleteGalleryImageHeader = zod.object({
+  Authorization: zod
+    .string()
+    .describe(
+      "Bearer gallery admin token returned by `\/gallery\/admin\/login`.",
+    ),
 });
 
 export const DeleteGalleryImageResponse = zod.object({

@@ -52,10 +52,11 @@ All routes verified HTTP 200:
 - **Table**: `gallery_images` (PostgreSQL) — id, title, description, object_path, category, service_date, alt_text, is_published, sort_order, created_at
 - **Object Storage**: GCS via Replit App Storage (`@google-cloud/storage`)
 - **Client lib**: `@workspace/object-storage-web` — Uppy v5 ObjectUploader + useUpload hook
-- **API endpoints**: `GET /api/gallery`, `POST /api/gallery`, `PATCH /api/gallery/:id`, `DELETE /api/gallery/:id`
-- **Upload**: `POST /api/storage/uploads/request-url` → presigned GCS URL → direct upload from browser
-- **Admin access**: passphrase-gated (`jctm-admin-gallery`) — enables bulk upload panel + delete
-- **View Gallery button**: Added to Home.tsx Ministry in Pictures section
+- **API endpoints**: `GET /api/gallery`, `GET /api/gallery/featured`, `GET /api/gallery/categories`, protected `POST /api/gallery`, protected `PATCH /api/gallery/:id`, protected `DELETE /api/gallery/:id`
+- **Upload**: protected `POST /api/storage/uploads/request-url` → presigned GCS URL → direct image upload from browser
+- **Admin access**: server-side passphrase login at `POST /api/gallery/admin/login`; supports `GALLERY_ADMIN_PASSPHRASE_HASH` (scrypt `salt:hash`, preferred), `GALLERY_ADMIN_PASSPHRASE`, and signed short-lived bearer tokens. The passphrase is no longer hardcoded in the frontend.
+- **Homepage sync**: New uploads are featured by default and the Home page Ministry in Pictures slideshow pulls `GET /api/gallery/featured`, with bundled images as fallback.
+- **Categories**: Built-in and dynamically created categories are exposed through `GET /api/gallery/categories` and available in the Gallery filter/upload dashboard.
 
 ## Recent Enhancements
 

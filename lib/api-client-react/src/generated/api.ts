@@ -29,6 +29,9 @@ import type {
   DonationVerification,
   ErrorResponse,
   Event,
+  GalleryAdminLoginBody,
+  GalleryAdminLoginResponse,
+  GalleryAdminSessionResponse,
   GalleryImage,
   GivingLog,
   GivingStats,
@@ -2391,7 +2394,7 @@ export const useUpdateLivestreamStatus = <
 };
 
 /**
- * @summary Request a presigned upload URL
+ * @summary Request a presigned gallery image upload URL
  */
 export const getRequestUploadUrlUrl = () => {
   return `/api/storage/uploads/request-url`;
@@ -2454,7 +2457,7 @@ export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>;
 export type RequestUploadUrlMutationError = ErrorType<unknown>;
 
 /**
- * @summary Request a presigned upload URL
+ * @summary Request a presigned gallery image upload URL
  */
 export const useRequestUploadUrl = <
   TError = ErrorType<unknown>,
@@ -2544,6 +2547,246 @@ export function useListFeaturedGalleryImages<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListFeaturedGalleryImagesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List available gallery categories
+ */
+export const getListGalleryCategoriesUrl = () => {
+  return `/api/gallery/categories`;
+};
+
+export const listGalleryCategories = async (
+  options?: RequestInit,
+): Promise<string[]> => {
+  return customFetch<string[]>(getListGalleryCategoriesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGalleryCategoriesQueryKey = () => {
+  return [`/api/gallery/categories`] as const;
+};
+
+export const getListGalleryCategoriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGalleryCategories>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGalleryCategories>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGalleryCategoriesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGalleryCategories>>
+  > = ({ signal }) => listGalleryCategories({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGalleryCategories>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGalleryCategoriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGalleryCategories>>
+>;
+export type ListGalleryCategoriesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List available gallery categories
+ */
+
+export function useListGalleryCategories<
+  TData = Awaited<ReturnType<typeof listGalleryCategories>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGalleryCategories>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGalleryCategoriesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a temporary gallery admin token
+ */
+export const getLoginGalleryAdminUrl = () => {
+  return `/api/gallery/admin/login`;
+};
+
+export const loginGalleryAdmin = async (
+  galleryAdminLoginBody: GalleryAdminLoginBody,
+  options?: RequestInit,
+): Promise<GalleryAdminLoginResponse> => {
+  return customFetch<GalleryAdminLoginResponse>(getLoginGalleryAdminUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(galleryAdminLoginBody),
+  });
+};
+
+export const getLoginGalleryAdminMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginGalleryAdmin>>,
+    TError,
+    { data: BodyType<GalleryAdminLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof loginGalleryAdmin>>,
+  TError,
+  { data: BodyType<GalleryAdminLoginBody> },
+  TContext
+> => {
+  const mutationKey = ["loginGalleryAdmin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof loginGalleryAdmin>>,
+    { data: BodyType<GalleryAdminLoginBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return loginGalleryAdmin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LoginGalleryAdminMutationResult = NonNullable<
+  Awaited<ReturnType<typeof loginGalleryAdmin>>
+>;
+export type LoginGalleryAdminMutationBody = BodyType<GalleryAdminLoginBody>;
+export type LoginGalleryAdminMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a temporary gallery admin token
+ */
+export const useLoginGalleryAdmin = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginGalleryAdmin>>,
+    TError,
+    { data: BodyType<GalleryAdminLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof loginGalleryAdmin>>,
+  TError,
+  { data: BodyType<GalleryAdminLoginBody> },
+  TContext
+> => {
+  return useMutation(getLoginGalleryAdminMutationOptions(options));
+};
+
+/**
+ * @summary Validate a gallery admin token
+ */
+export const getGetGalleryAdminSessionUrl = () => {
+  return `/api/gallery/admin/session`;
+};
+
+export const getGalleryAdminSession = async (
+  options?: RequestInit,
+): Promise<GalleryAdminSessionResponse> => {
+  return customFetch<GalleryAdminSessionResponse>(
+    getGetGalleryAdminSessionUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetGalleryAdminSessionQueryKey = () => {
+  return [`/api/gallery/admin/session`] as const;
+};
+
+export const getGetGalleryAdminSessionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGalleryAdminSession>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGalleryAdminSession>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetGalleryAdminSessionQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGalleryAdminSession>>
+  > = ({ signal }) => getGalleryAdminSession({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGalleryAdminSession>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGalleryAdminSessionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGalleryAdminSession>>
+>;
+export type GetGalleryAdminSessionQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Validate a gallery admin token
+ */
+
+export function useGetGalleryAdminSession<
+  TData = Awaited<ReturnType<typeof getGalleryAdminSession>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGalleryAdminSession>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGalleryAdminSessionQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

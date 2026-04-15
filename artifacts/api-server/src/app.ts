@@ -110,6 +110,14 @@ const authLimiter = rateLimit({
   message: { error: "Too many authentication attempts. Please try again later." },
 });
 
+const galleryAdminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many gallery admin attempts. Please try again later." },
+});
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
@@ -119,6 +127,7 @@ app.use("/api/prayer", aiLimiter);
 app.use("/api/chat", aiLimiter);
 app.use("/api/devotion", aiLimiter);
 app.use("/api/auth", authLimiter);
+app.use("/api/gallery/admin", galleryAdminLimiter);
 
 // Render's port-detection probe sends HEAD / before routing to healthCheckPath.
 // Handle HEAD only so GET / falls through to the SPA static handler in production.

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db, galleryImagesTable } from "@workspace/db";
 import {
   ListGalleryImagesQueryParams,
@@ -10,8 +10,25 @@ import {
   UpdateGalleryImageBody,
   DeleteGalleryImageParams,
 } from "@workspace/api-zod";
+import {
+  createGalleryAdminToken,
+  isGalleryAdminConfigured,
+  requireGalleryAdmin,
+  verifyGalleryAdminPassphrase,
+  verifyGalleryAdminToken,
+  getGalleryAdminTokenFromRequest,
+} from "../lib/galleryAdminAuth";
 
 const router: IRouter = Router();
+
+const DEFAULT_GALLERY_CATEGORIES = [
+  "service",
+  "crusade",
+  "conference",
+  "outreach",
+  "prayer",
+  "special",
+];
 
 function serializeImage(img: typeof galleryImagesTable.$inferSelect) {
   return {
@@ -31,6 +48,44 @@ router.get("/gallery/featured", async (_req, res): Promise<void> => {
     .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
 
   res.json(ListFeaturedGalleryImagesResponse.parse(images.map(serializeImage)));
+});
+
+router.post("/gallery/admin/login", async (req, res): Promise<void> => {
+  if (!isGalleryAdminConfigured()) {
+    res.status(503).json({ error: "Gallery admin access is not configured." });
+    return;
+  }
+
+  const passphrase = typeof req.body?.passphrase === "string" ? req.body.passphrase : "";
+  if (!verifyGalleryAdminPassphrase(passphrase)) {
+    req.log.warn({ ip: req.ip }, "Gallery admin login failed");
+    res.status(401).json({ error: "Invalid gallery admin passphrase." });
+    return;
+  }
+
+  res.json(createGalleryAdminToken());
+});
+
+router.get("/gallery/admin/session", async (req, res): Promise<void> => {
+  res.json({ authenticated: verifyGalleryAdminToken(getGalleryAdminTokenFromRequest(req)) });
+});
+
+router.get("/gallery/categories", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({ category: galleryImagesTable.category })
+    .from(galleryImagesTable)
+    .where(eq(galleryImagesTable.isPublished, true))
+    .groupBy(galleryImagesTable.category)
+    .orderBy(sql`lower(${galleryImagesTable.category})`);
+
+  const categories = Array.from(
+    new Set([
+      ...DEFAULT_GALLERY_CATEGORIES,
+      ...rows.map((row) => row.category).filter(Boolean),
+    ]),
+  );
+
+  res.json(categories);
 });
 
 router.get("/gallery", async (req, res): Promise<void> => {
@@ -58,7 +113,7 @@ router.get("/gallery", async (req, res): Promise<void> => {
   res.json(ListGalleryImagesResponse.parse(images.map(serializeImage)));
 });
 
-router.post("/gallery", async (req, res): Promise<void> => {
+router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => {
   const parsed = CreateGalleryImageBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -83,7 +138,7 @@ router.post("/gallery", async (req, res): Promise<void> => {
   res.status(201).json(serializeImage(image));
 });
 
-router.patch("/gallery/:id", async (req, res): Promise<void> => {
+router.patch("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void> => {
   const paramsParsed = UpdateGalleryImageParams.safeParse(req.params);
   if (!paramsParsed.success) {
     res.status(400).json({ error: paramsParsed.error.message });
@@ -121,7 +176,7 @@ router.patch("/gallery/:id", async (req, res): Promise<void> => {
   res.json(serializeImage(image));
 });
 
-router.delete("/gallery/:id", async (req, res): Promise<void> => {
+router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void> => {
   const parsed = DeleteGalleryImageParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

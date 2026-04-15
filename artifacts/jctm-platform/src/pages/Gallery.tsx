@@ -22,9 +22,19 @@ const CATEGORIES = [
 ];
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const ADMIN_TOKEN_STORAGE_KEY = "jctm-gallery-admin-token";
 
 function imageUrl(objectPath: string) {
   return `${BASE_URL}/api/storage${objectPath}`;
+}
+
+function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` };
+}
+
+function categoryLabel(value: string) {
+  return CATEGORIES.find(c => c.value === value)?.label
+    ?? value.split(/[-_\s]+/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
 type GalleryImg = {
@@ -220,19 +230,26 @@ function GalleryCard({
 
 function UploadPanel({
   selectedCategory,
+  categories,
+  adminToken,
   onUploaded,
 }: {
   selectedCategory: string;
+  categories: string[];
+  adminToken: string;
   onUploaded: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState(selectedCategory || "service");
+  const [customCategory, setCustomCategory] = useState("");
   const [serviceDate, setServiceDate] = useState("");
   const [pendingPaths, setPendingPaths] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const collectedPaths = useRef<string[]>([]);
-  const { mutateAsync: createImage } = useCreateGalleryImage();
+  const { mutateAsync: createImage } = useCreateGalleryImage({
+    request: { headers: authHeaders(adminToken) },
+  });
 
   const handleComplete = useCallback(() => {
     const paths = [...collectedPaths.current];
@@ -249,6 +266,15 @@ function UploadPanel({
     }
     setSaving(true);
     try {
+      const normalizedCategory = category === "__custom__"
+        ? customCategory.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+        : category;
+
+      if (!normalizedCategory) {
+        toast.error("Please choose or enter a category.");
+        return;
+      }
+
       await Promise.all(
         pendingPaths.map((objectPath, i) =>
           createImage({
@@ -256,10 +282,11 @@ function UploadPanel({
               objectPath,
               title: pendingPaths.length === 1 ? title : `${title} ${i + 1}`,
               description: description || null,
-              category,
+              category: normalizedCategory,
               serviceDate: serviceDate || null,
               altText: title || null,
               isPublished: true,
+              isFeatured: true,
               sortOrder: 0,
             },
           })
@@ -269,6 +296,7 @@ function UploadPanel({
       setPendingPaths([]);
       setTitle("");
       setDescription("");
+      setCustomCategory("");
       setServiceDate("");
       onUploaded();
     } catch {
@@ -322,9 +350,10 @@ function UploadPanel({
                 onChange={e => setCategory(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
               >
-                {CATEGORIES.slice(1).map(c => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                {categories.map(c => (
+                  <option key={c} value={c}>{categoryLabel(c)}</option>
                 ))}
+                <option value="__custom__">Create new category…</option>
               </select>
             </div>
 
@@ -338,6 +367,19 @@ function UploadPanel({
               />
             </div>
           </div>
+
+          {category === "__custom__" && (
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">New Category</label>
+              <input
+                type="text"
+                value={customCategory}
+                onChange={e => setCustomCategory(e.target.value)}
+                placeholder="e.g. Outreach, Youth Service"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </div>
+          )}
 
           {pendingPaths.length > 0 && (
             <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
@@ -363,7 +405,7 @@ function UploadPanel({
             onGetUploadParameters={async (file) => {
               const res = await fetch(`${BASE_URL}/api/storage/uploads/request-url`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeaders(adminToken) },
                 body: JSON.stringify({
                   name: file.name,
                   size: file.size,
@@ -389,16 +431,16 @@ function UploadPanel({
   );
 }
 
-const ADMIN_PASSPHRASE = "jctm-admin-gallery";
-
 export default function Gallery() {
   const [category, setCategory] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [gridCols, setGridCols] = useState<"3" | "4">("4");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminToken, setAdminToken] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [adminInput, setAdminInput] = useState("");
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
+  const [categories, setCategories] = useState(CATEGORIES.slice(1).map(c => c.value));
   const [page, setPage] = useState(0);
   const LIMIT = 48;
 
@@ -408,9 +450,59 @@ export default function Gallery() {
     ...(category ? { category } : {}),
   });
 
-  const { mutateAsync: deleteImage } = useDeleteGalleryImage();
+  const adminRequest = adminToken ? { headers: authHeaders(adminToken) } : undefined;
+  const { mutateAsync: deleteImage } = useDeleteGalleryImage({ request: adminRequest });
+  const { mutateAsync: updateImage } = useUpdateGalleryImage({ request: adminRequest });
 
   useEffect(() => { document.title = "Gallery | JCTM Digital Sanctuary"; }, []);
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/gallery/categories`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCategories(data.filter((item): item is string => typeof item === "string" && item.length > 0));
+      }
+    } catch {
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  useEffect(() => {
+    const storedToken = window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+    if (!storedToken) return;
+
+    const validateSession = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/gallery/admin/session`, {
+          headers: authHeaders(storedToken),
+        });
+        const data = await res.json();
+        if (res.ok && data?.authenticated === true) {
+          setAdminToken(storedToken);
+          setIsAdmin(true);
+        } else {
+          window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+        }
+      } catch {
+        window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      }
+    };
+
+    validateSession();
+  }, []);
+
+  const clearAdminSession = () => {
+    setIsAdmin(false);
+    setAdminToken("");
+    setShowUpload(false);
+    window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Remove this image from the gallery?")) return;
@@ -418,19 +510,45 @@ export default function Gallery() {
       await deleteImage({ id });
       toast.success("Image removed.");
       refetch();
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("401")) clearAdminSession();
       toast.error("Failed to remove image.");
     }
   };
 
-  const handleAdminUnlock = () => {
-    if (adminInput === ADMIN_PASSPHRASE) {
+  const handleToggleFeatured = async (id: number, current: boolean) => {
+    try {
+      await updateImage({ id, data: { isFeatured: !current } });
+      toast.success(current ? "Removed from homepage slideshow." : "Added to homepage slideshow.");
+      refetch();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("401")) clearAdminSession();
+      toast.error("Failed to update slideshow status.");
+    }
+  };
+
+  const handleAdminUnlock = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/gallery/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passphrase: adminInput }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || typeof data?.token !== "string") {
+        toast.error(data?.error ?? "Incorrect passphrase");
+        return;
+      }
+
+      window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, data.token);
+      setAdminToken(data.token);
       setIsAdmin(true);
       setShowAdminPrompt(false);
       setAdminInput("");
       toast.success("Admin mode enabled");
-    } else {
-      toast.error("Incorrect passphrase");
+    } catch {
+      toast.error("Unable to verify admin passphrase.");
     }
   };
 
@@ -496,7 +614,7 @@ export default function Gallery() {
                     {showUpload ? "Hide Upload" : "Upload Photos"}
                   </button>
                   <button
-                    onClick={() => { setIsAdmin(false); setShowUpload(false); }}
+                    onClick={clearAdminSession}
                     className="p-2 rounded-lg border border-border text-muted-foreground hover:text-primary transition-colors"
                     title="Exit admin"
                   >
@@ -547,17 +665,19 @@ export default function Gallery() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {showUpload && isAdmin && (
+          {showUpload && isAdmin && adminToken && (
             <UploadPanel
               selectedCategory={category}
-              onUploaded={() => { refetch(); setShowUpload(false); }}
+              categories={categories}
+              adminToken={adminToken}
+              onUploaded={() => { refetch(); loadCategories(); setShowUpload(false); }}
             />
           )}
         </AnimatePresence>
 
         {/* Category filter */}
         <div className="flex flex-wrap gap-2 mb-8">
-          {CATEGORIES.map(cat => (
+          {[{ value: "", label: "All Photos" }, ...categories.map(value => ({ value, label: categoryLabel(value) }))].map(cat => (
             <button
               key={cat.value}
               onClick={() => { setCategory(cat.value); setPage(0); }}
@@ -603,6 +723,7 @@ export default function Gallery() {
                   onClick={() => openLightbox(i)}
                   isAdmin={isAdmin}
                   onDelete={handleDelete}
+                  onToggleFeatured={handleToggleFeatured}
                 />
               ))}
             </div>
@@ -620,7 +741,7 @@ export default function Gallery() {
 
             <p className="text-center text-xs text-muted-foreground mt-6">
               Showing {images.length} photo{images.length !== 1 ? "s" : ""}
-              {category ? ` in "${CATEGORIES.find(c => c.value === category)?.label ?? category}"` : ""}
+              {category ? ` in "${categoryLabel(category)}"` : ""}
             </p>
           </>
         )}

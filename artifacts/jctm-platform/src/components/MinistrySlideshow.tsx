@@ -162,6 +162,7 @@ const THEME: Record<string, { accent: string; pill: string; bg: string; quoteCol
 };
 
 const INTERVAL_MS = 10000;
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -184,6 +185,11 @@ const jpgModules = import.meta.glob(
 ) as Record<string, string>;
 
 interface ImageEntry { webp: string; jpg: string }
+type FeaturedGalleryImage = {
+  objectPath: string;
+  title?: string | null;
+  altText?: string | null;
+};
 
 function buildImageEntries(): ImageEntry[] {
   const webpByBase: Record<string, string> = {};
@@ -200,6 +206,19 @@ function buildImageEntries(): ImageEntry[] {
 }
 
 const ALL_IMAGES: ImageEntry[] = buildImageEntries();
+
+function galleryImageUrl(objectPath: string) {
+  return `${BASE_URL}/api/storage${objectPath}`;
+}
+
+function galleryEntries(images: FeaturedGalleryImage[]): ImageEntry[] {
+  return images
+    .filter((image) => typeof image.objectPath === "string" && image.objectPath.startsWith("/objects/"))
+    .map((image) => {
+      const src = galleryImageUrl(image.objectPath);
+      return { webp: src, jpg: src };
+    });
+}
 
 type Orientation = "landscape" | "portrait";
 
@@ -364,13 +383,35 @@ export function MinistrySlideshow() {
 
   // ── Initialise ───────────────────────────────────────────────────────────
   useEffect(() => {
-    const s = shuffleArray(ALL_IMAGES);
-    setShuffled(s);
-    setSlideIdx(Math.floor(Math.random() * SLIDES.length));
-    if (s.length > 0 && !preloadedRef.current) {
-      preloadedRef.current = true;
-      injectPreload(s[0]);
-    }
+    let cancelled = false;
+
+    const initialize = async () => {
+      let entries = ALL_IMAGES;
+      try {
+        const res = await fetch(`${BASE_URL}/api/gallery/featured`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const dynamicEntries = galleryEntries(data);
+            if (dynamicEntries.length > 0) entries = dynamicEntries;
+          }
+        }
+      } catch {
+        entries = ALL_IMAGES;
+      }
+
+      if (cancelled) return;
+      const s = shuffleArray(entries);
+      setShuffled(s);
+      setSlideIdx(Math.floor(Math.random() * SLIDES.length));
+      if (s.length > 0 && !preloadedRef.current) {
+        preloadedRef.current = true;
+        injectPreload(s[0]);
+      }
+    };
+
+    initialize();
+    return () => { cancelled = true; };
   }, []);
 
   // ── Orientation detection + background preload ───────────────────────────
