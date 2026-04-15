@@ -244,7 +244,8 @@ function GalleryCard({
 }
 
 const MAX_FILE_BYTES   = 25 * 1024 * 1024; // 25 MB — matches server hard cap
-const UPLOAD_CONCURRENCY = 3;
+const MAX_BATCH_FILES = 50;
+const UPLOAD_CONCURRENCY = 5;
 const MAX_COMPRESS_DIMENSION = 1920; // px — longest edge before JPEG re-encode
 const COMPRESS_QUALITY = 0.87;       // JPEG quality (0–1)
 
@@ -430,8 +431,14 @@ function FileDropZone({
     if (!selected || selected.length === 0) return;
     const valid: FileEntry[] = [];
     const errors: string[] = [];
+    const remainingSlots = Math.max(MAX_BATCH_FILES - files.length, 0);
 
-    Array.from(selected).forEach(f => {
+    if (remainingSlots === 0) {
+      toast.error(`You can upload up to ${MAX_BATCH_FILES} images in one batch. Upload or clear the current batch first.`);
+      return;
+    }
+
+    Array.from(selected).slice(0, remainingSlots).forEach(f => {
       if (!f.type.startsWith("image/")) {
         errors.push(`${f.name}: not an image file`);
       } else if (f.size > MAX_FILE_BYTES) {
@@ -441,9 +448,12 @@ function FileDropZone({
       }
     });
 
+    if (selected.length > remainingSlots) {
+      errors.push(`Only ${remainingSlots} more image${remainingSlots === 1 ? "" : "s"} can be added. Maximum batch size is ${MAX_BATCH_FILES}.`);
+    }
     if (errors.length > 0) toast.error(errors.join("\n"));
     if (valid.length > 0) setFiles(prev => [...prev, ...valid]);
-  }, []);
+  }, [files.length]);
 
   const removeEntry = useCallback((id: string) => {
     setFiles(prev => prev.filter(f => f.id !== id));
@@ -516,11 +526,11 @@ function FileDropZone({
         <input ref={inputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
         <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Drop images here or click to browse</p>
-        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · up to 25 MB · auto-compressed before upload · bulk OK</p>
+        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · up to 25 MB each · up to 50 images at once · auto-compressed before upload</p>
       </div>
 
       {files.length > 0 && (
-        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+        <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
           {files.map(item => {
             const origMB   = (item.originalSize / 1024 / 1024).toFixed(1);
             const uploadMB = item.uploadSize ? (item.uploadSize / 1024 / 1024).toFixed(1) : null;
