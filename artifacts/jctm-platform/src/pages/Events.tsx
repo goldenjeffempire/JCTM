@@ -5,11 +5,116 @@ import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, MapPin, Clock, Youtube, Radio, Phone,
-  Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download
+  Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download, CalendarPlus
 } from "lucide-react";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+function toICSDate(date: Date) {
+  return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+
+function generateGoogleCalendarUrl(event: EventItem) {
+  const start = new Date(event.startDate);
+  const end = event.endDate ? new Date(event.endDate) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.title,
+    dates: `${toICSDate(start)}/${toICSDate(end)}`,
+    details: event.description?.replace(/\|/g, "\n") ?? "",
+    location: event.location ?? "",
+    sf: "true",
+    output: "xml",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function downloadICS(event: EventItem) {
+  const start = new Date(event.startDate);
+  const end = event.endDate ? new Date(event.endDate) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const description = (event.description?.replace(/\|/g, "\\n") ?? "").replace(/,/g, "\\,");
+  const location = (event.location ?? "").replace(/,/g, "\\,");
+  const title = event.title.replace(/,/g, "\\,");
+  const uid = `jctm-event-${event.id}@jctm.org.ng`;
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//JCTM Digital Sanctuary//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${toICSDate(new Date())}`,
+    `DTSTART:${toICSDate(start)}`,
+    `DTEND:${toICSDate(end)}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${description}`,
+    `LOCATION:${location}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${event.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success("Calendar file downloaded! Open it to add to Apple Calendar or Outlook.");
+}
+
+function AddToCalendar({ event }: { event: EventItem }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-accent/30 text-accent hover:bg-accent/10 transition-colors"
+      >
+        <CalendarPlus className="h-3.5 w-3.5" />
+        Add to Calendar
+        <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="absolute left-0 top-full mt-1.5 z-20 bg-background border border-border rounded-xl shadow-xl overflow-hidden min-w-[180px]"
+            >
+              <a
+                href={generateGoogleCalendarUrl(event)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent/10 hover:text-accent transition-colors"
+              >
+                <span className="text-base">📅</span>
+                Google Calendar
+              </a>
+              <button
+                onClick={() => { setOpen(false); downloadICS(event); }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-accent/10 hover:text-accent transition-colors border-t border-border/50"
+              >
+                <span className="text-base">🍎</span>
+                Apple / Outlook (.ics)
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function Countdown({ target }: { target: string }) {
   const [, setTick] = useState(0);
@@ -425,6 +530,12 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
           <div className="mb-4">
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 font-medium">Starts In</p>
             <Countdown target={event.startDate} />
+          </div>
+        )}
+
+        {!past && (
+          <div className="pt-1 pb-1">
+            <AddToCalendar event={event} />
           </div>
         )}
       </div>
