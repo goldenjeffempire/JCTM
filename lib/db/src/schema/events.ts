@@ -11,6 +11,7 @@ export const eventsTable = pgTable("event_calendar", {
   location: text("location"),
   eventType: text("event_type").notNull().default("service"),
   imageUrl: text("image_url"),
+  youtubeUrl: text("youtube_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

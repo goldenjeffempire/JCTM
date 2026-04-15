@@ -48,6 +48,7 @@ type EventItem = {
   location?: string | null;
   eventType: string;
   imageUrl?: string | null;
+  youtubeUrl?: string | null;
   createdAt: string;
 };
 
@@ -322,6 +323,32 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
       transition={{ duration: 0.5, delay: index * 0.08 }}
       className={`glass-panel rounded-2xl overflow-hidden border border-border/50 hover:shadow-xl transition-all duration-300 group ${past ? "opacity-75 hover:opacity-100" : ""}`}
     >
+      {/* YouTube video embed (when no flyer image) */}
+      {!imageUrl && event.youtubeUrl && (
+        <div className="relative">
+          <div className="aspect-video">
+            <iframe
+              className="w-full h-full"
+              src={`https://www.youtube.com/embed/${event.youtubeUrl}?rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
+              title={event.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          </div>
+          {!past && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+              <Countdown target={event.startDate} />
+            </div>
+          )}
+          <div className="absolute top-3 right-3 z-10">
+            <span className="bg-accent text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">
+              {event.eventType}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Flyer image */}
       {imageUrl && (
         <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>

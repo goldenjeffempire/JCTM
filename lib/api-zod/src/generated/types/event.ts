@@ -19,5 +19,7 @@ export interface Event {
   eventType: string;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  youtubeUrl?: string | null;
   createdAt: string;
 }
