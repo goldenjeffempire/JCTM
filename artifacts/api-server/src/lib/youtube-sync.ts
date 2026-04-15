@@ -28,7 +28,15 @@ interface VideoDetail {
   id: string;
   contentDetails: { duration: string };
   statistics: { viewCount?: string };
-  snippet?: { liveBroadcastContent?: string };
+  snippet?: {
+    liveBroadcastContent?: string;
+    thumbnails?: {
+      maxres?:   { url: string };
+      standard?: { url: string };
+      high?:     { url: string };
+    };
+    title?: string;
+  };
 }
 
 export function iso8601ToSeconds(duration: string): number {
@@ -391,7 +399,14 @@ export async function enrichVideoIds(
       continue;
     }
 
-    // Only patch the fields that RSS didn't populate — leave title/thumbnail/isFeatured as-is
+    // Upgrade thumbnail from RSS placeholder to API-quality image when available
+    const apiThumbnail =
+      detail.snippet?.thumbnails?.maxres?.url ??
+      detail.snippet?.thumbnails?.standard?.url ??
+      detail.snippet?.thumbnails?.high?.url ??
+      null;
+
+    // Live broadcast status from the API
     const liveFromApi = detail.snippet?.liveBroadcastContent === "live";
 
     await db
@@ -401,7 +416,11 @@ export async function enrichVideoIds(
         viewCount: detail.statistics?.viewCount
           ? parseInt(detail.statistics.viewCount)
           : null,
-        isLive: sql`sermon_data.is_live OR ${liveFromApi}`,
+        // Upgrade to API-quality thumbnail only if we got one
+        ...(apiThumbnail ? { thumbnailUrl: apiThumbnail } : {}),
+        // If the API now says not live but the DB says live, mark broadcast as ended
+        isLive: sql`CASE WHEN sermon_data.is_live = true AND ${liveFromApi} = false THEN false ELSE (sermon_data.is_live OR ${liveFromApi}) END`,
+        broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${liveFromApi} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
       })
       .where(eq(sermonsTable.videoId, detail.id));
 

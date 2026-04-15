@@ -75,36 +75,50 @@ router.post("/storage/uploads", requireGalleryAdmin, async (req: Request, res: R
     return;
   }
 
-  const MAX_BYTES = 20 * 1024 * 1024;
+  const MAX_BYTES = 25 * 1024 * 1024; // 25 MB hard cap; frontend should compress first
   const chunks: Buffer[] = [];
   let totalBytes = 0;
-  let oversized = false;
 
   try {
     await new Promise<void>((resolve, reject) => {
+      let settled = false;
+
+      function settle(fn: () => void) {
+        if (settled) return;
+        settled = true;
+        fn();
+      }
+
       req.on("data", (chunk: Buffer) => {
-        if (oversized) return;
         totalBytes += chunk.length;
         if (totalBytes > MAX_BYTES) {
-          oversized = true;
-          reject(new Error("IMAGE_TOO_LARGE"));
+          settle(() => reject(new Error("IMAGE_TOO_LARGE")));
+          req.destroy(); // stop the stream
           return;
         }
         chunks.push(chunk);
       });
-      req.on("end", resolve);
-      req.on("error", reject);
+
+      req.on("end", () => settle(resolve));
+
+      req.on("error", (err) => settle(() => reject(err)));
+
+      // Close before end = client disconnected mid-upload
       req.on("close", () => {
-        if (oversized) return;
-        resolve();
+        if (!settled) {
+          settle(() => reject(new Error("UPLOAD_ABORTED")));
+        }
       });
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Upload stream error";
     if (msg === "IMAGE_TOO_LARGE") {
-      res.status(413).json({ error: "Image must be 20 MB or smaller" });
+      res.status(413).json({ error: "Image exceeds the 25 MB limit. Please compress it before uploading." });
+    } else if (msg === "UPLOAD_ABORTED") {
+      res.status(499).json({ error: "Upload was interrupted. Please check your connection and try again." });
     } else {
-      res.status(400).json({ error: "Upload stream interrupted" });
+      req.log.warn({ err }, "Upload stream error");
+      res.status(400).json({ error: "Upload failed. Please try again." });
     }
     return;
   }

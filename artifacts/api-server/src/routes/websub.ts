@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, sermonsTable } from "@workspace/db";
 import { syncSingleVideo } from "../lib/youtube-sync.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -56,6 +56,27 @@ router.post("/sermons/websub", async (req, res): Promise<void> => {
   }
 
   try {
+    // ── Deletion notification ─────────────────────────────────────────────
+    // YouTube sends <at:deleted-entry ref="yt:video:<videoId>"> when a video
+    // is removed. We should remove it from our DB to stay in sync.
+    const deletedMatch = rawBody.match(/<at:deleted-entry[^>]+ref="yt:video:([A-Za-z0-9_-]{11})"/);
+    if (deletedMatch) {
+      const deletedId = deletedMatch[1];
+      req.log.info({ videoId: deletedId }, "WebSub: video deletion notification received");
+      const result = await db
+        .delete(sermonsTable)
+        .where(eq(sermonsTable.videoId, deletedId))
+        .returning({ id: sermonsTable.id });
+      if (result.length > 0) {
+        req.log.info({ videoId: deletedId }, "WebSub: deleted video removed from DB");
+        sseBroadcaster.broadcast({ type: "sync_complete", data: { deleted: deletedId } });
+      } else {
+        req.log.info({ videoId: deletedId }, "WebSub: deletion for unknown video — no action");
+      }
+      return;
+    }
+
+    // ── New / updated video notification ─────────────────────────────────
     const videoIdMatch = rawBody.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
     if (!videoIdMatch) {
       req.log.warn({ body: rawBody.slice(0, 300) }, "WebSub: no videoId found in payload");
@@ -67,7 +88,7 @@ router.post("/sermons/websub", async (req, res): Promise<void> => {
 
     await syncSingleVideo(apiKey, videoId, req.log);
 
-    // Broadcast the new sermon to any connected SSE clients
+    // Broadcast the new/updated sermon to connected SSE clients
     const [newSermon] = await db
       .select()
       .from(sermonsTable)

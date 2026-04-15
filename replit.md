@@ -53,7 +53,7 @@ All routes verified HTTP 200:
 - **Object Storage**: GCS via Replit App Storage (`@google-cloud/storage`)
 - **Client lib**: `@workspace/object-storage-web` — Uppy v5 ObjectUploader + useUpload hook
 - **API endpoints**: `GET /api/gallery`, `GET /api/gallery/featured`, `GET /api/gallery/categories`, protected `POST /api/gallery`, protected `PATCH /api/gallery/:id`, protected `DELETE /api/gallery/:id`
-- **Upload**: protected `POST /api/storage/uploads/request-url` → presigned GCS URL → direct image upload from browser
+- **Upload**: raw bytes sent to `POST /api/storage/uploads` (server-proxied; avoids CORS with GCS presigned URLs). Frontend compresses JPEG/PNG/WebP to max 1920 px at 87 % quality before sending. Server hard cap is 25 MB; client rejects > 25 MB before any network call.
 - **Thumbnails**: After `POST /api/gallery`, a background job uses `sharp` to generate a 640px WebP thumbnail (quality 80) and saves it to `/objects/thumbs/<uuid>.webp`. The gallery grid uses the thumbnail; the lightbox serves the full-size original. Falls back gracefully if thumbnail generation fails.
 - **Admin access**: unified role-based system — see Role-Based Admin section below. Gallery role also checks legacy `GALLERY_ADMIN_PASSPHRASE_HASH` for backward compat.
 - **Homepage sync**: New uploads are featured by default and the Home page Ministry in Pictures slideshow pulls `GET /api/gallery/featured`, with bundled images as fallback.
@@ -91,6 +91,36 @@ Three independent admin roles, each with its own passphrase, HMAC-signed JWT, an
 **Frontend**: `hooks/useAdminAuth.ts` (`needsSetup`, `setup()`, `changePassphrase()`, `login()`, `logout()`); `components/admin/AdminLoginGate.tsx` — automatically shows Setup form, Login form, or authenticated children based on state.
 
 ## Recent Enhancements
+
+### YouTube Sync — Fully Automated, Near-Real-Time Pipeline
+
+Three sync layers run in parallel:
+
+| Layer | Interval | Mechanism |
+|-------|----------|-----------|
+| **WebSub** (PubSubHubbub) | Instant push | YouTube notifies on every publish/edit/delete |
+| **RSS** | 5 min | Quota-free Atom feed; immediately enriches new videos via API |
+| **YouTube Data API v3** | 30 min | Full metadata refresh with quota-aware backoff |
+
+Key behaviours:
+- **RSS inserts → immediate API enrichment**: When RSS detects a new video, it fires a YouTube API call for that video's IDs within 4 seconds to fill in duration, view count, and HD thumbnail. A second SSE broadcast is sent when enrichment completes.
+- **Thumbnail upgrade**: `enrichVideoIds` upgrades RSS placeholder (`hqdefault.jpg`) to the API's `maxresdefault` or `standard` thumbnail.
+- **Live → ended transitions**: Handled by all three layers; `broadcastEndedAt` is stamped automatically.
+- **Video deletion**: WebSub `<at:deleted-entry>` notifications remove the record from the DB and broadcast to SSE clients.
+- **Shorts filter relaxation**: `/sermons/shorts` includes videos published within the last 24 hours even if duration is not yet known (covers the brief window before enrichment).
+- **Moments SSE**: Reconnects with exponential backoff (2 s → 60 s cap); 30-minute polling fallback when SSE is unavailable.
+- **Quota handling**: `QuotaExceededError` pauses the API sync until UTC midnight; RSS and WebSub continue unaffected.
+
+### Gallery Upload — Compressed, Retried, Reliable
+
+| Improvement | Detail |
+|-------------|--------|
+| **Client-side compression** | JPEG/PNG/WebP are re-encoded at ≤ 1920 px, 87 % quality before upload. A 6.4 MB DSLR photo typically becomes 300–800 KB. HEIC/GIF sent as-is. |
+| **Compression indicator** | File list shows ~~6.4~~ → 0.7 MB during upload |
+| **Auto-retry** | Network errors (not 4xx/5xx) retry up to 2 times with 2 s / 4 s backoff |
+| **Stream race condition fix** | Replaced the faulty `req.on("close")` → resolve() with a settled-flag pattern; aborted uploads now correctly 499 |
+| **Size limits** | Raised to 25 MB on both server and client to allow raw HEIC/AVIF from iPhone cameras |
+| **Error messages** | Specific messages for 413 (too large), 499 (aborted), network errors, invalid image, and server errors |
 
 ### Blog Frontend (`/blog`, `/blog/:slug`)
 - `Blog.tsx` — full list view with topic filters, search, pagination (12/page)

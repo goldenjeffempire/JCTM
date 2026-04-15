@@ -243,60 +243,148 @@ function GalleryCard({
   );
 }
 
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_BYTES   = 25 * 1024 * 1024; // 25 MB — matches server hard cap
 const UPLOAD_CONCURRENCY = 3;
+const MAX_COMPRESS_DIMENSION = 1920; // px — longest edge before JPEG re-encode
+const COMPRESS_QUALITY = 0.87;       // JPEG quality (0–1)
 
 type FileEntry = {
   id: string;
-  file: File;
-  status: "pending" | "uploading" | "done" | "error";
+  file: File;            // original file as-selected
+  uploadFile?: File;     // compressed/converted file sent to server
+  status: "pending" | "compressing" | "uploading" | "done" | "error";
   progress: number;
   error?: string;
   objectPath?: string;
+  originalSize: number;  // bytes before compression
+  uploadSize?: number;   // bytes actually sent
 };
 
-function uploadFileWithProgress(
+// ─── Client-side image compression ────────────────────────────────────────────
+// Compresses JPEG/PNG/WebP/GIF to a 1920px JPEG before upload.
+// Returns the original file unchanged if:
+//   – it's HEIC/HEIF (Canvas can't decode them in most browsers)
+//   – compression produces a larger file than the original
+//   – the file is already ≤ 1920px on its longest edge and ≤ 500 KB
+//
+async function compressImage(file: File): Promise<File> {
+  // Skip formats the Canvas API can't reliably encode or decode
+  if (file.type === "image/heic" || file.type === "image/heif" || file.type === "image/gif") {
+    return file;
+  }
+  // Skip tiny files that don't need compression
+  if (file.size <= 500 * 1024) return file;
+
+  return new Promise<File>((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      let { naturalWidth: w, naturalHeight: h } = img;
+      const longest = Math.max(w, h);
+
+      // Only resize when the image is genuinely oversized
+      if (longest > MAX_COMPRESS_DIMENSION) {
+        const scale = MAX_COMPRESS_DIMENSION / longest;
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+
+      // White background for any transparent PNGs
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+
+      canvas.toBlob((blob) => {
+        if (!blob || blob.size >= file.size) {
+          // Compression made it no smaller — send original
+          resolve(file);
+          return;
+        }
+        // Rename .png / .webp → .jpg since we JPEG-encoded
+        const newName = file.name.replace(/\.(png|webp|bmp|tiff?)$/i, ".jpg");
+        resolve(new File([blob], newName, { type: "image/jpeg" }));
+      }, "image/jpeg", COMPRESS_QUALITY);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file); // fall back to original if loading fails
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+// ─── XHR upload with progress and auto-retry ──────────────────────────────────
+async function uploadFileWithProgress(
   file: File,
   adminToken: string,
   onProgress: (pct: number) => void,
   signal: AbortSignal,
+  attempt = 0,
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
+  const MAX_RETRIES = 2;
 
-    xhr.upload.addEventListener("progress", e => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 95));
-    });
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      if (signal.aborted) { reject(new Error("Upload cancelled")); return; }
 
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          onProgress(100);
-          resolve(data.objectPath);
-        } catch {
-          reject(new Error("Invalid response from server"));
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", e => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 95));
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText) as { objectPath: string };
+            onProgress(100);
+            resolve(data.objectPath);
+          } catch {
+            reject(new Error("Unexpected response from server — please try again"));
+          }
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText) as { error?: string };
+            // 4xx = client error (bad file, too large, etc.) — don't retry
+            reject(Object.assign(new Error(err.error ?? `Server error ${xhr.status}`), { noRetry: true }));
+          } catch {
+            reject(new Error(`Upload failed (status ${xhr.status})`));
+          }
         }
-      } else {
-        try {
-          const err = JSON.parse(xhr.responseText);
-          reject(new Error(err.error ?? `Server error ${xhr.status}`));
-        } catch {
-          reject(new Error(`Upload failed (${xhr.status})`));
-        }
-      }
+      });
+
+      xhr.addEventListener("error", () => reject(new Error("Network error — connection interrupted")));
+      xhr.addEventListener("abort",  () => reject(Object.assign(new Error("Upload cancelled"), { noRetry: true })));
+
+      signal.addEventListener("abort", () => xhr.abort(), { once: true });
+
+      xhr.open("POST", `${BASE_URL}/api/storage/uploads`);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.setRequestHeader("Authorization", `Bearer ${adminToken}`);
+      xhr.send(file);
     });
-
-    xhr.addEventListener("error", () => reject(new Error("Network error during upload")));
-    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
-
-    signal.addEventListener("abort", () => xhr.abort());
-
-    xhr.open("POST", `${BASE_URL}/api/storage/uploads`);
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    xhr.setRequestHeader("Authorization", `Bearer ${adminToken}`);
-    xhr.send(file);
-  });
+  } catch (err: unknown) {
+    const isNoRetry = typeof err === "object" && err !== null && "noRetry" in err && (err as { noRetry?: boolean }).noRetry;
+    if (!isNoRetry && attempt < MAX_RETRIES && !signal.aborted) {
+      // Exponential backoff: 2 s, then 4 s
+      const delay = 2_000 * Math.pow(2, attempt);
+      onProgress(0);
+      await new Promise(r => setTimeout(r, delay));
+      return uploadFileWithProgress(file, adminToken, onProgress, signal, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 async function runWithConcurrency<T>(
@@ -345,11 +433,11 @@ function FileDropZone({
 
     Array.from(selected).forEach(f => {
       if (!f.type.startsWith("image/")) {
-        errors.push(`${f.name}: not an image`);
+        errors.push(`${f.name}: not an image file`);
       } else if (f.size > MAX_FILE_BYTES) {
-        errors.push(`${f.name}: exceeds 20 MB limit`);
+        errors.push(`${f.name}: exceeds 25 MB limit`);
       } else {
-        valid.push({ id: crypto.randomUUID(), file: f, status: "pending", progress: 0 });
+        valid.push({ id: crypto.randomUUID(), file: f, status: "pending", progress: 0, originalSize: f.size });
       }
     });
 
@@ -372,9 +460,19 @@ function FileDropZone({
     setUploading(true);
 
     const tasks = pending.map(entry => async () => {
+      // Step 1 — Compress (where applicable)
+      updateEntry(entry.id, { status: "compressing", progress: 0 });
+      const fileToUpload = await compressImage(entry.file);
+      const didCompress = fileToUpload !== entry.file;
+      updateEntry(entry.id, {
+        uploadFile: didCompress ? fileToUpload : undefined,
+        uploadSize: fileToUpload.size,
+      });
+
+      // Step 2 — Upload with progress
       updateEntry(entry.id, { status: "uploading", progress: 0 });
       const objectPath = await uploadFileWithProgress(
-        entry.file,
+        fileToUpload,
         adminToken,
         pct => updateEntry(entry.id, { progress: pct }),
         controller.signal,
@@ -418,43 +516,59 @@ function FileDropZone({
         <input ref={inputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
         <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Drop images here or click to browse</p>
-        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · max 20 MB each · bulk supported</p>
+        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · up to 25 MB · auto-compressed before upload · bulk OK</p>
       </div>
 
       {files.length > 0 && (
         <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-          {files.map(item => (
-            <div key={item.id} className="space-y-0.5">
-              <div className="flex items-center gap-2 text-sm">
-                {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
-                {item.status === "error" && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
-                {item.status === "uploading" && <div className="h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />}
-                {item.status === "pending" && <div className="h-4 w-4 border-2 border-border rounded-full shrink-0" />}
-                <span className="truncate text-foreground flex-1">{item.file.name}</span>
-                <span className="text-muted-foreground text-xs shrink-0">{(item.file.size / 1024 / 1024).toFixed(1)} MB</span>
-                {item.status === "pending" && !uploading && (
-                  <button
-                    onClick={e => { e.stopPropagation(); removeEntry(item.id); }}
-                    className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    title="Remove"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+          {files.map(item => {
+            const origMB   = (item.originalSize / 1024 / 1024).toFixed(1);
+            const uploadMB = item.uploadSize ? (item.uploadSize / 1024 / 1024).toFixed(1) : null;
+            const compressed = uploadMB && uploadMB !== origMB;
+            return (
+              <div key={item.id} className="space-y-0.5">
+                <div className="flex items-center gap-2 text-sm">
+                  {item.status === "done"        && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+                  {item.status === "error"       && <AlertCircle  className="h-4 w-4 text-red-500 shrink-0" />}
+                  {(item.status === "uploading" || item.status === "compressing") &&
+                    <div className="h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />}
+                  {item.status === "pending"     && <div className="h-4 w-4 border-2 border-border rounded-full shrink-0" />}
+                  <span className="truncate text-foreground flex-1">{item.file.name}</span>
+                  <span className="text-muted-foreground text-xs shrink-0 whitespace-nowrap">
+                    {item.status === "compressing" ? (
+                      <span className="text-accent/70 italic">compressing…</span>
+                    ) : compressed ? (
+                      <span title={`Compressed from ${origMB} MB`}>
+                        <span className="line-through opacity-40">{origMB}</span>→{uploadMB} MB
+                      </span>
+                    ) : (
+                      `${origMB} MB`
+                    )}
+                  </span>
+                  {item.status === "pending" && !uploading && (
+                    <button
+                      onClick={e => { e.stopPropagation(); removeEntry(item.id); }}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      title="Remove"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {item.status === "uploading" && (
+                  <div className="ml-6 h-1 bg-border rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent rounded-full transition-all duration-200"
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                )}
+                {item.status === "error" && item.error && (
+                  <p className="ml-6 text-[11px] text-red-500">{item.error}</p>
                 )}
               </div>
-              {item.status === "uploading" && (
-                <div className="ml-6 h-1 bg-border rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-accent rounded-full transition-all duration-200"
-                    style={{ width: `${item.progress}%` }}
-                  />
-                </div>
-              )}
-              {item.status === "error" && item.error && (
-                <p className="ml-6 text-[11px] text-red-500">{item.error}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
