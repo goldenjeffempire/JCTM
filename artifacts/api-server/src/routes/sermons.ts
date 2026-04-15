@@ -70,6 +70,7 @@ router.get("/sermons", async (req, res): Promise<void> => {
 // ──────────────────────────────────────────────────────
 router.get("/sermons/shorts", async (_req, res): Promise<void> => {
   const MAX_SECONDS = 30 * 60; // 30 minutes
+  const RECENT_ENRICH_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   // Pull a large pool ordered newest-first
   const pool = await db
@@ -78,14 +79,27 @@ router.get("/sermons/shorts", async (_req, res): Promise<void> => {
     .orderBy(desc(sermonsTable.publishedAt))
     .limit(200);
 
-  // Filter to those with duration metadata within the 30-min cap
+  // Filter criteria:
+  //   1. Videos with a known duration within the 30-min cap, OR
+  //   2. Videos with no duration yet published within the last 24 h —
+  //      these are brand-new uploads that RSS sync just inserted and whose
+  //      metadata is being enriched in the background. Including them here
+  //      means they appear in Moments immediately (within the 5-min RSS cycle)
+  //      rather than waiting up to 30 min for the full API sync.
   let shorts = pool.filter(s => {
-    if (!s.duration) return false;
-    const secs = iso8601ToSeconds(s.duration);
-    return secs > 0 && secs <= MAX_SECONDS;
+    if (s.duration) {
+      const secs = iso8601ToSeconds(s.duration);
+      return secs > 0 && secs <= MAX_SECONDS;
+    }
+    // No duration yet — include if published recently (likely still being enriched)
+    if (s.publishedAt) {
+      const ageMs = Date.now() - new Date(s.publishedAt).getTime();
+      return ageMs <= RECENT_ENRICH_WINDOW_MS;
+    }
+    return false;
   });
 
-  // Fallback: channel may not have duration populated yet — show latest 50
+  // Fallback: no videos have any duration or recent publish date — show latest 50
   if (shorts.length === 0) {
     shorts = pool.slice(0, 50);
   }

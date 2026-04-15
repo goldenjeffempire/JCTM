@@ -365,6 +365,54 @@ export async function syncSingleVideo(apiKey: string, videoId: string, log?: Log
 }
 
 /**
+ * Enrich a specific list of video IDs with full YouTube API metadata
+ * (duration, view count, live status, high-quality thumbnail).
+ *
+ * Used to immediately fill in metadata for videos inserted by RSS sync
+ * so they appear in the Moments feed without waiting for the 30-min cron.
+ * Returns the count of rows actually updated.
+ */
+export async function enrichVideoIds(
+  apiKey: string,
+  videoIds: string[],
+  log?: Logger,
+): Promise<number> {
+  if (videoIds.length === 0) return 0;
+
+  const details = await fetchVideoDetails(apiKey, videoIds);
+  let enriched = 0;
+
+  for (const detail of details) {
+    const durationSecs = iso8601ToSeconds(detail.contentDetails.duration);
+
+    // Exclude Shorts (≤ 60 s) — consistent with the rest of the sync pipeline
+    if (durationSecs > 0 && durationSecs <= 60) {
+      log?.info({ videoId: detail.id }, "Skipping Short video during RSS enrichment");
+      continue;
+    }
+
+    // Only patch the fields that RSS didn't populate — leave title/thumbnail/isFeatured as-is
+    const liveFromApi = detail.snippet?.liveBroadcastContent === "live";
+
+    await db
+      .update(sermonsTable)
+      .set({
+        duration: detail.contentDetails.duration,
+        viewCount: detail.statistics?.viewCount
+          ? parseInt(detail.statistics.viewCount)
+          : null,
+        isLive: sql`sermon_data.is_live OR ${liveFromApi}`,
+      })
+      .where(eq(sermonsTable.videoId, detail.id));
+
+    enriched++;
+  }
+
+  log?.info({ enriched, requested: videoIds.length }, "RSS video enrichment complete");
+  return enriched;
+}
+
+/**
  * Subscribe to YouTube PubSubHubbub (WebSub) for push notifications.
  * Call once on server startup.
  */

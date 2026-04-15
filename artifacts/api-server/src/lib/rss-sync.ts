@@ -43,9 +43,10 @@ export interface RSSEntry {
 }
 
 export interface RSSSyncResult {
-  inserted: number;
-  updated:  number;
-  total:    number;
+  inserted:         number;
+  updated:          number;
+  total:            number;
+  insertedVideoIds: string[];
 }
 
 // ─── XML Parser ───────────────────────────────────────────────────────────────
@@ -169,11 +170,12 @@ export async function syncFromRSS(log?: Logger): Promise<RSSSyncResult> {
 
   if (entries.length === 0) {
     log?.warn("RSS feed returned no entries — skipping upsert");
-    return { inserted: 0, updated: 0, total: 0 };
+    return { inserted: 0, updated: 0, total: 0, insertedVideoIds: [] };
   }
 
   let inserted = 0;
   let updated  = 0;
+  const insertedVideoIds: string[] = [];
 
   for (const entry of entries) {
     const { isFeatured, isLive } = classifyTitle(entry.title);
@@ -210,6 +212,7 @@ export async function syncFromRSS(log?: Logger): Promise<RSSSyncResult> {
       const ageMs = Date.now() - new Date(row.createdAt).getTime();
       if (ageMs < 5_000) {
         inserted++;
+        insertedVideoIds.push(entry.videoId);
       } else {
         updated++;
       }
@@ -217,5 +220,5 @@ export async function syncFromRSS(log?: Logger): Promise<RSSSyncResult> {
   }
 
   log?.info({ inserted, updated, total: entries.length }, "RSS sync complete");
-  return { inserted, updated, total: entries.length };
+  return { inserted, updated, total: entries.length, insertedVideoIds };
 }

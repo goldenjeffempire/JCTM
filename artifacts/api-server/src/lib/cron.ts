@@ -1,4 +1,4 @@
-import { syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub } from "./youtube-sync.js";
+import { syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
 import { syncFromRSS, RSS_INTERVAL_MS } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
@@ -129,7 +129,7 @@ async function runApiSync(apiKey: string, log: Logger): Promise<void> {
 
 // ─── RSS sync ─────────────────────────────────────────────────────────────────
 
-async function runRSSSync(log: Logger): Promise<void> {
+async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
   try {
     const result = await syncFromRSS(log);
     lastRSSSync = new Date();
@@ -139,6 +139,42 @@ async function runRSSSync(log: Logger): Promise<void> {
         type: "sync_complete",
         data: { synced: result.inserted, source: "rss" },
       });
+
+      // If we have a YouTube API key, immediately enrich the newly-inserted videos
+      // with full metadata (duration, view count) so they appear in the Moments
+      // feed right away — without waiting for the next 30-minute API sync cycle.
+      if (apiKey && result.insertedVideoIds.length > 0 &&
+          (quotaPausedUntil === null || Date.now() >= quotaPausedUntil)) {
+        log.info(
+          { videoIds: result.insertedVideoIds },
+          "RSS found new videos — enriching immediately via YouTube API",
+        );
+        // Small delay to let the upsert fully settle in the DB
+        setTimeout(async () => {
+          try {
+            const enriched = await enrichVideoIds(apiKey, result.insertedVideoIds, log);
+            if (enriched > 0) {
+              // Broadcast again so Moments clients get the up-to-date duration data
+              sseBroadcaster.broadcast({
+                type: "sync_complete",
+                data: { synced: enriched, source: "rss_enrichment" },
+              });
+              log.info({ enriched }, "Immediate RSS enrichment broadcast sent");
+            }
+          } catch (err) {
+            if (err instanceof QuotaExceededError) {
+              const pauseMs = msUntilUtcMidnight();
+              quotaPausedUntil = Date.now() + pauseMs;
+              log.warn(
+                { resumesInHours: Math.round(pauseMs / 3600000) },
+                "YouTube API quota exceeded during RSS enrichment — pausing until UTC midnight",
+              );
+            } else {
+              log.warn({ err }, "Immediate RSS enrichment failed (non-fatal) — will retry at next API sync");
+            }
+          }
+        }, 4_000);
+      }
     }
   } catch (err) {
     log.warn({ err }, "RSS sync failed (non-fatal)");
@@ -203,8 +239,8 @@ export function startCron(log: Logger, websubUrl?: string): void {
 
   // ── RSS sync — always active, runs every 5 minutes ──────────────────────
   log.info({ intervalMs: RSS_INTERVAL_MS }, "Starting YouTube RSS sync (5-min, quota-free)");
-  runRSSSync(log);
-  rssCronHandle = setInterval(() => runRSSSync(log), RSS_INTERVAL_MS);
+  runRSSSync(log, apiKey);
+  rssCronHandle = setInterval(() => runRSSSync(log, apiKey), RSS_INTERVAL_MS);
   rssCronHandle.unref();
 
   // ── API sync — requires YOUTUBE_API_KEY ──────────────────────────────────

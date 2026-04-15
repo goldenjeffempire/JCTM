@@ -627,17 +627,61 @@ export default function Moments() {
     loadMoments();
   }, [loadMoments]);
 
-  // SSE — auto-refresh banner when new shorts are uploaded
+  // SSE — live updates from the server with exponential-backoff reconnection
   useEffect(() => {
-    const es = new EventSource(`${BASE}/api/sermons/stream`);
-    es.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data) as { type?: string };
-        if (msg.type === "new_sermon" || msg.type === "sync_complete") setNewVideoAlert(true);
-      } catch {}
+    let es: EventSource | null = null;
+    let retryDelay = 2_000;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    function connect() {
+      if (closed) return;
+      es = new EventSource(`${BASE}/api/sermons/stream`);
+
+      es.onopen = () => { retryDelay = 2_000; }; // reset backoff on successful connect
+
+      es.onmessage = (e) => {
+        retryDelay = 2_000;
+        try {
+          const msg = JSON.parse(e.data) as { type?: string };
+          if (msg.type === "new_sermon" || msg.type === "sync_complete") {
+            setNewVideoAlert(true);
+          }
+        } catch {}
+      };
+
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        if (closed) return;
+        retryDelay = Math.min(retryDelay * 2, 60_000); // cap at 60 s
+        retryTimer = setTimeout(connect, retryDelay);
+      };
+    }
+
+    connect();
+    return () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      es?.close();
     };
-    es.onerror = () => {};
-    return () => es.close();
+  }, []);
+
+  // Polling fallback — check for new content every 30 minutes in case SSE is unavailable
+  const momentsRef = useRef<MomentItem[]>([]);
+  useEffect(() => { momentsRef.current = moments; }, [moments]);
+
+  useEffect(() => {
+    const handle = setInterval(async () => {
+      try {
+        const data = await fetchShorts();
+        const existing = new Set(momentsRef.current.map(m => m.videoId));
+        if (data.some(v => !existing.has(v.videoId))) {
+          setNewVideoAlert(true);
+        }
+      } catch {}
+    }, 30 * 60 * 1_000);
+    return () => clearInterval(handle);
   }, []);
 
   // IntersectionObserver — track active card as user scrolls
