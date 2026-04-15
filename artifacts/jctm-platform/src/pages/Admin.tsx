@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -210,24 +210,156 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
 
 // ─── Broadcast ────────────────────────────────────────────────────────────────
 
+interface VideoValidation {
+  valid: boolean;
+  isLive: boolean;
+  isUpcoming: boolean;
+  title: string | null;
+  thumbnailUrl: string | null;
+  scheduledStartTime: string | null;
+}
+
+interface LatestUpload {
+  videoId: string;
+  title: string;
+  thumbnailUrl: string | null;
+  publishedAt: string | null;
+  viewCount: number;
+}
+
 function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof useLivestreamStatus>; auth: ReturnType<typeof useAdminAuth> }) {
   const qc = useQueryClient();
   const [videoId, setVideoId] = useState("");
-  const [busy, setBusy] = useState<"live" | "stop" | "rebroadcast" | null>(null);
+  const [validation, setValidation] = useState<VideoValidation | null>(null);
+  const [validating, setValidating] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [showUploads, setShowUploads] = useState(false);
+  const validateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
 
-  const action = async (type: "live" | "stop" | "rebroadcast") => {
-    setBusy(type);
+  const isOverrideActive = liveStatus.manualOverride.live || liveStatus.manualOverride.rebroadcast;
+
+  // Debounced validation on video ID input
+  const handleVideoIdChange = (val: string) => {
+    setVideoId(val);
+    setValidation(null);
+    if (validateTimerRef.current) clearTimeout(validateTimerRef.current);
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    validateTimerRef.current = setTimeout(() => { validateVideo(trimmed); }, 600);
+  };
+
+  const validateVideo = async (id: string) => {
+    setValidating(true);
     try {
-      let url = `${BASE}/api/livestream/status`;
-      let body: object = type === "live" ? { isLive: true, videoId: videoId.trim() } : type === "stop" ? { isLive: false } : {};
-      if (type === "rebroadcast") url = `${BASE}/api/livestream/rebroadcast`;
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...authHeader }, body: JSON.stringify(body) });
-      if (!res.ok) { if (res.status === 401) auth.logout(); const d = await res.json().catch(() => ({})); toast.error(d?.error ?? "Action failed"); return; }
-      toast.success(type === "live" ? "Stream set to LIVE" : type === "stop" ? "Stream stopped" : "Rebroadcast activated");
+      const res = await fetch(`${BASE}/api/livestream/validate-video?videoId=${encodeURIComponent(id)}`, {
+        headers: authHeader,
+      });
+      if (res.ok) {
+        const data = await res.json() as VideoValidation;
+        setValidation(data);
+      } else {
+        setValidation(null);
+      }
+    } catch {
+      setValidation(null);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const goLive = async () => {
+    const id = videoId.trim();
+    if (!id) return;
+    if (validation && !validation.isLive) {
+      toast.error("This video is not currently live. Use 'Set as Rebroadcast' instead.");
+      return;
+    }
+    setBusy("live");
+    try {
+      const res = await fetch(`${BASE}/api/livestream/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({
+          isLive: true,
+          videoId: id,
+          title: validation?.title ?? null,
+        }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) auth.logout();
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        toast.error(d.error ?? "Failed to go live");
+        return;
+      }
+      toast.success("🔴 Stream is now LIVE");
       qc.invalidateQueries({ queryKey: ["livestream-status"] });
-      if (type === "live") setVideoId("");
+    } finally { setBusy(null); }
+  };
+
+  const stopLive = async () => {
+    setBusy("stopLive");
+    try {
+      const res = await fetch(`${BASE}/api/livestream/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ isLive: false }),
+      });
+      if (!res.ok) { if (res.status === 401) auth.logout(); toast.error("Failed to stop stream"); return; }
+      toast.success("Stream stopped");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+    } finally { setBusy(null); }
+  };
+
+  const setRebroadcast = async (vid?: string, title?: string, thumbnailUrl?: string) => {
+    const id = vid ?? videoId.trim();
+    setBusy("rebroadcast");
+    try {
+      const res = await fetch(`${BASE}/api/livestream/rebroadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({
+          videoId: id || undefined,
+          title: title ?? (validation?.title ?? undefined),
+          thumbnailUrl: thumbnailUrl ?? (validation?.thumbnailUrl ?? undefined),
+        }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) auth.logout();
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        toast.error(d.error ?? "Failed to set rebroadcast");
+        return;
+      }
+      toast.success("📺 Rebroadcast activated");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+      setShowUploads(false);
+    } finally { setBusy(null); }
+  };
+
+  const stopRebroadcast = async () => {
+    setBusy("stopRebroadcast");
+    try {
+      const res = await fetch(`${BASE}/api/livestream/rebroadcast`, {
+        method: "DELETE",
+        headers: authHeader,
+      });
+      if (!res.ok) { if (res.status === 401) auth.logout(); toast.error("Failed to stop rebroadcast"); return; }
+      toast.success("Rebroadcast stopped");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+    } finally { setBusy(null); }
+  };
+
+  const clearOverride = async () => {
+    setBusy("clearOverride");
+    try {
+      const res = await fetch(`${BASE}/api/livestream/override`, {
+        method: "DELETE",
+        headers: authHeader,
+      });
+      if (!res.ok) { if (res.status === 401) auth.logout(); toast.error("Failed to clear override"); return; }
+      toast.success("Automation resumed — polling YouTube for current status");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
     } finally { setBusy(null); }
   };
 
@@ -237,51 +369,308 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: uploadsData, isLoading: uploadsLoading } = useQuery<{ videos: LatestUpload[] }>({
+    queryKey: ["latest-uploads"],
+    queryFn: () => fetch(`${BASE}/api/livestream/latest-uploads`, { headers: authHeader }).then(r => r.json()),
+    enabled: showUploads && !!auth.adminToken,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const currentStatus = liveStatus.isLive ? "live" : liveStatus.rebroadcast.available ? "rebroadcast" : "off";
+
   return (
     <div className="space-y-5">
-      <SectionHeader title="Broadcast Control" description="Manually manage the live stream and rebroadcast queue" />
+      <SectionHeader title="Broadcast Control" description="Hybrid manual + automated live stream and rebroadcast management" />
+
+      {/* Current Status Banner */}
+      <div className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${
+        currentStatus === "live" ? "border-red-500/30 bg-red-500/5"
+        : currentStatus === "rebroadcast" ? "border-amber-500/30 bg-amber-500/5"
+        : "border-border bg-card"
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+            currentStatus === "live" ? "bg-red-500/20" : currentStatus === "rebroadcast" ? "bg-amber-500/20" : "bg-muted"
+          }`}>
+            {currentStatus === "live" ? <Radio className="w-5 h-5 text-red-500 animate-pulse" />
+              : currentStatus === "rebroadcast" ? <Tv2 className="w-5 h-5 text-amber-500" />
+              : <Power className="w-5 h-5 text-muted-foreground" />}
+          </div>
+          <div>
+            <p className={`font-bold text-sm ${
+              currentStatus === "live" ? "text-red-500" : currentStatus === "rebroadcast" ? "text-amber-500" : "text-muted-foreground"
+            }`}>
+              {currentStatus === "live" ? "🔴 LIVE NOW" : currentStatus === "rebroadcast" ? "📺 REBROADCAST" : "⚫ OFF AIR"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+              {liveStatus.title ?? (currentStatus === "off" ? "No active broadcast" : "—")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <StatusPill
+            label={currentStatus === "live" ? "Live" : currentStatus === "rebroadcast" ? "Rebroadcast" : "Off Air"}
+            status={currentStatus === "live" ? "live" : currentStatus === "rebroadcast" ? "rebroadcast" : "off"}
+          />
+          {isOverrideActive && (
+            <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 uppercase tracking-wide">
+              Manual
+            </span>
+          )}
+        </div>
+      </div>
 
       <AdminLoginGate role="livestream" auth={auth} title="Livestream Controls">
-        <div className="space-y-5">
+        <div className="space-y-4">
+          {/* Manual Override Warning */}
+          <AnimatePresence>
+            {isOverrideActive && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-2 text-sm text-violet-400">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span><strong>Manual override active</strong> — automation is paused</span>
+                </div>
+                <button
+                  onClick={clearOverride}
+                  disabled={busy === "clearOverride"}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 transition-colors shrink-0"
+                >
+                  {busy === "clearOverride" ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                  Resume Automation
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Video ID Input + Validator */}
           <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Power className="w-4 h-4 text-red-500" /> Manual Controls</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <Settings className="w-4 h-4 text-primary" /> YouTube Video ID
+              </h3>
               <AdminBadge role="livestream" auth={auth} />
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground font-medium block mb-1.5">YouTube Video ID</label>
-                <input value={videoId} onChange={e => setVideoId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+              <div className="flex gap-2">
+                <input
+                  value={videoId}
+                  onChange={e => handleVideoIdChange(e.target.value)}
+                  placeholder="Paste video ID (e.g. dQw4w9WgXcQ)"
+                  className="flex-1 px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono"
+                />
+                <button
+                  onClick={() => videoId.trim() && validateVideo(videoId.trim())}
+                  disabled={!videoId.trim() || validating}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-semibold hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                >
+                  {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                  Validate
+                </button>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => action("live")} disabled={!!busy || !videoId.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors">
-                  {busy === "live" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />} Go Live
-                </button>
-                <button onClick={() => action("rebroadcast")} disabled={!!busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors">
-                  {busy === "rebroadcast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat2 className="h-3.5 w-3.5" />} Rebroadcast
-                </button>
-                {liveStatus.isLive && (
-                  <button onClick={() => action("stop")} disabled={!!busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors">
-                    {busy === "stop" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />} Stop Stream
-                  </button>
+              {/* Validation Result */}
+              <AnimatePresence mode="wait">
+                {validating && (
+                  <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="flex items-center gap-2 text-xs text-muted-foreground p-3 rounded-xl bg-muted/40">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking YouTube…
+                  </motion.div>
                 )}
-              </div>
+                {!validating && validation && (
+                  <motion.div key="result" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className={`rounded-xl border p-3 flex items-center gap-3 ${
+                      !validation.valid ? "border-red-500/30 bg-red-500/5"
+                      : validation.isLive ? "border-red-500/30 bg-red-500/5"
+                      : validation.isUpcoming ? "border-blue-500/30 bg-blue-500/5"
+                      : "border-emerald-500/30 bg-emerald-500/5"
+                    }`}>
+                    {validation.valid && validation.thumbnailUrl && (
+                      <img src={validation.thumbnailUrl} alt="" className="w-16 h-10 rounded-lg object-cover shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      {!validation.valid ? (
+                        <p className="text-sm font-semibold text-red-400 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5" /> Video not found
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium truncate">{validation.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {validation.isLive && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> LIVE
+                              </span>
+                            )}
+                            {validation.isUpcoming && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                <Clock className="w-3 h-3" /> UPCOMING
+                              </span>
+                            )}
+                            {!validation.isLive && !validation.isUpcoming && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle className="w-3 h-3" /> VIDEO (not live)
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </Card>
 
-              <p className="text-xs text-muted-foreground">
-                Status: <span className={`font-semibold ${liveStatus.isLive ? "text-red-500" : liveStatus.rebroadcast.available ? "text-amber-500" : "text-muted-foreground"}`}>
-                  {liveStatus.isLive ? "LIVE" : liveStatus.rebroadcast.available ? "REBROADCAST" : "OFF AIR"}
-                </span>
-              </p>
+          {/* Live Stream Controls */}
+          <Card>
+            <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+              <Radio className="w-4 h-4 text-red-500" /> Live Stream
+            </h3>
+
+            {validation && !validation.isLive && validation.valid && videoId.trim() && (
+              <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-400">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>This video is not currently live. You can still force it as live, or use it for rebroadcast below.</span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={goLive}
+                disabled={!!busy || !videoId.trim() || (!!validation && !validation.valid)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
+                  validation?.isLive
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-red-500/70 text-white hover:bg-red-500"
+                }`}
+              >
+                {busy === "live" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                {validation?.isLive ? "Go Live ✓" : "Force Live"}
+              </button>
+
+              {liveStatus.isLive && (
+                <button
+                  onClick={stopLive}
+                  disabled={!!busy}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors"
+                >
+                  {busy === "stopLive" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                  Stop Stream
+                </button>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+              "Go Live ✓" requires a validated live video. "Force Live" overrides validation — use when YouTube API quota is exhausted.
+            </p>
+          </Card>
+
+          {/* Rebroadcast Controls */}
+          <Card>
+            <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+              <Tv2 className="w-4 h-4 text-amber-500" /> Rebroadcast
+            </h3>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                onClick={() => setRebroadcast(videoId.trim() || undefined)}
+                disabled={!!busy}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
+              >
+                {busy === "rebroadcast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat2 className="h-3.5 w-3.5" />}
+                {videoId.trim() ? "Set This Video" : "Auto-Select Latest"}
+              </button>
+
+              <button
+                onClick={() => setRebroadcast(undefined)}
+                disabled={!!busy}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-primary/20 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 disabled:opacity-50 transition-colors"
+              >
+                {busy === "rebroadcast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                AI Auto-Pick
+              </button>
+
+              {liveStatus.rebroadcast.available && (
+                <button
+                  onClick={stopRebroadcast}
+                  disabled={!!busy}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors"
+                >
+                  {busy === "stopRebroadcast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                  Stop Rebroadcast
+                </button>
+              )}
+            </div>
+
+            {/* Latest Uploads Picker */}
+            <div className="border-t border-border pt-3 mt-1">
+              <button
+                onClick={() => setShowUploads(v => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                <PlayCircle className="w-3.5 h-3.5" />
+                {showUploads ? "Hide" : "Browse"} latest uploads from library
+                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showUploads ? "rotate-90" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {showUploads && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                      {uploadsLoading ? (
+                        Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 rounded-xl bg-muted animate-pulse" />)
+                      ) : uploadsData?.videos.length ? (
+                        uploadsData.videos.map(v => (
+                          <button
+                            key={v.videoId}
+                            onClick={() => setRebroadcast(v.videoId, v.title, v.thumbnailUrl ?? undefined)}
+                            disabled={!!busy}
+                            className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-border hover:border-amber-500/40 hover:bg-amber-500/5 text-left transition-colors disabled:opacity-50 group"
+                          >
+                            {v.thumbnailUrl ? (
+                              <img src={v.thumbnailUrl} alt="" className="w-12 h-8 rounded-lg object-cover shrink-0" />
+                            ) : (
+                              <div className="w-12 h-8 rounded-lg bg-muted shrink-0 flex items-center justify-center">
+                                <PlayCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate group-hover:text-amber-500 transition-colors">{v.title}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {(v.viewCount ?? 0).toLocaleString()} views
+                                {v.publishedAt ? ` · ${rel(v.publishedAt)}` : ""}
+                              </p>
+                            </div>
+                            <Repeat2 className="w-3.5 h-3.5 text-muted-foreground group-hover:text-amber-500 shrink-0 transition-colors" />
+                          </button>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No videos in library yet</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </Card>
         </div>
       </AdminLoginGate>
 
+      {/* AI Rebroadcast Queue */}
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-sm flex items-center gap-2"><Tv2 className="w-4 h-4 text-primary" /> AI Rebroadcast Queue</h3>
+          <h3 className="font-semibold text-sm flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-400" /> AI Rebroadcast Queue</h3>
           <button onClick={() => refetchQueue()} disabled={queueLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors disabled:opacity-50">
             <RefreshCw className={`w-3 h-3 ${queueLoading ? "animate-spin" : ""}`} /> Refresh
           </button>
@@ -308,7 +697,19 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
                     <span className="text-xs text-muted-foreground">Score: {item.score}</span>
                   </div>
                 </div>
-                <a href={`https://youtube.com/watch?v=${item.videoId}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground shrink-0"><ChevronRight className="w-4 h-4" /></a>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setRebroadcast(item.videoId, item.title, item.thumbnailUrl ?? undefined)}
+                    disabled={!!busy}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                    title="Set as Rebroadcast"
+                  >
+                    <Repeat2 className="w-3.5 h-3.5" />
+                  </button>
+                  <a href={`https://youtube.com/watch?v=${item.videoId}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors">
+                    <ChevronRight className="w-4 h-4" />
+                  </a>
+                </div>
               </div>
             ))}
           </div>

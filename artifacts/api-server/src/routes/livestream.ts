@@ -46,6 +46,18 @@ let livestreamState: LivestreamState = {
   scheduledStartTime: null,
 };
 
+// ─── Manual Override State ────────────────────────────────────────────────────
+//
+// When the admin manually controls the broadcast, automation is suspended so
+// automated polling cannot silently undo their decision.  Both flags are
+// independently cleared:
+//   • manualOverrideLive       → cleared when admin stops the live stream
+//   • manualOverrideRebroadcast → cleared when admin stops the rebroadcast
+//   • DELETE /api/livestream/override clears both at once
+
+let manualOverrideLive = false;
+let manualOverrideRebroadcast = false;
+
 // ─── Rebroadcast Lifecycle State ──────────────────────────────────────────────
 //
 // Tracks the 3-day post-service rebroadcast window.
@@ -134,7 +146,7 @@ function sseWrite(res: Response, payload: string): void {
   (res as unknown as { flush?: () => void }).flush?.();
 }
 
-/** Build the full status payload including rebroadcast lifecycle. */
+/** Build the full status payload including rebroadcast lifecycle and manual override flags. */
 function buildStatusPayload(): string {
   checkRebroadcastExpiry();
   const rb = isRebroadcastActive(rebroadcastLifecycle) ? rebroadcastLifecycle : {
@@ -145,7 +157,12 @@ function buildStatusPayload(): string {
     startedAt: null,
     expiresAt: null,
   };
-  return JSON.stringify({ type: "status", ...livestreamState, rebroadcast: rb });
+  return JSON.stringify({
+    type: "status",
+    ...livestreamState,
+    rebroadcast: rb,
+    manualOverride: { live: manualOverrideLive, rebroadcast: manualOverrideRebroadcast },
+  });
 }
 
 /** Push the current livestream + rebroadcast state to all connected SSE clients. */
@@ -320,6 +337,10 @@ function isSundayServiceWindow(): boolean {
 
 async function pollAndBroadcast(): Promise<void> {
   if (!process.env.YOUTUBE_API_KEY) return;
+
+  // If admin has manually overridden any state, automation stands down.
+  // The admin is in full control until they explicitly clear the override.
+  if (manualOverrideLive || manualOverrideRebroadcast) return;
 
   // Expire rebroadcast if window has closed
   checkRebroadcastExpiry();
@@ -547,18 +568,37 @@ router.post("/livestream/status", requireAdminRole("livestream"), async (req, re
   const now = new Date();
   const manualTimestamp = `${now.toISOString()}_manual`;
 
-  const videoIdMatch = streamUrl?.match(/[?&]v=([^&]+)/);
-  const extractedVideoId = videoIdMatch ? (videoIdMatch[1] ?? null) : null;
+  // Accept videoId from body directly (preferred) or extract from streamUrl
+  const directVideoId = typeof req.body.videoId === "string" && req.body.videoId.trim()
+    ? req.body.videoId.trim()
+    : null;
+  const videoIdMatch = streamUrl?.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+  const extractedVideoId = directVideoId ?? (videoIdMatch ? (videoIdMatch[1] ?? null) : null);
 
   livestreamState = {
     isLive,
     isUpcoming: false,
     title: title ?? null,
-    streamUrl: streamUrl ?? null,
+    streamUrl: streamUrl ?? (extractedVideoId ? `https://www.youtube.com/watch?v=${extractedVideoId}` : null),
     videoId: extractedVideoId,
     startedAt: isLive ? (livestreamState.isLive ? livestreamState.startedAt : manualTimestamp) : null,
     scheduledStartTime: null,
   };
+
+  // Track manual override so automation doesn't undo the admin's decision.
+  // Going live → lock automation out. Stopping live → release the lock so
+  // automation can resume normal detection.
+  if (isLive) {
+    manualOverrideLive = true;
+    manualOverrideRebroadcast = false; // Live takes precedence over rebroadcast
+    // Clear any active rebroadcast when going live
+    rebroadcastLifecycle = {
+      available: false, videoId: null, title: null,
+      thumbnailUrl: null, startedAt: null, expiresAt: null,
+    };
+  } else {
+    manualOverrideLive = false; // Release — automation may resume
+  }
 
   youtubeCheckCache = null;
 
@@ -623,6 +663,10 @@ router.post("/livestream/rebroadcast", requireAdminRole("livestream"), async (re
       startedAt: null,
     };
   }
+
+  // Mark this as an admin-controlled rebroadcast so automation doesn't override it
+  manualOverrideRebroadcast = true;
+  manualOverrideLive = false; // Rebroadcast and live are mutually exclusive
 
   // Push to every connected SSE client immediately
   broadcastStatus(livestreamState);
@@ -728,6 +772,123 @@ router.get("/livestream/rebroadcast", async (_req, res): Promise<void> => {
       broadcastEndedAt: null,
       expiresAt: null,
     }));
+  }
+});
+
+// ─── DELETE /api/livestream/rebroadcast — stop active rebroadcast ─────────────
+
+router.delete("/livestream/rebroadcast", requireAdminRole("livestream"), (_req, res): void => {
+  rebroadcastLifecycle = {
+    available: false,
+    videoId: null,
+    title: null,
+    thumbnailUrl: null,
+    startedAt: null,
+    expiresAt: null,
+  };
+  manualOverrideRebroadcast = false; // Release — automation may resume
+  broadcastStatus(livestreamState);
+  res.json({ success: true, message: "Rebroadcast stopped" });
+});
+
+// ─── DELETE /api/livestream/override — clear all manual overrides ─────────────
+//
+// Clears both live and rebroadcast manual overrides so the automated polling
+// loop resumes full control.  The next poll cycle (within 30 s or 5 s on Sunday)
+// will detect the real YouTube state and update all clients.
+
+router.delete("/livestream/override", requireAdminRole("livestream"), (_req, res): void => {
+  manualOverrideLive = false;
+  manualOverrideRebroadcast = false;
+  youtubeCheckCache = null; // Bust cache so next poll reads fresh data
+  broadcastStatus(livestreamState);
+  res.json({ success: true, message: "Manual overrides cleared — automation resumed" });
+});
+
+// ─── GET /api/livestream/validate-video — validate a YouTube video ID ─────────
+//
+// Admin-only.  Calls the YouTube Data API to check whether a specific video
+// exists and whether it is currently live, upcoming, or a standard upload.
+// Used by the admin UI to confirm a video ID before activating live / rebroadcast.
+
+router.get("/livestream/validate-video", requireAdminRole("livestream"), async (req: Request, res: Response): Promise<void> => {
+  const videoId = typeof req.query.videoId === "string" ? req.query.videoId.trim() : "";
+  if (!videoId) {
+    res.status(400).json({ error: "videoId query param is required" });
+    return;
+  }
+
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: "YouTube API key not configured" });
+    return;
+  }
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${encodeURIComponent(videoId)}&key=${apiKey}`;
+    const ytRes = await fetchWithRetry(url);
+
+    if (!ytRes.ok) {
+      res.status(502).json({ error: "YouTube API request failed" });
+      return;
+    }
+
+    const data = await ytRes.json() as {
+      items?: {
+        snippet?: {
+          title?: string;
+          liveBroadcastContent?: string;
+          thumbnails?: { high?: { url?: string }; default?: { url?: string } };
+          channelId?: string;
+        };
+        liveStreamingDetails?: { scheduledStartTime?: string };
+      }[];
+    };
+
+    const item = data.items?.[0];
+    if (!item) {
+      res.json({ valid: false, isLive: false, isUpcoming: false, title: null, thumbnailUrl: null, scheduledStartTime: null });
+      return;
+    }
+
+    const liveBroadcastContent = item.snippet?.liveBroadcastContent ?? "none";
+    res.json({
+      valid: true,
+      isLive: liveBroadcastContent === "live",
+      isUpcoming: liveBroadcastContent === "upcoming",
+      title: item.snippet?.title ?? null,
+      thumbnailUrl: item.snippet?.thumbnails?.high?.url ?? item.snippet?.thumbnails?.default?.url ?? null,
+      scheduledStartTime: item.liveStreamingDetails?.scheduledStartTime ?? null,
+    });
+  } catch {
+    res.status(502).json({ error: "Failed to reach YouTube API" });
+  }
+});
+
+// ─── GET /api/livestream/latest-uploads — latest videos from DB ───────────────
+//
+// Admin-only.  Returns the most recent videos from the sermon library so the
+// admin can quickly pick one for manual rebroadcast without entering an ID.
+
+router.get("/livestream/latest-uploads", requireAdminRole("livestream"), async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await db
+      .select()
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.publishedAt))
+      .limit(20);
+
+    res.json({
+      videos: rows.map(r => ({
+        videoId: r.videoId,
+        title: r.title,
+        thumbnailUrl: r.thumbnailUrl ?? `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg`,
+        publishedAt: r.publishedAt?.toISOString() ?? null,
+        viewCount: r.viewCount ?? 0,
+      })),
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch latest uploads" });
   }
 });
 

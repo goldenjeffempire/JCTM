@@ -30,6 +30,11 @@ export interface RebroadcastState {
   expiresAt: string | null;
 }
 
+export interface ManualOverrideState {
+  live: boolean;
+  rebroadcast: boolean;
+}
+
 export interface LivestreamStatus {
   isLive: boolean;
   isUpcoming: boolean;
@@ -39,6 +44,7 @@ export interface LivestreamStatus {
   startedAt: string | null;
   scheduledStartTime: string | null;
   rebroadcast: RebroadcastState;
+  manualOverride: ManualOverrideState;
 }
 
 const DEFAULT_REBROADCAST: RebroadcastState = {
@@ -50,6 +56,8 @@ const DEFAULT_REBROADCAST: RebroadcastState = {
   expiresAt: null,
 };
 
+const DEFAULT_MANUAL_OVERRIDE: ManualOverrideState = { live: false, rebroadcast: false };
+
 const DEFAULT_STATUS: LivestreamStatus = {
   isLive: false,
   isUpcoming: false,
@@ -59,10 +67,12 @@ const DEFAULT_STATUS: LivestreamStatus = {
   startedAt: null,
   scheduledStartTime: null,
   rebroadcast: DEFAULT_REBROADCAST,
+  manualOverride: DEFAULT_MANUAL_OVERRIDE,
 };
 
-type SSEEvent = { type: "status" } & Omit<LivestreamStatus, "rebroadcast"> & {
+type SSEEvent = { type: "status" } & Omit<LivestreamStatus, "rebroadcast" | "manualOverride"> & {
   rebroadcast?: RebroadcastState;
+  manualOverride?: ManualOverrideState;
 };
 
 export function useLivestreamStatus(): LivestreamStatus {
@@ -100,6 +110,7 @@ export function useLivestreamStatus(): LivestreamStatus {
             startedAt:           data.startedAt  ?? null,
             scheduledStartTime:  data.scheduledStartTime ?? null,
             rebroadcast:         data.rebroadcast ?? DEFAULT_REBROADCAST,
+            manualOverride:      data.manualOverride ?? DEFAULT_MANUAL_OVERRIDE,
           });
         }
       } catch {
