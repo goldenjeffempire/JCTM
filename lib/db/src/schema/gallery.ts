@@ -7,6 +7,7 @@ export const galleryImagesTable = pgTable("gallery_images", {
   title: text("title").notNull().default(""),
   description: text("description"),
   objectPath: text("object_path").notNull(),
+  thumbnailPath: text("thumbnail_path"),
   category: text("category").notNull().default("service"),
   serviceDate: text("service_date"),
   altText: text("alt_text"),

@@ -207,6 +207,11 @@ async function runStartupMigrations() {
       )
     `);
 
+    // ── Gallery thumbnail_path column ────────────────────────────────────────
+    await pool.query(`
+      ALTER TABLE gallery_images ADD COLUMN IF NOT EXISTS thumbnail_path text
+    `);
+
     // ── Push Notification Subscriptions ──────────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (

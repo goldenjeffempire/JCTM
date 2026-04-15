@@ -12,6 +12,8 @@ export interface GalleryImage {
   /** @nullable */
   description?: string | null;
   objectPath: string;
+  /** @nullable */
+  thumbnailPath?: string | null;
   category: string;
   /** @nullable */
   serviceDate?: string | null;

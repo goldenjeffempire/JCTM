@@ -18,8 +18,10 @@ import {
   verifyGalleryAdminToken,
   getGalleryAdminTokenFromRequest,
 } from "../lib/adminAuth.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
 
 const DEFAULT_GALLERY_CATEGORIES = [
   "service",
@@ -136,6 +138,22 @@ router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => 
     .returning();
 
   res.status(201).json(serializeImage(image));
+
+  // Fire-and-forget: generate a WebP thumbnail in the background.
+  // This does not block the response — the thumbnail_path is patched once ready.
+  (async () => {
+    try {
+      const thumbnailPath = await objectStorageService.generateAndStoreThumbnail(
+        parsed.data.objectPath,
+      );
+      await db
+        .update(galleryImagesTable)
+        .set({ thumbnailPath })
+        .where(eq(galleryImagesTable.id, image.id));
+    } catch (err) {
+      req.log.warn({ err, imageId: image.id }, "Thumbnail generation failed — original image will be used");
+    }
+  })();
 });
 
 router.patch("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void> => {

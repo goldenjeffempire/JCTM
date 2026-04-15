@@ -1,6 +1,7 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Readable } from "stream";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -173,6 +174,49 @@ export class ObjectStorageService {
 
     const entityId = rawObjectPath.slice(objectEntityDir.length);
     return `/objects/${entityId}`;
+  }
+
+  /**
+   * Downloads an object entity as a raw Buffer.
+   * objectPath must be in /objects/... form (same as getObjectEntityFile).
+   */
+  async downloadObjectAsBuffer(objectPath: string): Promise<Buffer> {
+    const objectFile = await this.getObjectEntityFile(objectPath);
+    const [buffer] = await objectFile.download();
+    return buffer;
+  }
+
+  /**
+   * Generates a WebP thumbnail from the given object entity, uploads it to storage,
+   * and returns the thumbnail's objectPath (/objects/thumbs/<uuid>.webp).
+   *
+   * @param originalObjectPath   e.g. /objects/uploads/<uuid>
+   * @param widthPx              max width in pixels (default 640)
+   * @param qualityPct           WebP quality 1–100 (default 80)
+   */
+  async generateAndStoreThumbnail(
+    originalObjectPath: string,
+    widthPx = 640,
+    qualityPct = 80,
+  ): Promise<string> {
+    const original = await this.downloadObjectAsBuffer(originalObjectPath);
+
+    const thumbnail = await sharp(original)
+      .resize(widthPx, undefined, { withoutEnlargement: true })
+      .webp({ quality: qualityPct })
+      .toBuffer();
+
+    const thumbnailId = randomUUID();
+    const privateObjectDir = this.getPrivateObjectDir();
+    const entityDir = privateObjectDir.endsWith("/") ? privateObjectDir : `${privateObjectDir}/`;
+    const fullPath = `${entityDir}thumbs/${thumbnailId}.webp`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file   = bucket.file(objectName);
+    await file.save(thumbnail, { contentType: "image/webp", resumable: false });
+
+    return `/objects/thumbs/${thumbnailId}.webp`;
   }
 
   async trySetObjectEntityAclPolicy(

@@ -43,6 +43,7 @@ type GalleryImg = {
   title: string;
   description?: string | null;
   objectPath: string;
+  thumbnailPath?: string | null;
   category: string;
   serviceDate?: string | null;
   altText?: string | null;
@@ -51,6 +52,10 @@ type GalleryImg = {
   sortOrder: number;
   createdAt: string;
 };
+
+function thumbnailUrl(image: GalleryImg) {
+  return imageUrl(image.thumbnailPath ?? image.objectPath);
+}
 
 function Lightbox({
   images,
@@ -176,7 +181,7 @@ function GalleryCard({
         </div>
       ) : (
         <img
-          src={imageUrl(image.objectPath)}
+          src={thumbnailUrl(image)}
           alt={image.altText ?? image.title}
           loading="lazy"
           onLoad={() => setLoaded(true)}

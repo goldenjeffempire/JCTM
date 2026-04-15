@@ -1336,6 +1336,8 @@ components:
           type: ["string", "null"]
         objectPath:
           type: string
+        thumbnailPath:
+          type: ["string", "null"]
         category:
           type: string
         serviceDate:

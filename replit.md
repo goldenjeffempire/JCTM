@@ -49,14 +49,16 @@ All routes verified HTTP 200:
 ## Gallery Feature
 
 - **Route**: `/gallery`
-- **Table**: `gallery_images` (PostgreSQL) — id, title, description, object_path, category, service_date, alt_text, is_published, sort_order, created_at
+- **Table**: `gallery_images` (PostgreSQL) — id, title, description, object_path, thumbnail_path, category, service_date, alt_text, is_published, sort_order, created_at
 - **Object Storage**: GCS via Replit App Storage (`@google-cloud/storage`)
 - **Client lib**: `@workspace/object-storage-web` — Uppy v5 ObjectUploader + useUpload hook
 - **API endpoints**: `GET /api/gallery`, `GET /api/gallery/featured`, `GET /api/gallery/categories`, protected `POST /api/gallery`, protected `PATCH /api/gallery/:id`, protected `DELETE /api/gallery/:id`
 - **Upload**: protected `POST /api/storage/uploads/request-url` → presigned GCS URL → direct image upload from browser
+- **Thumbnails**: After `POST /api/gallery`, a background job uses `sharp` to generate a 640px WebP thumbnail (quality 80) and saves it to `/objects/thumbs/<uuid>.webp`. The gallery grid uses the thumbnail; the lightbox serves the full-size original. Falls back gracefully if thumbnail generation fails.
 - **Admin access**: unified role-based system — see Role-Based Admin section below. Gallery role also checks legacy `GALLERY_ADMIN_PASSPHRASE_HASH` for backward compat.
 - **Homepage sync**: New uploads are featured by default and the Home page Ministry in Pictures slideshow pulls `GET /api/gallery/featured`, with bundled images as fallback.
 - **Categories**: Built-in and dynamically created categories are exposed through `GET /api/gallery/categories` and available in the Gallery filter/upload dashboard.
+- **Footer**: Admin link removed from footer; admin dashboard accessible only via direct URL (`/admin`).
 
 ## Role-Based Admin System
 
