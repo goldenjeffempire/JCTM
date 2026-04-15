@@ -721,6 +721,11 @@ paths:
           in: query
           schema:
             type: ["string", "null"]
+        - name: search
+          in: query
+          description: Full-text search across title, description, alt text, and service date
+          schema:
+            type: ["string", "null"]
       responses:
         "200":
           description: List of gallery images

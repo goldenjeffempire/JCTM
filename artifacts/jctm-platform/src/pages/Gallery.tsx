@@ -5,13 +5,22 @@ import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Images, X, ChevronLeft, ChevronRight, Upload, Trash2,
-  ZoomIn, Grid3X3, LayoutGrid, Lock, Calendar, Star,
+  ZoomIn, Grid3X3, LayoutGrid, Lock, Calendar, Star, Search,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ObjectUploader } from "@workspace/object-storage-web";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
+
+function useDebounce<T>(value: T, delayMs = 350): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}
 
 const CATEGORIES = [
   { value: "", label: "All Photos" },
@@ -439,6 +448,8 @@ function UploadPanel({
 
 export default function Gallery() {
   const [category, setCategory] = useState("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [gridCols, setGridCols] = useState<"3" | "4">("4");
   const [showUpload, setShowUpload] = useState(false);
@@ -454,6 +465,7 @@ export default function Gallery() {
     limit: LIMIT,
     offset: page * LIMIT,
     ...(category ? { category } : {}),
+    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
   });
 
   const adminRequest = adminToken ? { headers: authHeaders(adminToken) } : undefined;
@@ -478,6 +490,10 @@ export default function Gallery() {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Remove this image from the gallery?")) return;
@@ -606,6 +622,27 @@ export default function Gallery() {
           )}
         </AnimatePresence>
 
+        {/* Search bar */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search photos by title, description, or date…"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
         {/* Category filter */}
         <div className="flex flex-wrap gap-2 mb-8">
           {[{ value: "", label: "All Photos" }, ...categories.map(value => ({ value, label: categoryLabel(value) }))].map(cat => (
@@ -636,11 +673,15 @@ export default function Gallery() {
             className="flex flex-col items-center justify-center py-28 text-center"
           >
             <Images className="h-16 w-16 text-muted-foreground/30 mb-4" />
-            <p className="text-lg font-semibold text-muted-foreground">No photos yet</p>
+            <p className="text-lg font-semibold text-muted-foreground">
+              {debouncedSearch ? "No results found" : "No photos yet"}
+            </p>
             <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs">
-              {isAdmin
-                ? 'Click \u201cUpload Photos\u201d above to add images to the gallery.'
-                : "Check back soon — new photos will appear here after each service."}
+              {debouncedSearch
+                ? `No photos match "${debouncedSearch}". Try a different search term.`
+                : isAdmin
+                  ? 'Click \u201cUpload Photos\u201d above to add images to the gallery.'
+                  : "Check back soon — new photos will appear here after each service."}
             </p>
           </motion.div>
         ) : (
@@ -672,6 +713,7 @@ export default function Gallery() {
 
             <p className="text-center text-xs text-muted-foreground mt-6">
               Showing {images.length} photo{images.length !== 1 ? "s" : ""}
+              {debouncedSearch ? ` for "${debouncedSearch}"` : ""}
               {category ? ` in "${categoryLabel(category)}"` : ""}
             </p>
           </>

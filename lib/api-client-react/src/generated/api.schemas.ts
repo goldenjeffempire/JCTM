@@ -413,4 +413,9 @@ export type ListGalleryImagesParams = {
    * @nullable
    */
   category?: string | null;
+  /**
+   * Full-text search across title, description, alt text, and service date
+   * @nullable
+   */
+  search?: string | null;
 };

@@ -546,6 +546,12 @@ export const ListGalleryImagesQueryParams = zod.object({
   limit: zod.coerce.number().default(listGalleryImagesQueryLimitDefault),
   offset: zod.coerce.number().default(listGalleryImagesQueryOffsetDefault),
   category: zod.coerce.string().nullish(),
+  search: zod.coerce
+    .string()
+    .nullish()
+    .describe(
+      "Full-text search across title, description, alt text, and service date",
+    ),
 });
 
 export const ListGalleryImagesResponseItem = zod.object({

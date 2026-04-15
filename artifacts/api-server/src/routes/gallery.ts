@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, or, ilike, sql } from "drizzle-orm";
 import { db, galleryImagesTable } from "@workspace/db";
 import {
   ListGalleryImagesQueryParams,
@@ -97,11 +97,24 @@ router.get("/gallery", async (req, res): Promise<void> => {
     return;
   }
 
-  const { limit = 50, offset = 0, category } = parsed.data;
+  const { limit = 50, offset = 0, category, search } = parsed.data;
 
   const conditions = [eq(galleryImagesTable.isPublished, true)];
+
   if (category) {
     conditions.push(eq(galleryImagesTable.category, category));
+  }
+
+  if (search && search.trim()) {
+    const term = `%${search.trim()}%`;
+    conditions.push(
+      or(
+        ilike(galleryImagesTable.title, term),
+        ilike(galleryImagesTable.description, term),
+        ilike(galleryImagesTable.altText, term),
+        ilike(galleryImagesTable.serviceDate, term),
+      )!,
+    );
   }
 
   const images = await db
