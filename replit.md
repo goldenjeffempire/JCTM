@@ -40,11 +40,22 @@ The Vite dev server proxies all `/api/*` requests to `localhost:8080` (configure
 
 ---
 
-## Pages (26 total)
+## Pages (27 total)
 
 All routes verified HTTP 200:
 
-`/` · `/sermons` · `/sermons/:id` · `/devotion` · `/prayer` · `/testimonies` · `/events` · `/give` · `/about` · `/leadership` · `/members` · `/moments` · `/join` · `/crusade` · `/topics` · `/topics/:slug` · `/timeline` · `/scripture-study` · `/sermon-assistant` · `/spiritual-insight` · `/viewing-centres` · `/privacy` · `/terms` · `/blog` · `/blog/:slug` · `/*` (404)
+`/` · `/sermons` · `/sermons/:id` · `/devotion` · `/prayer` · `/testimonies` · `/events` · `/give` · `/about` · `/leadership` · `/members` · `/moments` · `/join` · `/crusade` · `/topics` · `/topics/:slug` · `/timeline` · `/scripture-study` · `/sermon-assistant` · `/spiritual-insight` · `/viewing-centres` · `/privacy` · `/terms` · `/blog` · `/blog/:slug` · `/gallery` · `/*` (404)
+
+## Gallery Feature
+
+- **Route**: `/gallery`
+- **Table**: `gallery_images` (PostgreSQL) — id, title, description, object_path, category, service_date, alt_text, is_published, sort_order, created_at
+- **Object Storage**: GCS via Replit App Storage (`@google-cloud/storage`)
+- **Client lib**: `@workspace/object-storage-web` — Uppy v5 ObjectUploader + useUpload hook
+- **API endpoints**: `GET /api/gallery`, `POST /api/gallery`, `PATCH /api/gallery/:id`, `DELETE /api/gallery/:id`
+- **Upload**: `POST /api/storage/uploads/request-url` → presigned GCS URL → direct upload from browser
+- **Admin access**: passphrase-gated (`jctm-admin-gallery`) — enables bulk upload panel + delete
+- **View Gallery button**: Added to Home.tsx Ministry in Pictures section
 
 ## Recent Enhancements
 

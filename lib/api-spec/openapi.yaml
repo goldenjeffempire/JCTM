@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: storage
+    description: Object storage uploads
+  - name: gallery
+    description: Photo gallery management
   - name: sermons
     description: Sermon management
   - name: testimonies
@@ -606,6 +610,114 @@ paths:
               schema:
                 $ref: "#/components/schemas/LivestreamStatus"
 
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
+  /gallery:
+    get:
+      operationId: listGalleryImages
+      tags: [gallery]
+      summary: List gallery images
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: category
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of gallery images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GalleryImage"
+    post:
+      operationId: createGalleryImage
+      tags: [gallery]
+      summary: Add an image to the gallery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGalleryImageBody"
+      responses:
+        "201":
+          description: Created gallery image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryImage"
+
+  /gallery/{id}:
+    patch:
+      operationId: updateGalleryImage
+      tags: [gallery]
+      summary: Update a gallery image's metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGalleryImageBody"
+      responses:
+        "200":
+          description: Updated gallery image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryImage"
+    delete:
+      operationId: deleteGalleryImage
+      tags: [gallery]
+      summary: Delete a gallery image
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1065,6 +1177,113 @@ components:
       required:
         - isLive
         - isUpcoming
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: ["string", "null"]
+      required:
+        - success
+
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required:
+        - name
+        - size
+        - contentType
+
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+      required:
+        - uploadURL
+        - objectPath
+
+    GalleryImage:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        objectPath:
+          type: string
+        category:
+          type: string
+        serviceDate:
+          type: ["string", "null"]
+        altText:
+          type: ["string", "null"]
+        isPublished:
+          type: boolean
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - objectPath
+        - category
+        - isPublished
+        - sortOrder
+        - createdAt
+
+    CreateGalleryImageBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        objectPath:
+          type: string
+        category:
+          type: string
+        serviceDate:
+          type: ["string", "null"]
+        altText:
+          type: ["string", "null"]
+        isPublished:
+          type: boolean
+        sortOrder:
+          type: integer
+      required:
+        - objectPath
+
+    UpdateGalleryImageBody:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        serviceDate:
+          type: ["string", "null"]
+        altText:
+          type: ["string", "null"]
+        isPublished:
+          type: ["boolean", "null"]
+        sortOrder:
+          type: ["integer", "null"]
 
     UpdateLivestreamBody:
       type: object

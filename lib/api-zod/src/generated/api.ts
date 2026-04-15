@@ -77,6 +77,24 @@ export const GetSermonStatsResponse = zod.object({
 });
 
 /**
+ * @summary Get intro videos (50–70 min long-form sermons)
+ */
+export const GetIntroVideosResponseItem = zod.object({
+  id: zod.number(),
+  videoId: zod.string(),
+  title: zod.string(),
+  thumbnailUrl: zod.string(),
+  description: zod.string().nullish(),
+  publishedAt: zod.string(),
+  viewCount: zod.number().nullish(),
+  duration: zod.string().nullish(),
+  isFeatured: zod.boolean(),
+  isLive: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const GetIntroVideosResponse = zod.array(GetIntroVideosResponseItem);
+
+/**
  * @summary Get a sermon by ID
  */
 export const GetSermonParams = zod.object({
@@ -210,7 +228,6 @@ export const ListEventsResponseItem = zod.object({
   location: zod.string().nullish(),
   eventType: zod.string(),
   imageUrl: zod.string().nullish(),
-  youtubeUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListEventsResponse = zod.array(ListEventsResponseItem);
@@ -240,7 +257,6 @@ export const GetUpcomingEventsResponseItem = zod.object({
   location: zod.string().nullish(),
   eventType: zod.string(),
   imageUrl: zod.string().nullish(),
-  youtubeUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const GetUpcomingEventsResponse = zod.array(
@@ -434,7 +450,108 @@ export const UpdateLivestreamStatusBody = zod.object({
 
 export const UpdateLivestreamStatusResponse = zod.object({
   isLive: zod.boolean(),
+  isUpcoming: zod.boolean(),
   title: zod.string().nullish(),
   streamUrl: zod.string().nullish(),
+  videoId: zod.string().nullish(),
   startedAt: zod.string().nullish(),
+  scheduledStartTime: zod.string().nullish(),
+});
+
+/**
+ * @summary Request a presigned upload URL
+ */
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+});
+
+/**
+ * @summary List gallery images
+ */
+export const listGalleryImagesQueryLimitDefault = 50;
+export const listGalleryImagesQueryOffsetDefault = 0;
+
+export const ListGalleryImagesQueryParams = zod.object({
+  limit: zod.coerce.number().default(listGalleryImagesQueryLimitDefault),
+  offset: zod.coerce.number().default(listGalleryImagesQueryOffsetDefault),
+  category: zod.coerce.string().nullish(),
+});
+
+export const ListGalleryImagesResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  objectPath: zod.string(),
+  category: zod.string(),
+  serviceDate: zod.string().nullish(),
+  altText: zod.string().nullish(),
+  isPublished: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+export const ListGalleryImagesResponse = zod.array(
+  ListGalleryImagesResponseItem,
+);
+
+/**
+ * @summary Add an image to the gallery
+ */
+export const CreateGalleryImageBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  objectPath: zod.string(),
+  category: zod.string().optional(),
+  serviceDate: zod.string().nullish(),
+  altText: zod.string().nullish(),
+  isPublished: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+/**
+ * @summary Update a gallery image's metadata
+ */
+export const UpdateGalleryImageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateGalleryImageBody = zod.object({
+  title: zod.string().nullish(),
+  description: zod.string().nullish(),
+  category: zod.string().nullish(),
+  serviceDate: zod.string().nullish(),
+  altText: zod.string().nullish(),
+  isPublished: zod.boolean().nullish(),
+  sortOrder: zod.number().nullish(),
+});
+
+export const UpdateGalleryImageResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  objectPath: zod.string(),
+  category: zod.string(),
+  serviceDate: zod.string().nullish(),
+  altText: zod.string().nullish(),
+  isPublished: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a gallery image
+ */
+export const DeleteGalleryImageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteGalleryImageResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().nullish(),
 });

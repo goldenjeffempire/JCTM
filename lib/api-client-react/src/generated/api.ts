@@ -21,6 +21,7 @@ import type {
   ChatRequest,
   ChatResponse,
   CreateEventBody,
+  CreateGalleryImageBody,
   CreateMemberBody,
   CreateTestimonyBody,
   DonationRequest,
@@ -28,12 +29,14 @@ import type {
   DonationVerification,
   ErrorResponse,
   Event,
+  GalleryImage,
   GivingLog,
   GivingStats,
   HealthStatus,
   IngestTempleBotsKnowledge200,
   LikeResponse,
   ListEventsParams,
+  ListGalleryImagesParams,
   ListMembersParams,
   ListSermonsParams,
   ListTestimoniesParams,
@@ -43,10 +46,14 @@ import type {
   MemberProfile,
   RebroadcastStatus,
   RegisterMemberBody,
+  RequestUploadUrlBody,
+  RequestUploadUrlResponse,
   Sermon,
   SermonStats,
+  SuccessResponse,
   SyncResult,
   Testimony,
+  UpdateGalleryImageBody,
   UpdateLivestreamBody,
 } from "./api.schemas";
 
@@ -452,6 +459,81 @@ export function useGetSermonStats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSermonStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get intro videos (50–70 min long-form sermons)
+ */
+export const getGetIntroVideosUrl = () => {
+  return `/api/sermons/intro`;
+};
+
+export const getIntroVideos = async (
+  options?: RequestInit,
+): Promise<Sermon[]> => {
+  return customFetch<Sermon[]>(getGetIntroVideosUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetIntroVideosQueryKey = () => {
+  return [`/api/sermons/intro`] as const;
+};
+
+export const getGetIntroVideosQueryOptions = <
+  TData = Awaited<ReturnType<typeof getIntroVideos>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getIntroVideos>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetIntroVideosQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntroVideos>>> = ({
+    signal,
+  }) => getIntroVideos({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getIntroVideos>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetIntroVideosQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getIntroVideos>>
+>;
+export type GetIntroVideosQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get intro videos (50–70 min long-form sermons)
+ */
+
+export function useGetIntroVideos<
+  TData = Awaited<ReturnType<typeof getIntroVideos>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getIntroVideos>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetIntroVideosQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -2306,4 +2388,444 @@ export const useUpdateLivestreamStatus = <
   TContext
 > => {
   return useMutation(getUpdateLivestreamStatusMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned upload URL
+ */
+export const getRequestUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestUploadUrl = async (
+  requestUploadUrlBody: RequestUploadUrlBody,
+  options?: RequestInit,
+): Promise<RequestUploadUrlResponse> => {
+  return customFetch<RequestUploadUrlResponse>(getRequestUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestUploadUrlBody),
+  });
+};
+
+export const getRequestUploadUrlMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<RequestUploadUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<RequestUploadUrlBody> },
+  TContext
+> => {
+  const mutationKey = ["requestUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    { data: BodyType<RequestUploadUrlBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestUploadUrl>>
+>;
+export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>;
+export type RequestUploadUrlMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request a presigned upload URL
+ */
+export const useRequestUploadUrl = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<RequestUploadUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<RequestUploadUrlBody> },
+  TContext
+> => {
+  return useMutation(getRequestUploadUrlMutationOptions(options));
+};
+
+/**
+ * @summary List gallery images
+ */
+export const getListGalleryImagesUrl = (params?: ListGalleryImagesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/gallery?${stringifiedParams}`
+    : `/api/gallery`;
+};
+
+export const listGalleryImages = async (
+  params?: ListGalleryImagesParams,
+  options?: RequestInit,
+): Promise<GalleryImage[]> => {
+  return customFetch<GalleryImage[]>(getListGalleryImagesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGalleryImagesQueryKey = (
+  params?: ListGalleryImagesParams,
+) => {
+  return [`/api/gallery`, ...(params ? [params] : [])] as const;
+};
+
+export const getListGalleryImagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGalleryImages>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListGalleryImagesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGalleryImages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListGalleryImagesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGalleryImages>>
+  > = ({ signal }) => listGalleryImages(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGalleryImages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGalleryImagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGalleryImages>>
+>;
+export type ListGalleryImagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List gallery images
+ */
+
+export function useListGalleryImages<
+  TData = Awaited<ReturnType<typeof listGalleryImages>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListGalleryImagesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGalleryImages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGalleryImagesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add an image to the gallery
+ */
+export const getCreateGalleryImageUrl = () => {
+  return `/api/gallery`;
+};
+
+export const createGalleryImage = async (
+  createGalleryImageBody: CreateGalleryImageBody,
+  options?: RequestInit,
+): Promise<GalleryImage> => {
+  return customFetch<GalleryImage>(getCreateGalleryImageUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createGalleryImageBody),
+  });
+};
+
+export const getCreateGalleryImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGalleryImage>>,
+    TError,
+    { data: BodyType<CreateGalleryImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGalleryImage>>,
+  TError,
+  { data: BodyType<CreateGalleryImageBody> },
+  TContext
+> => {
+  const mutationKey = ["createGalleryImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGalleryImage>>,
+    { data: BodyType<CreateGalleryImageBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGalleryImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGalleryImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGalleryImage>>
+>;
+export type CreateGalleryImageMutationBody = BodyType<CreateGalleryImageBody>;
+export type CreateGalleryImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add an image to the gallery
+ */
+export const useCreateGalleryImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGalleryImage>>,
+    TError,
+    { data: BodyType<CreateGalleryImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGalleryImage>>,
+  TError,
+  { data: BodyType<CreateGalleryImageBody> },
+  TContext
+> => {
+  return useMutation(getCreateGalleryImageMutationOptions(options));
+};
+
+/**
+ * @summary Update a gallery image's metadata
+ */
+export const getUpdateGalleryImageUrl = (id: number) => {
+  return `/api/gallery/${id}`;
+};
+
+export const updateGalleryImage = async (
+  id: number,
+  updateGalleryImageBody: UpdateGalleryImageBody,
+  options?: RequestInit,
+): Promise<GalleryImage> => {
+  return customFetch<GalleryImage>(getUpdateGalleryImageUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateGalleryImageBody),
+  });
+};
+
+export const getUpdateGalleryImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGalleryImage>>,
+    TError,
+    { id: number; data: BodyType<UpdateGalleryImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateGalleryImage>>,
+  TError,
+  { id: number; data: BodyType<UpdateGalleryImageBody> },
+  TContext
+> => {
+  const mutationKey = ["updateGalleryImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateGalleryImage>>,
+    { id: number; data: BodyType<UpdateGalleryImageBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateGalleryImage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateGalleryImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateGalleryImage>>
+>;
+export type UpdateGalleryImageMutationBody = BodyType<UpdateGalleryImageBody>;
+export type UpdateGalleryImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a gallery image's metadata
+ */
+export const useUpdateGalleryImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGalleryImage>>,
+    TError,
+    { id: number; data: BodyType<UpdateGalleryImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateGalleryImage>>,
+  TError,
+  { id: number; data: BodyType<UpdateGalleryImageBody> },
+  TContext
+> => {
+  return useMutation(getUpdateGalleryImageMutationOptions(options));
+};
+
+/**
+ * @summary Delete a gallery image
+ */
+export const getDeleteGalleryImageUrl = (id: number) => {
+  return `/api/gallery/${id}`;
+};
+
+export const deleteGalleryImage = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getDeleteGalleryImageUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteGalleryImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGalleryImage>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteGalleryImage>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteGalleryImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteGalleryImage>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteGalleryImage(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteGalleryImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteGalleryImage>>
+>;
+
+export type DeleteGalleryImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a gallery image
+ */
+export const useDeleteGalleryImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGalleryImage>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteGalleryImage>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteGalleryImageMutationOptions(options));
 };

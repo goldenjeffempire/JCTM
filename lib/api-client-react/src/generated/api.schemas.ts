@@ -247,12 +247,81 @@ export interface ChatResponse {
 
 export interface LivestreamStatus {
   isLive: boolean;
+  isUpcoming: boolean;
   /** @nullable */
   title?: string | null;
   /** @nullable */
   streamUrl?: string | null;
   /** @nullable */
+  videoId?: string | null;
+  /** @nullable */
   startedAt?: string | null;
+  /** @nullable */
+  scheduledStartTime?: string | null;
+}
+
+export interface SuccessResponse {
+  success: boolean;
+  /** @nullable */
+  message?: string | null;
+}
+
+export interface RequestUploadUrlBody {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export interface RequestUploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+}
+
+export interface GalleryImage {
+  id: number;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  objectPath: string;
+  category: string;
+  /** @nullable */
+  serviceDate?: string | null;
+  /** @nullable */
+  altText?: string | null;
+  isPublished: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface CreateGalleryImageBody {
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  objectPath: string;
+  category?: string;
+  /** @nullable */
+  serviceDate?: string | null;
+  /** @nullable */
+  altText?: string | null;
+  isPublished?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateGalleryImageBody {
+  /** @nullable */
+  title?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  serviceDate?: string | null;
+  /** @nullable */
+  altText?: string | null;
+  /** @nullable */
+  isPublished?: boolean | null;
+  /** @nullable */
+  sortOrder?: number | null;
 }
 
 export interface UpdateLivestreamBody {
@@ -311,4 +380,13 @@ export type ListMembersParams = {
 
 export type IngestTempleBotsKnowledge200 = {
   message: string;
+};
+
+export type ListGalleryImagesParams = {
+  limit?: number;
+  offset?: number;
+  /**
+   * @nullable
+   */
+  category?: string | null;
 };

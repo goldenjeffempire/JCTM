@@ -6,18 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Event {
+export interface GalleryImage {
   id: number;
   title: string;
   /** @nullable */
   description?: string | null;
-  startDate: string;
+  objectPath: string;
+  category: string;
   /** @nullable */
-  endDate?: string | null;
+  serviceDate?: string | null;
   /** @nullable */
-  location?: string | null;
-  eventType: string;
-  /** @nullable */
-  imageUrl?: string | null;
+  altText?: string | null;
+  isPublished: boolean;
+  sortOrder: number;
   createdAt: string;
 }

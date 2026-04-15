@@ -38,6 +38,7 @@ const Devotion = lazy(() => import("@/pages/Devotion"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const Blog = lazy(() => import("@/pages/Blog"));
 const BlogPost = lazy(() => import("@/pages/BlogPost"));
+const Gallery = lazy(() => import("@/pages/Gallery"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -103,6 +104,7 @@ function Router() {
         <Route path="/admin/broadcast" component={Admin} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
+        <Route path="/gallery" component={Gallery} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

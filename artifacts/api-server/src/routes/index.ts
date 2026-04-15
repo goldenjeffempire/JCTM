@@ -1,5 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import healthRouter from "./health";
+import storageRouter from "./storage";
+import galleryRouter from "./gallery";
 import sermonsRouter from "./sermons";
 import websubRouter from "./websub";
 import testimoniesRouter from "./testimonies";
@@ -28,6 +30,8 @@ import pushRouter from "./push";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(storageRouter);
+router.use(galleryRouter);
 // websubRouter must come before sermonsRouter — otherwise GET /sermons/websub
 // is captured by the /sermons/:id wildcard route in sermonsRouter.
 router.use(websubRouter);
