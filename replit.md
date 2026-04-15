@@ -222,6 +222,7 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 - Web preview verified at `/` with API health returning OK.
 - Client/server secret separation checked: sensitive keys are referenced from the API server, not the browser client.
 - Google Cloud Storage credentials are configured server-side via the `GCS_SERVICE_ACCOUNT_KEY` secret. The backend accepts either full service-account JSON/base64 JSON or a private-key-only secret paired with `GCS_PROJECT_ID` and `GCS_CLIENT_EMAIL`.
+- Intended Google Cloud Storage bucket configuration is set to `jctm-uploads` (`PUBLIC_OBJECT_SEARCH_PATHS=/jctm-uploads/public`, `PRIVATE_OBJECT_DIR=/jctm-uploads/.private`). Bucket creation is blocked until billing is enabled on Google Cloud project `jctm-492511`, or an existing accessible bucket is provided.
 
 ---
 
