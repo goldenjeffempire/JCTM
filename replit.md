@@ -108,6 +108,7 @@ Key behaviours:
 - **Live → ended transitions**: Handled by all three layers; `broadcastEndedAt` is stamped automatically.
 - **Video deletion**: WebSub `<at:deleted-entry>` notifications remove the record from the DB and broadcast to SSE clients.
 - **Shorts filter relaxation**: `/sermons/shorts` includes videos published within the last 24 hours even if duration is not yet known (covers the brief window before enrichment).
+- **Intro Teachings automation**: `/sermons/intro` automatically surfaces synced videos whose YouTube duration is 50–70 minutes. The ministry-required sermon “The generation of the Evil One and the generation of the saint” is pinned into the intro feed even while YouTube duration metadata is still pending.
 - **Moments SSE**: Reconnects with exponential backoff (2 s → 60 s cap); 30-minute polling fallback when SSE is unavailable.
 - **Quota handling**: `QuotaExceededError` pauses the API sync until UTC midnight; RSS and WebSub continue unaffected.
 

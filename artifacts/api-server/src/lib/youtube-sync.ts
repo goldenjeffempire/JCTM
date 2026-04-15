@@ -216,7 +216,10 @@ export async function syncIncremental(apiKey: string, log?: Logger): Promise<Syn
         set: {
           title: item.snippet.title,
           thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
+          description: item.snippet.description.slice(0, 1000),
+          publishedAt: new Date(item.snippet.publishedAt),
           viewCount: detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
+          duration: detail.contentDetails.duration,
           isFeatured,
           isLive: actuallyLive,
           broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${actuallyLive} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
@@ -362,7 +365,10 @@ export async function syncSingleVideo(apiKey: string, videoId: string, log?: Log
       set: {
         title: item.snippet.title,
         thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
+        description: item.snippet.description.slice(0, 1000),
+        publishedAt: new Date(item.snippet.publishedAt),
         viewCount: item.statistics?.viewCount ? parseInt(item.statistics.viewCount) : null,
+        duration: item.contentDetails.duration,
         isFeatured,
         isLive: actuallyLive,
         broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${actuallyLive} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,

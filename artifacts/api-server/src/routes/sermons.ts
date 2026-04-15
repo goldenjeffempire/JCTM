@@ -21,6 +21,18 @@ const summaryCache = new Map<number, { summary: string; keyPoints: string[]; gen
 
 const router: IRouter = Router();
 
+const PINNED_INTRO_TITLES = new Set([
+  "the generation of the evil one and the generation of the saint",
+]);
+
+function normalizeTitle(title: string | null | undefined): string {
+  return (title ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isPinnedIntroTitle(title: string | null | undefined): boolean {
+  return PINNED_INTRO_TITLES.has(normalizeTitle(title));
+}
+
 // ──────────────────────────────────────────────────────
 // GET /sermons/stream  — Server-Sent Events for real-time updates
 // ──────────────────────────────────────────────────────
@@ -239,8 +251,14 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
     .orderBy(desc(sermonsTable.publishedAt))
     .limit(5000);
 
-  // Strict filter: 50–70 min, must have duration, exclude Shorts (< 60s), exclude deliverance/testimony
+  const pinnedIntros = pool.filter(s => isPinnedIntroTitle(s.title));
+  const pinnedVideoIds = new Set(pinnedIntros.map(s => s.videoId));
+
+  // Strict filter: 50–70 min, must have duration, exclude Shorts (< 60s), exclude deliverance/testimony.
+  // Pinned ministry-required intro videos are merged in above even if YouTube duration enrichment
+  // has not completed yet.
   let intros = pool.filter(s => {
+    if (pinnedVideoIds.has(s.videoId)) return false;
     if (!s.duration) return false;
     if (isExcluded(s.title)) return false;
     const secs = iso8601ToSeconds(s.duration);
@@ -248,22 +266,30 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
     return secs >= MIN_SECONDS && secs <= MAX_SECONDS;
   });
 
+  intros = [...pinnedIntros, ...intros];
+
   // Fallback: broaden duration to 40–90 min (still exclude deliverance/testimony)
   if (intros.length === 0) {
     intros = pool.filter(s => {
+      if (pinnedVideoIds.has(s.videoId)) return false;
       if (!s.duration) return false;
       if (isExcluded(s.title)) return false;
       const secs = iso8601ToSeconds(s.duration);
       if (secs < 60) return false;
       return secs >= FALLBACK_MIN && secs <= FALLBACK_MAX;
     });
+    intros = [...pinnedIntros, ...intros];
   }
 
   // Last resort: most recent with any duration, still applying exclusions
   if (intros.length === 0) {
-    intros = pool
+    intros = [
+      ...pinnedIntros,
+      ...pool
       .filter(s => s.duration && iso8601ToSeconds(s.duration) > 60 && !isExcluded(s.title))
-      .slice(0, 20);
+      .filter(s => !pinnedVideoIds.has(s.videoId))
+      .slice(0, 20),
+    ];
   }
 
   const total   = intros.length;
