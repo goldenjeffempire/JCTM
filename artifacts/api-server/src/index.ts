@@ -6,6 +6,7 @@ import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
+import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
 import { pool } from "@workspace/db";
 import OpenAI from "openai";
 
@@ -128,6 +129,26 @@ async function runStartupMigrations() {
         updated_at timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS topic text NOT NULL DEFAULT 'faith'`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS category text`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS tags text[]`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS author text NOT NULL DEFAULT 'Jesus Christ Temple Ministry'`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS read_time_minutes integer NOT NULL DEFAULT 5`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS featured boolean NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS seo_title text`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS seo_description text`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_title text`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_description text`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS schema_json text`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS published boolean NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS is_published boolean NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS generated_at timestamptz NOT NULL DEFAULT now()`);
+    await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_published_at_idx ON blog_posts (published, published_at DESC)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_category_idx ON blog_posts (category) WHERE published = true`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_topic_idx ON blog_posts (topic) WHERE published = true`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_featured_idx ON blog_posts (featured, published_at DESC) WHERE published = true`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_search_idx ON blog_posts USING gin (to_tsvector('english', coalesce(title,'') || ' ' || coalesce(excerpt,'') || ' ' || coalesce(content,'')))`);
 
     // ── Sermon transcript indexing ───────────────────────────────────────────
     await pool.query(`
@@ -269,6 +290,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 await initSentry();
 await runStartupMigrations();
+await seedMinistryBlogLibrary();
 
 const server = app.listen(port, async (err) => {
   if (err) {

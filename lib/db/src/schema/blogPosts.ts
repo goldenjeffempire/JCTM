@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,6 +11,9 @@ export const blogPostsTable = pgTable("blog_posts", {
   topic: text("topic").notNull(),
   category: text("category"),
   tags: text("tags").array(),
+  author: text("author").notNull().default("Jesus Christ Temple Ministry"),
+  readTimeMinutes: integer("read_time_minutes").notNull().default(5),
+  featured: boolean("featured").notNull().default(false),
   seoTitle: text("seo_title"),
   seoDescription: text("seo_description"),
   metaTitle: text("meta_title"),

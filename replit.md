@@ -126,6 +126,9 @@ Key behaviours:
 - `Blog.tsx` — full list view with topic filters, search, pagination (12/page)
 - `BlogPost.tsx` — full article view with markdown renderer, share button, related posts, and CTA
 - Routes added to `App.tsx`, "Ministry Blog" added to Navbar Resources dropdown
+- Enterprise blog expansion seeds 24 structured sermon-inspired articles on startup through `artifacts/api-server/src/lib/ministry-blog-seed.ts`. Articles include Scripture Foundation, Introduction, 3 teaching sections, Key Spiritual Lessons, Prayer/Reflection, and Conclusion/CTA.
+- Blog storage now includes `author`, `read_time_minutes`, and `featured`; startup migrations add optimized indexes for published posts, categories, topics, featured posts, and full-text search.
+- Public discovery endpoints: `GET /api/blog`, `GET /api/blog/categories`, `GET /api/blog/search`, `GET /api/blog/topics`, and `GET /api/blog/:slug`, all with cache headers for fast delivery.
 
 ### Member Profile Editing
 - `PUT /auth/profile` backend endpoint with name, phone, and optional password change
