@@ -120,6 +120,22 @@ services:
       - key: SESSION_SECRET
         sync: false
 
+      # Admin token signing secret (independent of SESSION_SECRET so rotations
+      # don't invalidate admin sessions). Generate with: openssl rand -hex 32
+      - key: ADMIN_TOKEN_SECRET
+        sync: false
+
+      # Admin role passphrases — set these in the Render dashboard.
+      # Use plaintext (ADMIN_PASSPHRASE_*) or a pre-hashed scrypt value
+      # (ADMIN_PASSPHRASE_HASH_*). At least one form per role must be set;
+      # dev defaults (jctm-*-2026) are intentionally disabled in production.
+      - key: ADMIN_PASSPHRASE_GALLERY
+        sync: false
+      - key: ADMIN_PASSPHRASE_SERMON
+        sync: false
+      - key: ADMIN_PASSPHRASE_LIVESTREAM
+        sync: false
+
       # Web Push VAPID keys — generate with: npx web-push generate-vapid-keys
       # VAPID_PUBLIC_KEY must also be served at GET /api/push/vapid-key
       - key: VAPID_PUBLIC_KEY

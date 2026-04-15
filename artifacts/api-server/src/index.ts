@@ -5,6 +5,7 @@ import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys } from "./lib/push-manager.js";
+import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
 import { pool } from "@workspace/db";
 import OpenAI from "openai";
 
@@ -251,6 +252,23 @@ const server = app.listen(port, (err) => {
   server.headersTimeout   = 66_000;
 
   logger.info({ port }, "Server listening");
+
+  // ── Admin passphrase config check ────────────────────────────────────────
+  const adminRoles: AdminRole[] = ["gallery", "sermon", "livestream"];
+  const unconfigured = adminRoles.filter((r) => !isRoleConfigured(r));
+  if (unconfigured.length > 0 && process.env.NODE_ENV === "production") {
+    logger.error(
+      { unconfiguredRoles: unconfigured },
+      "ADMIN PASSPHRASE NOT SET — admin login will fail for these roles. " +
+      "Set ADMIN_PASSPHRASE_GALLERY, ADMIN_PASSPHRASE_SERMON, and/or " +
+      "ADMIN_PASSPHRASE_LIVESTREAM in the Render dashboard environment variables.",
+    );
+  } else {
+    logger.info(
+      { configured: adminRoles.filter((r) => isRoleConfigured(r)) },
+      "Admin roles configured",
+    );
+  }
 
   // Initialize VAPID keys for push notifications
   initVapidKeys(logger);

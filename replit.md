@@ -146,6 +146,10 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 | `OPENAI_API_KEY` | AI features (TempleBots, devotions, sermon assistant) | ✅ Yes (prod) |
 | `PAYSTACK_SECRET_KEY` | Donation/giving portal | Optional |
 | `SESSION_SECRET` | Session cookie signing (64-char hex) | ✅ Yes |
+| `ADMIN_TOKEN_SECRET` | Admin JWT signing secret (independent of SESSION_SECRET) | ✅ Yes (prod) |
+| `ADMIN_PASSPHRASE_GALLERY` | Plaintext passphrase for gallery admin role | ✅ Yes (prod) |
+| `ADMIN_PASSPHRASE_SERMON` | Plaintext passphrase for sermon admin role | ✅ Yes (prod) |
+| `ADMIN_PASSPHRASE_LIVESTREAM` | Plaintext passphrase for livestream admin role | ✅ Yes (prod) |
 | `PORT` | Server port (8080 dev, 10000 Render) | Auto-set |
 | `NODE_ENV` | `development` or `production` | Auto-set |
 | `BASE_PATH` | Vite base URL (`/`) | Auto-set |
