@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Tv2, Radio, PlayCircle, Clock, X, MessageSquare, Wifi, WifiOff } from "lucide-react";
+import { Tv2, Radio, PlayCircle, Clock, X, MessageSquare, Wifi } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { LiveChat } from "@/components/LiveChat";
@@ -100,10 +100,8 @@ function useYouTubeEndDetector(onEnded: () => void) {
 
 // ─── Unified Player Modal ─────────────────────────────────────────────────────
 //
-// Single modal that morphs between Live and Rebroadcast content in-place,
-// providing zero-downtime seamless transitions. When the live stream ends,
-// the modal stays open and the iframe swaps to the rebroadcast video without
-// any blank screen.
+// Single modal that morphs between Live, Scheduled Rebroadcast, and
+// Continuous playback in-place, providing zero-downtime seamless transitions.
 
 interface UnifiedPlayerModalProps {
   isLive: boolean;
@@ -112,6 +110,7 @@ interface UnifiedPlayerModalProps {
   rebroadcastVideoId: string | null;
   rebroadcastTitle: string | null;
   rebroadcastExpiresAt: string | null;
+  rebroadcastMode?: "scheduled" | "continuous";
   onClose: () => void;
 }
 
@@ -122,6 +121,7 @@ function UnifiedPlayerModal({
   rebroadcastVideoId,
   rebroadcastTitle,
   rebroadcastExpiresAt,
+  rebroadcastMode,
   onClose,
 }: UnifiedPlayerModalProps) {
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
@@ -130,7 +130,7 @@ function UnifiedPlayerModal({
 
   const rebroadcastQueue = useRebroadcastQueue(rebroadcastVideoId);
 
-  // Advance queue when a video ends (rebroadcast mode only)
+  // Advance queue when a video ends (rebroadcast / continuous mode)
   const handleVideoEnded = useCallback(() => {
     if (isLive) return;
     setQueueIndex(i => Math.min(i + 1, Math.max(0, rebroadcastQueue.length - 1)));
@@ -140,22 +140,17 @@ function UnifiedPlayerModal({
 
   // Reset queue index when primary video changes
   useEffect(() => { setQueueIndex(0); }, [rebroadcastVideoId]);
+  useEffect(() => { if (!isLive) setQueueIndex(0); }, [isLive]);
 
-  // Reset queue when transitioning from live → rebroadcast
+  // Countdown ticker — only for scheduled rebroadcast
   useEffect(() => {
-    if (!isLive) setQueueIndex(0);
-  }, [isLive]);
-
-  // Countdown ticker
-  useEffect(() => {
-    if (!rebroadcastExpiresAt) return;
+    if (!rebroadcastExpiresAt || rebroadcastMode === "continuous") return;
     const update = () => setTimeDisplay(formatTimeRemaining(rebroadcastExpiresAt));
     update();
     const timer = setInterval(update, 60_000);
     return () => clearInterval(timer);
-  }, [rebroadcastExpiresAt]);
+  }, [rebroadcastExpiresAt, rebroadcastMode]);
 
-  // Determine what's playing right now
   const currentVideoId = isLive
     ? (liveVideoId ?? "f7TOxaM2Mq4")
     : rebroadcastQueue[queueIndex]?.videoId ?? rebroadcastVideoId ?? "f7TOxaM2Mq4";
@@ -165,6 +160,17 @@ function UnifiedPlayerModal({
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
   const embedSrc = buildEmbedUrl(currentVideoId, isLive);
+
+  // Header accent colours
+  const headerDot = isLive ? "bg-red-500" : rebroadcastMode === "continuous" ? "bg-indigo-400" : "bg-amber-500";
+  const headerDotPing = isLive ? "animate-ping" : "";
+  const modeLabel = isLive
+    ? null
+    : rebroadcastMode === "continuous"
+    ? <span className="text-indigo-300/70 text-xs flex items-center gap-1"><Tv2 className="h-3 w-3" />Temple TV — Now Playing</span>
+    : timeDisplay
+    ? <span className="text-amber-400/70 text-xs flex items-center gap-1"><Clock className="h-3 w-3" />{timeDisplay} remaining</span>
+    : null;
 
   return (
     <motion.div
@@ -191,88 +197,54 @@ function UnifiedPlayerModal({
         ].join(" ")}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Header — morphs between Live and Rebroadcast ─────────────────── */}
+        {/* ── Header — morphs between Live / Rebroadcast / Continuous ──────── */}
         <AnimatePresence mode="wait">
-          {isLive ? (
-            <motion.div
-              key="live-header"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
-                </span>
+          <motion.div
+            key={isLive ? "live-header" : `rb-header-${rebroadcastMode}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10"
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                {isLive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />}
+                <span className={`relative inline-flex rounded-full h-full w-full ${headerDot} ${headerDotPing}`} />
+              </span>
+              <div className="flex flex-col min-w-0">
                 <span className="text-white font-bold text-sm truncate">{currentTitle}</span>
+                {modeLabel}
               </div>
-              <button
-                onClick={onClose}
-                className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
-                aria-label="Close player"
-              >
-                <X className="h-4 w-4 text-white/70" />
-              </button>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="rebroadcast-header"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-[#0a0a0a] flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1 mr-3">
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                  <span className="relative inline-flex rounded-full h-full w-full bg-amber-500" />
+            </div>
+            {/* Queue navigation — rebroadcast + continuous modes */}
+            {!isLive && rebroadcastQueue.length > 1 && (
+              <div className="flex items-center gap-1 mr-2">
+                <button
+                  onClick={() => setQueueIndex(i => Math.max(0, i - 1))}
+                  disabled={queueIndex === 0}
+                  className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center text-white/70 text-xs font-bold transition-colors touch-manipulation"
+                  aria-label="Previous video"
+                >‹</button>
+                <span className="text-white/40 text-[10px] font-medium min-w-[2.5rem] text-center">
+                  {queueIndex + 1} / {rebroadcastQueue.length}
                 </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-white font-bold text-sm truncate">{currentTitle}</span>
-                  {rebroadcastExpiresAt && timeDisplay && (
-                    <span className="text-amber-400/70 text-xs flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {timeDisplay} remaining
-                    </span>
-                  )}
-                </div>
+                <button
+                  onClick={() => setQueueIndex(i => Math.min(rebroadcastQueue.length - 1, i + 1))}
+                  disabled={queueIndex >= rebroadcastQueue.length - 1}
+                  className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center text-white/70 text-xs font-bold transition-colors touch-manipulation"
+                  aria-label="Next video"
+                >›</button>
               </div>
-              {/* Queue navigation */}
-              {rebroadcastQueue.length > 1 && (
-                <div className="flex items-center gap-1 mr-2">
-                  <button
-                    onClick={() => setQueueIndex(i => Math.max(0, i - 1))}
-                    disabled={queueIndex === 0}
-                    className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center text-white/70 text-xs font-bold transition-colors touch-manipulation"
-                    aria-label="Previous video"
-                  >
-                    ‹
-                  </button>
-                  <span className="text-white/40 text-[10px] font-medium min-w-[2.5rem] text-center">
-                    {queueIndex + 1} / {rebroadcastQueue.length}
-                  </span>
-                  <button
-                    onClick={() => setQueueIndex(i => Math.min(rebroadcastQueue.length - 1, i + 1))}
-                    disabled={queueIndex >= rebroadcastQueue.length - 1}
-                    className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center text-white/70 text-xs font-bold transition-colors touch-manipulation"
-                    aria-label="Next video"
-                  >
-                    ›
-                  </button>
-                </div>
-              )}
-              <button
-                onClick={onClose}
-                className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
-                aria-label="Close player"
-              >
-                <X className="h-4 w-4 text-white/70" />
-              </button>
-            </motion.div>
-          )}
+            )}
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors touch-manipulation shrink-0"
+              aria-label="Close player"
+            >
+              <X className="h-4 w-4 text-white/70" />
+            </button>
+          </motion.div>
         </AnimatePresence>
 
         {/* ── Mobile Tab Switcher (Live only) ─────────────────────────────── */}
@@ -284,8 +256,7 @@ function UnifiedPlayerModal({
                 mobileTab === "video" ? "text-white border-b-2 border-red-500" : "text-white/40"
               }`}
             >
-              <Tv2 className="w-4 h-4" />
-              Watch
+              <Tv2 className="w-4 h-4" /> Watch
             </button>
             <button
               onClick={() => setMobileTab("chat")}
@@ -293,15 +264,13 @@ function UnifiedPlayerModal({
                 mobileTab === "chat" ? "text-white border-b-2 border-sky-500" : "text-white/40"
               }`}
             >
-              <MessageSquare className="w-4 h-4" />
-              Live Chat
+              <MessageSquare className="w-4 h-4" /> Live Chat
             </button>
           </div>
         )}
 
         {/* ── Main Content — iframe morphs seamlessly ──────────────────────── */}
         <div className="flex flex-1 min-h-0 overflow-hidden bg-[#0d0d0d]">
-          {/* Video pane */}
           <div
             className={[
               "flex-col flex-1 bg-black min-w-0 min-h-0 relative",
@@ -309,10 +278,9 @@ function UnifiedPlayerModal({
               "md:flex",
             ].join(" ")}
           >
-            {/* Crossfade overlay for seamless video swaps */}
             <AnimatePresence mode="wait">
               <motion.iframe
-                key={`${currentVideoId}-${isLive ? "live" : "rb"}`}
+                key={`${currentVideoId}-${isLive ? "live" : rebroadcastMode ?? "rb"}`}
                 src={embedSrc}
                 title={currentTitle}
                 allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
@@ -353,43 +321,45 @@ export function BroadcastStatusIndicator() {
   const [showPlayer, setShowPlayer] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [timeDisplay, setTimeDisplay] = useState("");
-  const prevStatusRef = useRef({ isLive: false, available: false });
+  const prevRef = useRef({ isLive: false, mode: undefined as string | undefined });
 
   const { rebroadcast } = status;
+  const isContinuous = rebroadcast.available && rebroadcast.mode === "continuous";
+  const isScheduled  = rebroadcast.available && rebroadcast.mode === "scheduled";
   const isActive = status.isLive || rebroadcast.available;
 
-  // Re-show when a new broadcast begins; auto-clear dismiss when nothing is active
+  // Dismiss logic:
+  //   • Live starts          → always re-show (critical event)
+  //   • Scheduled activates  → re-show (post-service window opens)
+  //   • Continuous changes   → do NOT re-show (always-on ambient; user may have dismissed)
   useEffect(() => {
-    const prev = prevStatusRef.current;
-    const becameActive =
-      (!prev.isLive && status.isLive) ||
-      (!prev.available && rebroadcast.available);
-    if (becameActive) setDismissed(false);
-    prevStatusRef.current = { isLive: status.isLive, available: rebroadcast.available };
-    if (!isActive) setDismissed(false);
-  }, [status.isLive, rebroadcast.available, isActive]);
+    const prev = prevRef.current;
+    const wentLive = !prev.isLive && status.isLive;
+    const becameScheduled = prev.mode !== "scheduled" && isScheduled;
+    if (wentLive || becameScheduled) setDismissed(false);
+    prevRef.current = { isLive: status.isLive, mode: rebroadcast.mode };
+  }, [status.isLive, isScheduled, rebroadcast.mode]);
 
-  // Keep modal open during live→rebroadcast transition (don't close on intermediate states)
-  // Only close modal if truly nothing is playing
+  // Close modal if nothing is playing at all
   useEffect(() => {
     if (showPlayer && !status.isLive && !rebroadcast.available) {
       setShowPlayer(false);
     }
   }, [showPlayer, status.isLive, rebroadcast.available]);
 
-  // Countdown ticker
+  // Countdown ticker — only for scheduled rebroadcast
   useEffect(() => {
-    if (!rebroadcast.available || !rebroadcast.expiresAt) return;
+    if (!isScheduled || !rebroadcast.expiresAt) { setTimeDisplay(""); return; }
     const update = () => setTimeDisplay(formatTimeRemaining(rebroadcast.expiresAt!));
     update();
     const timer = setInterval(update, 60_000);
     return () => clearInterval(timer);
-  }, [rebroadcast.available, rebroadcast.expiresAt]);
+  }, [isScheduled, rebroadcast.expiresAt]);
 
   const liveVideoId = status.videoId;
   const rebroadcastVideoId = rebroadcast.videoId;
 
-  // ── IDLE STATE: Always show a subtle "TempleTV" indicator ─────────────────
+  // ── IDLE: library is empty or not yet loaded ──────────────────────────────
   if (!isActive) {
     return (
       <div className="fixed top-[4.5rem] right-3 sm:right-4 z-[200]">
@@ -406,13 +376,13 @@ export function BroadcastStatusIndicator() {
         >
           <Tv2 className="h-3 w-3 shrink-0 opacity-50" />
           <span className="hidden sm:inline">Temple TV</span>
-          <WifiOff className="h-2.5 w-2.5 shrink-0 opacity-40" />
+          <Wifi className="h-2.5 w-2.5 shrink-0 opacity-40" />
         </a>
       </div>
     );
   }
 
-  // ── DISMISSED: Compact re-open pull tab on the right edge ────────────────
+  // ── DISMISSED: Compact pull tab ───────────────────────────────────────────
   if (dismissed) {
     return (
       <>
@@ -422,7 +392,7 @@ export function BroadcastStatusIndicator() {
           exit={{ opacity: 0, x: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => setDismissed(false)}
-          aria-label={status.isLive ? "Rejoin live service" : "Reopen rebroadcast"}
+          aria-label={status.isLive ? "Rejoin live service" : "Reopen player"}
           className={[
             "fixed top-[4.5rem] right-0 z-[200]",
             "flex items-center gap-1.5 pl-3 pr-2 py-2",
@@ -431,7 +401,9 @@ export function BroadcastStatusIndicator() {
             "backdrop-blur-md transition-all duration-200 touch-manipulation",
             status.isLive
               ? "bg-red-600 border-red-400/40 text-white hover:bg-red-500"
-              : "bg-amber-600 border-amber-400/40 text-white hover:bg-amber-500",
+              : isScheduled
+              ? "bg-amber-600 border-amber-400/40 text-white hover:bg-amber-500"
+              : "bg-indigo-600/80 border-indigo-400/30 text-white/90 hover:bg-indigo-600",
           ].join(" ")}
         >
           {status.isLive ? (
@@ -442,15 +414,19 @@ export function BroadcastStatusIndicator() {
               </span>
               <span className="hidden sm:inline">LIVE</span>
             </>
-          ) : (
+          ) : isScheduled ? (
             <>
               <PlayCircle className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">RB</span>
             </>
+          ) : (
+            <>
+              <Tv2 className="h-3.5 w-3.5 shrink-0 opacity-80" />
+              <span className="hidden sm:inline">TV</span>
+            </>
           )}
         </motion.button>
 
-        {/* Modal still available even when dismissed indicator is shown */}
         <AnimatePresence>
           {showPlayer && (
             <UnifiedPlayerModal
@@ -461,6 +437,7 @@ export function BroadcastStatusIndicator() {
               rebroadcastVideoId={rebroadcastVideoId}
               rebroadcastTitle={rebroadcast.title}
               rebroadcastExpiresAt={rebroadcast.expiresAt}
+              rebroadcastMode={rebroadcast.mode}
               onClose={() => setShowPlayer(false)}
             />
           )}
@@ -473,6 +450,7 @@ export function BroadcastStatusIndicator() {
   return (
     <>
       <AnimatePresence mode="wait">
+
         {/* 🔴 LIVE */}
         {status.isLive && (
           <motion.div
@@ -511,7 +489,6 @@ export function BroadcastStatusIndicator() {
                 <X className="h-3 w-3 text-white/80" />
               </button>
             </div>
-
             {status.title && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
@@ -526,8 +503,8 @@ export function BroadcastStatusIndicator() {
           </motion.div>
         )}
 
-        {/* 📺 REBROADCAST */}
-        {!status.isLive && rebroadcast.available && (
+        {/* 📺 SCHEDULED REBROADCAST */}
+        {!status.isLive && isScheduled && (
           <motion.div
             key="rebroadcast-indicator"
             initial={{ opacity: 0, scale: 0.85, x: 24 }}
@@ -544,7 +521,7 @@ export function BroadcastStatusIndicator() {
               >
                 <PlayCircle className="h-3.5 w-3.5 text-white/90 shrink-0" />
                 <span className="text-white text-[11px] sm:text-xs font-bold tracking-widest uppercase leading-none whitespace-nowrap">
-                  Rebroadcast
+                  📺 Rebroadcast
                 </span>
                 {timeDisplay && (
                   <span className="hidden sm:flex items-center gap-0.5 text-white/60 text-[10px] font-medium">
@@ -567,7 +544,6 @@ export function BroadcastStatusIndicator() {
                 <X className="h-3 w-3 text-white/80" />
               </button>
             </div>
-
             {rebroadcast.title && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
@@ -581,11 +557,49 @@ export function BroadcastStatusIndicator() {
             )}
           </motion.div>
         )}
+
+        {/* 📺 CONTINUOUS / NOW PLAYING — subtle ambient indicator */}
+        {!status.isLive && isContinuous && (
+          <motion.div
+            key="continuous-indicator"
+            initial={{ opacity: 0, scale: 0.9, x: 24 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.9, x: 24 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            className="fixed top-[4.5rem] right-3 sm:right-4 z-[200] flex flex-col items-end gap-1.5 max-w-[min(calc(100vw-1.5rem),320px)]"
+          >
+            <div className="flex items-center gap-0 rounded-full shadow-lg overflow-hidden border border-indigo-400/20 bg-indigo-700/80 backdrop-blur-sm">
+              <button
+                onClick={() => setShowPlayer(true)}
+                className="flex items-center gap-2 pl-3 pr-2 py-1.5 cursor-pointer touch-manipulation"
+                aria-label="Watch now playing"
+              >
+                <Tv2 className="h-3 w-3 text-indigo-200/80 shrink-0" />
+                <span className="text-indigo-100 text-[10px] sm:text-[11px] font-semibold tracking-wide leading-none whitespace-nowrap opacity-90">
+                  Now Playing
+                </span>
+              </button>
+              <button
+                onClick={() => setShowPlayer(true)}
+                className="bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold px-2.5 py-1.5 active:scale-95 transition-all touch-manipulation whitespace-nowrap leading-none"
+              >
+                Watch
+              </button>
+              <button
+                onClick={() => setDismissed(true)}
+                className="flex items-center justify-center w-6 h-full bg-indigo-900/40 hover:bg-indigo-900/70 transition-colors touch-manipulation px-1"
+                aria-label="Dismiss indicator"
+              >
+                <X className="h-2.5 w-2.5 text-white/60" />
+              </button>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* ── Unified Video Modal ───────────────────────────────────────────── */}
       <AnimatePresence>
-        {showPlayer && (status.isLive || rebroadcast.available) && (
+        {showPlayer && isActive && (
           <UnifiedPlayerModal
             key="unified-modal"
             isLive={status.isLive}
@@ -594,6 +608,7 @@ export function BroadcastStatusIndicator() {
             rebroadcastVideoId={rebroadcastVideoId}
             rebroadcastTitle={rebroadcast.title}
             rebroadcastExpiresAt={rebroadcast.expiresAt}
+            rebroadcastMode={rebroadcast.mode}
             onClose={() => setShowPlayer(false)}
           />
         )}

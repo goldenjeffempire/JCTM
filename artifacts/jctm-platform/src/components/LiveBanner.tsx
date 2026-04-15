@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Radio, X, PlayCircle, Clock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Radio, X, PlayCircle, Clock, Tv2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
@@ -18,46 +18,54 @@ function formatTimeRemaining(expiresAt: string): string {
 }
 
 // ─── Main Banner ──────────────────────────────────────────────────────────────
-// The banner renders at the very top of the layout (above the Navbar).
-// It reflects the same SSE-driven status as the floating indicator and opens
-// the player via the BroadcastStatusIndicator's unified modal.
+//
+// Three states the banner can be in:
+//   1. 🔴 LIVE SERVICE       — full-width red alert, re-shows on every new live event
+//   2. 📺 REBROADCAST        — amber banner, re-shows when a post-service window opens
+//   3. 📺 NOW PLAYING        — subtle indigo banner for continuous/always-on mode
+//                              dismissed by default; only re-shows on live/scheduled events
 
 export function LiveBanner() {
   const status = useLivestreamStatus();
   const [timeDisplay, setTimeDisplay] = useState("");
-  const [dismissed, setDismissed] = useState(false);
-  const [prevIsLive, setPrevIsLive] = useState(false);
+
+  // Separate dismissed flags for each mode so "continuous" dismissal doesn't
+  // affect the more important live/scheduled banners
+  const [liveOrScheduledDismissed, setLiveOrScheduledDismissed] = useState(false);
+  const [continuousDismissed, setContinuousDismissed] = useState(false);
+
+  const prevRef = useRef({ isLive: false, mode: undefined as string | undefined });
 
   const { rebroadcast } = status;
+  const isContinuous = rebroadcast.available && rebroadcast.mode === "continuous";
+  const isScheduled  = rebroadcast.available && rebroadcast.mode === "scheduled";
 
-  // Countdown ticker
+  // Countdown ticker — only for scheduled rebroadcast
   useEffect(() => {
-    if (!rebroadcast.available || !rebroadcast.expiresAt) return;
+    if (!isScheduled || !rebroadcast.expiresAt) { setTimeDisplay(""); return; }
     const update = () => setTimeDisplay(formatTimeRemaining(rebroadcast.expiresAt!));
     update();
     const timer = setInterval(update, 60_000);
     return () => clearInterval(timer);
-  }, [rebroadcast.available, rebroadcast.expiresAt]);
+  }, [isScheduled, rebroadcast.expiresAt]);
 
-  // Re-show banner whenever a new live broadcast begins
+  // Re-show live/scheduled banner on new events; continuous banner is user-managed
   useEffect(() => {
-    if (!prevIsLive && status.isLive) setDismissed(false);
-    setPrevIsLive(status.isLive);
-  }, [status.isLive, prevIsLive]);
+    const prev = prevRef.current;
+    const wentLive = !prev.isLive && status.isLive;
+    const becameScheduled = prev.mode !== "scheduled" && isScheduled;
+    if (wentLive || becameScheduled) setLiveOrScheduledDismissed(false);
+    prevRef.current = { isLive: status.isLive, mode: rebroadcast.mode };
+  }, [status.isLive, isScheduled, rebroadcast.mode]);
 
-  // Re-show banner when rebroadcast activates (after live ends)
-  useEffect(() => {
-    if (rebroadcast.available) setDismissed(false);
-  }, [rebroadcast.available]);
-
-  // Nothing to show (and banner isn't holding an active state)
+  // Nothing active
   if (!status.isLive && !rebroadcast.available) return null;
-  if (dismissed) return null;
 
-  return (
-    <AnimatePresence mode="wait">
-      {/* ── 🔴 LIVE SERVICE Banner ─────────────────────────────────────── */}
-      {status.isLive && (
+  // ── 🔴 LIVE SERVICE ────────────────────────────────────────────────────────
+  if (status.isLive) {
+    if (liveOrScheduledDismissed) return null;
+    return (
+      <AnimatePresence mode="wait">
         <motion.div
           key="live-bar"
           initial={{ y: -48, opacity: 0 }}
@@ -74,22 +82,26 @@ export function LiveBanner() {
           <span className="text-xs sm:text-sm font-medium hidden sm:block truncate max-w-xs md:max-w-sm lg:max-w-md">
             {status.title || "JCTM Sunday Service"}
           </span>
-          {/* Banner just signals status — the floating indicator pill handles the player */}
           <span className="ml-auto sm:ml-2 bg-white/20 text-white text-[10px] font-bold px-2.5 py-1 sm:px-3 rounded-full shrink-0 select-none">
             See indicator →
           </span>
           <button
-            onClick={() => setDismissed(true)}
+            onClick={() => setLiveOrScheduledDismissed(true)}
             className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors touch-manipulation shrink-0"
             aria-label="Dismiss banner"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </motion.div>
-      )}
+      </AnimatePresence>
+    );
+  }
 
-      {/* ── 📺 REBROADCAST SERVICE Banner ──────────────────────────────── */}
-      {!status.isLive && rebroadcast.available && (
+  // ── 📺 REBROADCAST SERVICE (scheduled post-service window) ─────────────────
+  if (isScheduled) {
+    if (liveOrScheduledDismissed) return null;
+    return (
+      <AnimatePresence mode="wait">
         <motion.div
           key="rebroadcast-bar"
           initial={{ y: -48, opacity: 0 }}
@@ -100,7 +112,7 @@ export function LiveBanner() {
         >
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="font-bold text-xs sm:text-sm tracking-wide">REBROADCAST SERVICE</span>
+            <span className="font-bold text-xs sm:text-sm tracking-wide">📺 REBROADCAST SERVICE</span>
           </div>
           <div className="h-4 w-px bg-white/30 hidden sm:block shrink-0" />
           <span className="text-xs sm:text-sm font-medium hidden sm:block truncate max-w-xs md:max-w-sm">
@@ -116,14 +128,51 @@ export function LiveBanner() {
             See indicator →
           </span>
           <button
-            onClick={() => setDismissed(true)}
+            onClick={() => setLiveOrScheduledDismissed(true)}
             className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors touch-manipulation shrink-0"
             aria-label="Dismiss banner"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </motion.div>
-      )}
-    </AnimatePresence>
-  );
+      </AnimatePresence>
+    );
+  }
+
+  // ── 📺 NOW PLAYING (continuous always-on mode) ─────────────────────────────
+  // Subtler banner — not as urgent as a live/scheduled event.
+  // Starts hidden; user can see content via the floating indicator.
+  if (isContinuous) {
+    if (continuousDismissed) return null;
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="continuous-bar"
+          initial={{ y: -48, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -48, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 35 }}
+          className="bg-indigo-700/90 text-white w-full py-1.5 px-3 sm:px-4 flex items-center justify-center gap-2 sm:gap-3 shadow-sm z-[60] relative backdrop-blur-sm"
+        >
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Tv2 className="h-3.5 w-3.5 opacity-80" />
+            <span className="font-semibold text-[11px] sm:text-xs tracking-wide opacity-90">Temple TV — Now Playing</span>
+          </div>
+          <div className="h-3.5 w-px bg-white/20 hidden sm:block shrink-0" />
+          <span className="text-[11px] sm:text-xs text-white/60 hidden sm:block truncate max-w-xs md:max-w-sm">
+            {rebroadcast.title || "Latest Teaching — JCTM"}
+          </span>
+          <button
+            onClick={() => setContinuousDismissed(true)}
+            className="ml-auto h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors touch-manipulation shrink-0"
+            aria-label="Dismiss banner"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  return null;
 }

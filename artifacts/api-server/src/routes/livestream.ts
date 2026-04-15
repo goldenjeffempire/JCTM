@@ -46,6 +46,46 @@ let livestreamState: LivestreamState = {
   scheduledStartTime: null,
 };
 
+// ─── Continuous Fallback State ────────────────────────────────────────────────
+//
+// When there is no live stream and no active scheduled rebroadcast window,
+// the platform serves this "always-on" fallback so users always see content —
+// never a blank idle screen.  Initialized on startup and refreshed hourly.
+
+type ContinuousFallback = {
+  videoId: string;
+  title: string;
+  thumbnailUrl: string | null;
+};
+
+let continuousFallbackVideo: ContinuousFallback | null = null;
+
+async function initContinuousFallback(): Promise<void> {
+  try {
+    const rows = await db
+      .select()
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.publishedAt))
+      .limit(1);
+
+    if (rows[0]) {
+      continuousFallbackVideo = {
+        videoId: rows[0].videoId,
+        title: rows[0].title ?? "Temple TV — Jesus Christ Temple Ministry",
+        thumbnailUrl: rows[0].thumbnailUrl ?? `https://i.ytimg.com/vi/${rows[0].videoId}/hqdefault.jpg`,
+      };
+    }
+  } catch {
+    // Non-critical — continuous fallback will remain as-is
+  }
+}
+
+// Refresh continuous fallback every hour so it always points to the latest video
+const continuousRefreshInterval = setInterval(() => {
+  initContinuousFallback().catch(() => {});
+}, 60 * 60 * 1000);
+continuousRefreshInterval.unref();
+
 // ─── Manual Override State ────────────────────────────────────────────────────
 //
 // When the admin manually controls the broadcast, automation is suspended so
@@ -99,6 +139,10 @@ function checkRebroadcastExpiry(): void {
       startedAt: null,
       expiresAt: null,
     };
+    // Ensure continuous fallback is populated after the scheduled window closes
+    if (!continuousFallbackVideo) {
+      initContinuousFallback().catch(() => {});
+    }
   }
 }
 
@@ -134,8 +178,12 @@ async function initRebroadcastFromDB(): Promise<void> {
   }
 }
 
-// Run DB initialization immediately (non-blocking)
-setImmediate(() => { initRebroadcastFromDB().catch(() => {}); });
+// Run DB initialization immediately (non-blocking).
+// Both calls are fire-and-forget; failures are caught internally.
+setImmediate(() => {
+  initRebroadcastFromDB().catch(() => {});
+  initContinuousFallback().catch(() => {});
+});
 
 // ─── SSE status broadcaster ───────────────────────────────────────────────────
 
@@ -146,17 +194,40 @@ function sseWrite(res: Response, payload: string): void {
   (res as unknown as { flush?: () => void }).flush?.();
 }
 
-/** Build the full status payload including rebroadcast lifecycle and manual override flags. */
+/** Build the full status payload including rebroadcast lifecycle and manual override flags.
+ *
+ * Priority order for rebroadcast field:
+ *   1. Active scheduled rebroadcast window (mode: "scheduled")
+ *   2. Continuous fallback — always-on latest video (mode: "continuous")
+ *   3. Nothing (available: false) — only when library is empty
+ *
+ * This guarantees the frontend always has content to show.
+ */
 function buildStatusPayload(): string {
   checkRebroadcastExpiry();
-  const rb = isRebroadcastActive(rebroadcastLifecycle) ? rebroadcastLifecycle : {
-    available: false,
-    videoId: null,
-    title: null,
-    thumbnailUrl: null,
-    startedAt: null,
-    expiresAt: null,
-  };
+
+  let rb: (typeof rebroadcastLifecycle) & { mode?: "scheduled" | "continuous" };
+
+  if (livestreamState.isLive) {
+    // While live, suppress rebroadcast entirely
+    rb = { available: false, videoId: null, title: null, thumbnailUrl: null, startedAt: null, expiresAt: null };
+  } else if (isRebroadcastActive(rebroadcastLifecycle)) {
+    rb = { ...rebroadcastLifecycle, mode: "scheduled" };
+  } else if (continuousFallbackVideo) {
+    // Always-on fallback — platform never goes blank
+    rb = {
+      available: true,
+      videoId: continuousFallbackVideo.videoId,
+      title: continuousFallbackVideo.title,
+      thumbnailUrl: continuousFallbackVideo.thumbnailUrl,
+      startedAt: null,
+      expiresAt: null,
+      mode: "continuous",
+    };
+  } else {
+    rb = { available: false, videoId: null, title: null, thumbnailUrl: null, startedAt: null, expiresAt: null };
+  }
+
   return JSON.stringify({
     type: "status",
     ...livestreamState,

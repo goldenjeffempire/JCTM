@@ -28,6 +28,9 @@ export interface RebroadcastState {
   thumbnailUrl: string | null;
   startedAt: string | null;
   expiresAt: string | null;
+  /** "scheduled" = post-service rebroadcast window (4 days).
+   *  "continuous" = always-on fallback (latest upload, never expires). */
+  mode?: "scheduled" | "continuous";
 }
 
 export interface ManualOverrideState {
