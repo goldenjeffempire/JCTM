@@ -2,6 +2,7 @@ import { Storage, File } from "@google-cloud/storage";
 import { Readable } from "stream";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
+import { pool } from "@workspace/db";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -79,12 +80,14 @@ function parseServiceAccountKey(): object | null {
 }
 
 const serviceAccountKey = parseServiceAccountKey();
+const storageDriver = (process.env.OBJECT_STORAGE_DRIVER ?? "database").toLowerCase();
+const useDatabaseStorage = storageDriver === "database" || storageDriver === "local";
 
 /**
  * True when running inside the Replit environment (sidecar available).
  * False when deployed externally — uses GCS_SERVICE_ACCOUNT_KEY instead.
  */
-const useReplitSidecar = !serviceAccountKey;
+const useReplitSidecar = !serviceAccountKey && !useDatabaseStorage;
 
 export const objectStorageClient: Storage = serviceAccountKey
   ? new Storage({ credentials: serviceAccountKey as Parameters<typeof Storage>[0]["credentials"] })
@@ -114,6 +117,20 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
+type DatabaseObjectFile = {
+  kind: "database";
+  objectPath: string;
+  contentType: string;
+  byteSize: number;
+  data: Buffer;
+};
+
+type StorageObjectFile = File | DatabaseObjectFile;
+
+function isDatabaseObjectFile(file: StorageObjectFile): file is DatabaseObjectFile {
+  return "kind" in file && file.kind === "database";
+}
+
 export class ObjectStorageService {
   constructor() {}
 
@@ -137,6 +154,10 @@ export class ObjectStorageService {
   }
 
   getPrivateObjectDir(): string {
+    if (useDatabaseStorage && !process.env.PRIVATE_OBJECT_DIR) {
+      return "/database/.private";
+    }
+
     const dir = process.env.PRIVATE_OBJECT_DIR || "";
     if (!dir) {
       throw new Error(
@@ -147,7 +168,30 @@ export class ObjectStorageService {
     return dir;
   }
 
-  async searchPublicObject(filePath: string): Promise<File | null> {
+  async searchPublicObject(filePath: string): Promise<StorageObjectFile | null> {
+    if (useDatabaseStorage) {
+      for (const searchPath of this.getPublicObjectSearchPaths()) {
+        const normalizedSearchPath = searchPath.endsWith("/") ? searchPath.slice(0, -1) : searchPath;
+        const objectPath = `${normalizedSearchPath}/${filePath}`.replace(/^\/database\/public\//, "/public/");
+        const result = await pool.query(
+          "SELECT object_path, content_type, byte_size, data FROM local_objects WHERE object_path = $1 LIMIT 1",
+          [objectPath],
+        );
+        const row = result.rows[0];
+        if (row) {
+          return {
+            kind: "database",
+            objectPath: row.object_path,
+            contentType: row.content_type,
+            byteSize: Number(row.byte_size),
+            data: row.data,
+          };
+        }
+      }
+
+      return null;
+    }
+
     for (const searchPath of this.getPublicObjectSearchPaths()) {
       const fullPath = `${searchPath}/${filePath}`;
 
@@ -164,7 +208,17 @@ export class ObjectStorageService {
     return null;
   }
 
-  async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
+  async downloadObject(file: StorageObjectFile, cacheTtlSec: number = 3600): Promise<Response> {
+    if (isDatabaseObjectFile(file)) {
+      return new Response(file.data, {
+        headers: {
+          "Content-Type": file.contentType,
+          "Content-Length": String(file.byteSize),
+          "Cache-Control": `public, max-age=${cacheTtlSec}`,
+        },
+      });
+    }
+
     const [metadata] = await file.getMetadata();
     const aclPolicy = await getObjectAclPolicy(file);
     const isPublic = aclPolicy?.visibility === "public";
@@ -184,6 +238,10 @@ export class ObjectStorageService {
   }
 
   async getObjectEntityUploadURL(): Promise<string> {
+    if (useDatabaseStorage) {
+      return "/api/storage/uploads";
+    }
+
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
       throw new Error(
@@ -205,9 +263,28 @@ export class ObjectStorageService {
     });
   }
 
-  async getObjectEntityFile(objectPath: string): Promise<File> {
+  async getObjectEntityFile(objectPath: string): Promise<StorageObjectFile> {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
+    }
+
+    if (useDatabaseStorage) {
+      const result = await pool.query(
+        "SELECT object_path, content_type, byte_size, data FROM local_objects WHERE object_path = $1 LIMIT 1",
+        [objectPath],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new ObjectNotFoundError();
+      }
+
+      return {
+        kind: "database",
+        objectPath: row.object_path,
+        contentType: row.content_type,
+        byteSize: Number(row.byte_size),
+        data: row.data,
+      };
     }
 
     const parts = objectPath.slice(1).split("/");
@@ -258,6 +335,9 @@ export class ObjectStorageService {
    */
   async downloadObjectAsBuffer(objectPath: string): Promise<Buffer> {
     const objectFile = await this.getObjectEntityFile(objectPath);
+    if (isDatabaseObjectFile(objectFile)) {
+      return objectFile.data;
+    }
     const [buffer] = await objectFile.download();
     return buffer;
   }
@@ -268,6 +348,25 @@ export class ObjectStorageService {
    * where the browser sends the file to the API server instead of GCS directly.
    */
   async uploadBuffer(buffer: Buffer, contentType: string): Promise<string> {
+    if (useDatabaseStorage) {
+      const objectId = randomUUID();
+      const ext = contentTypeToExtension(contentType);
+      const filename = ext ? `${objectId}.${ext}` : objectId;
+      const objectPath = `/objects/uploads/${filename}`;
+      await pool.query(
+        `INSERT INTO local_objects (object_path, object_name, content_type, byte_size, data)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (object_path) DO UPDATE SET
+           object_name = EXCLUDED.object_name,
+           content_type = EXCLUDED.content_type,
+           byte_size = EXCLUDED.byte_size,
+           data = EXCLUDED.data,
+           updated_at = now()`,
+        [objectPath, `uploads/${filename}`, contentType, buffer.length, buffer],
+      );
+      return objectPath;
+    }
+
     const privateObjectDir = this.getPrivateObjectDir();
     const entityDir = privateObjectDir.endsWith("/") ? privateObjectDir : `${privateObjectDir}/`;
     const objectId = randomUUID();
@@ -287,6 +386,11 @@ export class ObjectStorageService {
    */
   async deleteObjectEntity(objectPath: string): Promise<void> {
     if (!objectPath || !objectPath.startsWith("/objects/")) return;
+    if (useDatabaseStorage) {
+      await pool.query("DELETE FROM local_objects WHERE object_path = $1", [objectPath]);
+      return;
+    }
+
     try {
       const file = await this.getObjectEntityFile(objectPath);
       await file.delete({ ignoreNotFound: true });
@@ -316,6 +420,22 @@ export class ObjectStorageService {
       .toBuffer();
 
     const thumbnailId = randomUUID();
+    if (useDatabaseStorage) {
+      const objectPath = `/objects/thumbs/${thumbnailId}.webp`;
+      await pool.query(
+        `INSERT INTO local_objects (object_path, object_name, content_type, byte_size, data)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (object_path) DO UPDATE SET
+           object_name = EXCLUDED.object_name,
+           content_type = EXCLUDED.content_type,
+           byte_size = EXCLUDED.byte_size,
+           data = EXCLUDED.data,
+           updated_at = now()`,
+        [objectPath, `thumbs/${thumbnailId}.webp`, "image/webp", thumbnail.length, thumbnail],
+      );
+      return objectPath;
+    }
+
     const privateObjectDir = this.getPrivateObjectDir();
     const entityDir = privateObjectDir.endsWith("/") ? privateObjectDir : `${privateObjectDir}/`;
     const fullPath = `${entityDir}thumbs/${thumbnailId}.webp`;
@@ -336,8 +456,14 @@ export class ObjectStorageService {
     if (!normalizedPath.startsWith("/")) {
       return normalizedPath;
     }
+    if (useDatabaseStorage) {
+      return normalizedPath;
+    }
 
     const objectFile = await this.getObjectEntityFile(normalizedPath);
+    if (isDatabaseObjectFile(objectFile)) {
+      return normalizedPath;
+    }
     await setObjectAclPolicy(objectFile, aclPolicy);
     return normalizedPath;
   }
@@ -348,9 +474,13 @@ export class ObjectStorageService {
     requestedPermission,
   }: {
     userId?: string;
-    objectFile: File;
+    objectFile: StorageObjectFile;
     requestedPermission?: ObjectPermission;
   }): Promise<boolean> {
+    if (isDatabaseObjectFile(objectFile)) {
+      return true;
+    }
+
     return canAccessObject({
       userId,
       objectFile,

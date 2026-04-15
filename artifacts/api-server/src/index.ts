@@ -212,6 +212,22 @@ async function runStartupMigrations() {
       ALTER TABLE gallery_images ADD COLUMN IF NOT EXISTS thumbnail_path text
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS local_objects (
+        object_path text PRIMARY KEY,
+        object_name text NOT NULL,
+        content_type text NOT NULL,
+        byte_size integer NOT NULL,
+        data bytea NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS local_objects_created_at_idx
+      ON local_objects (created_at DESC)
+    `);
+
     // ── Push Notification Subscriptions ──────────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
