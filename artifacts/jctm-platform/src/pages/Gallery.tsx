@@ -5,11 +5,13 @@ import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Images, X, ChevronLeft, ChevronRight, Upload, Trash2,
-  ZoomIn, Grid3X3, LayoutGrid, Lock, Eye, EyeOff, Calendar, Star,
+  ZoomIn, Grid3X3, LayoutGrid, Lock, Calendar, Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ObjectUploader } from "@workspace/object-storage-web";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 
 const CATEGORIES = [
   { value: "", label: "All Photos" },
@@ -22,7 +24,6 @@ const CATEGORIES = [
 ];
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-const ADMIN_TOKEN_STORAGE_KEY = "jctm-gallery-admin-token";
 
 function imageUrl(objectPath: string) {
   return `${BASE_URL}/api/storage${objectPath}`;
@@ -435,14 +436,14 @@ export default function Gallery() {
   const [category, setCategory] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [gridCols, setGridCols] = useState<"3" | "4">("4");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminToken, setAdminToken] = useState("");
   const [showUpload, setShowUpload] = useState(false);
-  const [adminInput, setAdminInput] = useState("");
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [categories, setCategories] = useState(CATEGORIES.slice(1).map(c => c.value));
   const [page, setPage] = useState(0);
   const LIMIT = 48;
+
+  const galleryAuth = useAdminAuth("gallery");
+  const { isAdmin, adminToken } = galleryAuth;
 
   const { data: images = [], isLoading, refetch } = useListGalleryImages({
     limit: LIMIT,
@@ -473,37 +474,6 @@ export default function Gallery() {
     loadCategories();
   }, [loadCategories]);
 
-  useEffect(() => {
-    const storedToken = window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
-    if (!storedToken) return;
-
-    const validateSession = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/gallery/admin/session`, {
-          headers: authHeaders(storedToken),
-        });
-        const data = await res.json();
-        if (res.ok && data?.authenticated === true) {
-          setAdminToken(storedToken);
-          setIsAdmin(true);
-        } else {
-          window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
-        }
-      } catch {
-        window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
-      }
-    };
-
-    validateSession();
-  }, []);
-
-  const clearAdminSession = () => {
-    setIsAdmin(false);
-    setAdminToken("");
-    setShowUpload(false);
-    window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
-  };
-
   const handleDelete = async (id: number) => {
     if (!confirm("Remove this image from the gallery?")) return;
     try {
@@ -511,7 +481,7 @@ export default function Gallery() {
       toast.success("Image removed.");
       refetch();
     } catch (error) {
-      if (error instanceof Error && error.message.includes("401")) clearAdminSession();
+      if (error instanceof Error && error.message.includes("401")) galleryAuth.logout();
       toast.error("Failed to remove image.");
     }
   };
@@ -522,33 +492,8 @@ export default function Gallery() {
       toast.success(current ? "Removed from homepage slideshow." : "Added to homepage slideshow.");
       refetch();
     } catch (error) {
-      if (error instanceof Error && error.message.includes("401")) clearAdminSession();
+      if (error instanceof Error && error.message.includes("401")) galleryAuth.logout();
       toast.error("Failed to update slideshow status.");
-    }
-  };
-
-  const handleAdminUnlock = async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/gallery/admin/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passphrase: adminInput }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || typeof data?.token !== "string") {
-        toast.error(data?.error ?? "Incorrect passphrase");
-        return;
-      }
-
-      window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, data.token);
-      setAdminToken(data.token);
-      setIsAdmin(true);
-      setShowAdminPrompt(false);
-      setAdminInput("");
-      toast.success("Admin mode enabled");
-    } catch {
-      toast.error("Unable to verify admin passphrase.");
     }
   };
 
@@ -605,7 +550,8 @@ export default function Gallery() {
               </button>
 
               {isAdmin ? (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <AdminBadge role="gallery" auth={galleryAuth} />
                   <button
                     onClick={() => setShowUpload(v => !v)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors"
@@ -613,18 +559,11 @@ export default function Gallery() {
                     <Upload className="h-3.5 w-3.5" />
                     {showUpload ? "Hide Upload" : "Upload Photos"}
                   </button>
-                  <button
-                    onClick={clearAdminSession}
-                    className="p-2 rounded-lg border border-border text-muted-foreground hover:text-primary transition-colors"
-                    title="Exit admin"
-                  >
-                    <EyeOff className="h-4 w-4" />
-                  </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setShowAdminPrompt(v => !v)}
-                  className="p-2 rounded-lg border border-border text-muted-foreground hover:text-primary transition-colors"
+                  className={`p-2 rounded-lg border transition-colors ${showAdminPrompt ? "border-accent/40 bg-accent/5 text-accent" : "border-border text-muted-foreground hover:text-primary"}`}
                   title="Admin access"
                 >
                   <Lock className="h-4 w-4" />
@@ -642,23 +581,10 @@ export default function Gallery() {
               exit={{ opacity: 0, height: 0 }}
               className="mb-6 overflow-hidden"
             >
-              <div className="glass-panel rounded-xl p-4 border border-border/50 flex items-center gap-3 max-w-sm">
-                <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                <input
-                  type="password"
-                  value={adminInput}
-                  onChange={e => setAdminInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleAdminUnlock()}
-                  placeholder="Admin passphrase"
-                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                  autoFocus
-                />
-                <button
-                  onClick={handleAdminUnlock}
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  Unlock
-                </button>
+              <div className="max-w-sm">
+                <AdminLoginGate role="gallery" auth={galleryAuth} compact>
+                  <span />
+                </AdminLoginGate>
               </div>
             </motion.div>
           )}

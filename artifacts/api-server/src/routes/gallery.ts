@@ -17,7 +17,7 @@ import {
   verifyGalleryAdminPassphrase,
   verifyGalleryAdminToken,
   getGalleryAdminTokenFromRequest,
-} from "../lib/galleryAdminAuth";
+} from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 

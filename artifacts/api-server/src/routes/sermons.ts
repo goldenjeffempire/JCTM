@@ -14,6 +14,7 @@ import { syncIncremental, harvestAll, iso8601ToSeconds } from "../lib/youtube-sy
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { requireAdminRole } from "../lib/adminAuth.js";
 
 // ── In-memory sermon summary cache (survives restarts only in dev) ─────────────
 const summaryCache = new Map<number, { summary: string; keyPoints: string[]; generatedAt: string }>();
@@ -408,10 +409,10 @@ router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> =>
 });
 
 // ──────────────────────────────────────────────────────
-// POST /sermons  — incremental sync (manual trigger)
+// POST /sermons  — incremental sync (sermon-admin only)
 // POST /sermons?harvest=true  — full purge + repopulate
 // ──────────────────────────────────────────────────────
-router.post("/sermons", async (req, res): Promise<void> => {
+router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<void> => {
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
   if (!YOUTUBE_API_KEY) {

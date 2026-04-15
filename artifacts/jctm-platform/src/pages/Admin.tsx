@@ -6,10 +6,13 @@ import {
   BarChart3, Zap, Calendar, PlayCircle, Settings, Activity,
   ChevronRight, Eye, Users, MessageSquare, Check, Trash2,
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
+  Lock, Power, Repeat2,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -100,12 +103,214 @@ function formatCountdown(iso: string): string {
   return `${mins}m`;
 }
 
+// ─── Livestream Manual Panel ────────────────────────────────────────────────────
+
+interface LivestreamManualPanelProps {
+  auth: ReturnType<typeof useAdminAuth>;
+  liveStatus: ReturnType<typeof useLivestreamStatus>;
+}
+
+function LivestreamManualPanel({ auth, liveStatus }: LivestreamManualPanelProps) {
+  const qc = useQueryClient();
+  const [videoId, setVideoId] = useState("");
+  const [busySend, setBusySend] = useState(false);
+  const [busyStop, setBusyStop] = useState(false);
+  const [busyRebroadcast, setBusyRebroadcast] = useState(false);
+
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+
+  const goLive = async () => {
+    if (!videoId.trim()) { toast.error("Enter a YouTube video ID"); return; }
+    setBusySend(true);
+    try {
+      const res = await fetch(`${BASE}/api/livestream/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ isLive: true, videoId: videoId.trim() }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) auth.logout();
+        const d = await res.json().catch(() => ({}));
+        toast.error(d?.error ?? "Failed to go live");
+        return;
+      }
+      toast.success("Stream set to LIVE");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+      setVideoId("");
+    } finally { setBusySend(false); }
+  };
+
+  const stopLive = async () => {
+    setBusyStop(true);
+    try {
+      const res = await fetch(`${BASE}/api/livestream/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ isLive: false }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) auth.logout();
+        const d = await res.json().catch(() => ({}));
+        toast.error(d?.error ?? "Failed to stop stream");
+        return;
+      }
+      toast.success("Stream stopped");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+    } finally { setBusyStop(false); }
+  };
+
+  const triggerRebroadcast = async () => {
+    setBusyRebroadcast(true);
+    try {
+      const res = await fetch(`${BASE}/api/livestream/rebroadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify(videoId.trim() ? { videoId: videoId.trim() } : {}),
+      });
+      if (!res.ok) {
+        if (res.status === 401) auth.logout();
+        const d = await res.json().catch(() => ({}));
+        toast.error(d?.error ?? "Failed to trigger rebroadcast");
+        return;
+      }
+      toast.success("Rebroadcast activated");
+      qc.invalidateQueries({ queryKey: ["livestream-status"] });
+    } finally { setBusyRebroadcast(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-xs text-muted-foreground font-medium">YouTube Video ID (optional for rebroadcast)</label>
+        <input
+          value={videoId}
+          onChange={e => setVideoId(e.target.value)}
+          placeholder="e.g. dQw4w9WgXcQ"
+          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={goLive}
+          disabled={busySend || !videoId.trim()}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors"
+        >
+          {busySend ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
+          Go Live
+        </button>
+        <button
+          onClick={triggerRebroadcast}
+          disabled={busyRebroadcast}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
+        >
+          {busyRebroadcast ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat2 className="h-3.5 w-3.5" />}
+          Rebroadcast
+        </button>
+        {liveStatus.isLive && (
+          <button
+            onClick={stopLive}
+            disabled={busyStop}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors"
+          >
+            {busyStop ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+            Stop Stream
+          </button>
+        )}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Current status: <span className={`font-semibold ${liveStatus.isLive ? "text-red-500" : liveStatus.rebroadcast.available ? "text-amber-500" : "text-muted-foreground"}`}>
+          {liveStatus.isLive ? "LIVE" : liveStatus.rebroadcast.available ? "REBROADCAST" : "OFF AIR"}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+// ─── Sermon Sync Panel ─────────────────────────────────────────────────────────
+
+interface SermonSyncPanelProps {
+  auth: ReturnType<typeof useAdminAuth>;
+}
+
+function SermonSyncPanel({ auth }: SermonSyncPanelProps) {
+  const qc = useQueryClient();
+  const [busySync, setBusySync] = useState(false);
+  const [busyHarvest, setBusyHarvest] = useState(false);
+  const [lastResult, setLastResult] = useState<string | null>(null);
+
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+
+  const runSync = async (harvest: boolean) => {
+    const setter = harvest ? setBusyHarvest : setBusySync;
+    setter(true);
+    setLastResult(null);
+    try {
+      const url = `${BASE}/api/sermons${harvest ? "?harvest=true" : ""}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+      });
+      if (!res.ok) {
+        if (res.status === 401) auth.logout();
+        const d = await res.json().catch(() => ({}));
+        toast.error(d?.error ?? "Sync failed");
+        return;
+      }
+      const data = await res.json();
+      const msg = harvest
+        ? `Full harvest: ${data.inserted ?? 0} inserted, ${data.updated ?? 0} updated`
+        : `Sync: ${data.inserted ?? 0} new, ${data.updated ?? 0} updated`;
+      toast.success(msg);
+      setLastResult(msg);
+      qc.invalidateQueries({ queryKey: ["broadcast-status"] });
+    } finally { setter(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => runSync(false)}
+          disabled={busySync || busyHarvest}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        >
+          {busySync ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Incremental Sync
+        </button>
+        <button
+          onClick={() => {
+            if (!confirm("This will do a full YouTube harvest. It may use significant API quota. Continue?")) return;
+            runSync(true);
+          }}
+          disabled={busySync || busyHarvest}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-muted text-sm font-semibold hover:bg-muted/70 disabled:opacity-50 transition-colors"
+        >
+          {busyHarvest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+          Full Harvest
+        </button>
+      </div>
+      {lastResult && (
+        <p className="text-xs text-green-600 font-medium">{lastResult}</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Incremental sync checks for new videos. Full harvest re-imports the entire library (high API quota cost).
+      </p>
+    </div>
+  );
+}
+
 // ─── Admin Page ────────────────────────────────────────────────────────────────
 
 export default function Admin() {
   const qc = useQueryClient();
   const liveStatus = useLivestreamStatus();
   const [activeTab, setActiveTab] = useState<"overview" | "queue" | "schedule" | "metrics" | "testimonies" | "platform">("overview");
+  const livestreamAuth = useAdminAuth("livestream");
+  const sermonAuth = useAdminAuth("sermon");
+  const [liveControlsOpen, setLiveControlsOpen] = useState(false);
+  const [sermonControlsOpen, setSermonControlsOpen] = useState(false);
 
   const { data: broadcastStatus, isLoading: statusLoading } = useQuery<BroadcastStatus>({
     queryKey: ["broadcast-status"],
@@ -341,6 +546,71 @@ export default function Admin() {
                   </div>
                 </div>
               )}
+
+              {/* ── Manual Livestream Controls ─────────────────────────────── */}
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                <button
+                  onClick={() => setLiveControlsOpen(v => !v)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-semibold text-sm">Manual Livestream Controls</span>
+                    {livestreamAuth.isAdmin && <AdminBadge role="livestream" auth={livestreamAuth} />}
+                  </div>
+                  <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${liveControlsOpen ? "rotate-90" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {liveControlsOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden border-t border-border"
+                    >
+                      <div className="p-4">
+                        <AdminLoginGate role="livestream" auth={livestreamAuth} title="Livestream Controls">
+                          <LivestreamManualPanel auth={livestreamAuth} liveStatus={liveStatus} />
+                        </AdminLoginGate>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ── Manual Sermon Sync Controls ────────────────────────────── */}
+              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                <button
+                  onClick={() => setSermonControlsOpen(v => !v)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-semibold text-sm">Sermon Sync Controls</span>
+                    {sermonAuth.isAdmin && <AdminBadge role="sermon" auth={sermonAuth} />}
+                  </div>
+                  <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${sermonControlsOpen ? "rotate-90" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {sermonControlsOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden border-t border-border"
+                    >
+                      <div className="p-4">
+                        <AdminLoginGate role="sermon" auth={sermonAuth} title="Sermon Sync Controls">
+                          <SermonSyncPanel auth={sermonAuth} />
+                        </AdminLoginGate>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
             </motion.div>
           )}
 

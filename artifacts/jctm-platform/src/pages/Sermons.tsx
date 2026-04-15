@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetSermonStats, getGetSermonStatsQueryKey, useSyncSermons } from "@workspace/api-client-react";
+import { useGetSermonStats, getGetSermonStatsQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X } from "lucide-react";
+import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X, Lock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const CATEGORIES = [
@@ -89,7 +90,8 @@ export default function Sermons() {
   const { data: stats, refetch: refetchStats } = useGetSermonStats({
     query: { queryKey: getGetSermonStatsQueryKey() }
   });
-  const syncMutation = useSyncSermons();
+  const sermonAuth = useAdminAuth("sermon");
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Load first page whenever search changes
   const loadFirstPage = useCallback(async (searchTerm: string) => {
@@ -155,18 +157,31 @@ export default function Sermons() {
     window._searchTimeout = setTimeout(() => setDebouncedSearch(val), 400) as unknown as number;
   };
 
-  const handleSync = () => {
-    syncMutation.mutate(undefined, {
-      onSuccess: (data) => {
-        toast.success((data as { message?: string }).message ?? "Sync complete");
-        loadFirstPage(debouncedSearch);
-        refetchStats();
-      },
-      onError: () => toast.error("Sync failed — check YouTube API key"),
-    });
+  const handleSync = async () => {
+    if (!sermonAuth.adminToken) { toast.error("Sermon admin access required"); return; }
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`${BASE}/api/sermons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sermonAuth.adminToken}` },
+      });
+      const data = (await res.json()) as { message?: string; error?: string };
+      if (!res.ok) {
+        if (res.status === 401) sermonAuth.logout();
+        throw new Error(data.error ?? "Sync failed");
+      }
+      toast.success(data.message ?? "Sync complete");
+      loadFirstPage(debouncedSearch);
+      refetchStats();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleHarvest = async () => {
+    if (!sermonAuth.adminToken) { toast.error("Sermon admin access required"); return; }
     const confirmed = confirm(
       "This will delete all sermons and re-fetch the full channel history (479+ videos). Continue?"
     );
@@ -175,9 +190,15 @@ export default function Sermons() {
     setIsHarvesting(true);
     const toastId = toast.loading("Harvesting full channel history…");
     try {
-      const res = await fetch(`${BASE}/api/sermons?harvest=true`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/sermons?harvest=true`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sermonAuth.adminToken}` },
+      });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Harvest failed");
+      if (!res.ok) {
+        if (res.status === 401) sermonAuth.logout();
+        throw new Error(data.error ?? "Harvest failed");
+      }
       toast.success(data.message ?? "Harvest complete", { id: toastId });
       await loadFirstPage(debouncedSearch);
       refetchStats();
@@ -447,24 +468,38 @@ export default function Sermons() {
                 className="pl-10 border-border bg-background"
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={handleSync}
-              disabled={syncMutation.isPending || isHarvesting}
-              className="flex items-center gap-2 text-primary"
-            >
-              <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-              Sync
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleHarvest}
-              disabled={syncMutation.isPending || isHarvesting}
-              className="flex items-center gap-2 text-primary"
-            >
-              {isHarvesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              {isHarvesting ? "Harvesting…" : "Harvest All"}
-            </Button>
+            {sermonAuth.isAdmin ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleSync}
+                  disabled={isSyncing || isHarvesting}
+                  className="flex items-center gap-2 text-primary"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                  Sync
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleHarvest}
+                  disabled={isSyncing || isHarvesting}
+                  className="flex items-center gap-2 text-primary"
+                >
+                  {isHarvesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                  {isHarvesting ? "Harvesting…" : "Harvest All"}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Admin sync (sermon admins only)"
+                className="text-muted-foreground hover:text-primary"
+                onClick={() => toast.info("Use the Admin → Sermon Sync Controls panel to sync sermons")}
+              >
+                <Lock className="h-4 w-4" />
+              </Button>
+            )}
           </div>
 
         {/* Skeleton on first load */}

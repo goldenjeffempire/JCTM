@@ -54,9 +54,27 @@ All routes verified HTTP 200:
 - **Client lib**: `@workspace/object-storage-web` — Uppy v5 ObjectUploader + useUpload hook
 - **API endpoints**: `GET /api/gallery`, `GET /api/gallery/featured`, `GET /api/gallery/categories`, protected `POST /api/gallery`, protected `PATCH /api/gallery/:id`, protected `DELETE /api/gallery/:id`
 - **Upload**: protected `POST /api/storage/uploads/request-url` → presigned GCS URL → direct image upload from browser
-- **Admin access**: server-side passphrase login at `POST /api/gallery/admin/login`; supports `GALLERY_ADMIN_PASSPHRASE_HASH` (scrypt `salt:hash`, preferred), `GALLERY_ADMIN_PASSPHRASE`, and signed short-lived bearer tokens. The passphrase is no longer hardcoded in the frontend.
+- **Admin access**: unified role-based system — see Role-Based Admin section below. Gallery role also checks legacy `GALLERY_ADMIN_PASSPHRASE_HASH` for backward compat.
 - **Homepage sync**: New uploads are featured by default and the Home page Ministry in Pictures slideshow pulls `GET /api/gallery/featured`, with bundled images as fallback.
 - **Categories**: Built-in and dynamically created categories are exposed through `GET /api/gallery/categories` and available in the Gallery filter/upload dashboard.
+
+## Role-Based Admin System
+
+Three independent admin roles, each with its own passphrase, HMAC-signed JWT, and 2-hour TTL stored in localStorage.
+
+| Role | Env var (hash preferred) | Env var (plaintext fallback) | Dev default |
+|------|--------------------------|------------------------------|-------------|
+| `gallery` | `ADMIN_PASSPHRASE_HASH_GALLERY` | `ADMIN_PASSPHRASE_GALLERY` | `jctm-gallery-2026` |
+| `sermon` | `ADMIN_PASSPHRASE_HASH_SERMON` | `ADMIN_PASSPHRASE_SERMON` | `jctm-sermon-2026` |
+| `livestream` | `ADMIN_PASSPHRASE_HASH_LIVESTREAM` | `ADMIN_PASSPHRASE_LIVESTREAM` | `jctm-stream-2026` |
+
+Gallery role also checks legacy `GALLERY_ADMIN_PASSPHRASE_HASH` / `GALLERY_ADMIN_PASSPHRASE`. Token signing uses HMAC-SHA256 with `ADMIN_TOKEN_SECRET` (falls back to `SESSION_SECRET`).
+
+**Backend**: `lib/adminAuth.ts` — `requireAdminRole(role)` middleware; `routes/adminAuth.ts` — `POST /api/admin/auth/login`, `GET /api/admin/auth/session`, `GET /api/admin/auth/roles`.
+
+**Protected routes**: `POST /api/sermons` (sermon role), `POST /api/livestream/status` + `POST /api/livestream/rebroadcast` (livestream role), all gallery writes (gallery role).
+
+**Frontend**: `hooks/useAdminAuth.ts` (per-role hook), `components/admin/AdminLoginGate.tsx` (full + compact gate + badge). Gallery.tsx, Admin.tsx, and Sermons.tsx all use role-gated admin controls.
 
 ## Recent Enhancements
 

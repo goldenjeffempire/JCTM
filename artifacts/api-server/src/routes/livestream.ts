@@ -13,6 +13,7 @@ import {
   buildLiveServiceNotification,
   buildRebroadcastNotification,
 } from "../lib/push-manager.js";
+import { requireAdminRole } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 
@@ -533,9 +534,9 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
   res.json(GetLivestreamStatusResponse.parse(livestreamState));
 });
 
-// ─── POST /api/livestream/status — manual override ────────────────────────────
+// ─── POST /api/livestream/status — manual override (livestream-admin only) ───
 
-router.post("/livestream/status", async (req, res): Promise<void> => {
+router.post("/livestream/status", requireAdminRole("livestream"), async (req, res): Promise<void> => {
   const parsed = UpdateLivestreamStatusBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -566,13 +567,13 @@ router.post("/livestream/status", async (req, res): Promise<void> => {
   res.json(UpdateLivestreamStatusResponse.parse(livestreamState));
 });
 
-// ─── POST /api/livestream/rebroadcast — manual rebroadcast trigger ────────────
+// ─── POST /api/livestream/rebroadcast — manual rebroadcast (livestream-admin) ─
 //
 // Immediately activates rebroadcast mode for a given video (or the most recent
 // sermon in the DB if no videoId is supplied).  Broadcasts the new state to all
 // connected SSE clients so every viewer's banner updates in real time.
 
-router.post("/livestream/rebroadcast", async (req, res): Promise<void> => {
+router.post("/livestream/rebroadcast", requireAdminRole("livestream"), async (req, res): Promise<void> => {
   let { videoId, title, thumbnailUrl } = req.body as {
     videoId?: string;
     title?: string;

@@ -24,6 +24,7 @@ import momentsRouter from "./moments";
 import aiRouter from "./ai";
 import blogRouter from "./blog";
 import adminRouter from "./admin";
+import adminAuthRouter from "./adminAuth";
 import broadcastRouter from "./broadcast";
 import pushRouter from "./push";
 
@@ -56,6 +57,7 @@ router.use(momentsRouter);
 router.use(aiRouter);
 router.use(blogRouter);
 router.use(adminRouter);
+router.use(adminAuthRouter);
 router.use(broadcastRouter);
 router.use(pushRouter);
 
