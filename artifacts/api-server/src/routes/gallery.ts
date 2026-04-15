@@ -153,18 +153,20 @@ router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => 
   res.status(201).json(serializeImage(image));
 
   // Fire-and-forget: generate a WebP thumbnail in the background.
-  // This does not block the response — the thumbnail_path is patched once ready.
+  // Capture the logger reference before the async block so it remains valid
+  // after the HTTP response has been flushed.
+  const log = req.log;
+  const imageId = image.id;
+  const objectPath = parsed.data.objectPath;
   (async () => {
     try {
-      const thumbnailPath = await objectStorageService.generateAndStoreThumbnail(
-        parsed.data.objectPath,
-      );
+      const thumbnailPath = await objectStorageService.generateAndStoreThumbnail(objectPath);
       await db
         .update(galleryImagesTable)
         .set({ thumbnailPath })
-        .where(eq(galleryImagesTable.id, image.id));
+        .where(eq(galleryImagesTable.id, imageId));
     } catch (err) {
-      req.log.warn({ err, imageId: image.id }, "Thumbnail generation failed — original image will be used");
+      log.warn({ err, imageId }, "Thumbnail generation failed — original image will be used");
     }
   })();
 });
@@ -245,11 +247,35 @@ router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<voi
     return;
   }
 
+  // Fetch the record first so we know which storage objects to clean up
+  const [existing] = await db
+    .select()
+    .from(galleryImagesTable)
+    .where(eq(galleryImagesTable.id, parsed.data.id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Gallery image not found" });
+    return;
+  }
+
   await db
     .delete(galleryImagesTable)
     .where(eq(galleryImagesTable.id, parsed.data.id));
 
   res.json({ success: true });
+
+  // Clean up GCS objects in the background after responding
+  const log = req.log;
+  (async () => {
+    const paths = [existing.objectPath, existing.thumbnailPath].filter(Boolean) as string[];
+    await Promise.allSettled(
+      paths.map(p =>
+        objectStorageService.deleteObjectEntity(p).catch(err =>
+          log.warn({ err, path: p }, "Could not delete storage object during gallery image removal")
+        )
+      )
+    );
+  })();
 });
 
 export default router;

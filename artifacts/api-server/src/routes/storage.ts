@@ -4,7 +4,7 @@ import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { ObjectStorageService, ObjectNotFoundError, detectImageMimeType } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
 import { requireGalleryAdmin } from "../lib/adminAuth.js";
 
@@ -75,27 +75,37 @@ router.post("/storage/uploads", requireGalleryAdmin, async (req: Request, res: R
     return;
   }
 
+  const MAX_BYTES = 20 * 1024 * 1024;
   const chunks: Buffer[] = [];
   let totalBytes = 0;
-  const MAX_BYTES = 20 * 1024 * 1024;
+  let oversized = false;
 
   try {
     await new Promise<void>((resolve, reject) => {
       req.on("data", (chunk: Buffer) => {
+        if (oversized) return;
         totalBytes += chunk.length;
         if (totalBytes > MAX_BYTES) {
-          reject(new Error("Image must be 20 MB or smaller"));
-          req.destroy();
+          oversized = true;
+          reject(new Error("IMAGE_TOO_LARGE"));
           return;
         }
         chunks.push(chunk);
       });
       req.on("end", resolve);
       req.on("error", reject);
+      req.on("close", () => {
+        if (oversized) return;
+        resolve();
+      });
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Upload stream error";
-    res.status(413).json({ error: msg });
+    if (msg === "IMAGE_TOO_LARGE") {
+      res.status(413).json({ error: "Image must be 20 MB or smaller" });
+    } else {
+      res.status(400).json({ error: "Upload stream interrupted" });
+    }
     return;
   }
 
@@ -104,9 +114,18 @@ router.post("/storage/uploads", requireGalleryAdmin, async (req: Request, res: R
     return;
   }
 
+  const buffer = Buffer.concat(chunks);
+
+  // Validate actual file contents via magic bytes to prevent content-type spoofing
+  const detectedType = detectImageMimeType(buffer);
+  if (!detectedType) {
+    res.status(400).json({ error: "File does not appear to be a valid image" });
+    return;
+  }
+
   try {
-    const buffer = Buffer.concat(chunks);
-    const objectPath = await objectStorageService.uploadBuffer(buffer, rawContentType);
+    // Use the detected MIME type (from magic bytes) rather than the client-supplied header
+    const objectPath = await objectStorageService.uploadBuffer(buffer, detectedType);
     res.json({ objectPath });
   } catch (error) {
     req.log.error({ err: error }, "Error uploading file to storage");

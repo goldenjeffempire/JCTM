@@ -188,19 +188,35 @@ export class ObjectStorageService {
 
   /**
    * Uploads a raw Buffer directly to the private object storage and returns
-   * the objectPath (/objects/uploads/<uuid>). Use this for server-side uploads
+   * the objectPath (/objects/uploads/<uuid>.<ext>). Use this for server-side uploads
    * where the browser sends the file to the API server instead of GCS directly.
    */
   async uploadBuffer(buffer: Buffer, contentType: string): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     const entityDir = privateObjectDir.endsWith("/") ? privateObjectDir : `${privateObjectDir}/`;
     const objectId = randomUUID();
-    const fullPath = `${entityDir}uploads/${objectId}`;
+    const ext = contentTypeToExtension(contentType);
+    const filename = ext ? `${objectId}.${ext}` : objectId;
+    const fullPath = `${entityDir}uploads/${filename}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
     await file.save(buffer, { contentType, resumable: false });
-    return `/objects/uploads/${objectId}`;
+    return `/objects/uploads/${filename}`;
+  }
+
+  /**
+   * Deletes an object entity from storage. Silently ignores missing objects.
+   * objectPath must be in /objects/... form.
+   */
+  async deleteObjectEntity(objectPath: string): Promise<void> {
+    if (!objectPath || !objectPath.startsWith("/objects/")) return;
+    try {
+      const file = await this.getObjectEntityFile(objectPath);
+      await file.delete({ ignoreNotFound: true });
+    } catch {
+      // Object already gone — that's fine
+    }
   }
 
   /**
@@ -325,4 +341,42 @@ async function signObjectURL({
 
   const { signed_url: signedURL } = await response.json();
   return signedURL;
+}
+
+function contentTypeToExtension(contentType: string): string {
+  const map: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg":  "jpg",
+    "image/png":  "png",
+    "image/webp": "webp",
+    "image/gif":  "gif",
+    "image/avif": "avif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+  };
+  return map[contentType.toLowerCase()] ?? "";
+}
+
+/**
+ * Inspects the first bytes of a buffer to validate it matches a known image
+ * magic byte signature. Returns the detected MIME type or null if unrecognised.
+ */
+export function detectImageMimeType(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif";
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return "image/webp";
+
+  // AVIF/HEIC/HEIF: ftyp box
+  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) {
+    const brand = buf.slice(8, 12).toString("ascii");
+    if (brand === "avif" || brand === "avis") return "image/avif";
+    if (brand === "heic" || brand === "heix" || brand === "hevc") return "image/heic";
+    if (brand === "mif1" || brand === "msf1" || brand === "heif") return "image/heif";
+  }
+
+  return null;
 }

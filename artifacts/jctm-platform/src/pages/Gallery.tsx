@@ -243,6 +243,84 @@ function GalleryCard({
   );
 }
 
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const UPLOAD_CONCURRENCY = 3;
+
+type FileEntry = {
+  id: string;
+  file: File;
+  status: "pending" | "uploading" | "done" | "error";
+  progress: number;
+  error?: string;
+  objectPath?: string;
+};
+
+function uploadFileWithProgress(
+  file: File,
+  adminToken: string,
+  onProgress: (pct: number) => void,
+  signal: AbortSignal,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", e => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 95));
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          onProgress(100);
+          resolve(data.objectPath);
+        } catch {
+          reject(new Error("Invalid response from server"));
+        }
+      } else {
+        try {
+          const err = JSON.parse(xhr.responseText);
+          reject(new Error(err.error ?? `Server error ${xhr.status}`));
+        } catch {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Network error during upload")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+
+    signal.addEventListener("abort", () => xhr.abort());
+
+    xhr.open("POST", `${BASE_URL}/api/storage/uploads`);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("Authorization", `Bearer ${adminToken}`);
+    xhr.send(file);
+  });
+}
+
+async function runWithConcurrency<T>(
+  tasks: (() => Promise<T>)[],
+  concurrency: number,
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < tasks.length) {
+      const i = index++;
+      try {
+        results[i] = { status: "fulfilled", value: await tasks[i]() };
+      } catch (err) {
+        results[i] = { status: "rejected", reason: err };
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return results;
+}
+
 function FileDropZone({
   adminToken,
   onComplete,
@@ -251,15 +329,36 @@ function FileDropZone({
   onComplete: (paths: string[]) => void;
 }) {
   const [dragging, setDragging] = useState(false);
-  const [files, setFiles] = useState<Array<{ file: File; status: "pending" | "uploading" | "done" | "error" }>>([]);
+  const [files, setFiles] = useState<FileEntry[]>([]);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const updateEntry = useCallback((id: string, patch: Partial<FileEntry>) => {
+    setFiles(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f));
+  }, []);
 
   const addFiles = useCallback((selected: FileList | null) => {
     if (!selected || selected.length === 0) return;
-    const imgs = Array.from(selected).filter(f => f.type.startsWith("image/"));
-    if (imgs.length === 0) { toast.error("Please select image files only."); return; }
-    setFiles(prev => [...prev, ...imgs.map(f => ({ file: f, status: "pending" as const }))]);
+    const valid: FileEntry[] = [];
+    const errors: string[] = [];
+
+    Array.from(selected).forEach(f => {
+      if (!f.type.startsWith("image/")) {
+        errors.push(`${f.name}: not an image`);
+      } else if (f.size > MAX_FILE_BYTES) {
+        errors.push(`${f.name}: exceeds 20 MB limit`);
+      } else {
+        valid.push({ id: crypto.randomUUID(), file: f, status: "pending", progress: 0 });
+      }
+    });
+
+    if (errors.length > 0) toast.error(errors.join("\n"));
+    if (valid.length > 0) setFiles(prev => [...prev, ...valid]);
+  }, []);
+
+  const removeEntry = useCallback((id: string) => {
+    setFiles(prev => prev.filter(f => f.id !== id));
   }, []);
 
   const pendingCount = files.filter(f => f.status === "pending").length;
@@ -267,30 +366,45 @@ function FileDropZone({
   const handleUpload = useCallback(async () => {
     const pending = files.filter(f => f.status === "pending");
     if (pending.length === 0 || uploading) return;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
     setUploading(true);
-    const collected: string[] = [];
-    for (const item of pending) {
-      setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: "uploading" } : f));
-      try {
-        const res = await fetch(`${BASE_URL}/api/storage/uploads`, {
-          method: "POST",
-          headers: { "Content-Type": item.file.type, "Authorization": `Bearer ${adminToken}` },
-          body: item.file,
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error ?? "Upload failed");
-        }
-        const { objectPath } = await res.json();
-        collected.push(objectPath);
-        setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: "done" } : f));
-      } catch {
-        setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: "error" } : f));
-      }
-    }
+
+    const tasks = pending.map(entry => async () => {
+      updateEntry(entry.id, { status: "uploading", progress: 0 });
+      const objectPath = await uploadFileWithProgress(
+        entry.file,
+        adminToken,
+        pct => updateEntry(entry.id, { progress: pct }),
+        controller.signal,
+      );
+      updateEntry(entry.id, { status: "done", progress: 100, objectPath });
+      return objectPath;
+    });
+
+    const results = await runWithConcurrency(tasks, UPLOAD_CONCURRENCY);
     setUploading(false);
+    abortRef.current = null;
+
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        const msg = r.reason instanceof Error ? r.reason.message : "Upload failed";
+        updateEntry(pending[i].id, { status: "error", error: msg });
+      }
+    });
+
+    const collected = results
+      .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
+      .map(r => r.value);
+
     if (collected.length > 0) onComplete(collected);
-  }, [files, uploading, adminToken, onComplete]);
+    else if (!controller.signal.aborted) toast.error("All uploads failed. Check the errors and try again.");
+  }, [files, uploading, adminToken, onComplete, updateEntry]);
+
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -298,40 +412,74 @@ function FileDropZone({
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
-        onClick={() => inputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dragging ? "border-accent bg-accent/10" : "border-border hover:border-accent/50 hover:bg-muted/20"}`}
+        onClick={() => !uploading && inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${uploading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${dragging ? "border-accent bg-accent/10" : "border-border hover:border-accent/50 hover:bg-muted/20"}`}
       >
         <input ref={inputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
         <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Drop images here or click to browse</p>
-        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · up to 20 MB each · bulk supported</p>
+        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · max 20 MB each · bulk supported</p>
       </div>
 
       {files.length > 0 && (
-        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
-          {files.map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
-              {item.status === "error" && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
-              {item.status === "uploading" && <div className="h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />}
-              {item.status === "pending" && <div className="h-4 w-4 border-2 border-border rounded-full shrink-0" />}
-              <span className="truncate text-foreground">{item.file.name}</span>
-              <span className="text-muted-foreground text-xs shrink-0 ml-auto">{(item.file.size / 1024).toFixed(0)} KB</span>
+        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+          {files.map(item => (
+            <div key={item.id} className="space-y-0.5">
+              <div className="flex items-center gap-2 text-sm">
+                {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+                {item.status === "error" && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                {item.status === "uploading" && <div className="h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />}
+                {item.status === "pending" && <div className="h-4 w-4 border-2 border-border rounded-full shrink-0" />}
+                <span className="truncate text-foreground flex-1">{item.file.name}</span>
+                <span className="text-muted-foreground text-xs shrink-0">{(item.file.size / 1024 / 1024).toFixed(1)} MB</span>
+                {item.status === "pending" && !uploading && (
+                  <button
+                    onClick={e => { e.stopPropagation(); removeEntry(item.id); }}
+                    className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    title="Remove"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {item.status === "uploading" && (
+                <div className="ml-6 h-1 bg-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent rounded-full transition-all duration-200"
+                    style={{ width: `${item.progress}%` }}
+                  />
+                </div>
+              )}
+              {item.status === "error" && item.error && (
+                <p className="ml-6 text-[11px] text-red-500">{item.error}</p>
+              )}
             </div>
           ))}
         </div>
       )}
 
       <div className="flex gap-2">
-        <button
-          onClick={handleUpload}
-          disabled={uploading || pendingCount === 0}
-          className="flex-1 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent text-sm font-semibold hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {uploading ? "Uploading…" : `Upload ${pendingCount > 0 ? pendingCount + " " : ""}File${pendingCount !== 1 ? "s" : ""}`}
-        </button>
+        {uploading ? (
+          <button
+            onClick={handleCancel}
+            className="flex-1 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 text-sm font-semibold hover:bg-red-500/20 transition-colors"
+          >
+            Cancel Uploads
+          </button>
+        ) : (
+          <button
+            onClick={handleUpload}
+            disabled={pendingCount === 0}
+            className="flex-1 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent text-sm font-semibold hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {`Upload ${pendingCount > 0 ? pendingCount + " " : ""}File${pendingCount !== 1 ? "s" : ""}`}
+          </button>
+        )}
         {files.length > 0 && !uploading && (
-          <button onClick={() => setFiles([])} className="px-3 py-2 rounded-lg border border-border text-muted-foreground text-sm hover:text-foreground transition-colors">
+          <button
+            onClick={() => setFiles([])}
+            className="px-3 py-2 rounded-lg border border-border text-muted-foreground text-sm hover:text-foreground transition-colors"
+          >
             Clear
           </button>
         )}
@@ -362,6 +510,11 @@ function UploadPanel({
     request: { headers: authHeaders(adminToken) },
   });
 
+  // Keep local category in sync with the parent filter selection
+  useEffect(() => {
+    if (selectedCategory) setCategory(selectedCategory);
+  }, [selectedCategory]);
+
   const handleComplete = useCallback((paths: string[]) => {
     if (paths.length === 0) return;
     setPendingPaths(prev => [...prev, ...paths]);
@@ -373,29 +526,34 @@ function UploadPanel({
       toast.error("Please upload at least one image first.");
       return;
     }
+    if (!title.trim()) {
+      toast.error("Please enter a title or caption for these images.");
+      return;
+    }
+
+    const normalizedCategory = category === "__custom__"
+      ? customCategory.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+      : category;
+
+    if (!normalizedCategory) {
+      toast.error("Please choose or enter a category.");
+      return;
+    }
+
     setSaving(true);
     try {
-      const normalizedCategory = category === "__custom__"
-        ? customCategory.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-        : category;
-
-      if (!normalizedCategory) {
-        toast.error("Please choose or enter a category.");
-        return;
-      }
-
       await Promise.all(
         pendingPaths.map((objectPath, i) =>
           createImage({
             data: {
               objectPath,
-              title: pendingPaths.length === 1 ? title : `${title} ${i + 1}`,
-              description: description || null,
+              title: pendingPaths.length === 1 ? title.trim() : `${title.trim()} ${i + 1}`,
+              description: description.trim() || null,
               category: normalizedCategory,
               serviceDate: serviceDate || null,
-              altText: title || null,
+              altText: title.trim() || null,
               isPublished: true,
-              isFeatured: true,
+              isFeatured: false,
               sortOrder: 0,
             },
           })
@@ -430,13 +588,15 @@ function UploadPanel({
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Title / Caption</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+              Title / Caption <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Sunday Service — April 2026"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className={`w-full px-3 py-2 rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 ${!title.trim() && pendingPaths.length > 0 ? "border-red-400" : "border-border"}`}
             />
           </div>
 
@@ -560,9 +720,8 @@ export default function Gallery() {
     loadCategories();
   }, [loadCategories]);
 
-  useEffect(() => {
-    setPage(0);
-  }, [debouncedSearch]);
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
+  useEffect(() => { setPage(0); }, [category]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Remove this image from the gallery?")) return;
