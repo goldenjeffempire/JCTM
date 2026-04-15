@@ -53,8 +53,14 @@ To exercise any of these rights, please contact us. We will respond within 30 da
     content: `Giving records are retained for seven (7) years in compliance with Nigerian financial and tax regulations. Member profiles are retained for as long as your account is active. Testimonies are retained indefinitely for ministry archive purposes unless you request deletion. You may request account deletion at any time.`,
   },
   {
-    title: "7. Cookies & Analytics",
-    content: `This platform uses minimal session cookies required for authentication and form submissions. We do not use third-party advertising cookies. Basic usage analytics (page views, error logs) are collected server-side and are not shared with analytics providers.`,
+    title: "7. Cookies, Analytics & Advertising",
+    content: `This platform uses cookies and similar tracking technologies for the following purposes:
+
+• **Session cookies:** Required for secure authentication and form submissions.
+• **Google AdSense:** We display advertisements through Google AdSense (Publisher ID: ca-pub-6817509745706083). Google uses cookies to serve ads based on your prior visits to this and other websites. You can opt out of personalised advertising by visiting Google's Ad Settings at https://www.google.com/settings/ads.
+• **Analytics:** Basic usage analytics (page views, error logs) are collected server-side. No personal identifiers are shared with third-party analytics platforms.
+
+By continuing to use this platform, you acknowledge the use of these technologies. You can control cookie preferences through your browser settings at any time.`,
   },
   {
     title: "8. Children's Privacy",

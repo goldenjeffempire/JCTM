@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Helmet } from "react-helmet-async";
 
 declare global {
   interface Window {
@@ -34,20 +33,7 @@ function isValidSlot(slot: string | undefined): slot is string {
 }
 
 export function AdSenseHead() {
-  if (!ADSENSE_ENABLED) return null;
-
-  return (
-    <Helmet>
-      <meta name="google-adsense-account" content={ADSENSE_CLIENT_ID} />
-      <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="anonymous" />
-      <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossOrigin="anonymous" />
-      <script
-        async
-        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
-        crossOrigin="anonymous"
-      />
-    </Helmet>
-  );
+  return null;
 }
 
 interface AdSlotProps {

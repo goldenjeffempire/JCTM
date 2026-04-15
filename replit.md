@@ -178,11 +178,12 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 
 ## AdSense Monetization
 
-- AdSense head integration is handled by `AdSenseHead`, which injects the async Google script and `google-adsense-account` meta tag only when a valid `ca-pub-...` client ID is configured.
-- Reusable responsive ad slots live in `artifacts/jctm-platform/src/components/ads/AdSense.tsx`.
-- Policy-safe placements are configured on the homepage, sermon listing in-feed, sermon detail below-player, sermon detail desktop sidebar, and intro video feed between cards.
-- Ads are not placed inside YouTube iframes, live players, or chat surfaces. Below-fold slots lazy load with fixed minimum heights to reduce layout shift.
-- Production builds generate `public/ads.txt` from `VITE_ADSENSE_CLIENT_ID` when the publisher ID is configured.
+- **Script injection**: The AdSense script (`ca-pub-6817509745706083`) is hardcoded in `index.html` `<head>` so it loads unconditionally and before any ad slot renders. No duplicate injection via Helmet.
+- **Component**: `artifacts/jctm-platform/src/components/ads/AdSense.tsx` — exports `AdSlot` (lazy IntersectionObserver loading, duplicate-push protection, error suppression, ad-blocker/no-fill graceful hiding) and `ADSENSE_SLOTS` (keyed slot IDs from env vars).
+- **Env vars set** (shared): `VITE_ADSENSE_CLIENT_ID` (secret), `VITE_ADSENSE_SLOT_HOME_HERO`, `VITE_ADSENSE_SLOT_HOME_MID`, `VITE_ADSENSE_SLOT_SERMON_FEED`, `VITE_ADSENSE_SLOT_SERMON_SIDEBAR`, `VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER`, `VITE_ADSENSE_ENABLE=true`.
+- **Placements**: Home hero (slot 7433409715, eager), Home mid (slot 6447631104, lazy), Sermon feed inline (slot 2094061938, every ~6 cards), SermonDetail below-player (slot 2069402391, eager) + desktop sidebar (slot 2609067251), IntroVideos feed (introFeed slot).
+- **Compliance**: Privacy Policy (`/privacy`) accurately discloses AdSense cookie use with opt-out link. `CookieNotice` component (`artifacts/jctm-platform/src/components/ads/CookieNotice.tsx`) shows a dismissible banner on first visit (localStorage flag `jctm_cookie_notice_dismissed`).
+- **Policy safety**: No ads inside iframes, live players, or chat. Slots have fixed `minHeight` to prevent CLS. `data-full-width-responsive="true"` on all ins elements.
 
 ## Replit Migration Status
 

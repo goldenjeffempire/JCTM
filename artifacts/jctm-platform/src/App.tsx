@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { GeoProvider } from "@/contexts/GeoContext";
 import { VoiceTempleBots } from "@/components/VoiceTempleBots";
 import { AdSenseHead } from "@/components/ads/AdSense";
+import { CookieNotice } from "@/components/ads/CookieNotice";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -125,6 +126,7 @@ function App() {
               <Router />
             </WouterRouter>
             <VoiceTempleBots />
+            <CookieNotice />
           </ErrorBoundary>
           <Toaster
             position="top-center"
