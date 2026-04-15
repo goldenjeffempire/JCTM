@@ -10,25 +10,64 @@ import {
   setObjectAclPolicy,
 } from "./objectAcl";
 
+// ─── Auth strategy ─────────────────────────────────────────────────────────────
+//
+// When running inside Replit (development or Replit-hosted deployments), we use
+// the Replit Object Storage sidecar at 127.0.0.1:1106 for auth and signed URLs.
+//
+// When deployed externally (e.g. Render, Railway, Fly.io) the sidecar is not
+// present, so the app must authenticate using a GCP service account key stored
+// in the GCS_SERVICE_ACCOUNT_KEY environment variable (full JSON content or
+// base64-encoded JSON).  Generate one at:
+//   Google Cloud Console → IAM → Service Accounts → Keys → Add Key → JSON
+// then grant it "Storage Object Admin" on your bucket.
+
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
-      },
-    },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+function parseServiceAccountKey(): object | null {
+  const raw = process.env.GCS_SERVICE_ACCOUNT_KEY;
+  if (!raw) return null;
+  try {
+    // Support both raw JSON and base64-encoded JSON
+    const json = raw.trimStart().startsWith("{")
+      ? raw
+      : Buffer.from(raw, "base64").toString("utf-8");
+    return JSON.parse(json) as object;
+  } catch {
+    throw new Error(
+      "GCS_SERVICE_ACCOUNT_KEY is set but could not be parsed as JSON " +
+      "(accepts raw JSON or base64-encoded JSON).",
+    );
+  }
+}
+
+const serviceAccountKey = parseServiceAccountKey();
+
+/**
+ * True when running inside the Replit environment (sidecar available).
+ * False when deployed externally — uses GCS_SERVICE_ACCOUNT_KEY instead.
+ */
+const useReplitSidecar = !serviceAccountKey;
+
+export const objectStorageClient: Storage = serviceAccountKey
+  ? new Storage({ credentials: serviceAccountKey as Parameters<typeof Storage>[0]["credentials"] })
+  : new Storage({
+      credentials: {
+        audience: "replit",
+        subject_token_type: "access_token",
+        token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+        type: "external_account",
+        credential_source: {
+          url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+          format: {
+            type: "json",
+            subject_token_field_name: "access_token",
+          },
+        },
+        universe_domain: "googleapis.com",
+      } as Parameters<typeof Storage>[0]["credentials"],
+      projectId: "",
+    });
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -315,6 +354,19 @@ async function signObjectURL({
   method: "GET" | "PUT" | "DELETE" | "HEAD";
   ttlSec: number;
 }): Promise<string> {
+  if (!useReplitSidecar) {
+    // Non-Replit path: use GCS SDK's own V4 signed URLs (requires service account key)
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    const [url] = await file.getSignedUrl({
+      version: "v4",
+      action: method.toLowerCase() as "read" | "write" | "delete",
+      expires: Date.now() + ttlSec * 1000,
+    });
+    return url;
+  }
+
+  // Replit path: delegate to the Object Storage sidecar
   const request = {
     bucket_name: bucketName,
     object_name: objectName,
