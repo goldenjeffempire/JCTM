@@ -141,7 +141,7 @@ export function Navbar() {
   };
 
   // Derived: does current path belong to a dropdown?
-  const resourcesHrefs = ["/testimonies", "/events", "/give", "/scripture-study", "/spiritual-insight"];
+  const resourcesHrefs = ["/testimonies", "/events", "/give", "/scripture-study", "/spiritual-insight", "/gallery"];
   const aboutHrefs = ["/about", "/leadership", "/sermon-assistant"];
   const resourcesActive = resourcesHrefs.includes(location);
   const aboutActive = aboutHrefs.includes(location);
@@ -159,6 +159,7 @@ export function Navbar() {
   const resourcesItems = [
     { href: "/topics", label: t("Bible Topics"), description: t("8 in-depth teaching topic clusters") },
     { href: "/blog", label: `📝 ${t("Ministry Blog")}`, description: t("Theological insights & reflections") },
+    { href: "/gallery", label: `📷 ${t("Gallery")}`, description: t("Ministry photos & service memories") },
     { href: "/scripture-study", label: `📖 ${t("Scripture Study")}`, description: t("Deep AI exegetical Bible analysis"), aiHighlight: true },
     { href: "/spiritual-insight", label: `✦ ${t("Spiritual Insight")}`, description: t("Personalized prophetic guidance"), aiHighlight: true },
     { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
