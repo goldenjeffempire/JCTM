@@ -4,6 +4,7 @@ import { db, galleryImagesTable } from "@workspace/db";
 import {
   ListGalleryImagesQueryParams,
   ListGalleryImagesResponse,
+  ListFeaturedGalleryImagesResponse,
   CreateGalleryImageBody,
   UpdateGalleryImageParams,
   UpdateGalleryImageBody,
@@ -11,6 +12,26 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+function serializeImage(img: typeof galleryImagesTable.$inferSelect) {
+  return {
+    ...img,
+    createdAt: img.createdAt instanceof Date ? img.createdAt.toISOString() : img.createdAt,
+  };
+}
+
+router.get("/gallery/featured", async (_req, res): Promise<void> => {
+  const images = await db
+    .select()
+    .from(galleryImagesTable)
+    .where(and(
+      eq(galleryImagesTable.isPublished, true),
+      eq(galleryImagesTable.isFeatured, true),
+    ))
+    .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
+
+  res.json(ListFeaturedGalleryImagesResponse.parse(images.map(serializeImage)));
+});
 
 router.get("/gallery", async (req, res): Promise<void> => {
   const parsed = ListGalleryImagesQueryParams.safeParse(req.query);
@@ -34,12 +55,7 @@ router.get("/gallery", async (req, res): Promise<void> => {
     .limit(limit)
     .offset(offset);
 
-  const serialized = images.map(img => ({
-    ...img,
-    createdAt: img.createdAt instanceof Date ? img.createdAt.toISOString() : img.createdAt,
-  }));
-
-  res.json(ListGalleryImagesResponse.parse(serialized));
+  res.json(ListGalleryImagesResponse.parse(images.map(serializeImage)));
 });
 
 router.post("/gallery", async (req, res): Promise<void> => {
@@ -59,14 +75,12 @@ router.post("/gallery", async (req, res): Promise<void> => {
       serviceDate: parsed.data.serviceDate ?? null,
       altText: parsed.data.altText ?? null,
       isPublished: parsed.data.isPublished ?? true,
+      isFeatured: parsed.data.isFeatured ?? false,
       sortOrder: parsed.data.sortOrder ?? 0,
     })
     .returning();
 
-  res.status(201).json({
-    ...image,
-    createdAt: image.createdAt instanceof Date ? image.createdAt.toISOString() : image.createdAt,
-  });
+  res.status(201).json(serializeImage(image));
 });
 
 router.patch("/gallery/:id", async (req, res): Promise<void> => {
@@ -90,6 +104,7 @@ router.patch("/gallery/:id", async (req, res): Promise<void> => {
   if (data.serviceDate !== undefined) updates.serviceDate = data.serviceDate;
   if (data.altText !== undefined) updates.altText = data.altText;
   if (data.isPublished != null) updates.isPublished = data.isPublished;
+  if (data.isFeatured != null) updates.isFeatured = data.isFeatured;
   if (data.sortOrder != null) updates.sortOrder = data.sortOrder;
 
   const [image] = await db
@@ -103,10 +118,7 @@ router.patch("/gallery/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({
-    ...image,
-    createdAt: image.createdAt instanceof Date ? image.createdAt.toISOString() : image.createdAt,
-  });
+  res.json(serializeImage(image));
 });
 
 router.delete("/gallery/:id", async (req, res): Promise<void> => {

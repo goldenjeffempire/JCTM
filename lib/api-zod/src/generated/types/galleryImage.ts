@@ -18,6 +18,7 @@ export interface GalleryImage {
   /** @nullable */
   altText?: string | null;
   isPublished: boolean;
+  isFeatured: boolean;
   sortOrder: number;
   createdAt: string;
 }

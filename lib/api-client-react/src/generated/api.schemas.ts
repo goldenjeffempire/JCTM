@@ -289,6 +289,7 @@ export interface GalleryImage {
   /** @nullable */
   altText?: string | null;
   isPublished: boolean;
+  isFeatured: boolean;
   sortOrder: number;
   createdAt: string;
 }
@@ -304,6 +305,7 @@ export interface CreateGalleryImageBody {
   /** @nullable */
   altText?: string | null;
   isPublished?: boolean;
+  isFeatured?: boolean;
   sortOrder?: number;
 }
 
@@ -320,6 +322,8 @@ export interface UpdateGalleryImageBody {
   altText?: string | null;
   /** @nullable */
   isPublished?: boolean | null;
+  /** @nullable */
+  isFeatured?: boolean | null;
   /** @nullable */
   sortOrder?: number | null;
 }

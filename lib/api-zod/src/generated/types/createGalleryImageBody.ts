@@ -17,5 +17,6 @@ export interface CreateGalleryImageBody {
   /** @nullable */
   altText?: string | null;
   isPublished?: boolean;
+  isFeatured?: boolean;
   sortOrder?: number;
 }

@@ -2477,6 +2477,82 @@ export const useRequestUploadUrl = <
 };
 
 /**
+ * @summary List featured gallery images for slideshow
+ */
+export const getListFeaturedGalleryImagesUrl = () => {
+  return `/api/gallery/featured`;
+};
+
+export const listFeaturedGalleryImages = async (
+  options?: RequestInit,
+): Promise<GalleryImage[]> => {
+  return customFetch<GalleryImage[]>(getListFeaturedGalleryImagesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListFeaturedGalleryImagesQueryKey = () => {
+  return [`/api/gallery/featured`] as const;
+};
+
+export const getListFeaturedGalleryImagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFeaturedGalleryImages>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listFeaturedGalleryImages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFeaturedGalleryImagesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFeaturedGalleryImages>>
+  > = ({ signal }) => listFeaturedGalleryImages({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFeaturedGalleryImages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFeaturedGalleryImagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFeaturedGalleryImages>>
+>;
+export type ListFeaturedGalleryImagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List featured gallery images for slideshow
+ */
+
+export function useListFeaturedGalleryImages<
+  TData = Awaited<ReturnType<typeof listFeaturedGalleryImages>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listFeaturedGalleryImages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFeaturedGalleryImagesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary List gallery images
  */
 export const getListGalleryImagesUrl = (params?: ListGalleryImagesParams) => {

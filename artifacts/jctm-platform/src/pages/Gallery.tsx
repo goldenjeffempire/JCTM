@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useListGalleryImages, useCreateGalleryImage, useDeleteGalleryImage } from "@workspace/api-client-react";
+import { useListGalleryImages, useCreateGalleryImage, useDeleteGalleryImage, useUpdateGalleryImage } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Images, X, ChevronLeft, ChevronRight, Upload, Trash2,
-  ZoomIn, Grid3X3, LayoutGrid, Lock, Eye, EyeOff, Calendar,
+  ZoomIn, Grid3X3, LayoutGrid, Lock, Eye, EyeOff, Calendar, Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -36,6 +36,7 @@ type GalleryImg = {
   serviceDate?: string | null;
   altText?: string | null;
   isPublished: boolean;
+  isFeatured: boolean;
   sortOrder: number;
   createdAt: string;
 };
@@ -135,12 +136,14 @@ function GalleryCard({
   onClick,
   isAdmin,
   onDelete,
+  onToggleFeatured,
 }: {
   image: GalleryImg;
   index: number;
   onClick: () => void;
   isAdmin: boolean;
   onDelete: (id: number) => void;
+  onToggleFeatured: (id: number, current: boolean) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -185,14 +188,31 @@ function GalleryCard({
         </div>
       </div>
 
+      {image.isFeatured && (
+        <div className="absolute top-2 left-2 z-10">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/90 text-white text-[10px] font-bold uppercase tracking-wide">
+            <Star className="h-2.5 w-2.5 fill-white" /> Featured
+          </span>
+        </div>
+      )}
+
       {isAdmin && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}
-          className="absolute top-2 right-2 p-1.5 rounded-full bg-red-600/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFeatured(image.id, image.isFeatured); }}
+            className={`p-1.5 rounded-full text-white transition-colors ${image.isFeatured ? "bg-amber-500/90 hover:bg-amber-500" : "bg-black/50 hover:bg-amber-500/80"}`}
+            title={image.isFeatured ? "Remove from slideshow" : "Feature in slideshow"}
+          >
+            <Star className={`h-3.5 w-3.5 ${image.isFeatured ? "fill-white" : ""}`} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}
+            className="p-1.5 rounded-full bg-red-600/80 hover:bg-red-600 text-white transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       )}
     </motion.div>
   );

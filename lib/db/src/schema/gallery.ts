@@ -11,6 +11,7 @@ export const galleryImagesTable = pgTable("gallery_images", {
   serviceDate: text("service_date"),
   altText: text("alt_text"),
   isPublished: boolean("is_published").notNull().default(true),
+  isFeatured: boolean("is_featured").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

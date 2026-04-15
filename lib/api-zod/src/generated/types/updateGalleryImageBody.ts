@@ -20,5 +20,7 @@ export interface UpdateGalleryImageBody {
   /** @nullable */
   isPublished?: boolean | null;
   /** @nullable */
+  isFeatured?: boolean | null;
+  /** @nullable */
   sortOrder?: number | null;
 }

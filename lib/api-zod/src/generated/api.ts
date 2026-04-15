@@ -473,6 +473,26 @@ export const RequestUploadUrlResponse = zod.object({
 });
 
 /**
+ * @summary List featured gallery images for slideshow
+ */
+export const ListFeaturedGalleryImagesResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  objectPath: zod.string(),
+  category: zod.string(),
+  serviceDate: zod.string().nullish(),
+  altText: zod.string().nullish(),
+  isPublished: zod.boolean(),
+  isFeatured: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+export const ListFeaturedGalleryImagesResponse = zod.array(
+  ListFeaturedGalleryImagesResponseItem,
+);
+
+/**
  * @summary List gallery images
  */
 export const listGalleryImagesQueryLimitDefault = 50;
@@ -493,6 +513,7 @@ export const ListGalleryImagesResponseItem = zod.object({
   serviceDate: zod.string().nullish(),
   altText: zod.string().nullish(),
   isPublished: zod.boolean(),
+  isFeatured: zod.boolean(),
   sortOrder: zod.number(),
   createdAt: zod.string(),
 });
@@ -511,6 +532,7 @@ export const CreateGalleryImageBody = zod.object({
   serviceDate: zod.string().nullish(),
   altText: zod.string().nullish(),
   isPublished: zod.boolean().optional(),
+  isFeatured: zod.boolean().optional(),
   sortOrder: zod.number().optional(),
 });
 
@@ -528,6 +550,7 @@ export const UpdateGalleryImageBody = zod.object({
   serviceDate: zod.string().nullish(),
   altText: zod.string().nullish(),
   isPublished: zod.boolean().nullish(),
+  isFeatured: zod.boolean().nullish(),
   sortOrder: zod.number().nullish(),
 });
 
@@ -540,6 +563,7 @@ export const UpdateGalleryImageResponse = zod.object({
   serviceDate: zod.string().nullish(),
   altText: zod.string().nullish(),
   isPublished: zod.boolean(),
+  isFeatured: zod.boolean(),
   sortOrder: zod.number(),
   createdAt: zod.string(),
 });
