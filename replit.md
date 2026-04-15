@@ -62,19 +62,31 @@ All routes verified HTTP 200:
 
 Three independent admin roles, each with its own passphrase, HMAC-signed JWT, and 2-hour TTL stored in localStorage.
 
-| Role | Env var (hash preferred) | Env var (plaintext fallback) | Dev default |
-|------|--------------------------|------------------------------|-------------|
-| `gallery` | `ADMIN_PASSPHRASE_HASH_GALLERY` | `ADMIN_PASSPHRASE_GALLERY` | `jctm-gallery-2026` |
-| `sermon` | `ADMIN_PASSPHRASE_HASH_SERMON` | `ADMIN_PASSPHRASE_SERMON` | `jctm-sermon-2026` |
-| `livestream` | `ADMIN_PASSPHRASE_HASH_LIVESTREAM` | `ADMIN_PASSPHRASE_LIVESTREAM` | `jctm-stream-2026` |
+### Credential resolution order (first match wins)
+1. **`admin_credentials` DB table** — set via the in-app Setup or Change Passphrase UI. Persists across all deployments automatically. ← preferred
+2. `ADMIN_PASSPHRASE_HASH_{ROLE}` env var — scrypt hash
+3. `ADMIN_PASSPHRASE_{ROLE}` env var — plaintext
+4. Legacy gallery env vars `GALLERY_ADMIN_PASSPHRASE_HASH` / `GALLERY_ADMIN_PASSPHRASE`
+5. Dev defaults (only when `NODE_ENV !== "production"`)
 
-Gallery role also checks legacy `GALLERY_ADMIN_PASSPHRASE_HASH` / `GALLERY_ADMIN_PASSPHRASE`. Token signing uses HMAC-SHA256 with `ADMIN_TOKEN_SECRET` (falls back to `SESSION_SECRET`).
+| Role | Dev default |
+|------|-------------|
+| `gallery` | `jctm-gallery-2026` |
+| `sermon` | `jctm-sermon-2026` |
+| `livestream` | `jctm-stream-2026` |
 
-**Backend**: `lib/adminAuth.ts` — `requireAdminRole(role)` middleware; `routes/adminAuth.ts` — `POST /api/admin/auth/login`, `GET /api/admin/auth/session`, `GET /api/admin/auth/roles`.
+**Token signing**: HMAC-SHA256 with `ADMIN_TOKEN_SECRET` (falls back to `SESSION_SECRET`).
 
-**Protected routes**: `POST /api/sermons` (sermon role), `POST /api/livestream/status` + `POST /api/livestream/rebroadcast` (livestream role), all gallery writes (gallery role).
+**Backend**: `lib/adminAuth.ts`; `routes/adminAuth.ts`:
+- `POST /api/admin/auth/login` — exchange passphrase for token
+- `POST /api/admin/auth/setup` — first-time passphrase creation (only when unconfigured)
+- `POST /api/admin/auth/change-passphrase` — update passphrase (requires valid token + current passphrase)
+- `GET /api/admin/auth/session` — validate token
+- `GET /api/admin/auth/roles` — list configured roles
 
-**Frontend**: `hooks/useAdminAuth.ts` (per-role hook), `components/admin/AdminLoginGate.tsx` (full + compact gate + badge). Gallery.tsx, Admin.tsx, and Sermons.tsx all use role-gated admin controls.
+**Protected routes**: `POST /api/sermons` (sermon), `POST /api/livestream/status` + `POST /api/livestream/rebroadcast` (livestream), all gallery writes (gallery).
+
+**Frontend**: `hooks/useAdminAuth.ts` (`needsSetup`, `setup()`, `changePassphrase()`, `login()`, `logout()`); `components/admin/AdminLoginGate.tsx` — automatically shows Setup form, Login form, or authenticated children based on state.
 
 ## Recent Enhancements
 

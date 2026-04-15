@@ -2,23 +2,24 @@
  * Unified Role-Based Admin Authentication
  *
  * Three distinct admin roles with separate passphrases:
- *   gallery   — gallery image upload / management
- *   sermon    — sermon management (YouTube sync, transcript indexing)
+ *   gallery    — gallery image upload / management
+ *   sermon     — sermon management (YouTube sync, transcript indexing)
  *   livestream — livestream controls (manual status, rebroadcast trigger)
  *
- * Each role resolves its passphrase from environment variables:
- *   ADMIN_PASSPHRASE_HASH_{ROLE}   — scrypt hash (preferred, more secure)
- *   ADMIN_PASSPHRASE_{ROLE}        — plaintext fallback
- *   Legacy gallery: GALLERY_ADMIN_PASSPHRASE_HASH / GALLERY_ADMIN_PASSPHRASE
+ * Credential resolution order (first match wins):
+ *   1. admin_credentials DB table  — set via /api/admin/auth/setup or change-passphrase
+ *   2. ADMIN_PASSPHRASE_HASH_{ROLE} — scrypt hash env var
+ *   3. ADMIN_PASSPHRASE_{ROLE}      — plaintext env var
+ *   4. Legacy gallery env vars      — GALLERY_ADMIN_PASSPHRASE_HASH / GALLERY_ADMIN_PASSPHRASE
+ *   5. Dev defaults (NODE_ENV !== "production" only)
  *
- * Dev-only defaults (NODE_ENV !== "production"):
- *   gallery:    jctm-gallery-2026
- *   sermon:     jctm-sermon-2026
- *   livestream: jctm-stream-2026
+ * This means credentials set through the UI persist across all deployments
+ * automatically — no manual env var management required.
  */
 
 import type { NextFunction, Request, Response } from "express";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { pool } from "@workspace/db";
 
 export type AdminRole = "gallery" | "sermon" | "livestream";
 
@@ -33,60 +34,13 @@ type AdminTokenPayload = {
   nonce: string;
 };
 
-// ─── Passphrase resolution ─────────────────────────────────────────────────────
+// ─── Scrypt helpers ────────────────────────────────────────────────────────────
 
-const ROLE_ENV: Record<AdminRole, { hashKey: string; plainKey: string; devDefault: string }> = {
-  gallery: {
-    hashKey:  "ADMIN_PASSPHRASE_HASH_GALLERY",
-    plainKey: "ADMIN_PASSPHRASE_GALLERY",
-    devDefault: "jctm-gallery-2026",
-  },
-  sermon: {
-    hashKey:  "ADMIN_PASSPHRASE_HASH_SERMON",
-    plainKey: "ADMIN_PASSPHRASE_SERMON",
-    devDefault: "jctm-sermon-2026",
-  },
-  livestream: {
-    hashKey:  "ADMIN_PASSPHRASE_HASH_LIVESTREAM",
-    plainKey: "ADMIN_PASSPHRASE_LIVESTREAM",
-    devDefault: "jctm-stream-2026",
-  },
-};
-
-function getRoleHash(role: AdminRole): string | null {
-  const cfg = ROLE_ENV[role];
-  const primary = process.env[cfg.hashKey]?.trim() || null;
-  if (primary) return primary;
-
-  // Backward compatibility for gallery
-  if (role === "gallery") {
-    const legacy = process.env.GALLERY_ADMIN_PASSPHRASE_HASH?.trim() || null;
-    if (legacy) return legacy;
-  }
-  return null;
+export function hashPassphrase(passphrase: string): string {
+  const salt = randomBytes(32).toString("hex");
+  const hash = scryptSync(passphrase, salt, KEY_LEN, SCRYPT_PARAMS).toString("hex");
+  return `${salt}:${hash}`;
 }
-
-function getRolePlain(role: AdminRole): string | null {
-  const cfg = ROLE_ENV[role];
-  const primary = process.env[cfg.plainKey]?.trim() || null;
-  if (primary) return primary;
-
-  // Backward compatibility for gallery
-  if (role === "gallery") {
-    const legacy = process.env.GALLERY_ADMIN_PASSPHRASE?.trim() || null;
-    if (legacy) return legacy;
-  }
-
-  // Dev default
-  if (process.env.NODE_ENV !== "production") return cfg.devDefault;
-  return null;
-}
-
-function isRoleConfigured(role: AdminRole): boolean {
-  return Boolean(getRoleHash(role) || getRolePlain(role));
-}
-
-// ─── Passphrase verification ───────────────────────────────────────────────────
 
 function verifyScrypt(passphrase: string, stored: string): boolean {
   const [salt, hashed] = stored.split(":");
@@ -107,11 +61,92 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(la, lb);
 }
 
-export function verifyRolePassphrase(role: AdminRole, passphrase: string): boolean {
+// ─── Database credential storage ──────────────────────────────────────────────
+
+async function getDbHash(role: AdminRole): Promise<string | null> {
+  try {
+    const result = await pool.query<{ passphrase_hash: string }>(
+      `SELECT passphrase_hash FROM admin_credentials WHERE role = $1`,
+      [role],
+    );
+    return result.rows[0]?.passphrase_hash ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setRolePassphrase(role: AdminRole, passphrase: string): Promise<void> {
+  const hash = hashPassphrase(passphrase);
+  await pool.query(
+    `INSERT INTO admin_credentials (role, passphrase_hash, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (role) DO UPDATE SET passphrase_hash = $2, updated_at = NOW()`,
+    [role, hash],
+  );
+}
+
+// ─── Env-var fallback resolution ──────────────────────────────────────────────
+
+const ROLE_ENV: Record<AdminRole, { hashKey: string; plainKey: string; devDefault: string }> = {
+  gallery: {
+    hashKey:    "ADMIN_PASSPHRASE_HASH_GALLERY",
+    plainKey:   "ADMIN_PASSPHRASE_GALLERY",
+    devDefault: "jctm-gallery-2026",
+  },
+  sermon: {
+    hashKey:    "ADMIN_PASSPHRASE_HASH_SERMON",
+    plainKey:   "ADMIN_PASSPHRASE_SERMON",
+    devDefault: "jctm-sermon-2026",
+  },
+  livestream: {
+    hashKey:    "ADMIN_PASSPHRASE_HASH_LIVESTREAM",
+    plainKey:   "ADMIN_PASSPHRASE_LIVESTREAM",
+    devDefault: "jctm-stream-2026",
+  },
+};
+
+function getEnvHash(role: AdminRole): string | null {
+  const cfg = ROLE_ENV[role];
+  const primary = process.env[cfg.hashKey]?.trim() || null;
+  if (primary) return primary;
+  if (role === "gallery") {
+    return process.env.GALLERY_ADMIN_PASSPHRASE_HASH?.trim() || null;
+  }
+  return null;
+}
+
+function getEnvPlain(role: AdminRole): string | null {
+  const cfg = ROLE_ENV[role];
+  const primary = process.env[cfg.plainKey]?.trim() || null;
+  if (primary) return primary;
+  if (role === "gallery") {
+    const legacy = process.env.GALLERY_ADMIN_PASSPHRASE?.trim() || null;
+    if (legacy) return legacy;
+  }
+  if (process.env.NODE_ENV !== "production") return cfg.devDefault;
+  return null;
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
+
+/** Returns true if the role has any credential configured (DB, env var, or dev default). */
+export async function isRoleConfigured(role: AdminRole): Promise<boolean> {
+  const dbHash = await getDbHash(role);
+  if (dbHash) return true;
+  return Boolean(getEnvHash(role) || getEnvPlain(role));
+}
+
+/** Verifies a passphrase against stored credentials (DB → env hash → env plain). */
+export async function verifyRolePassphrase(role: AdminRole, passphrase: string): Promise<boolean> {
   if (typeof passphrase !== "string" || passphrase.length < 8) return false;
-  const hash = getRoleHash(role);
-  if (hash) return verifyScrypt(passphrase, hash);
-  const plain = getRolePlain(role);
+
+  const dbHash = await getDbHash(role);
+  if (dbHash) return verifyScrypt(passphrase, dbHash);
+
+  const envHash = getEnvHash(role);
+  if (envHash) return verifyScrypt(passphrase, envHash);
+
+  const plain = getEnvPlain(role);
   if (!plain) return false;
   return safeEqual(passphrase, plain);
 }
@@ -138,7 +173,7 @@ export function createAdminToken(role: AdminRole): { token: string; role: AdminR
     exp,
     nonce: randomBytes(16).toString("base64url"),
   };
-  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const encoded   = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = sign(encoded);
   return {
     token: `${encoded}.${signature}`,
@@ -175,10 +210,6 @@ export function getAdminTokenFromRequest(req: Request): string | undefined {
 
 // ─── Middleware factory ────────────────────────────────────────────────────────
 
-/**
- * requireAdminRole(role) — Express middleware that requires a valid admin token
- * with the specified role (or any of the specified roles).
- */
 export function requireAdminRole(
   allowedRoles: AdminRole | AdminRole[],
 ): (req: Request, res: Response, next: NextFunction) => void {
@@ -196,18 +227,18 @@ export function requireAdminRole(
   };
 }
 
-// ─── Legacy compatibility re-exports (used by gallery.ts currently) ────────────
+// ─── Legacy compatibility re-exports ──────────────────────────────────────────
 
 /** @deprecated — use requireAdminRole('gallery') instead */
 export function requireGalleryAdmin(req: Request, res: Response, next: NextFunction): void {
   return requireAdminRole("gallery")(req, res, next);
 }
 
-export function isGalleryAdminConfigured(): boolean {
+export async function isGalleryAdminConfigured(): Promise<boolean> {
   return isRoleConfigured("gallery");
 }
 
-export { isRoleConfigured };
+export { isRoleConfigured as isRoleConfiguredAsync };
 
 /** @deprecated — use createAdminToken('gallery') instead */
 export function createGalleryAdminToken(): { token: string; expiresAt: string } {
@@ -225,6 +256,6 @@ export function verifyGalleryAdminToken(token: string | undefined): boolean {
 export { getAdminTokenFromRequest as getGalleryAdminTokenFromRequest };
 
 /** @deprecated — use verifyRolePassphrase('gallery', ...) instead */
-export function verifyGalleryAdminPassphrase(passphrase: string): boolean {
+export async function verifyGalleryAdminPassphrase(passphrase: string): Promise<boolean> {
   return verifyRolePassphrase("gallery", passphrase);
 }

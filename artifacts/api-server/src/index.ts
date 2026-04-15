@@ -198,6 +198,15 @@ async function runStartupMigrations() {
       ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS metadata_generated_at timestamptz
     `);
 
+    // ── Admin credentials (DB-backed passphrases, survive deployments) ──────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_credentials (
+        role TEXT PRIMARY KEY,
+        passphrase_hash TEXT NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+
     // ── Push Notification Subscriptions ──────────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -240,7 +249,7 @@ if (Number.isNaN(port) || port <= 0) {
 await initSentry();
 await runStartupMigrations();
 
-const server = app.listen(port, (err) => {
+const server = app.listen(port, async (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
@@ -255,19 +264,18 @@ const server = app.listen(port, (err) => {
 
   // ── Admin passphrase config check ────────────────────────────────────────
   const adminRoles: AdminRole[] = ["gallery", "sermon", "livestream"];
-  const unconfigured = adminRoles.filter((r) => !isRoleConfigured(r));
-  if (unconfigured.length > 0 && process.env.NODE_ENV === "production") {
-    logger.error(
-      { unconfiguredRoles: unconfigured },
-      "ADMIN PASSPHRASE NOT SET — admin login will fail for these roles. " +
-      "Set ADMIN_PASSPHRASE_GALLERY, ADMIN_PASSPHRASE_SERMON, and/or " +
-      "ADMIN_PASSPHRASE_LIVESTREAM in the Render dashboard environment variables.",
+  const configuredFlags = await Promise.all(adminRoles.map((r) => isRoleConfigured(r)));
+  const configured   = adminRoles.filter((_, i) => configuredFlags[i]);
+  const unconfigured = adminRoles.filter((_, i) => !configuredFlags[i]);
+  if (unconfigured.length > 0) {
+    logger.warn(
+      { unconfiguredRoles: unconfigured, configuredRoles: configured },
+      "Some admin roles have no passphrase configured — " +
+      "use the Setup Admin Access form on the site to create credentials, " +
+      "or set ADMIN_PASSPHRASE_* env vars in the Render dashboard.",
     );
   } else {
-    logger.info(
-      { configured: adminRoles.filter((r) => isRoleConfigured(r)) },
-      "Admin roles configured",
-    );
+    logger.info({ configured }, "All admin roles configured");
   }
 
   // Initialize VAPID keys for push notifications
