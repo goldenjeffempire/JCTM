@@ -24,21 +24,58 @@ import {
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
+function decodeJsonSecret(raw: string): object | null {
+  const trimmed = raw.trim();
+  const candidates = [
+    trimmed,
+    Buffer.from(trimmed, "base64").toString("utf-8"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as object;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function normalizePrivateKey(raw: string): string {
+  const normalized = raw
+    .replace(/\\n/g, "\n")
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .trim();
+
+  return `-----BEGIN PRIVATE KEY-----\n${normalized}\n-----END PRIVATE KEY-----\n`;
+}
+
 function parseServiceAccountKey(): object | null {
   const raw = process.env.GCS_SERVICE_ACCOUNT_KEY;
   if (!raw) return null;
-  try {
-    // Support both raw JSON and base64-encoded JSON
-    const json = raw.trimStart().startsWith("{")
-      ? raw
-      : Buffer.from(raw, "base64").toString("utf-8");
-    return JSON.parse(json) as object;
-  } catch {
-    throw new Error(
-      "GCS_SERVICE_ACCOUNT_KEY is set but could not be parsed as JSON " +
-      "(accepts raw JSON or base64-encoded JSON).",
-    );
+
+  const parsedJson = decodeJsonSecret(raw);
+  if (parsedJson) {
+    return parsedJson;
   }
+
+  const projectId = process.env.GCS_PROJECT_ID;
+  const clientEmail = process.env.GCS_CLIENT_EMAIL;
+
+  if (projectId && clientEmail) {
+    return {
+      type: "service_account",
+      project_id: projectId,
+      private_key: normalizePrivateKey(raw),
+      client_email: clientEmail,
+    };
+  }
+
+  throw new Error(
+    "GCS_SERVICE_ACCOUNT_KEY is set but could not be parsed. Provide either the full service account JSON, base64-encoded JSON, or set GCS_PROJECT_ID and GCS_CLIENT_EMAIL when using a private-key-only secret.",
+  );
 }
 
 const serviceAccountKey = parseServiceAccountKey();

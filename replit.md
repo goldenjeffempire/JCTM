@@ -221,6 +221,7 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 - Active Replit services verified running: web, API, and Expo mobile preview.
 - Web preview verified at `/` with API health returning OK.
 - Client/server secret separation checked: sensitive keys are referenced from the API server, not the browser client.
+- Google Cloud Storage credentials are configured server-side via the `GCS_SERVICE_ACCOUNT_KEY` secret. The backend accepts either full service-account JSON/base64 JSON or a private-key-only secret paired with `GCS_PROJECT_ID` and `GCS_CLIENT_EMAIL`.
 
 ---
 
