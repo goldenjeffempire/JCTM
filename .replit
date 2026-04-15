@@ -27,23 +27,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "API Server"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Start application"
-
-[[workflows.workflow]]
-name = "API Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
 
 [[workflows.workflow]]
 name = "Start application"
@@ -67,4 +51,10 @@ expertMode = true
 
   [nix]
   channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BNFsWPaSN3hKiDjWa1RrYaWFoaiuYdQuDq8SueByYlaSuGcTr12lKzDJaoL584jXRptTLbxBSrs_vPsY9lMpSY8"
+VAPID_PRIVATE_KEY = "da55-4msNNm4kgmaAOhh-hj-rwbH8nGsrbg8tulBS6I"
   

@@ -1,28 +1,364 @@
-import { StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useGetFeaturedSermon, useGetLivestreamStatus } from "@workspace/api-client-react";
+import { useColors } from "@/hooks/useColors";
 
-export default function TabOneScreen() {
+const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
+const BASE = DOMAIN ? `https://${DOMAIN}` : "";
+
+function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const { data } = useGetLivestreamStatus();
+  const status = data as { isLive?: boolean; isRebroadcast?: boolean } | undefined;
+  if (!status?.isLive && !status?.isRebroadcast) return null;
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Replit Agent is building...</Text>
-      <Text style={styles.text}>Your app will appear here once it's ready.</Text>
+    <TouchableOpacity
+      style={[
+        styles.liveBanner,
+        { backgroundColor: status.isLive ? "#E53E3E" : "#D97706" },
+      ]}
+      onPress={() => Linking.openURL(`${BASE}/sermons`)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.liveDot} />
+      <Text style={styles.liveBannerText}>
+        {status.isLive ? "🔴 LIVE NOW — Temple TV" : "📡 REBROADCAST — Temple TV"}
+      </Text>
+      <Text style={styles.liveBannerSub}>Watch →</Text>
+    </TouchableOpacity>
+  );
+}
+
+type Sermon = {
+  id: number;
+  title: string;
+  youtubeVideoId?: string | null;
+  thumbnailUrl?: string | null;
+  viewCount?: number | null;
+};
+
+function FeaturedCard({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const { data, isLoading } = useGetFeaturedSermon();
+  const sermon = data as Sermon | undefined;
+
+  if (isLoading) {
+    return (
+      <View style={[styles.featuredSkeleton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+  if (!sermon) return null;
+
+  const thumb =
+    sermon.thumbnailUrl ??
+    `https://img.youtube.com/vi/${sermon.youtubeVideoId}/hqdefault.jpg`;
+  const url = sermon.youtubeVideoId
+    ? `https://www.youtube.com/watch?v=${sermon.youtubeVideoId}`
+    : `${BASE}/sermons/${sermon.id}`;
+
+  return (
+    <View style={[styles.featuredCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>FEATURED SERMON</Text>
+      <TouchableOpacity onPress={() => Linking.openURL(url)} activeOpacity={0.85}>
+        <Image source={{ uri: thumb }} style={styles.featuredThumb} resizeMode="cover" />
+        <View style={styles.playOverlay}>
+          <View style={styles.playBtn}>
+            <Text style={styles.playIcon}>▶</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+      <View style={{ padding: 14 }}>
+        <Text style={[styles.featuredTitle, { color: colors.foreground }]} numberOfLines={2}>
+          {sermon.title}
+        </Text>
+        {sermon.viewCount != null && (
+          <Text style={[styles.featuredSub, { color: colors.mutedForeground }]}>
+            {sermon.viewCount.toLocaleString()} views
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
 
+type Devotion = { title?: string; verse?: string; content?: string; reference?: string };
+
+function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const [devotion, setDevotion] = useState<Devotion | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/devotion/daily`)
+      .then((r) => r.json())
+      .then(setDevotion)
+      .catch(() => {});
+  }, []);
+
+  if (!devotion) return null;
+
+  return (
+    <View style={[styles.devotionCard, { backgroundColor: colors.primary }]}>
+      <Text style={styles.devotionLabel}>TODAY'S DEVOTION</Text>
+      {devotion.title && (
+        <Text style={styles.devotionTitle} numberOfLines={2}>{devotion.title}</Text>
+      )}
+      {devotion.verse && (
+        <Text style={styles.devotionVerse} numberOfLines={3}>"{devotion.verse}"</Text>
+      )}
+      {devotion.reference && (
+        <Text style={styles.devotionRef}>— {devotion.reference}</Text>
+      )}
+      <TouchableOpacity
+        style={styles.devotionReadBtn}
+        onPress={() => Linking.openURL(`${BASE}/devotion`)}
+        activeOpacity={0.85}
+      >
+        <Text style={[styles.devotionReadBtnText, { color: colors.primary }]}>
+          Read Full Devotion
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const QUICK_ACTIONS = [
+  { icon: "📺", label: "Sermons", href: "/sermons" },
+  { icon: "🙏", label: "Prayer", href: "/prayer" },
+  { icon: "💝", label: "Give", href: "/give" },
+  { icon: "✨", label: "Stories", href: "/testimonies" },
+];
+
+export default function HomeScreen() {
+  const colors = useColors();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1200);
+  }, []);
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={[styles.headerMinistry, { color: colors.foreground }]}>JCTM</Text>
+            <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
+              Jesus Christ Temple Ministry
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.prayNowBtn, { backgroundColor: colors.accent }]}
+            onPress={() => Linking.openURL(`${BASE}/prayer`)}
+          >
+            <Text style={styles.prayNowText}>Pray Now</Text>
+          </TouchableOpacity>
+        </View>
+
+        <LiveBanner colors={colors} />
+
+        {/* Quick Actions */}
+        <View style={styles.quickRow}>
+          {QUICK_ACTIONS.map((a) => (
+            <TouchableOpacity
+              key={a.label}
+              style={[styles.quickItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => Linking.openURL(`${BASE}${a.href}`)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.quickIcon}>{a.icon}</Text>
+              <Text style={[styles.quickLabel, { color: colors.foreground }]}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <FeaturedCard colors={colors} />
+        <DevotionCard colors={colors} />
+
+        {/* Crusade Banner */}
+        <TouchableOpacity
+          style={styles.crusadeBanner}
+          onPress={() => Linking.openURL(`${BASE}/crusade`)}
+          activeOpacity={0.88}
+        >
+          <Image
+            source={{ uri: `${BASE}/warri-crusade-flyer2.jpeg` }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
+          <View style={styles.crusadeOverlay} />
+          <View style={styles.crusadeContent}>
+            <Text style={styles.crusadeBadge}>UPCOMING EVENT</Text>
+            <Text style={styles.crusadeTitle}>Warri City Crusade 2026</Text>
+            <Text style={styles.crusadeSub}>Apr 30 – May 1 • Warri, Delta State</Text>
+            <View style={[styles.crusadeRegBtn, { backgroundColor: "#F6C90E" }]}>
+              <Text style={styles.crusadeRegText}>Register Free →</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.webLink}
+          onPress={() => Linking.openURL(`${BASE}`)}
+        >
+          <Text style={[styles.webLinkText, { color: colors.mutedForeground }]}>
+            jctm.org.ng — Full Website →
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  safe: { flex: 1 },
+  content: { paddingBottom: 104 },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  headerMinistry: { fontSize: 26, fontWeight: "900", letterSpacing: 1.5 },
+  headerSub: { fontSize: 11, marginTop: 1 },
+  prayNowBtn: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  prayNowText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  liveBanner: {
+    marginHorizontal: 20,
+    marginBottom: 14,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" },
+  liveBannerText: { color: "#fff", fontWeight: "700", fontSize: 13, flex: 1 },
+  liveBannerSub: { color: "rgba(255,255,255,0.8)", fontSize: 11 },
+  quickRow: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginBottom: 16,
+    gap: 10,
   },
-  text: {
-    fontSize: 16,
-    textAlign: "center",
-    paddingHorizontal: 20,
+  quickItem: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 4,
   },
+  quickIcon: { fontSize: 22 },
+  quickLabel: { fontSize: 11, fontWeight: "600" },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    marginBottom: 8,
+  },
+  featuredCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  featuredSkeleton: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 200,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featuredThumb: { width: "100%", aspectRatio: 16 / 9 },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playIcon: { color: "#fff", fontSize: 20, marginLeft: 3 },
+  featuredTitle: { fontSize: 15, fontWeight: "700", lineHeight: 21, marginBottom: 4 },
+  featuredSub: { fontSize: 12 },
+  devotionCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 18,
+  },
+  devotionLabel: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  devotionTitle: { color: "#fff", fontSize: 16, fontWeight: "700", marginBottom: 8 },
+  devotionVerse: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 13,
+    lineHeight: 20,
+    fontStyle: "italic",
+    marginBottom: 6,
+  },
+  devotionRef: { color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 14 },
+  devotionReadBtn: { backgroundColor: "#fff", borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  devotionReadBtnText: { fontWeight: "700", fontSize: 13 },
+  crusadeBanner: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    height: 190,
+    overflow: "hidden",
+  },
+  crusadeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,15,50,0.62)",
+  },
+  crusadeContent: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    padding: 16,
+    gap: 3,
+  },
+  crusadeBadge: { color: "#F6C90E", fontSize: 9, fontWeight: "800", letterSpacing: 1.4 },
+  crusadeTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  crusadeSub: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
+  crusadeRegBtn: { marginTop: 8, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start" },
+  crusadeRegText: { color: "#001533", fontWeight: "800", fontSize: 13 },
+  webLink: { alignItems: "center", paddingVertical: 16 },
+  webLinkText: { fontSize: 12 },
 });
