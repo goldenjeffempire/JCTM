@@ -831,6 +831,7 @@ export default function Gallery() {
   const [categories, setCategories] = useState(CATEGORIES.slice(1).map(c => c.value));
   const [page, setPage] = useState(0);
   const LIMIT = 48;
+  const gridTopRef = useRef<HTMLDivElement>(null);
 
   const galleryAuth = useAdminAuth("gallery");
   const { isAdmin, adminToken } = galleryAuth;
@@ -867,6 +868,12 @@ export default function Gallery() {
 
   useEffect(() => { setPage(0); }, [debouncedSearch]);
   useEffect(() => { setPage(0); }, [category]);
+
+  useEffect(() => {
+    if (gridTopRef.current) {
+      gridTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [page]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Remove this image from the gallery?")) return;
@@ -995,6 +1002,9 @@ export default function Gallery() {
           )}
         </AnimatePresence>
 
+        {/* Scroll anchor — grid scrolls here on page change */}
+        <div ref={gridTopRef} className="scroll-mt-20" />
+
         {/* Search bar */}
         <div className="relative mb-6">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -1073,22 +1083,48 @@ export default function Gallery() {
               ))}
             </div>
 
-            {images.length === LIMIT && (
-              <div className="mt-10 flex justify-center">
-                <button
-                  onClick={() => setPage(p => p + 1)}
-                  className="px-8 py-3 rounded-xl border border-accent/30 text-accent font-semibold hover:bg-accent/10 transition-colors"
-                >
-                  Load More
-                </button>
+            {/* Prev / Next pagination */}
+            {(page > 0 || images.length === LIMIT) && (
+              <div className="mt-10 flex flex-col items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setPage(p => p - 1)}
+                    disabled={page === 0}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-semibold text-primary/80 hover:border-accent/50 hover:text-accent hover:bg-accent/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </button>
+
+                  <span className="text-sm font-semibold text-muted-foreground border border-border/60 rounded-xl px-5 py-2.5 min-w-[100px] text-center select-none">
+                    Page {page + 1}
+                  </span>
+
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={images.length < LIMIT}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-semibold text-primary/80 hover:border-accent/50 hover:text-accent hover:bg-accent/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Showing {page * LIMIT + 1}–{page * LIMIT + images.length} photo{images.length !== 1 ? "s" : ""}
+                  {debouncedSearch ? ` for "${debouncedSearch}"` : ""}
+                  {category ? ` in "${categoryLabel(category)}"` : ""}
+                </p>
               </div>
             )}
 
-            <p className="text-center text-xs text-muted-foreground mt-6">
-              Showing {images.length} photo{images.length !== 1 ? "s" : ""}
-              {debouncedSearch ? ` for "${debouncedSearch}"` : ""}
-              {category ? ` in "${categoryLabel(category)}"` : ""}
-            </p>
+            {page === 0 && images.length < LIMIT && (
+              <p className="text-center text-xs text-muted-foreground mt-6">
+                Showing {images.length} photo{images.length !== 1 ? "s" : ""}
+                {debouncedSearch ? ` for "${debouncedSearch}"` : ""}
+                {category ? ` in "${categoryLabel(category)}"` : ""}
+              </p>
+            )}
           </>
         )}
       </div>
