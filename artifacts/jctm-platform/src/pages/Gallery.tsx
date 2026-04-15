@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Images, X, ChevronLeft, ChevronRight, Upload, Trash2,
   ZoomIn, Grid3X3, LayoutGrid, Lock, Calendar, Star, Search,
+  CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ObjectUploader } from "@workspace/object-storage-web";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 
@@ -243,6 +243,103 @@ function GalleryCard({
   );
 }
 
+function FileDropZone({
+  adminToken,
+  onComplete,
+}: {
+  adminToken: string;
+  onComplete: (paths: string[]) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [files, setFiles] = useState<Array<{ file: File; status: "pending" | "uploading" | "done" | "error" }>>([]);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = useCallback((selected: FileList | null) => {
+    if (!selected || selected.length === 0) return;
+    const imgs = Array.from(selected).filter(f => f.type.startsWith("image/"));
+    if (imgs.length === 0) { toast.error("Please select image files only."); return; }
+    setFiles(prev => [...prev, ...imgs.map(f => ({ file: f, status: "pending" as const }))]);
+  }, []);
+
+  const pendingCount = files.filter(f => f.status === "pending").length;
+
+  const handleUpload = useCallback(async () => {
+    const pending = files.filter(f => f.status === "pending");
+    if (pending.length === 0 || uploading) return;
+    setUploading(true);
+    const collected: string[] = [];
+    for (const item of pending) {
+      setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: "uploading" } : f));
+      try {
+        const res = await fetch(`${BASE_URL}/api/storage/uploads`, {
+          method: "POST",
+          headers: { "Content-Type": item.file.type, "Authorization": `Bearer ${adminToken}` },
+          body: item.file,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error ?? "Upload failed");
+        }
+        const { objectPath } = await res.json();
+        collected.push(objectPath);
+        setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: "done" } : f));
+      } catch {
+        setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: "error" } : f));
+      }
+    }
+    setUploading(false);
+    if (collected.length > 0) onComplete(collected);
+  }, [files, uploading, adminToken, onComplete]);
+
+  return (
+    <div className="space-y-3">
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+        onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dragging ? "border-accent bg-accent/10" : "border-border hover:border-accent/50 hover:bg-muted/20"}`}
+      >
+        <input ref={inputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
+        <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Drop images here or click to browse</p>
+        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP, AVIF · up to 20 MB each · bulk supported</p>
+      </div>
+
+      {files.length > 0 && (
+        <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+          {files.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              {item.status === "done" && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+              {item.status === "error" && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
+              {item.status === "uploading" && <div className="h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />}
+              {item.status === "pending" && <div className="h-4 w-4 border-2 border-border rounded-full shrink-0" />}
+              <span className="truncate text-foreground">{item.file.name}</span>
+              <span className="text-muted-foreground text-xs shrink-0 ml-auto">{(item.file.size / 1024).toFixed(0)} KB</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleUpload}
+          disabled={uploading || pendingCount === 0}
+          className="flex-1 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent text-sm font-semibold hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {uploading ? "Uploading…" : `Upload ${pendingCount > 0 ? pendingCount + " " : ""}File${pendingCount !== 1 ? "s" : ""}`}
+        </button>
+        {files.length > 0 && !uploading && (
+          <button onClick={() => setFiles([])} className="px-3 py-2 rounded-lg border border-border text-muted-foreground text-sm hover:text-foreground transition-colors">
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UploadPanel({
   selectedCategory,
   categories,
@@ -261,15 +358,12 @@ function UploadPanel({
   const [serviceDate, setServiceDate] = useState("");
   const [pendingPaths, setPendingPaths] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const collectedPaths = useRef<string[]>([]);
   const { mutateAsync: createImage } = useCreateGalleryImage({
     request: { headers: authHeaders(adminToken) },
   });
 
-  const handleComplete = useCallback(() => {
-    const paths = [...collectedPaths.current];
+  const handleComplete = useCallback((paths: string[]) => {
     if (paths.length === 0) return;
-    collectedPaths.current = [];
     setPendingPaths(prev => [...prev, ...paths]);
     toast.success(`${paths.length} image${paths.length > 1 ? "s" : ""} uploaded! Fill in the details and save.`);
   }, []);
@@ -414,32 +508,7 @@ function UploadPanel({
 
         <div>
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Select Images (bulk supported)</label>
-          <ObjectUploader
-            maxNumberOfFiles={20}
-            maxFileSize={20 * 1024 * 1024}
-            onGetUploadParameters={async (file) => {
-              const res = await fetch(`${BASE_URL}/api/storage/uploads/request-url`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...authHeaders(adminToken) },
-                body: JSON.stringify({
-                  name: file.name,
-                  size: file.size,
-                  contentType: file.type,
-                }),
-              });
-              if (!res.ok) throw new Error("Failed to get upload URL");
-              const { uploadURL, objectPath } = await res.json();
-              collectedPaths.current.push(objectPath);
-              return {
-                method: "PUT" as const,
-                url: uploadURL,
-                headers: { "Content-Type": file.type },
-              };
-            }}
-            onComplete={handleComplete}
-          >
-            Upload Photos
-          </ObjectUploader>
+          <FileDropZone adminToken={adminToken} onComplete={handleComplete} />
         </div>
       </div>
     </motion.div>

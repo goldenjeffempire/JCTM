@@ -187,6 +187,23 @@ export class ObjectStorageService {
   }
 
   /**
+   * Uploads a raw Buffer directly to the private object storage and returns
+   * the objectPath (/objects/uploads/<uuid>). Use this for server-side uploads
+   * where the browser sends the file to the API server instead of GCS directly.
+   */
+  async uploadBuffer(buffer: Buffer, contentType: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const entityDir = privateObjectDir.endsWith("/") ? privateObjectDir : `${privateObjectDir}/`;
+    const objectId = randomUUID();
+    const fullPath = `${entityDir}uploads/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(buffer, { contentType, resumable: false });
+    return `/objects/uploads/${objectId}`;
+  }
+
+  /**
    * Generates a WebP thumbnail from the given object entity, uploads it to storage,
    * and returns the thumbnail's objectPath (/objects/thumbs/<uuid>.webp).
    *

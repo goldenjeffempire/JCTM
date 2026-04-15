@@ -8,6 +8,11 @@ import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage"
 import { ObjectPermission } from "../lib/objectAcl";
 import { requireGalleryAdmin } from "../lib/adminAuth.js";
 
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg", "image/jpg", "image/png", "image/webp",
+  "image/gif", "image/avif", "image/heic", "image/heif",
+]);
+
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
@@ -51,6 +56,61 @@ router.post("/storage/uploads/request-url", requireGalleryAdmin, async (req: Req
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+/**
+ * POST /storage/uploads
+ *
+ * Server-proxied file upload. The browser sends the raw image bytes to this
+ * endpoint (Content-Type: image/*) and the server stores it in GCS.
+ * This avoids CORS issues that arise when the browser tries to PUT directly
+ * to a GCS presigned URL from a different origin.
+ */
+router.post("/storage/uploads", requireGalleryAdmin, async (req: Request, res: Response) => {
+  const rawContentType = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+
+  if (!ALLOWED_IMAGE_TYPES.has(rawContentType)) {
+    res.status(400).json({ error: "Only image uploads are allowed (jpeg, png, webp, gif, avif)" });
+    return;
+  }
+
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  const MAX_BYTES = 20 * 1024 * 1024;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      req.on("data", (chunk: Buffer) => {
+        totalBytes += chunk.length;
+        if (totalBytes > MAX_BYTES) {
+          reject(new Error("Image must be 20 MB or smaller"));
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on("end", resolve);
+      req.on("error", reject);
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Upload stream error";
+    res.status(413).json({ error: msg });
+    return;
+  }
+
+  if (totalBytes === 0) {
+    res.status(400).json({ error: "No file data received" });
+    return;
+  }
+
+  try {
+    const buffer = Buffer.concat(chunks);
+    const objectPath = await objectStorageService.uploadBuffer(buffer, rawContentType);
+    res.json({ objectPath });
+  } catch (error) {
+    req.log.error({ err: error }, "Error uploading file to storage");
+    res.status(500).json({ error: "Failed to upload file to storage" });
   }
 });
 
