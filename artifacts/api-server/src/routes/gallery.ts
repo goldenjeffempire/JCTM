@@ -194,6 +194,37 @@ router.patch("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void
   res.json(serializeImage(image));
 });
 
+router.post("/gallery/:id/regenerate-thumbnail", requireGalleryAdmin, async (req, res): Promise<void> => {
+  const paramsParsed = UpdateGalleryImageParams.safeParse(req.params);
+  if (!paramsParsed.success) {
+    res.status(400).json({ error: "Invalid image ID" });
+    return;
+  }
+
+  const [existing] = await db
+    .select()
+    .from(galleryImagesTable)
+    .where(eq(galleryImagesTable.id, paramsParsed.data.id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Gallery image not found" });
+    return;
+  }
+
+  try {
+    const thumbnailPath = await objectStorageService.generateAndStoreThumbnail(existing.objectPath);
+    const [updated] = await db
+      .update(galleryImagesTable)
+      .set({ thumbnailPath })
+      .where(eq(galleryImagesTable.id, existing.id))
+      .returning();
+    res.json(serializeImage(updated));
+  } catch (err) {
+    req.log.error({ err, imageId: existing.id }, "Thumbnail regeneration failed");
+    res.status(500).json({ error: "Failed to generate thumbnail. The original image may not be in storage yet." });
+  }
+});
+
 router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void> => {
   const parsed = DeleteGalleryImageParams.safeParse(req.params);
   if (!parsed.success) {

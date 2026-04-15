@@ -7,9 +7,10 @@ import {
   ChevronRight, Eye, Users, MessageSquare, Check, Trash2,
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
   Power, Repeat2, LayoutDashboard, Image, FileText,
-  Shield, Menu, KeyRound,
+  Shield, Menu, KeyRound, ImageOff,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
+import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
@@ -443,22 +444,185 @@ function SermonsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
 
 // ─── Gallery ──────────────────────────────────────────────────────────────────
 
+type GalleryImageItem = {
+  id: number;
+  title: string;
+  objectPath: string;
+  thumbnailPath?: string | null;
+  category: string;
+  createdAt: string;
+};
+
+function ThumbnailRow({ image, adminToken, onDone }: { image: GalleryImageItem; adminToken: string; onDone: () => void }) {
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(image.thumbnailPath ? "done" : "idle");
+  const [errMsg, setErrMsg] = useState("");
+
+  const hasThumbnail = status === "done" || (status === "idle" && Boolean(image.thumbnailPath));
+
+  const retry = async () => {
+    setStatus("loading");
+    setErrMsg("");
+    try {
+      const res = await fetch(`${BASE}/api/gallery/${image.id}/regenerate-thumbnail`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Server error ${res.status}`);
+      }
+      setStatus("done");
+      toast.success(`Thumbnail regenerated for "${image.title || `#${image.id}`}"`);
+      onDone();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setErrMsg(msg);
+      setStatus("error");
+      toast.error(`Failed: ${msg}`);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0">
+      <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+        {hasThumbnail ? (
+          <CheckCircle className="w-4 h-4 text-emerald-500" />
+        ) : status === "loading" ? (
+          <Loader2 className="w-4 h-4 text-violet-500 animate-spin" />
+        ) : (
+          <ImageOff className="w-4 h-4 text-amber-500" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{image.title || `Image #${image.id}`}</p>
+        <p className="text-[10px] text-muted-foreground capitalize">{image.category}</p>
+        {status === "error" && <p className="text-[10px] text-red-400 truncate">{errMsg}</p>}
+      </div>
+      {!hasThumbnail && (
+        <button
+          onClick={retry}
+          disabled={status === "loading"}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+        >
+          <RefreshCw className={`w-3 h-3 ${status === "loading" ? "animate-spin" : ""}`} />
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
+function GalleryThumbnailPanel({ adminToken }: { adminToken: string }) {
+  const qc = useQueryClient();
+  const [page, setPage] = useState(0);
+  const LIMIT = 50;
+
+  const { data: images = [], isLoading, refetch } = useListGalleryImages({ limit: LIMIT, offset: page * LIMIT });
+
+  const missing = (images as GalleryImageItem[]).filter(img => !img.thumbnailPath);
+  const total   = (images as GalleryImageItem[]).length;
+
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const retryAll = async () => {
+    const pending = (images as GalleryImageItem[]).filter(img => !img.thumbnailPath);
+    if (pending.length === 0) { toast.info("All images already have thumbnails."); return; }
+    setBulkLoading(true);
+    let ok = 0; let fail = 0;
+    for (const img of pending) {
+      try {
+        const res = await fetch(`${BASE}/api/gallery/${img.id}/regenerate-thumbnail`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${adminToken}` },
+        });
+        if (res.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    setBulkLoading(false);
+    toast.success(`Bulk regeneration complete: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ""}`);
+    refetch();
+    qc.invalidateQueries({ queryKey: ["listGalleryImages"] });
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading images…</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{total}</span> image{total !== 1 ? "s" : ""} — {" "}
+          <span className={missing.length > 0 ? "text-amber-500 font-semibold" : "text-emerald-500 font-semibold"}>
+            {missing.length === 0 ? "all thumbnails ready" : `${missing.length} missing thumbnail${missing.length !== 1 ? "s" : ""}`}
+          </span>
+        </div>
+        {missing.length > 0 && (
+          <button
+            onClick={retryAll}
+            disabled={bulkLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+          >
+            <RefreshCw className={`w-3 h-3 ${bulkLoading ? "animate-spin" : ""}`} />
+            {bulkLoading ? "Processing…" : `Regenerate All (${missing.length})`}
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-card/50 px-4 divide-y divide-border/0">
+        {(images as GalleryImageItem[]).map(img => (
+          <ThumbnailRow
+            key={img.id}
+            image={img}
+            adminToken={adminToken}
+            onDone={() => {
+              refetch();
+              qc.invalidateQueries({ queryKey: ["listGalleryImages"] });
+            }}
+          />
+        ))}
+        {total === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">No gallery images yet. Upload photos on the Gallery page.</p>
+        )}
+      </div>
+
+      {total >= LIMIT && (
+        <div className="flex items-center justify-center gap-3 pt-1">
+          <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border disabled:opacity-40 hover:bg-muted transition-colors">Previous</button>
+          <span className="text-xs text-muted-foreground">Page {page + 1}</span>
+          <button onClick={() => setPage(p => p + 1)} disabled={total < LIMIT} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border disabled:opacity-40 hover:bg-muted transition-colors">Next</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GallerySection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
   return (
     <div className="space-y-5">
-      <SectionHeader title="Gallery Management" description="Upload and manage ministry photos" />
+      <SectionHeader title="Gallery Management" description="Upload photos and manage image thumbnails" />
       <AdminLoginGate role="gallery" auth={auth} title="Gallery Admin">
         <Card>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <h3 className="font-semibold text-sm flex items-center gap-2"><Image className="w-4 h-4 text-violet-500" /> Gallery Controls</h3>
             <AdminBadge role="gallery" auth={auth} />
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Gallery uploads and image management are handled on the Gallery page where you can upload, categorise, and publish photos.
-          </p>
-          <a href={`${BASE}/gallery`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition-colors">
-            <Image className="w-4 h-4" /> Open Gallery Manager →
-          </a>
+
+          <div className="flex flex-wrap gap-3 mb-6">
+            <a href={`${BASE}/gallery`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition-colors">
+              <Image className="w-4 h-4" /> Open Gallery Manager →
+            </a>
+          </div>
+
+          <div className="border-t border-border pt-5">
+            <h4 className="text-sm font-semibold mb-1 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-violet-400" /> Thumbnail Status
+            </h4>
+            <p className="text-xs text-muted-foreground mb-4">
+              WebP thumbnails are generated automatically on upload. Use the retry controls below to regenerate any that failed.
+            </p>
+            <GalleryThumbnailPanel adminToken={auth.adminToken ?? ""} />
+          </div>
         </Card>
       </AdminLoginGate>
     </div>
