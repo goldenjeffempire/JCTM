@@ -49,6 +49,7 @@ router.get("/gallery/featured", async (_req, res): Promise<void> => {
     ))
     .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
 
+  res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
   res.json(ListFeaturedGalleryImagesResponse.parse(images.map(serializeImage)));
 });
 
@@ -125,6 +126,7 @@ router.get("/gallery", async (req, res): Promise<void> => {
     .limit(limit)
     .offset(offset);
 
+  res.setHeader("Cache-Control", "public, max-age=10, stale-while-revalidate=60");
   res.json(ListGalleryImagesResponse.parse(images.map(serializeImage)));
 });
 

@@ -187,6 +187,7 @@ const jpgModules = import.meta.glob(
 interface ImageEntry { webp: string; jpg: string }
 type FeaturedGalleryImage = {
   objectPath: string;
+  thumbnailPath?: string | null;
   title?: string | null;
   altText?: string | null;
 };
@@ -215,8 +216,10 @@ function galleryEntries(images: FeaturedGalleryImage[]): ImageEntry[] {
   return images
     .filter((image) => typeof image.objectPath === "string" && image.objectPath.startsWith("/objects/"))
     .map((image) => {
-      const src = galleryImageUrl(image.objectPath);
-      return { webp: src, jpg: src };
+      const fullSrc = galleryImageUrl(image.objectPath);
+      // Use the WebP thumbnail as the preferred source if available — much smaller payload
+      const thumbSrc = image.thumbnailPath ? galleryImageUrl(image.thumbnailPath) : fullSrc;
+      return { webp: thumbSrc, jpg: fullSrc };
     });
 }
 
@@ -371,6 +374,8 @@ function SlideCaption({ slideIdx, layout }: { slideIdx: number; layout: "overlay
   );
 }
 
+const SYNC_INTERVAL_MS = 3 * 60 * 1000; // re-fetch featured images every 3 minutes
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function MinistrySlideshow() {
   const [shuffled, setShuffled] = useState<ImageEntry[]>([]);
@@ -378,41 +383,66 @@ export function MinistrySlideshow() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [orientations, setOrientations] = useState<Record<string, Orientation>>({});
 
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const preloadedRef = useRef(false);
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const preloadedRef   = useRef(false);
+  const lastKeyRef     = useRef<string>("");   // tracks last-seen image set for diffing
+  const initializedRef = useRef(false);
 
-  // ── Initialise ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-
-    const initialize = async () => {
-      let entries = ALL_IMAGES;
-      try {
-        const res = await fetch(`${BASE_URL}/api/gallery/featured`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            const dynamicEntries = galleryEntries(data);
-            if (dynamicEntries.length > 0) entries = dynamicEntries;
-          }
+  // ── Fetch + smart-update featured images ─────────────────────────────────
+  const fetchFeatured = useCallback(async (isInitial = false) => {
+    let entries: ImageEntry[] = ALL_IMAGES;
+    try {
+      const res = await fetch(`${BASE_URL}/api/gallery/featured`, {
+        // bypass cache so polling always reflects latest admin changes
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const dynamicEntries = galleryEntries(data as FeaturedGalleryImage[]);
+          if (dynamicEntries.length > 0) entries = dynamicEntries;
         }
-      } catch {
-        entries = ALL_IMAGES;
       }
+    } catch {
+      // on error keep entries = ALL_IMAGES (fallback to static assets)
+    }
 
-      if (cancelled) return;
-      const s = shuffleArray(entries);
-      setShuffled(s);
+    // Smart diff — only reshuffle when the image set actually changed
+    const key = entries.map(e => e.jpg).join(",");
+    if (key === lastKeyRef.current && !isInitial) return;
+    lastKeyRef.current = key;
+
+    const s = shuffleArray(entries);
+    setShuffled(s);
+
+    if (isInitial) {
       setSlideIdx(Math.floor(Math.random() * SLIDES.length));
       if (s.length > 0 && !preloadedRef.current) {
         preloadedRef.current = true;
         injectPreload(s[0]);
       }
-    };
-
-    initialize();
-    return () => { cancelled = true; };
+    }
   }, []);
+
+  // ── Initialise once ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    fetchFeatured(true);
+
+    // Poll every 3 minutes for new featured images added by admins
+    const syncTimer = setInterval(() => { fetchFeatured(false); }, SYNC_INTERVAL_MS);
+
+    // Also refresh immediately when the tab regains focus
+    const handleVisibility = () => { if (!document.hidden) fetchFeatured(false); };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(syncTimer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [fetchFeatured]);
 
   // ── Orientation detection + background preload ───────────────────────────
   const detectOrientation = useCallback((entry: ImageEntry) => {
