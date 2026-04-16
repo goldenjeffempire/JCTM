@@ -1,4 +1,4 @@
-import { syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
+import { syncRecentIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
 import { syncFromRSS, RSS_INTERVAL_MS } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
@@ -26,6 +26,7 @@ let lastWebSubRenewal: Date | null = null;
 let webSubCallbackUrl: string | null = null;
 let lastRSSSync: Date | null = null;
 let lastAPISync: Date | null = null;
+let lastSyncError: { time: string; message: string; source: string } | null = null;
 let serviceReminderSentAt: number | null = null;
 let devotionNotificationSentDate: string | null = null; // ISO date string (YYYY-MM-DD)
 
@@ -45,14 +46,28 @@ export function setQuotaPaused(until: number): void {
 }
 
 export function getCronState() {
+  const now = Date.now();
   return {
-    quotaPausedUntil: quotaPausedUntil ? new Date(quotaPausedUntil).toISOString() : null,
-    lastWebSubRenewal: lastWebSubRenewal?.toISOString() ?? null,
-    webSubNextRenewal: lastWebSubRenewal
-      ? new Date(lastWebSubRenewal.getTime() + WEBSUB_RENEWAL_MS).toISOString()
-      : null,
-    lastRSSSync: lastRSSSync?.toISOString() ?? null,
-    lastAPISync: lastAPISync?.toISOString() ?? null,
+    youtube: {
+      quotaPaused:      quotaPausedUntil !== null && now < quotaPausedUntil,
+      quotaResetsAt:    quotaPausedUntil && now < quotaPausedUntil ? new Date(quotaPausedUntil).toISOString() : null,
+      lastRSSSync:      lastRSSSync?.toISOString() ?? null,
+      nextRSSSync:      lastRSSSync ? new Date(lastRSSSync.getTime() + RSS_INTERVAL_MS).toISOString() : null,
+      lastAPISync:      lastAPISync?.toISOString() ?? null,
+      nextAPISync:      lastAPISync ? new Date(lastAPISync.getTime() + API_INTERVAL_MS).toISOString() : null,
+    },
+    websub: {
+      lastRenewal: lastWebSubRenewal?.toISOString() ?? null,
+      nextRenewal: lastWebSubRenewal
+        ? new Date(lastWebSubRenewal.getTime() + WEBSUB_RENEWAL_MS).toISOString()
+        : null,
+      callbackUrl: webSubCallbackUrl ?? null,
+    },
+    openai: {
+      quotaPaused:   openaiQuotaPausedUntil !== null && now < openaiQuotaPausedUntil,
+      quotaResetsAt: openaiQuotaPausedUntil && now < openaiQuotaPausedUntil ? new Date(openaiQuotaPausedUntil).toISOString() : null,
+    },
+    lastSyncError: lastSyncError ?? null,
     running: {
       rss:      rssCronHandle !== null,
       api:      apiCronHandle !== null,
@@ -198,9 +213,12 @@ async function runApiSync(apiKey: string, log: Logger): Promise<void> {
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(sermonsTable);
 
+    // Empty DB → full harvest to populate from scratch.
+    // Otherwise → lightweight recent-only sync (first playlist page, 50 videos)
+    // to minimise daily quota consumption on the 30-minute cron.
     const result = count === 0
       ? await harvestAll(apiKey, log)
-      : await syncIncremental(apiKey, log);
+      : await syncRecentIncremental(apiKey, log);
 
     lastAPISync = new Date();
     log.info(result, "YouTube API sync complete");
@@ -215,10 +233,17 @@ async function runApiSync(apiKey: string, log: Logger): Promise<void> {
       quotaPausedUntil = Date.now() + pauseMs;
       log.warn(
         { resumesInHours: Math.round(pauseMs / 3600000) },
-        "YouTube API quota exceeded — sync paused until UTC midnight"
+        "YouTube API quota exceeded — sync paused until UTC midnight",
       );
+      lastSyncError = {
+        time:    new Date().toISOString(),
+        message: `YouTube quota exceeded — resumes at ${new Date(Date.now() + pauseMs).toUTCString()}`,
+        source:  "api_cron",
+      };
     } else {
+      const message = err instanceof Error ? err.message : String(err);
       log.error({ err }, "YouTube API sync failed");
+      lastSyncError = { time: new Date().toISOString(), message, source: "api_cron" };
     }
   }
 }
@@ -338,11 +363,14 @@ export function startCron(log: Logger, websubUrl?: string): void {
     log.info("YOUTUBE_API_KEY not set — YouTube Data API sync disabled (RSS still active)");
   } else {
     log.info({ intervalMs: API_INTERVAL_MS }, "Starting YouTube API sync cron (30-min)");
+    // Delay the first API sync by 35 seconds so RSS has time to complete its
+    // startup run (and any immediate enrichment) before the API cron fires —
+    // this avoids double-consuming quota in the first seconds after boot.
     setTimeout(() => {
       runApiSync(apiKey, log);
       apiCronHandle = setInterval(() => runApiSync(apiKey, log), API_INTERVAL_MS);
       if (apiCronHandle) apiCronHandle.unref();
-    }, 10_000);
+    }, 35_000);
   }
 
   // ── WebSub auto-renewal — every 23 hours ────────────────────────────────

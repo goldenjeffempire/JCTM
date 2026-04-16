@@ -12,7 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { syncIncremental, harvestAll, iso8601ToSeconds, QuotaExceededError } from "../lib/youtube-sync.js";
 import { syncFromRSS } from "../lib/rss-sync.js";
-import { isQuotaPaused, getQuotaResetTime, setQuotaPaused } from "../lib/cron.js";
+import { isQuotaPaused, getQuotaResetTime, setQuotaPaused, getCronState } from "../lib/cron.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -46,6 +46,14 @@ router.get("/sermons/stream", (req, res): void => {
   req.on("close", () => {
     req.log.info({ clientId }, "SSE client disconnected");
   });
+});
+
+// ──────────────────────────────────────────────────────
+// GET /sermons/sync-status  — automation engine status (sermon-admin only)
+// Returns quota state, last sync times, next sync times, and last error.
+// ──────────────────────────────────────────────────────
+router.get("/sermons/sync-status", requireAdminRole("sermon"), (_req, res): void => {
+  res.json(getCronState());
 });
 
 // ──────────────────────────────────────────────────────
@@ -459,6 +467,8 @@ router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<vo
   const isHarvest = req.query.harvest === "true";
 
   // ── Helper: run RSS fallback sync ──────────────────────────────────────────
+  // Returns 200 (with a warning) when RSS succeeds — the data was synced,
+  // just via the fallback path.  Only returns 503 when both methods fail.
   async function runRSSFallback(reason: string): Promise<void> {
     req.log.info({ reason }, "Manual sync falling back to RSS feed");
     try {
@@ -467,18 +477,20 @@ router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<vo
         sseBroadcaster.broadcast({ type: "sync_complete", data: { synced: rssResult.inserted, source: "rss" } });
       }
       const resetTime = getQuotaResetTime();
-      const resetMsg = resetTime
-        ? ` YouTube API quota resets at ${resetTime.toUTCString()}.`
-        : "";
-      res.status(503).json({
-        error: reason,
-        fallback: "rss",
-        rssResult: { inserted: rssResult.inserted, updated: rssResult.updated, total: rssResult.total },
-        message: `YouTube API unavailable — RSS fallback ran instead (${rssResult.total} videos checked, ${rssResult.inserted} new).${resetMsg}`,
+      res.status(200).json({
+        synced:     rssResult.inserted,
+        source:     "rss",
+        warning:    reason,
+        quotaResets: resetTime ? resetTime.toISOString() : null,
+        rssResult:  { inserted: rssResult.inserted, updated: rssResult.updated, total: rssResult.total },
+        message:    `RSS fallback ran (${rssResult.total} videos checked, ${rssResult.inserted} new, ${rssResult.updated} updated).${resetTime ? ` YouTube API resumes at ${resetTime.toUTCString()}.` : ""}`,
       });
     } catch (rssErr) {
       req.log.error({ rssErr }, "RSS fallback also failed");
-      res.status(503).json({ error: reason, message: "Both YouTube API and RSS fallback failed." });
+      res.status(503).json({
+        error:   reason,
+        message: "Both YouTube API and RSS fallback failed — no sync performed.",
+      });
     }
   }
 

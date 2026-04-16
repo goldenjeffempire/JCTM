@@ -1,5 +1,5 @@
 import { db, sermonsTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Logger } from "pino";
 
 export const CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
@@ -70,6 +70,30 @@ export class QuotaExceededError extends Error {
   }
 }
 
+// ─── Fetch with retry, timeout, and structured quota detection ─────────────────
+
+/**
+ * Parse a YouTube API error body and determine whether the error is due to
+ * quota exhaustion.  YouTube always returns a JSON error envelope like:
+ *   { "error": { "code": 403, "errors": [{ "reason": "quotaExceeded" }] } }
+ * but the body is parsed defensively so any parse failure falls back to the
+ * plain text heuristic.
+ */
+function isQuotaError(status: number, body: string): boolean {
+  if (status !== 403 && status !== 429) return false;
+  // Fast path: plain-text heuristic
+  const lower = body.toLowerCase();
+  if (lower.includes("quota") || lower.includes("dailylimit")) return true;
+  // Structured path: parse JSON reason codes
+  try {
+    const json = JSON.parse(body) as { error?: { errors?: { reason?: string }[] } };
+    const reasons = json.error?.errors?.map(e => e.reason ?? "") ?? [];
+    return reasons.some(r => r === "quotaExceeded" || r === "dailyLimitExceeded" || r === "rateLimitExceeded");
+  } catch {
+    return false;
+  }
+}
+
 async function fetchWithRetry<T>(
   url: string,
   retries = 2,
@@ -78,19 +102,25 @@ async function fetchWithRetry<T>(
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url);
-      if (res.status === 403) {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (res.status === 403 || res.status === 429) {
         const body = await res.text();
-        if (body.includes("quota")) throw new QuotaExceededError();
-        throw new Error(`HTTP 403: ${body.slice(0, 200)}`);
+        if (isQuotaError(res.status, body)) throw new QuotaExceededError();
+        throw new Error(`HTTP ${res.status}: ${body.slice(0, 300)}`);
       }
+
       if (!res.ok) {
         const body = await res.text();
-        throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
+        throw new Error(`HTTP ${res.status}: ${body.slice(0, 300)}`);
       }
       return await res.json() as T;
     } catch (err) {
       if (err instanceof QuotaExceededError) throw err;
+      // Abort errors (timeout) are not retried with backoff — rethrow fast
+      if (err instanceof DOMException && err.name === "TimeoutError") throw err;
       lastErr = err;
       if (attempt < retries) {
         await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt)));
@@ -100,9 +130,18 @@ async function fetchWithRetry<T>(
   throw lastErr;
 }
 
-async function fetchPlaylistItems(apiKey: string): Promise<PlaylistItem[]> {
+// ─── YouTube API helpers ──────────────────────────────────────────────────────
+
+/**
+ * Fetch playlist items from the channel uploads playlist.
+ * @param apiKey     YouTube Data API v3 key
+ * @param maxPages   0 = paginate through all results (for harvest); N = stop after N pages.
+ *                   Each page returns up to 50 items, so maxPages=1 gives the 50 most recent.
+ */
+async function fetchPlaylistItems(apiKey: string, maxPages = 0): Promise<PlaylistItem[]> {
   const items: PlaylistItem[] = [];
   let pageToken: string | undefined;
+  let page = 0;
 
   while (true) {
     const params = new URLSearchParams({
@@ -123,8 +162,11 @@ async function fetchPlaylistItems(apiKey: string): Promise<PlaylistItem[]> {
     if (!data.items || data.items.length === 0) break;
 
     items.push(...data.items);
+    page++;
     pageToken = data.nextPageToken;
+
     if (!pageToken) break;
+    if (maxPages > 0 && page >= maxPages) break;
   }
 
   return items;
@@ -153,6 +195,42 @@ async function fetchVideoDetails(apiKey: string, videoIds: string[]): Promise<Vi
   return details;
 }
 
+// ─── Upsert helper ────────────────────────────────────────────────────────────
+
+async function upsertSermon(item: {
+  videoId: string;
+  title: string;
+  thumbnailUrl: string;
+  description: string;
+  publishedAt: Date;
+  viewCount: number | null;
+  duration: string;
+  isFeatured: boolean;
+  isLive: boolean;
+  actuallyLive?: boolean;
+}): Promise<void> {
+  const { actuallyLive, ...values } = item;
+  const liveValue = actuallyLive ?? item.isLive;
+
+  await db
+    .insert(sermonsTable)
+    .values({ ...values, isLive: liveValue })
+    .onConflictDoUpdate({
+      target: sermonsTable.videoId,
+      set: {
+        title:            values.title,
+        thumbnailUrl:     values.thumbnailUrl,
+        description:      values.description,
+        publishedAt:      values.publishedAt,
+        viewCount:        values.viewCount,
+        duration:         values.duration,
+        isFeatured:       values.isFeatured,
+        isLive:           liveValue,
+        broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${liveValue} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
+      },
+    });
+}
+
 export interface SyncResult {
   synced: number;
   featured: number;
@@ -160,18 +238,127 @@ export interface SyncResult {
   message: string;
 }
 
-/**
- * Incremental upsert: fetches latest videos, upserts into DB (insert or update on conflict).
- * Does NOT purge existing records. Filters out Shorts (<= 60s).
- */
-export async function syncIncremental(apiKey: string, log?: Logger): Promise<SyncResult> {
-  log?.info("Starting incremental YouTube sync");
+// ─── Full harvest ─────────────────────────────────────────────────────────────
 
-  const playlistItems = await fetchPlaylistItems(apiKey);
+/**
+ * Full harvest: fetches the entire channel upload history and atomically
+ * replaces the existing sermon catalogue.
+ *
+ * Safety: all API data is fetched BEFORE touching the database.  The
+ * database is updated inside a transaction so that if any write fails the
+ * existing data is fully preserved — no partial or empty state.
+ */
+export async function harvestAll(apiKey: string, log?: Logger): Promise<SyncResult> {
+  log?.info("Starting full harvest (purge + repopulate)");
+
+  // ── Step 1: Fetch everything from YouTube — DB is still intact ─────────────
+  const playlistItems = await fetchPlaylistItems(apiKey, 0); // 0 = all pages
   if (playlistItems.length === 0) {
     return { synced: 0, featured: 0, live: 0, message: "No videos on channel" };
   }
 
+  const videoIds = playlistItems.map(i => i.snippet.resourceId.videoId);
+  const detailMap = new Map<string, VideoDetail>();
+  const details = await fetchVideoDetails(apiKey, videoIds);
+  for (const d of details) detailMap.set(d.id, d);
+
+  const validVideos = playlistItems.filter(item => {
+    const detail = detailMap.get(item.snippet.resourceId.videoId);
+    if (!detail) return false;
+    return iso8601ToSeconds(detail.contentDetails.duration) > 60;
+  });
+
+  if (validVideos.length === 0) {
+    return { synced: 0, featured: 0, live: 0, message: "No valid sermons found (all were Shorts)" };
+  }
+
+  let featured = 0;
+  let live = 0;
+  const inserts = validVideos.map(item => {
+    const videoId = item.snippet.resourceId.videoId;
+    const detail = detailMap.get(videoId)!;
+    const { isFeatured, isLive } = classifyTitle(item.snippet.title);
+    if (isFeatured) featured++;
+    if (isLive) live++;
+    return {
+      videoId,
+      title:        item.snippet.title,
+      thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
+      description:  item.snippet.description.slice(0, 1000),
+      publishedAt:  new Date(item.snippet.publishedAt),
+      viewCount:    detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
+      duration:     detail.contentDetails.duration,
+      isFeatured,
+      isLive,
+    };
+  });
+
+  // ── Step 2: Atomically replace catalogue in a single transaction ───────────
+  // All API data is already in memory — if any DB write fails, the transaction
+  // rolls back and the existing catalogue remains fully intact.
+  await db.transaction(async (tx) => {
+    await tx.delete(sermonsTable);
+    for (let i = 0; i < inserts.length; i += 100) {
+      await tx.insert(sermonsTable).values(inserts.slice(i, i + 100));
+    }
+  });
+
+  log?.info({ synced: inserts.length, featured, live }, "Full harvest complete");
+  return {
+    synced: inserts.length,
+    featured,
+    live,
+    message: `Harvested ${inserts.length} sermons from full channel history (${featured} featured, ${live} live)`,
+  };
+}
+
+// ─── Incremental sync (full — for manual sync / first run) ────────────────────
+
+/**
+ * Full incremental upsert: fetches the entire uploads playlist and upserts
+ * into the DB (insert-or-update, never deletes).  Used for the first run and
+ * manual admin-triggered syncs.  Filters out Shorts (<= 60s).
+ */
+export async function syncIncremental(apiKey: string, log?: Logger): Promise<SyncResult> {
+  log?.info("Starting incremental YouTube sync (full playlist)");
+
+  const playlistItems = await fetchPlaylistItems(apiKey, 0);
+  if (playlistItems.length === 0) {
+    return { synced: 0, featured: 0, live: 0, message: "No videos on channel" };
+  }
+
+  return _upsertPlaylistItems(playlistItems, apiKey, log);
+}
+
+// ─── Recent incremental sync (for 30-minute cron) ────────────────────────────
+
+/**
+ * Lightweight incremental sync that only inspects the most recent videos.
+ * Used by the automatic 30-minute cron — fetches only the first playlist page
+ * (up to 50 newest videos) to minimise quota consumption.
+ *
+ * For channels with consistent publishing cadences this is sufficient to catch
+ * all new uploads between cron runs.  A full syncIncremental will be triggered
+ * automatically on the first-ever run (empty DB).
+ */
+export async function syncRecentIncremental(apiKey: string, log?: Logger): Promise<SyncResult> {
+  log?.info("Starting recent incremental YouTube sync (first page only)");
+
+  const playlistItems = await fetchPlaylistItems(apiKey, 1); // first page = 50 newest
+  if (playlistItems.length === 0) {
+    return { synced: 0, featured: 0, live: 0, message: "No videos on channel" };
+  }
+
+  return _upsertPlaylistItems(playlistItems, apiKey, log);
+}
+
+// ─── Shared upsert core ───────────────────────────────────────────────────────
+
+async function _upsertPlaylistItems(
+  playlistItems: PlaylistItem[],
+  apiKey: string,
+  log?: Logger,
+): Promise<SyncResult> {
   const videoIds = playlistItems.map(i => i.snippet.resourceId.videoId);
   const detailMap = new Map<string, VideoDetail>();
   const details = await fetchVideoDetails(apiKey, videoIds);
@@ -194,113 +381,39 @@ export async function syncIncremental(apiKey: string, log?: Logger): Promise<Syn
     if (isFeatured) featured++;
     if (isLive) live++;
 
-    // Check for live broadcast status from API
     const liveStatus = detail.snippet?.liveBroadcastContent;
     const actuallyLive = isLive || liveStatus === "live";
 
-    await db
-      .insert(sermonsTable)
-      .values({
-        videoId,
-        title: item.snippet.title,
-        thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
-        description: item.snippet.description.slice(0, 1000),
-        publishedAt: new Date(item.snippet.publishedAt),
-        viewCount: detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
-        duration: detail.contentDetails.duration,
-        isFeatured,
-        isLive: actuallyLive,
-      })
-      .onConflictDoUpdate({
-        target: sermonsTable.videoId,
-        set: {
-          title: item.snippet.title,
-          thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
-          description: item.snippet.description.slice(0, 1000),
-          publishedAt: new Date(item.snippet.publishedAt),
-          viewCount: detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
-          duration: detail.contentDetails.duration,
-          isFeatured,
-          isLive: actuallyLive,
-          broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${actuallyLive} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
-        },
-      });
+    await upsertSermon({
+      videoId,
+      title:        item.snippet.title,
+      thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
+      description:  item.snippet.description.slice(0, 1000),
+      publishedAt:  new Date(item.snippet.publishedAt),
+      viewCount:    detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
+      duration:     detail.contentDetails.duration,
+      isFeatured,
+      isLive,
+      actuallyLive,
+    });
   }
 
-  log?.info({ synced: validVideos.length, featured, live }, "Incremental sync complete");
-  return {
-    synced: validVideos.length,
+  const result = {
+    synced:   validVideos.length,
     featured,
     live,
     message: `Synced ${validVideos.length} sermons (${featured} featured, ${live} live)`,
   };
+
+  log?.info(result, "Incremental sync complete");
+  return result;
 }
 
-/**
- * Full harvest: purges all existing records, fetches the entire channel history.
- * Use only for initial population or manual reset.
- */
-export async function harvestAll(apiKey: string, log?: Logger): Promise<SyncResult> {
-  log?.info("Starting full harvest (purge + repopulate)");
-
-  const playlistItems = await fetchPlaylistItems(apiKey);
-  if (playlistItems.length === 0) {
-    return { synced: 0, featured: 0, live: 0, message: "No videos on channel" };
-  }
-
-  const videoIds = playlistItems.map(i => i.snippet.resourceId.videoId);
-  const detailMap = new Map<string, VideoDetail>();
-  const details = await fetchVideoDetails(apiKey, videoIds);
-  for (const d of details) detailMap.set(d.id, d);
-
-  const validVideos = playlistItems.filter(item => {
-    const detail = detailMap.get(item.snippet.resourceId.videoId);
-    if (!detail) return false;
-    return iso8601ToSeconds(detail.contentDetails.duration) > 60;
-  });
-
-  // Purge existing data
-  await db.delete(sermonsTable);
-
-  let featured = 0;
-  let live = 0;
-  const inserts = validVideos.map(item => {
-    const videoId = item.snippet.resourceId.videoId;
-    const detail = detailMap.get(videoId)!;
-    const { isFeatured, isLive } = classifyTitle(item.snippet.title);
-    if (isFeatured) featured++;
-    if (isLive) live++;
-    return {
-      videoId,
-      title: item.snippet.title,
-      thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
-      description: item.snippet.description.slice(0, 1000),
-      publishedAt: new Date(item.snippet.publishedAt),
-      viewCount: detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
-      duration: detail.contentDetails.duration,
-      isFeatured,
-      isLive,
-    };
-  });
-
-  if (inserts.length > 0) {
-    // Insert in batches of 100
-    for (let i = 0; i < inserts.length; i += 100) {
-      await db.insert(sermonsTable).values(inserts.slice(i, i + 100));
-    }
-  }
-
-  log?.info({ synced: inserts.length, featured, live }, "Full harvest complete");
-  return {
-    synced: inserts.length,
-    featured,
-    live,
-    message: `Harvested ${inserts.length} sermons from full channel history (${featured} featured, ${live} live)`,
-  };
-}
+// ─── Single video sync (WebSub) ───────────────────────────────────────────────
 
 /**
- * Sync a single video by ID. Used by WebSub push notifications.
+ * Sync a single video by ID.  Used by WebSub push notifications.
+ * Returns null when the video should be ignored (wrong channel, Short, etc).
  */
 export async function syncSingleVideo(apiKey: string, videoId: string, log?: Logger): Promise<void> {
   log?.info({ videoId }, "Syncing single video from WebSub notification");
@@ -347,36 +460,23 @@ export async function syncSingleVideo(apiKey: string, videoId: string, log?: Log
   const { isFeatured, isLive } = classifyTitle(item.snippet.title);
   const actuallyLive = isLive || item.snippet.liveBroadcastContent === "live";
 
-  await db
-    .insert(sermonsTable)
-    .values({
-      videoId,
-      title: item.snippet.title,
-      thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
-      description: item.snippet.description.slice(0, 1000),
-      publishedAt: new Date(item.snippet.publishedAt),
-      viewCount: item.statistics?.viewCount ? parseInt(item.statistics.viewCount) : null,
-      duration: item.contentDetails.duration,
-      isFeatured,
-      isLive: actuallyLive,
-    })
-    .onConflictDoUpdate({
-      target: sermonsTable.videoId,
-      set: {
-        title: item.snippet.title,
-        thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
-        description: item.snippet.description.slice(0, 1000),
-        publishedAt: new Date(item.snippet.publishedAt),
-        viewCount: item.statistics?.viewCount ? parseInt(item.statistics.viewCount) : null,
-        duration: item.contentDetails.duration,
-        isFeatured,
-        isLive: actuallyLive,
-        broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${actuallyLive} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
-      },
-    });
+  await upsertSermon({
+    videoId,
+    title:        item.snippet.title,
+    thumbnailUrl: bestThumbnail(item.snippet.thumbnails, videoId),
+    description:  item.snippet.description.slice(0, 1000),
+    publishedAt:  new Date(item.snippet.publishedAt),
+    viewCount:    item.statistics?.viewCount ? parseInt(item.statistics.viewCount) : null,
+    duration:     item.contentDetails.duration,
+    isFeatured,
+    isLive,
+    actuallyLive,
+  });
 
   log?.info({ videoId, isFeatured, isLive: actuallyLive }, "Single video synced");
 }
+
+// ─── RSS enrichment ───────────────────────────────────────────────────────────
 
 /**
  * Enrich a specific list of video IDs with full YouTube API metadata
@@ -384,6 +484,10 @@ export async function syncSingleVideo(apiKey: string, videoId: string, log?: Log
  *
  * Used to immediately fill in metadata for videos inserted by RSS sync
  * so they appear in the Moments feed without waiting for the 30-min cron.
+ *
+ * Only calls the API for videos that are genuinely missing duration data to
+ * avoid wasting quota on already-enriched records.
+ *
  * Returns the count of rows actually updated.
  */
 export async function enrichVideoIds(
@@ -393,39 +497,57 @@ export async function enrichVideoIds(
 ): Promise<number> {
   if (videoIds.length === 0) return 0;
 
-  const details = await fetchVideoDetails(apiKey, videoIds);
+  // Only enrich videos that are missing duration — saves quota on already-complete records
+  const existing = await db
+    .select({ videoId: sermonsTable.videoId, duration: sermonsTable.duration })
+    .from(sermonsTable)
+    .where(
+      sql`${sermonsTable.videoId} = ANY(ARRAY[${sql.raw(videoIds.map(id => `'${id.replace(/'/g, "''")}'`).join(","))}]::text[])`,
+    );
+
+  const needEnrichment = existing
+    .filter(r => !r.duration)
+    .map(r => r.videoId);
+
+  // Also include any IDs not yet in the DB at all (race: RSS inserted but not returned yet)
+  const knownIds = new Set(existing.map(r => r.videoId));
+  const unknownIds = videoIds.filter(id => !knownIds.has(id));
+  const toEnrich = [...new Set([...needEnrichment, ...unknownIds])];
+
+  if (toEnrich.length === 0) {
+    log?.info({ requested: videoIds.length }, "All RSS videos already enriched — skipping API call");
+    return 0;
+  }
+
+  log?.info({ enriching: toEnrich.length, skipping: videoIds.length - toEnrich.length }, "Enriching RSS videos via YouTube API");
+
+  const details = await fetchVideoDetails(apiKey, toEnrich);
   let enriched = 0;
 
   for (const detail of details) {
     const durationSecs = iso8601ToSeconds(detail.contentDetails.duration);
 
-    // Exclude Shorts (≤ 60 s) — consistent with the rest of the sync pipeline
+    // Exclude Shorts (≤ 60 s)
     if (durationSecs > 0 && durationSecs <= 60) {
       log?.info({ videoId: detail.id }, "Skipping Short video during RSS enrichment");
       continue;
     }
 
-    // Upgrade thumbnail from RSS placeholder to API-quality image when available
     const apiThumbnail =
       detail.snippet?.thumbnails?.maxres?.url ??
       detail.snippet?.thumbnails?.standard?.url ??
       detail.snippet?.thumbnails?.high?.url ??
       null;
 
-    // Live broadcast status from the API
     const liveFromApi = detail.snippet?.liveBroadcastContent === "live";
 
     await db
       .update(sermonsTable)
       .set({
-        duration: detail.contentDetails.duration,
-        viewCount: detail.statistics?.viewCount
-          ? parseInt(detail.statistics.viewCount)
-          : null,
-        // Upgrade to API-quality thumbnail only if we got one
+        duration:  detail.contentDetails.duration,
+        viewCount: detail.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : null,
         ...(apiThumbnail ? { thumbnailUrl: apiThumbnail } : {}),
-        // If the API now says not live but the DB says live, mark broadcast as ended
-        isLive: sql`CASE WHEN sermon_data.is_live = true AND ${liveFromApi} = false THEN false ELSE (sermon_data.is_live OR ${liveFromApi}) END`,
+        isLive:           sql`CASE WHEN sermon_data.is_live = true AND ${liveFromApi} = false THEN false ELSE (sermon_data.is_live OR ${liveFromApi}) END`,
         broadcastEndedAt: sql`CASE WHEN sermon_data.is_live = true AND ${liveFromApi} = false THEN NOW() ELSE sermon_data.broadcast_ended_at END`,
       })
       .where(eq(sermonsTable.videoId, detail.id));
@@ -433,31 +555,34 @@ export async function enrichVideoIds(
     enriched++;
   }
 
-  log?.info({ enriched, requested: videoIds.length }, "RSS video enrichment complete");
+  log?.info({ enriched, requested: toEnrich.length }, "RSS video enrichment complete");
   return enriched;
 }
+
+// ─── WebSub subscription ──────────────────────────────────────────────────────
 
 /**
  * Subscribe to YouTube PubSubHubbub (WebSub) for push notifications.
  * Call once on server startup.
  */
 export async function subscribeToWebSub(callbackUrl: string, log?: Logger): Promise<void> {
-  const HUB = "https://pubsubhubbub.appspot.com/subscribe";
+  const HUB   = "https://pubsubhubbub.appspot.com/subscribe";
   const TOPIC = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
 
   const body = new URLSearchParams({
-    "hub.callback": callbackUrl,
-    "hub.mode": "subscribe",
-    "hub.topic": TOPIC,
-    "hub.verify": "async",
+    "hub.callback":      callbackUrl,
+    "hub.mode":          "subscribe",
+    "hub.topic":         TOPIC,
+    "hub.verify":        "async",
     "hub.lease_seconds": "86400",
   });
 
   try {
     const res = await fetch(HUB, {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
+      body:    body.toString(),
+      signal:  AbortSignal.timeout(15_000),
     });
 
     if (res.status === 202 || res.status === 200) {
