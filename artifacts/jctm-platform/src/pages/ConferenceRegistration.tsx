@@ -1092,8 +1092,7 @@ export default function ConferenceRegistration() {
                         Register to Attend
                       </h2>
                       <p className="text-purple-100/60 text-sm">
-                        Secure your place at the Ministers Conference 2026. Only your{" "}
-                        <span className="text-yellow-400">name</span> is required — all other fields are optional.
+                        Secure your place at the Ministers Conference 2026.
                       </p>
                     </div>
 
