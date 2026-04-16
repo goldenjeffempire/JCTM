@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import {
   User, Mail, Phone, Building2, Award, MapPin,
   MessageSquare, ChevronRight, CheckCircle2, ArrowLeft,
-  Flame, Calendar, Clock, Camera, ImagePlus,
+  Flame, Calendar, Clock, Camera, ImagePlus, Copy, Check, Share2,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
@@ -161,10 +161,18 @@ export default function ConferenceRegistration() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [regId, setRegId] = useState<number | null>(null);
+  const [invitedBy, setInvitedBy] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [photo, setPhoto] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("invited_by");
+    if (name) setInvitedBy(decodeURIComponent(name));
+  }, []);
 
   const set = (key: keyof FormState) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -368,7 +376,7 @@ export default function ConferenceRegistration() {
                     ))}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3 mb-8">
                     <Link href="/">
                       <Button className="rounded-xl px-6 h-12 font-bold"
                         style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}>
@@ -383,6 +391,69 @@ export default function ConferenceRegistration() {
                       Register Another Person
                     </Button>
                   </div>
+
+                  {/* Shareable Invite Link */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                    className="rounded-3xl p-6 max-w-md w-full text-left"
+                    style={{ background: "rgba(45,15,61,0.9)", border: "1px solid rgba(168,85,247,0.3)" }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Share2 className="h-4 w-4 text-purple-400" />
+                      <p className="text-purple-200 text-sm font-bold">Invite Others to Register</p>
+                    </div>
+                    <p className="text-purple-300/60 text-xs mb-4 leading-relaxed">
+                      Share this personal invite link — anyone who opens it will see your name on the registration page and be encouraged to secure their place.
+                    </p>
+
+                    {/* Link box */}
+                    <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-4"
+                      style={{ background: "rgba(26,5,37,0.8)", borderColor: "rgba(168,85,247,0.25)" }}>
+                      <span className="flex-1 text-xs text-purple-300/70 truncate font-mono">
+                        {`${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}`}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}`
+                          );
+                          setLinkCopied(true);
+                          toast.success("Invite link copied!");
+                          setTimeout(() => setLinkCopied(false), 2500);
+                        }}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                        style={{
+                          background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(168,85,247,0.2)",
+                          color: linkCopied ? "#4ade80" : "#d8b4fe",
+                          border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(168,85,247,0.35)"}`,
+                        }}
+                      >
+                        {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        {linkCopied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+
+                    {/* WhatsApp share */}
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `🙏 *Ministers Conference 2026 — Personal Invitation*\n\n` +
+                        `I am ${form.fullName} and I personally invite you to join me at the JCTM Ministers Conference 2026!\n\n` +
+                        `📅 May 8–10, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n` +
+                        `Click the link below to register and secure your place:\n` +
+                        `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}\n\n` +
+                        `This is a divine appointment — don't miss it!\n🌐 www.jctm.org.ng`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
+                      style={{ background: "#25D366" }}
+                    >
+                      <span className="text-base leading-none">💬</span>
+                      Share Invite via WhatsApp
+                    </a>
+                  </motion.div>
                 </motion.div>
               ) : (
                 <motion.div
@@ -391,7 +462,27 @@ export default function ConferenceRegistration() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 items-start"
+                >
+                  {invitedBy && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-8 flex items-center gap-4 rounded-2xl px-5 py-4 border"
+                      style={{ background: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.35)" }}
+                    >
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg"
+                        style={{ background: "rgba(168,85,247,0.2)" }}>
+                        🙏
+                      </div>
+                      <div>
+                        <p className="text-purple-200 text-sm font-bold">You've been personally invited!</p>
+                        <p className="text-purple-300/70 text-xs mt-0.5">
+                          <span className="text-yellow-300 font-semibold">{invitedBy}</span> invites you to the Ministers Conference 2026. Register below to secure your place.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                  <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 items-start"
                 >
                   {/* Left — Flyer + info */}
                   <div className="space-y-6">
@@ -681,6 +772,7 @@ export default function ConferenceRegistration() {
                         </p>
                       </div>
                     </form>
+                  </div>
                   </div>
                 </motion.div>
               )}

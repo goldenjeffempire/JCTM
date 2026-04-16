@@ -969,7 +969,10 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
     }
   };
 
+  const [linkCopied, setLinkCopied] = useState(false);
+
   if (done) {
+    const inviteLink = `${window.location.origin}/crusade?invited_by=${encodeURIComponent(form.fullName)}`;
     return (
       <>
       {cropSrc && (
@@ -979,7 +982,7 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
           onCancel={() => setCropSrc(null)}
         />
       )}
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-8">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6">
         {photo ? (
           <div className="flex justify-center mb-4">
             <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-yellow-400 shadow-xl">
@@ -990,8 +993,57 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
           <div className="text-5xl mb-4">🙌</div>
         )}
         <h4 className="font-serif font-bold text-white text-2xl mb-2">You&apos;re Registered!</h4>
-        <p className="text-yellow-400 text-sm">See you at Ighogbadu Primary School on April 30th.</p>
-        <p className="text-white/50 text-xs mt-2">Scroll down to generate your personalised invite card.</p>
+        <p className="text-yellow-400 text-sm mb-1">See you at Ighogbadu Primary School on April 30th.</p>
+        <p className="text-white/50 text-xs mb-6">Scroll down to generate your personalised invite card.</p>
+
+        {/* Shareable Invite Link */}
+        <div className="rounded-2xl p-4 text-left border border-yellow-400/20 mt-2" style={{ background: "rgba(10,26,74,0.7)" }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Share2 className="h-4 w-4 text-yellow-400" />
+            <p className="text-yellow-300 text-sm font-bold">Invite Others to Attend</p>
+          </div>
+          <p className="text-white/50 text-xs mb-3 leading-relaxed">
+            Share this personal link — anyone who opens it will see your name and be inspired to register.
+          </p>
+          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-3"
+            style={{ background: "rgba(10,26,74,0.9)", borderColor: "rgba(212,160,23,0.25)" }}>
+            <span className="flex-1 text-xs text-yellow-300/60 truncate font-mono">{inviteLink}</span>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(inviteLink);
+                setLinkCopied(true);
+                toast.success("Invite link copied!");
+                setTimeout(() => setLinkCopied(false), 2500);
+              }}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+              style={{
+                background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(212,160,23,0.15)",
+                color: linkCopied ? "#4ade80" : "#FFD700",
+                border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(212,160,23,0.35)"}`,
+              }}
+            >
+              {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {linkCopied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(
+              `🔥 *Warri City Crusade 2026 — Personal Invitation*\n\n` +
+              `I am ${form.fullName} and I personally invite you to join me at the Warri City Crusade 2026!\n\n` +
+              `📅 Thursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Ave, Warri\n\n` +
+              `Click the link below to register your attendance:\n${inviteLink}\n\n` +
+              `"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"\n\n` +
+              `📞 +234(0)8081313111\n🌐 www.jctm.org.ng`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
+            style={{ background: "#25D366" }}
+          >
+            <span className="text-base leading-none">💬</span>
+            Share Invite via WhatsApp
+          </a>
+        </div>
       </motion.div>
       </>
     );
@@ -1095,6 +1147,7 @@ export default function Crusade() {
   const [attendCount, setAttendCount] = useState<number | null>(null);
   const [rsvpName, setRsvpName] = useState("");
   const [rsvpPhoto, setRsvpPhoto] = useState<string | null>(null);
+  const [invitedBy, setInvitedBy] = useState<string | null>(null);
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
   useEffect(() => {
@@ -1103,6 +1156,10 @@ export default function Crusade() {
     if (meta) meta.setAttribute("content", `${EVENT_THEME} — ${LOCATION}. April 30 & May 1, 2026 at 6PM WAT. Join Prophet Amos at the Warri City Crusade 2026.`);
     const og = document.querySelector("meta[property='og:title']");
     if (og) og.setAttribute("content", EVENT_TITLE);
+
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("invited_by");
+    if (name) setInvitedBy(decodeURIComponent(name));
 
     fetch(`${base}/api/crusade/count`)
       .then(r => r.json())
@@ -1325,6 +1382,22 @@ export default function Crusade() {
                 <p className="text-white/50 text-sm">Let the ministry know you&apos;re coming. Free entry for all.</p>
               </div>
               <div className="p-6 space-y-5">
+                {invitedBy && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 border border-yellow-400/30"
+                    style={{ background: "rgba(212,160,23,0.08)" }}
+                  >
+                    <span className="text-xl shrink-0">🙏</span>
+                    <div>
+                      <p className="text-yellow-300 text-xs font-bold">You've been personally invited!</p>
+                      <p className="text-white/50 text-xs mt-0.5">
+                        <span className="text-yellow-400 font-semibold">{invitedBy}</span> invites you to the Warri City Crusade 2026. Register below — free entry for all.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
                 <RSVPForm onSuccess={(name, photo) => { setRsvpName(name); setRsvpPhoto(photo); }} />
                 <NotificationManager />
                 <AddToCalendar />

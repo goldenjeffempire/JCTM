@@ -643,6 +643,42 @@ function StaticEventCard({ event, index }: { event: StaticEvent; index: number }
                 ✋ Register to Attend
               </motion.button>
             </Link>
+            {/* Download Flyer + WhatsApp Share */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const link = document.createElement("a");
+                  link.href = event.imageUrl;
+                  link.download = `${event.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-flyer.jpeg`;
+                  link.click();
+                  toast.success("Flyer downloaded! Share it with friends and family.");
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm border transition-colors"
+                style={{ borderColor: `${event.accentHex}50`, color: event.accentHex }}
+              >
+                <Download className="h-4 w-4" />
+                Download Flyer
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `🔥 *${event.title}*\n\n` +
+                  `📅 ${format(start, "EEEE, d MMMM")} – ${format(end, "d MMMM, yyyy")}\n` +
+                  `⏰ ${format(start, "h:mm a")} Daily (WAT)\n` +
+                  `📍 ${event.location}\n\n` +
+                  `${event.description.split("|")[0]}\n\n` +
+                  `✋ Register here:\n${window.location.origin}${event.registerUrl}\n\n` +
+                  `📞 +234(0)8081313111\n🌐 www.jctm.org.ng\n\n#JCTM #${event.eventType.replace(/\s+/g, "")}2026`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-90"
+                style={{ background: "#25D366" }}
+              >
+                <span className="text-base leading-none">💬</span>
+                <span className="hidden sm:inline">WhatsApp</span>
+                <span className="sm:hidden">Share</span>
+              </a>
+            </div>
             <div className="flex gap-2">
               <div className="flex-1">
                 <AddToCalendar event={asEventItem} />
