@@ -187,7 +187,7 @@ router.get("/blog/:slug", async (req: Request, res: Response): Promise<void> => 
       .from(blogPostsTable)
       .where(
         and(
-          eq(blogPostsTable.slug, req.params.slug),
+          eq(blogPostsTable.slug, req.params.slug as string),
           eq(blogPostsTable.published, true),
         ),
       );

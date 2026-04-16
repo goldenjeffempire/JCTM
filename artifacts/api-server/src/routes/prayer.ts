@@ -126,7 +126,7 @@ router.post("/prayer/requests", async (req: Request, res: Response): Promise<voi
 });
 
 router.post("/prayer/requests/:id/pray", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params["id"] ?? "0", 10);
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
   if (!id || isNaN(id)) {
     res.status(400).json({ error: "Invalid prayer request ID" });
     return;

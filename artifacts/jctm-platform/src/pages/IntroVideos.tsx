@@ -362,7 +362,7 @@ function IntroCard({
     `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` +
     `&origin=${encodeURIComponent(window.location.origin)}`;
 
-  const embedSrc = (isActive || isPreload) ? buildSrc(isActive, isActive ? muted : 1) : null;
+  const embedSrc = (isActive || isPreload) ? buildSrc(isActive, isActive ? muted : false) : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });
   const [liking, setLiking] = useState(false);

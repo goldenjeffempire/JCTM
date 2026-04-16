@@ -90,8 +90,10 @@ const useDatabaseStorage = storageDriver === "database" || storageDriver === "lo
 const useReplitSidecar = !serviceAccountKey && !useDatabaseStorage;
 
 export const objectStorageClient: Storage = serviceAccountKey
-  ? new Storage({ credentials: serviceAccountKey as Parameters<typeof Storage>[0]["credentials"] })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ? new Storage({ credentials: serviceAccountKey as any })
   : new Storage({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       credentials: {
         audience: "replit",
         subject_token_type: "access_token",
@@ -105,7 +107,7 @@ export const objectStorageClient: Storage = serviceAccountKey
           },
         },
         universe_domain: "googleapis.com",
-      } as Parameters<typeof Storage>[0]["credentials"],
+      } as any,
       projectId: "",
     });
 
@@ -393,7 +395,8 @@ export class ObjectStorageService {
 
     try {
       const file = await this.getObjectEntityFile(objectPath);
-      await file.delete({ ignoreNotFound: true });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (file as any).delete({ ignoreNotFound: true });
     } catch {
       // Object already gone — that's fine
     }
@@ -558,7 +561,7 @@ async function signObjectURL({
     );
   }
 
-  const { signed_url: signedURL } = await response.json();
+  const { signed_url: signedURL } = await response.json() as { signed_url: string };
   return signedURL;
 }
 

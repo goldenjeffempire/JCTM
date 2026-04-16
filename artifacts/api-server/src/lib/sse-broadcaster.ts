@@ -18,7 +18,7 @@ export type SSEEvent = {
   };
 } | {
   type: "sync_complete";
-  data: { synced: number; featured?: number; source?: string };
+  data: { synced: number; featured?: number; source?: string; deleted?: string };
 } | {
   type: "broadcast_started";
   data: { videoId: string | null; title: string | null; startedAt: string };

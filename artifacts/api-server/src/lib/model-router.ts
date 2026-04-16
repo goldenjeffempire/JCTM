@@ -65,7 +65,7 @@ export async function routeQuery(options: RouterOptions): Promise<RouteResult> {
     const localResult: LocalInferenceResult = runLocalInference(query);
     if (localResult.confidence > 0.7) {
       return {
-        answer: localResult.response,
+        answer: localResult.response ?? "",
         tier: "local",
         confidence: localResult.confidence,
         latencyMs: Date.now() - start,
@@ -90,7 +90,7 @@ export async function routeQuery(options: RouterOptions): Promise<RouteResult> {
   if (!openai) {
     const localResult: LocalInferenceResult = runLocalInference(query);
     return {
-      answer: localResult.response,
+      answer: localResult.response ?? "",
       tier: "local",
       confidence: localResult.confidence,
       latencyMs: Date.now() - start,

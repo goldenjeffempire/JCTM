@@ -245,14 +245,16 @@ router.post("/ai/voice-chat", async (req: Request, res: Response): Promise<void>
     let assistantTranscript = "";
 
     for await (const event of stream) {
-      if (event.type === "user_transcript") {
-        userTranscript += event.data;
-        sse(res, { type: "user_transcript", data: event.data });
-      } else if (event.type === "transcript") {
-        assistantTranscript += event.data;
-        sse(res, { type: "transcript", data: event.data });
-      } else if (event.type === "audio") {
-        sse(res, { type: "audio", data: event.data });
+      const eventType = (event as { type: string; data: string }).type;
+      const eventData = (event as { type: string; data: string }).data;
+      if (eventType === "user_transcript") {
+        userTranscript += eventData;
+        sse(res, { type: "user_transcript", data: eventData });
+      } else if (eventType === "transcript") {
+        assistantTranscript += eventData;
+        sse(res, { type: "transcript", data: eventData });
+      } else if (eventType === "audio") {
+        sse(res, { type: "audio", data: eventData });
       }
     }
 

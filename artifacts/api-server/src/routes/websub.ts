@@ -69,7 +69,7 @@ router.post("/sermons/websub", async (req, res): Promise<void> => {
         .returning({ id: sermonsTable.id });
       if (result.length > 0) {
         req.log.info({ videoId: deletedId }, "WebSub: deleted video removed from DB");
-        sseBroadcaster.broadcast({ type: "sync_complete", data: { deleted: deletedId } });
+        sseBroadcaster.broadcast({ type: "sync_complete", data: { synced: 0, deleted: deletedId } });
       } else {
         req.log.info({ videoId: deletedId }, "WebSub: deletion for unknown video — no action");
       }

@@ -502,7 +502,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     // ── TIER 2: OpenAI (enriched with local engine context) ────────────────
     const { msgs, conversationId } = await buildMessages(
       message,
-      history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      history.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })),
       sessionId ?? undefined,
       language,
       localResult.enrichmentContext,
@@ -611,7 +611,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     // ── TIER 2: OpenAI (enriched with local engine context) ────────────────
     const { msgs, conversationId } = await buildMessages(
       message,
-      history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      history.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })),
       sessionId ?? undefined,
       language,
       localResult.enrichmentContext,

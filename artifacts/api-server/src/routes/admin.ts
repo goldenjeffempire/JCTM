@@ -72,7 +72,7 @@ router.get(
           averageRating: feedbackStats?.avgRating ? Number(feedbackStats.avgRating).toFixed(2) : null,
           averageLatencyMs: feedbackStats?.avgLatency ? Number(feedbackStats.avgLatency).toFixed(0) : null,
           tierBreakdown: tierBreakdown.reduce(
-            (acc, r) => ({ ...acc, [r.tier]: r.count }),
+            (acc, r) => ({ ...acc, [String(r.tier ?? "unknown")]: r.count }),
             {} as Record<string, number>,
           ),
         },

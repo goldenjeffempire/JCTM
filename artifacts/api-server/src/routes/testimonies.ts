@@ -89,7 +89,7 @@ router.patch(
   "/testimonies/:id/approve",
   requireAdmin as unknown as (req: Request, res: Response) => void,
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid testimony ID" });
       return;
@@ -126,7 +126,7 @@ router.delete(
   "/testimonies/:id",
   requireAdmin as unknown as (req: Request, res: Response) => void,
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid testimony ID" });
       return;

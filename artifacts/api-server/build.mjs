@@ -35,6 +35,11 @@ async function buildAll() {
       "express",  // Express 5 + its deps
       "pg",       // node-postgres
       "ws",       // WebSocket server
+      // Sentry & OpenTelemetry must stay external because they use dynamic requires
+      // for their instrumentation loaders that cannot be bundled by esbuild
+      "@sentry/node",
+      "@sentry/*",
+      "@opentelemetry/*",
       "*.node",
       "sharp",
       "better-sqlite3",

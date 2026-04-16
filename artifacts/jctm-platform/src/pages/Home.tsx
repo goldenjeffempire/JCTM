@@ -16,7 +16,7 @@ import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
   useGetUpcomingEvents, getGetUpcomingEventsQueryKey,
   useGetSermonStats, getGetSermonStatsQueryKey,
-  useGetRebroadcastStatus,
+  useGetRebroadcastStatus, getGetRebroadcastStatusQueryKey,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -444,7 +444,7 @@ function KineticHeadline({ lines }: { lines: { text: string; gradient?: boolean 
 // ═══════════════════════════════════════════════════════════════════════════
 function RebroadcastBanner() {
   const { data } = useGetRebroadcastStatus({
-    query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
+    query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
   });
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem("rebroadcast_dismissed") === "true"; } catch { return false; }
@@ -620,7 +620,7 @@ function HeroSection() {
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
 
   const { data: rebroadcastData } = useGetRebroadcastStatus({
-    query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
+    query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
   });
 
   const rebroadcastForWidget = (rebroadcastData?.available && rebroadcastData.videoId && !isLive && !isUpcoming)
@@ -2384,7 +2384,7 @@ function SundayServiceCard() {
   const [showEmbed, setShowEmbed] = useState(false);
   const [watNow, setWatNow] = useState(() => getWatDate());
   const { data: rebroadcastData } = useGetRebroadcastStatus({
-    query: { refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
+    query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
   });
 
   // Tick WAT clock every second
