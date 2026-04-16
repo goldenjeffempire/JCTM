@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, MapPin, Clock, Youtube, Radio, Phone,
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download, CalendarPlus,
-  Flame, CheckCircle2,
+  Flame, CheckCircle2, ExternalLink,
 } from "lucide-react";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -119,7 +119,7 @@ function AddToCalendar({ event }: { event: EventItem }) {
   );
 }
 
-function Countdown({ target }: { target: string }) {
+function Countdown({ target, dark = false }: { target: string; dark?: boolean }) {
   const [, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000);
@@ -128,7 +128,7 @@ function Countdown({ target }: { target: string }) {
 
   const end = new Date(target);
   const now = new Date();
-  if (isPast(end)) return <span className="text-green-400 font-semibold text-sm">Rebroadcast Now / In Progress</span>;
+  if (isPast(end)) return <span className={`font-semibold text-sm ${dark ? "text-green-300" : "text-green-500"}`}>Rebroadcast Now / In Progress</span>;
 
   const days = differenceInDays(end, now);
   const hours = differenceInHours(end, now) % 24;
@@ -136,11 +136,67 @@ function Countdown({ target }: { target: string }) {
   const secs = differenceInSeconds(end, now) % 60;
 
   return (
-    <div className="flex gap-3 items-end">
+    <div className="flex gap-2 items-end flex-wrap">
       {[{ v: days, l: "Days" }, { v: hours, l: "Hrs" }, { v: mins, l: "Min" }, { v: secs, l: "Sec" }].map(({ v, l }) => (
-        <div key={l} className="flex flex-col items-center bg-white/10 rounded-xl px-3 py-2 min-w-[52px]">
+        <div key={l} className="flex flex-col items-center bg-black/40 backdrop-blur-sm rounded-xl px-2.5 py-1.5 min-w-[46px]">
+          <span className="text-xl font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
+          <span className="text-[9px] text-white/60 uppercase tracking-wider mt-0.5">{l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CountdownInline({ target }: { target: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const end = new Date(target);
+  const now = new Date();
+  if (isPast(end)) return null;
+
+  const days = differenceInDays(end, now);
+  const hours = differenceInHours(end, now) % 24;
+  const mins = differenceInMinutes(end, now) % 60;
+  const secs = differenceInSeconds(end, now) % 60;
+
+  return (
+    <div className="flex gap-2 items-end">
+      {[{ v: days, l: "D" }, { v: hours, l: "H" }, { v: mins, l: "M" }, { v: secs, l: "S" }].map(({ v, l }) => (
+        <div key={l} className="flex flex-col items-center bg-white/10 border border-white/20 rounded-lg px-2 py-1 min-w-[38px]">
+          <span className="text-lg font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
+          <span className="text-[8px] text-white/50 uppercase tracking-wider">{l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PurpleCountdown({ target }: { target: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const end = new Date(target);
+  const now = new Date();
+  if (isPast(end)) return <span className="text-green-300 font-semibold text-sm">In Progress</span>;
+
+  const days = differenceInDays(end, now);
+  const hours = differenceInHours(end, now) % 24;
+  const mins = differenceInMinutes(end, now) % 60;
+  const secs = differenceInSeconds(end, now) % 60;
+
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {[{ v: days, l: "Days" }, { v: hours, l: "Hrs" }, { v: mins, l: "Min" }, { v: secs, l: "Sec" }].map(({ v, l }) => (
+        <div key={l} className="flex flex-col items-center rounded-xl px-3 py-2 min-w-[52px]" style={{ background: "rgba(168,85,247,0.18)", border: "1px solid rgba(168,85,247,0.3)" }}>
           <span className="text-2xl font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
-          <span className="text-[10px] text-white/60 uppercase tracking-wider mt-0.5">{l}</span>
+          <span className="text-[9px] text-purple-300/60 uppercase tracking-wider mt-0.5">{l}</span>
         </div>
       ))}
     </div>
@@ -148,7 +204,7 @@ function Countdown({ target }: { target: string }) {
 }
 
 type EventItem = {
-  id: number;
+  id: number | string;
   title: string;
   description?: string | null;
   startDate: string;
@@ -159,6 +215,66 @@ type EventItem = {
   youtubeUrl?: string | null;
   createdAt: string;
 };
+
+type StaticEvent = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  eventType: string;
+  imageUrl: string;
+  youtubeVideoId?: string | null;
+  registerUrl: string;
+  accentHex: string;
+  labelColor: string;
+  highlights?: string[];
+};
+
+const STATIC_UPCOMING_EVENTS: StaticEvent[] = [
+  {
+    id: "warri-crusade-2026",
+    title: "Warri City Crusade 2026",
+    subtitle: "Prophet Amos Global Crusade",
+    description: "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!|A mighty outdoor crusade with healing, miracles, and mass salvation. Free entry for all — bring someone who needs a touch from God.",
+    startDate: "2026-04-30T18:00:00+01:00",
+    endDate: "2026-05-01T21:00:00+01:00",
+    location: "Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State",
+    eventType: "Crusade",
+    imageUrl: "/warri-crusade-flyer2.jpeg",
+    youtubeVideoId: null,
+    registerUrl: "/crusade",
+    accentHex: "#EAB308",
+    labelColor: "#0a1a4a",
+    highlights: [
+      "Miracle-working power of God",
+      "Mass salvation & healing",
+      "Free entry for everyone",
+    ],
+  },
+  {
+    id: "ministers-conference-2026",
+    title: "Ministers Conference 2026",
+    subtitle: "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders",
+    description: "Apostolic fire and prophetic impartation|Word-centred ministry from the front lines|Networking with ministers & kingdom builders across the Body of Christ",
+    startDate: "2026-05-08T08:00:00+01:00",
+    endDate: "2026-05-10T20:00:00+01:00",
+    location: "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State",
+    eventType: "Conference",
+    imageUrl: ministerConferenceFlyer,
+    youtubeVideoId: "hQFA1Y9NAcY",
+    registerUrl: "/conference-registration",
+    accentHex: "#a855f7",
+    labelColor: "#ffffff",
+    highlights: [
+      "Apostolic fire & prophetic impartation",
+      "Word-centred ministry from the front lines",
+      "Ministers & kingdom builders networking",
+    ],
+  },
+];
 
 function generateAdCopy(event: EventItem) {
   const dateStr = format(new Date(event.startDate), "MMMM d, yyyy");
@@ -235,7 +351,6 @@ function EventAdKit({ event }: { event: EventItem }) {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
   const shareText = encodeURIComponent(adCopy.short);
-  const shareTitle = encodeURIComponent(event.title);
   const shareUrl = encodeURIComponent(`${window.location.origin}${base}/events`);
 
   const platforms = [
@@ -316,8 +431,6 @@ function EventAdKit({ event }: { event: EventItem }) {
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 space-y-4">
-
-              {/* Platform share buttons */}
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-2">Share on Platforms</p>
                 <div className="flex flex-wrap gap-2">
@@ -347,11 +460,9 @@ function EventAdKit({ event }: { event: EventItem }) {
                 </div>
               </div>
 
-              {/* Ad copy generator */}
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-2">Auto-Generated Ad Copy</p>
                 <div className="rounded-xl overflow-hidden border border-border/60">
-                  {/* Tabs */}
                   <div className="flex border-b border-border/50 bg-muted/30">
                     {(["short", "medium", "long"] as const).map(tab => (
                       <button
@@ -367,8 +478,6 @@ function EventAdKit({ event }: { event: EventItem }) {
                       </button>
                     ))}
                   </div>
-
-                  {/* Copy area */}
                   <div className="relative bg-background">
                     <pre className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed font-sans p-4 max-h-48 overflow-y-auto">
                       {adCopy[activeTab]}
@@ -383,19 +492,17 @@ function EventAdKit({ event }: { event: EventItem }) {
                   </div>
                 </div>
 
-                {/* YouTube Ads note */}
                 <div className="mt-3 rounded-xl bg-red-50/60 border border-red-200/50 p-3 flex gap-2.5">
                   <Youtube className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs font-semibold text-red-700 mb-0.5">Running YouTube Ads?</p>
                     <p className="text-xs text-muted-foreground">
-                      Use the <strong>Long</strong> version above as your YouTube video description. To run a paid YouTube ad campaign, go to{" "}
-                      <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">Google Ads</a>, select "Video campaign", choose your JCTM YouTube channel, and target Nigeria → Warri/Delta State for best reach.
+                      Use the <strong>Long</strong> version above as your YouTube video description. Go to{" "}
+                      <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">Google Ads</a>, select "Video campaign", choose your JCTM YouTube channel, and target Nigeria → Warri/Delta State.
                     </p>
                   </div>
                 </div>
 
-                {/* Meta Ads note */}
                 <div className="mt-2 rounded-xl bg-blue-50/60 border border-blue-200/50 p-3 flex gap-2.5">
                   <Facebook className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
                   <div>
@@ -415,6 +522,200 @@ function EventAdKit({ event }: { event: EventItem }) {
   );
 }
 
+function StaticEventCard({ event, index }: { event: StaticEvent; index: number }) {
+  const start = new Date(event.startDate);
+  const end = new Date(event.endDate);
+  const past = isPast(start);
+  const [showVideo, setShowVideo] = useState(false);
+
+  const asEventItem: EventItem = {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    location: event.location,
+    eventType: event.eventType,
+    imageUrl: event.imageUrl,
+    youtubeUrl: event.youtubeVideoId,
+    createdAt: new Date().toISOString(),
+  };
+
+  const descLines = event.description.split("|");
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, delay: index * 0.1 }}
+      className="glass-panel rounded-2xl overflow-hidden border border-border/50 hover:shadow-2xl transition-all duration-300 group flex flex-col"
+      style={{
+        boxShadow: `0 4px 32px ${event.accentHex}18`,
+        borderColor: `${event.accentHex}30`,
+      }}
+    >
+      {/* Flyer banner */}
+      <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+        <img
+          src={event.imageUrl}
+          alt={`${event.title} official flyer`}
+          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+        {/* Event type badge */}
+        <div className="absolute top-3 left-3">
+          <span
+            className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg"
+            style={{ background: event.accentHex, color: event.labelColor }}
+          >
+            {event.eventType}
+          </span>
+        </div>
+
+        {/* Countdown overlaid on flyer */}
+        {!past && (
+          <div className="absolute bottom-3 left-3 right-3">
+            <p className="text-[9px] text-white/60 uppercase tracking-widest font-semibold mb-1.5">Starts In</p>
+            <Countdown target={event.startDate} />
+          </div>
+        )}
+
+        {past && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <span className="bg-black/70 text-white/70 text-xs font-semibold px-4 py-2 rounded-full backdrop-blur-sm">Past Event</span>
+          </div>
+        )}
+      </div>
+
+      {/* YouTube video embed (if available) */}
+      {event.youtubeVideoId && (
+        <div className="border-t border-border/40">
+          <button
+            onClick={() => setShowVideo(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Youtube className="h-3.5 w-3.5" />
+              {showVideo ? "Hide Promo Video" : "Watch Promo Video on YouTube"}
+            </span>
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${showVideo ? "rotate-180" : ""}`} />
+          </button>
+          <AnimatePresence>
+            {showVideo && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
+              >
+                <div className="aspect-video">
+                  <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${event.youtubeVideoId}?autoplay=1&mute=0&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
+                    title={`${event.title} — Promo Video`}
+                    allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Card body */}
+      <div className="p-5 flex flex-col flex-1 gap-4">
+        {/* Title & subtitle */}
+        <div>
+          <h3 className="font-serif font-bold text-primary text-xl leading-tight mb-1 group-hover:text-accent transition-colors">
+            {event.title}
+          </h3>
+          {event.subtitle && (
+            <p className="text-xs text-muted-foreground italic">&ldquo;{event.subtitle}&rdquo;</p>
+          )}
+        </div>
+
+        {/* Date / time / location */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: event.accentHex }} />
+            <span>
+              {format(start, "EEEE d MMMM")} – {format(end, "EEEE d MMMM, yyyy")}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: event.accentHex }} />
+            <span>{format(start, "h:mm a")} Daily (West Africa Time)</span>
+          </div>
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: event.accentHex }} />
+            <span className="leading-snug">{event.location}</span>
+          </div>
+        </div>
+
+        {/* Description / highlights */}
+        <div className="border-t border-border/50 pt-3 space-y-1.5">
+          <p className="text-sm text-muted-foreground leading-relaxed">{descLines[0]}</p>
+          {event.highlights && (
+            <div className="space-y-1 pt-1">
+              {event.highlights.map(h => (
+                <div key={h} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3 shrink-0" style={{ color: event.accentHex }} />
+                  <span>{h}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Register CTA */}
+        {!past && (
+          <div className="mt-auto pt-2 flex flex-col gap-2">
+            <Link href={event.registerUrl}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                className="w-full py-3.5 rounded-xl font-serif font-black text-base tracking-wide shadow-lg transition-shadow hover:shadow-xl"
+                style={{
+                  background: `linear-gradient(135deg, ${event.accentHex}, ${event.accentHex}cc)`,
+                  color: event.labelColor,
+                  boxShadow: `0 6px 20px ${event.accentHex}40`,
+                }}
+              >
+                ✋ Register to Attend
+              </motion.button>
+            </Link>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <AddToCalendar event={asEventItem} />
+              </div>
+              {event.youtubeVideoId && (
+                <a
+                  href={`https://www.youtube.com/watch?v=${event.youtubeVideoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Youtube className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">YouTube</span>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Social Ad Kit */}
+      {!past && <EventAdKit event={asEventItem} />}
+    </motion.div>
+  );
+}
+
 function EventCard({ event, index }: { event: EventItem; index: number }) {
   const start = new Date(event.startDate);
   const past = isPast(start);
@@ -431,7 +732,6 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
       transition={{ duration: 0.5, delay: index * 0.08 }}
       className={`glass-panel rounded-2xl overflow-hidden border border-border/50 hover:shadow-xl transition-all duration-300 group ${past ? "opacity-75 hover:opacity-100" : ""}`}
     >
-      {/* YouTube video embed (when no flyer image) */}
       {!imageUrl && event.youtubeUrl && (
         <div className="relative">
           <div className="aspect-video">
@@ -461,7 +761,6 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
         </div>
       )}
 
-      {/* Flyer image */}
       {imageUrl && (
         <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
           <img
@@ -488,7 +787,6 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
         </div>
       )}
 
-      {/* Card body */}
       <div className={`${imageUrl ? "p-5" : "p-6"}`}>
         {!imageUrl && (
           <div className="flex items-start justify-between mb-4">
@@ -541,20 +839,25 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
         )}
 
         {!past && (
-          <div className="pt-1 pb-1">
+          <div className="flex flex-col gap-2 pt-1 pb-1">
+            <Button
+              className="w-full rounded-xl font-bold text-sm"
+              style={{ background: "linear-gradient(135deg,#0ea5e9,#0284c7)", color: "#fff" }}
+              asChild
+            >
+              <a href="/crusade">✋ Register to Attend</a>
+            </Button>
             <AddToCalendar event={event} />
           </div>
         )}
       </div>
 
-      {/* Social Ads Kit */}
       {!past && <EventAdKit event={event} />}
     </motion.div>
   );
 }
 
 const YOUTUBE_LIVE_ID = "UCPFFvkE-KGpR37qJgvYriJg";
-
 const FEATURED_VIDEO_ID = "oJUkSAZu0y0";
 
 export default function Events() {
@@ -604,14 +907,14 @@ export default function Events() {
       />
       <div className="container mx-auto px-4 py-16">
 
-        {/* Header */}
+        {/* Page header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-12">
           <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry Calendar</span>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
         </motion.div>
 
-        {/* Ministers Conference 2026 */}
+        {/* Ministers Conference 2026 — Featured Hero Banner */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -623,7 +926,6 @@ export default function Events() {
             boxShadow: "0 20px 60px rgba(88,28,135,0.25)",
           }}
         >
-          {/* Top accent bar */}
           <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
 
           <div className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] gap-0">
@@ -635,7 +937,7 @@ export default function Events() {
                 className="w-full h-full object-contain object-top"
                 loading="lazy"
                 decoding="async"
-                style={{ maxHeight: 420 }}
+                style={{ maxHeight: 440 }}
               />
             </div>
 
@@ -651,11 +953,17 @@ export default function Events() {
                   <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>Conference</span>{" "}
                   <span className="text-purple-300">2026</span>
                 </h2>
-                <p className="text-purple-200/65 font-serif italic text-sm mb-5">
+                <p className="text-purple-200/65 font-serif italic text-sm mb-4">
                   &ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;
                 </p>
 
-                <div className="space-y-2.5 mb-6">
+                {/* Countdown for Ministers Conference */}
+                <div className="mb-5">
+                  <p className="text-[10px] text-purple-300/60 uppercase tracking-widest font-semibold mb-2">Event Begins In</p>
+                  <PurpleCountdown target="2026-05-08T08:00:00+01:00" />
+                </div>
+
+                <div className="space-y-2.5 mb-5">
                   {[
                     { icon: Calendar, text: "Friday 8th May — Sunday 10th May, 2026" },
                     { icon: Clock, text: "8:00 AM Daily (West Africa Time)" },
@@ -706,7 +1014,6 @@ export default function Events() {
             </div>
           </div>
 
-          {/* Bottom accent bar */}
           <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
         </motion.div>
 
@@ -730,7 +1037,7 @@ export default function Events() {
         </motion.div>
 
         {/* YouTube Live */}
-        <div className="glass-panel rounded-2xl p-6 mb-10 border border-red-200/50 bg-red-50/30">
+        <div className="glass-panel rounded-2xl p-6 mb-12 border border-red-200/50 bg-red-50/30">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shrink-0 shadow-lg shadow-red-200">
@@ -773,103 +1080,50 @@ export default function Events() {
           )}
         </div>
 
-        {/* Event lists */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass-panel rounded-2xl overflow-hidden animate-pulse">
-                <div className="bg-muted" style={{ aspectRatio: "16/9" }} />
-                <div className="p-6 space-y-3">
-                  <div className="h-5 bg-muted rounded w-3/4" />
-                  <div className="h-4 bg-muted rounded w-1/2" />
-                  <div className="h-4 bg-muted rounded w-2/3" />
-                </div>
+        {/* ─── Upcoming Events ──────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-serif font-bold text-primary flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+            Upcoming Events
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            {STATIC_UPCOMING_EVENTS.length + upcoming.length} event{STATIC_UPCOMING_EVENTS.length + upcoming.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
+          {/* Always-present static event cards */}
+          {STATIC_UPCOMING_EVENTS.map((event, i) => (
+            <StaticEventCard key={event.id} event={event} index={i} />
+          ))}
+
+          {/* API-driven upcoming events */}
+          {!isLoading && upcoming.map((event, i) => (
+            <EventCard key={event.id} event={event as EventItem} index={STATIC_UPCOMING_EVENTS.length + i} />
+          ))}
+
+          {/* Loading skeletons for API events */}
+          {isLoading && Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="glass-panel rounded-2xl overflow-hidden animate-pulse">
+              <div className="bg-muted" style={{ aspectRatio: "16/9" }} />
+              <div className="p-6 space-y-3">
+                <div className="h-5 bg-muted rounded w-3/4" />
+                <div className="h-4 bg-muted rounded w-1/2" />
+                <div className="h-4 bg-muted rounded w-2/3" />
               </div>
-            ))}
-          </div>
-        ) : (
+            </div>
+          ))}
+        </div>
+
+        {/* Past Events */}
+        {past.length > 0 && (
           <>
-            {upcoming.length > 0 && (
-              <>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-serif font-bold text-primary flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                    Upcoming
-                  </h2>
-                  <span className="text-sm text-muted-foreground">{upcoming.length} event{upcoming.length !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
-                  {upcoming.map((event, i) => (
-                    <EventCard key={event.id} event={event as EventItem} index={i} />
-                  ))}
-                </div>
-              </>
-            )}
-
-            {upcoming.length === 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-14">
-                <motion.div
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="glass-panel rounded-2xl overflow-hidden border border-yellow-400/40 hover:shadow-xl transition-all duration-300 group"
-                  style={{ boxShadow: "0 0 32px 4px rgba(212,160,23,0.13)" }}
-                >
-                  <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                    <img
-                      src="/warri-crusade-flyer2.jpeg"
-                      alt="Warri City Crusade 2026"
-                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                    <div className="absolute top-3 right-3">
-                      <span className="bg-yellow-500 text-[#0a1a4a] text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">Crusade</span>
-                    </div>
-                    <div className="absolute bottom-4 left-4">
-                      <Countdown target="2026-04-30T18:00:00+01:00" />
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-serif font-bold text-primary text-lg leading-tight mb-3 group-hover:text-accent transition-colors">
-                      Warri City Crusade 2026 — Prophet Amos Global Crusade
-                    </h3>
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5 text-accent shrink-0" />
-                        <span>Thursday 30th April & Friday 1st May, 2026</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5 text-accent shrink-0" />
-                        <span>6:00 PM Daily WAT</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" />
-                        <span>Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground italic mb-4 border-t border-border/50 pt-3 line-clamp-2">
-                      "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"
-                    </p>
-                    <a href="/crusade">
-                      <Button className="w-full rounded-xl bg-yellow-500 hover:bg-yellow-600 text-[#0a1a4a] font-bold gap-2">
-                        Register to Attend
-                      </Button>
-                    </a>
-                  </div>
-                </motion.div>
-              </div>
-            )}
-
-            {past.length > 0 && (
-              <>
-                <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">Past Events</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {past.slice(0, 6).map((event, i) => (
-                    <EventCard key={event.id} event={event as EventItem} index={i} />
-                  ))}
-                </div>
-              </>
-            )}
+            <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">Past Events</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {past.slice(0, 6).map((event, i) => (
+                <EventCard key={event.id} event={event as EventItem} index={i} />
+              ))}
+            </div>
           </>
         )}
       </div>
