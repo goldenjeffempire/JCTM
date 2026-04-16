@@ -5,6 +5,7 @@ import {
   User, Mail, Phone, Building2, Award, MapPin,
   MessageSquare, ChevronRight, CheckCircle2, ArrowLeft,
   Flame, Calendar, Clock, Camera, ImagePlus, Copy, Check, Share2, Download,
+  Sparkles, Instagram, Facebook, Youtube,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
@@ -483,6 +484,208 @@ const inputStyle = {
   background: "rgba(45,15,61,0.7)",
   borderColor: "rgba(168,85,247,0.3)",
 };
+
+const CONF_AD_COPIES = {
+  short: {
+    label: "Short (Stories / Reels)",
+    platform: "Instagram & Facebook Stories",
+    icon: Instagram,
+    text: `🙏 MINISTERS CONFERENCE 2026 — ARE YOU REGISTERED?
+
+An Apostolic Gathering of Ministers, Leaders & Kingdom Builders
+
+📅 May 8–10, 2026
+⏰ 8:00 AM Daily (WAT)
+📍 Church Auditorium, Ebrumede Roundabout, Effurun Uvwie, Delta State
+
+Free registration. Limited seats. Don't miss this divine appointment.
+
+#MinistersConference2026 #JCTM #ProphetAmos #ApostolicFire`,
+  },
+  medium: {
+    label: "Medium (Feed Posts)",
+    platform: "Facebook & Instagram Feed",
+    icon: Facebook,
+    text: `🔥 ATTENTION MINISTERS, PASTORS & CHURCH LEADERS! 🔥
+
+Jesus Christ Temple Ministry presents the Ministers Conference 2026 — the most significant apostolic gathering for ministers and kingdom builders in 2026.
+
+📖 Theme: "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"
+
+This is not just another church conference. This is a divine summons to every minister who is hungry for the apostolic fire, the unadulterated Word, and a fresh encounter with the Holy Ghost.
+
+📅 Date: Friday 8th – Sunday 10th May, 2026
+⏰ Time: 8:00 AM Daily (West Africa Time)
+📍 Venue: Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State
+
+Hosted by Prophet Amos Evomobor — a voice of apostolic correction and reformation to the body of Christ.
+
+🎟️ Registration is FREE. Secure your place today:
+👉 jctm.org.ng/conference-registration
+
+📞 Enquiries: +234(0)8081313111
+
+Share this with every minister, pastor, and church leader you know. This is your moment.
+
+#MinistersConference2026 #JCTM #ProphetAmosEvomobor #ApostolicFire #ChurchLeaders #NigeriaChurch #DeltaState #KingdomBuilders #ReformationNow`,
+  },
+  long: {
+    label: "Long (YouTube / Blog)",
+    platform: "YouTube Ads & Blog",
+    icon: Youtube,
+    text: `🌍 MINISTERS CONFERENCE 2026 — JESUS CHRIST TEMPLE MINISTRY
+
+EVENT DETAILS:
+• Event: Ministers Conference 2026
+• Theme: "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"
+• Host: Jesus Christ Temple Ministry (JCTM)
+• Minister: Prophet Amos Evomobor
+• Date: Friday 8th – Sunday 10th May, 2026
+• Time: 8:00 AM Daily (West Africa Time)
+• Venue: Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State, Nigeria
+• Registration: FREE — jctm.org.ng/conference-registration
+• Enquiries: +234(0)8081313111
+
+THE MANDATE:
+The body of Christ in Nigeria and across the world is in urgent need of apostolic recalibration. Countless churches have drifted from biblical foundations — embracing entertainment over encounter, popularity over purity, and prosperity over the cross. JCTM's Ministers Conference 2026 is a prophetic response to this crisis.
+
+This conference is designed to equip, challenge, realign, and release ministers back into the fullness of their calling. Under the apostolic ministry of Prophet Amos Evomobor, attendees will receive:
+
+WHAT TO EXPECT:
+✅ Deep revelatory teaching on apostolic ministry and the true church
+✅ Prophetic impartation for ministers and leaders
+✅ Powerful corporate prayer and intercession
+✅ Strategic sessions on church governance, discipleship, and the Correction Mandate
+✅ Networking with like-minded ministers and kingdom builders
+✅ A face-to-face encounter with the Living God
+
+WHO SHOULD ATTEND:
+Pastors, Bishops, Apostles, Prophets, Evangelists, Elders, Deacons, Worship Leaders, Church Workers, and every minister who desires to lead God's people with integrity, apostolic fire, and biblical authority. If you are in Nigeria or within reach of Delta State, this is a divine appointment you cannot afford to miss.
+
+HOW TO REGISTER:
+Registration is completely free. Visit jctm.org.ng/conference-registration to secure your place. Space is limited — register today.
+
+INVITE A MINISTER: Forward this to every pastor, elder, and church leader in your network. The body of Christ needs this message.
+
+"And He Himself gave some to be apostles, some prophets, some evangelists, and some pastors and teachers, for the equipping of the saints for the work of ministry." — Ephesians 4:11–12
+
+Subscribe to JCTM Digital Sanctuary for conference updates, sermons, and live ministry.
+
+#MinistersConference2026 #JCTM #JesusChristTempleMinistry #ProphetAmosEvomobor #ApostolicFire #ChurchLeadersNigeria #KingdomBuilders #DeltaStateChurch #ReformationNow #ApostolicMinistry #TrueChurch #CorrectionMandate`,
+  },
+};
+
+function ConferenceAdCopySection() {
+  const [active, setActive] = useState<keyof typeof CONF_AD_COPIES>("medium");
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(CONF_AD_COPIES[active].text);
+    setCopied(true);
+    toast.success("Ad copy copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+      className="mt-12 rounded-3xl overflow-hidden border"
+      style={{ background: "rgba(45,15,61,0.7)", borderColor: "rgba(168,85,247,0.2)" }}
+    >
+      {/* Header */}
+      <div className="p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.12)" }}>
+        <div className="flex items-center gap-3 mb-2">
+          <Sparkles className="h-5 w-5 text-purple-400" />
+          <h3 className="font-serif font-bold text-white text-xl">Social Ad Copy Generator</h3>
+        </div>
+        <p className="text-white/50 text-sm">3 professionally crafted ad versions for every platform. Copy and share instantly — no writing needed.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b" style={{ borderColor: "rgba(168,85,247,0.12)" }}>
+        {(Object.entries(CONF_AD_COPIES) as [keyof typeof CONF_AD_COPIES, typeof CONF_AD_COPIES.short][]).map(([key, val]) => {
+          const Icon = val.icon;
+          return (
+            <button
+              key={key}
+              onClick={() => setActive(key)}
+              className={`flex-1 py-3 px-2 text-xs font-bold uppercase tracking-wider transition-all duration-200 flex flex-col items-center gap-1 ${
+                active === key
+                  ? "border-b-2 border-purple-400 bg-purple-400/5"
+                  : "text-white/35 hover:text-white/60"
+              }`}
+              style={{ color: active === key ? "#d8b4fe" : undefined }}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {val.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Body */}
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-medium uppercase tracking-widest" style={{ color: "rgba(216,180,254,0.55)" }}>
+            {CONF_AD_COPIES[active].platform}
+          </span>
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 text-xs transition-colors"
+            style={{ color: copied ? "#4ade80" : "rgba(255,255,255,0.45)" }}
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied!" : "Copy all"}
+          </button>
+        </div>
+        <pre className="text-sm text-white/75 whitespace-pre-wrap leading-relaxed font-sans max-h-72 overflow-y-auto"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(168,85,247,0.3) transparent" }}>
+          {CONF_AD_COPIES[active].text}
+        </pre>
+
+        {/* Quick share to WhatsApp */}
+        <div className="mt-5 pt-4 border-t" style={{ borderColor: "rgba(168,85,247,0.12)" }}>
+          <p className="text-xs text-white/30 mb-3 uppercase tracking-wider font-semibold">Quick Share</p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(CONF_AD_COPIES[active].text)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+              style={{ background: "#25D366" }}
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jctm.org.ng/conference-registration")}&quote=${encodeURIComponent(CONF_AD_COPIES[active].text)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+              style={{ background: "#1877F2" }}
+            >
+              👍 Facebook
+            </a>
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(CONF_AD_COPIES.short.text)}&url=${encodeURIComponent("https://jctm.org.ng/conference-registration")}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md bg-black hover:bg-gray-900"
+            >
+              𝕏 X / Twitter
+            </a>
+            <a
+              href={`https://t.me/share/url?url=${encodeURIComponent("https://jctm.org.ng/conference-registration")}&text=${encodeURIComponent(CONF_AD_COPIES[active].text)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+              style={{ background: "#0088CC" }}
+            >
+              ✈️ Telegram
+            </a>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function ConferenceRegistration() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -1108,6 +1311,9 @@ export default function ConferenceRegistration() {
                     </form>
                   </div>
                   </div>
+
+                  {/* Social Ad Copy Generator */}
+                  <ConferenceAdCopySection />
                 </motion.div>
               )}
             </AnimatePresence>
