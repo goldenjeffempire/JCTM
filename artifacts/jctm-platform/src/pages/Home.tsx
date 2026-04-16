@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, lazy, Suspense } from "react";
+import Cropper, { Area, Point } from "react-easy-crop";
 import {
   motion, Variants, useScroll, useTransform, useInView,
   AnimatePresence, useMotionValue, useSpring,
@@ -10,7 +11,7 @@ import {
   Radio, BookOpen, Heart, Sparkles, ChevronRight, Globe,
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
   Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
-  Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X, Download, Share2,
+  Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X, Download, Share2, Camera, ImagePlus,
 } from "lucide-react";
 import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
@@ -20,6 +21,7 @@ import {
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +31,7 @@ import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
+import { toast } from "sonner";
 
 const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => ({ default: m.GlobalAltar3D })));
 const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").then(m => ({ default: m.MinistrySlideshow })));
@@ -2396,6 +2399,583 @@ Download and share the official flyer.
 
 #MinistersConference2026 #JCTM #ProphetAmos #ApostolicFire`;
 const MCONF_SHARE = encodeURIComponent(MCONF_SHARE_TEXT);
+const MCONF_DATES = "May 8–10, 2026";
+const MCONF_TIME = "8:00 AM Daily (WAT)";
+const MCONF_CONTACT = "+234(0)8081313111";
+
+async function getConferenceCroppedImage(imageSrc: string, pixelCrop: Area): Promise<string> {
+  const image = new Image();
+  image.src = imageSrc;
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Unable to load selected photo."));
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Your browser could not prepare this image.");
+  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function MinisterConferenceCropModal({
+  src,
+  onDone,
+  onCancel,
+}: {
+  src: string;
+  onDone: (cropped: string) => void;
+  onCancel: () => void;
+}) {
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const onCropComplete = useCallback((_: Area, pixels: Area) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleDone = async () => {
+    if (!croppedAreaPixels) return;
+    setSaving(true);
+    try {
+      const cropped = await getConferenceCroppedImage(src, croppedAreaPixels);
+      onDone(cropped);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not crop this photo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-4">
+      <div className="w-full max-w-sm bg-[#17041f] rounded-2xl overflow-hidden shadow-2xl border border-purple-400/40">
+        <div className="px-4 pt-4 pb-2">
+          <p className="text-white font-bold text-center text-sm">Crop Your Invite Photo</p>
+          <p className="text-purple-100/55 text-xs text-center mt-0.5">Drag to reposition · Pinch or use the slider to zoom</p>
+        </div>
+        <div className="relative w-full" style={{ height: 300 }}>
+          <Cropper
+            image={src}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+          />
+        </div>
+        <div className="px-5 py-3">
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="w-full accent-purple-400"
+          />
+        </div>
+        <div className="flex gap-3 px-4 pb-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDone}
+            className="flex-1 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg,#d4a017,#facc15)", color: "#17041f" }}
+            disabled={saving}
+          >
+            {saving ? "Preparing..." : "Use This Crop"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function drawWrappedCanvasText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines = 3,
+) {
+  const words = text.split(" ");
+  let line = "";
+  let lines = 0;
+
+  for (let i = 0; i < words.length; i += 1) {
+    const testLine = line ? `${line} ${words[i]}` : words[i];
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      y += lineHeight;
+      lines += 1;
+      line = words[i];
+      if (lines >= maxLines - 1) break;
+    } else {
+      line = testLine;
+    }
+  }
+
+  if (line && lines < maxLines) ctx.fillText(line, x, y);
+}
+
+async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not create the invite image."));
+    }, "image/png");
+  });
+}
+
+function MinisterConferenceInviteCardGenerator() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [generated, setGenerated] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Photo must be under 10 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => setCropSrc(ev.target?.result as string);
+    reader.onerror = () => toast.error("Could not read this photo. Please try another image.");
+    reader.readAsDataURL(file);
+  };
+
+  const generate = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      toast.error("Your browser could not generate this card.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const W = 1080;
+      const H = 1440;
+      canvas.width = W;
+      canvas.height = H;
+
+      const purple = "#7c3aed";
+      const purpleLight = "#d8b4fe";
+      const gold = "#d4a017";
+      const goldLight = "#facc15";
+      const white = "#ffffff";
+      const deep = "#13051c";
+
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, "#10031a");
+      bg.addColorStop(0.35, "#2d0f3d");
+      bg.addColorStop(0.72, "#180523");
+      bg.addColorStop(1, "#09020d");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      const topGlow = ctx.createRadialGradient(W / 2, 130, 0, W / 2, 130, W * 0.75);
+      topGlow.addColorStop(0, "rgba(168,85,247,0.45)");
+      topGlow.addColorStop(1, "rgba(168,85,247,0)");
+      ctx.fillStyle = topGlow;
+      ctx.fillRect(0, 0, W, H * 0.55);
+
+      const goldGlow = ctx.createRadialGradient(W, H, 0, W, H, W * 0.9);
+      goldGlow.addColorStop(0, "rgba(250,204,21,0.22)");
+      goldGlow.addColorStop(1, "rgba(250,204,21,0)");
+      ctx.fillStyle = goldGlow;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.strokeStyle = "rgba(216,180,254,0.08)";
+      ctx.lineWidth = 1;
+      for (let gx = 70; gx < W; gx += 70) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, H);
+        ctx.stroke();
+      }
+      for (let gy = 70; gy < H; gy += 70) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(W, gy);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(255,255,255,0.09)";
+      for (let i = 0; i < 90; i += 1) {
+        const x = (i * 139) % W;
+        const y = (i * 233) % H;
+        ctx.beginPath();
+        ctx.arc(x, y, (i % 4) + 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.font = "bold 19px sans-serif";
+      ctx.fillText("J E S U S   C H R I S T   T E M P L E   M I N I S T R Y", W / 2, 74);
+
+      ctx.fillStyle = "rgba(250,204,21,0.14)";
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 190, 104, 380, 52, 26);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(250,204,21,0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 190, 104, 380, 52, 26);
+      ctx.stroke();
+      ctx.fillStyle = goldLight;
+      ctx.font = "bold 22px sans-serif";
+      ctx.fillText("YOU ARE INVITED", W / 2, 138);
+
+      ctx.shadowColor = "rgba(216,180,254,0.55)";
+      ctx.shadowBlur = 34;
+      ctx.fillStyle = purpleLight;
+      ctx.font = "900 86px serif";
+      ctx.fillText("MINISTERS", W / 2, 246);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = white;
+      ctx.font = "900 76px serif";
+      ctx.fillText("CONFERENCE", W / 2, 324);
+      ctx.fillStyle = goldLight;
+      ctx.font = "900 68px serif";
+      ctx.fillText("2026", W / 2, 394);
+
+      const divider = ctx.createLinearGradient(110, 0, W - 110, 0);
+      divider.addColorStop(0, "transparent");
+      divider.addColorStop(0.2, "rgba(250,204,21,0.8)");
+      divider.addColorStop(0.8, "rgba(216,180,254,0.8)");
+      divider.addColorStop(1, "transparent");
+      ctx.strokeStyle = divider;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(110, 424);
+      ctx.lineTo(W - 110, 424);
+      ctx.stroke();
+
+      const photoSize = 340;
+      const photoX = (W - photoSize) / 2;
+      const photoY = 474;
+      ctx.shadowColor = "rgba(168,85,247,0.85)";
+      ctx.shadowBlur = 45;
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.beginPath();
+      ctx.roundRect(photoX - 20, photoY - 20, photoSize + 40, photoSize + 40, 42);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = goldLight;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.roundRect(photoX - 14, photoY - 14, photoSize + 28, photoSize + 28, 34);
+      ctx.stroke();
+
+      ctx.fillStyle = "#09020d";
+      ctx.beginPath();
+      ctx.roundRect(photoX, photoY, photoSize, photoSize, 26);
+      ctx.fill();
+
+      if (photo) {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(photoX, photoY, photoSize, photoSize, 26);
+            ctx.clip();
+            ctx.drawImage(img, photoX, photoY, photoSize, photoSize);
+            ctx.restore();
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = photo;
+        });
+      } else {
+        ctx.fillStyle = "rgba(216,180,254,0.2)";
+        ctx.font = "110px sans-serif";
+        ctx.fillText("✝", W / 2, photoY + 205);
+        ctx.fillStyle = "rgba(255,255,255,0.42)";
+        ctx.font = "bold 24px sans-serif";
+        ctx.fillText("ADD YOUR PHOTO", W / 2, photoY + 258);
+      }
+
+      ctx.shadowColor = "rgba(250,204,21,0.35)";
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = goldLight;
+      ctx.beginPath();
+      ctx.arc(photoX + photoSize - 8, photoY + photoSize - 8, 74, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = deep;
+      ctx.font = "900 22px sans-serif";
+      ctx.fillText("I'M", photoX + photoSize - 8, photoY + photoSize - 16);
+      ctx.font = "900 19px sans-serif";
+      ctx.fillText("INVITED", photoX + photoSize - 8, photoY + photoSize + 14);
+
+      const displayName = name.trim() || "YOUR NAME";
+      let nameFontSize = 70;
+      ctx.font = `900 ${nameFontSize}px sans-serif`;
+      while (ctx.measureText(displayName.toUpperCase()).width > W - 120 && nameFontSize > 36) {
+        nameFontSize -= 3;
+        ctx.font = `900 ${nameFontSize}px sans-serif`;
+      }
+      ctx.shadowColor = "rgba(255,255,255,0.25)";
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = white;
+      ctx.fillText(displayName.toUpperCase(), W / 2, 908);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "italic 26px serif";
+      ctx.fillText("invites you to an apostolic gathering of ministers,", W / 2, 958);
+      ctx.fillText("leaders and kingdom builders", W / 2, 994);
+
+      const panelX = 74;
+      const panelY = 1040;
+      const panelW = W - 148;
+      const panelH = 262;
+      ctx.fillStyle = "rgba(255,255,255,0.07)";
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 28);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(216,180,254,0.28)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 28);
+      ctx.stroke();
+
+      ctx.fillStyle = goldLight;
+      ctx.font = "900 32px sans-serif";
+      ctx.fillText(`📅  ${MCONF_DATES}`, W / 2, panelY + 58);
+      ctx.fillStyle = white;
+      ctx.font = "bold 27px sans-serif";
+      ctx.fillText(`⏰  ${MCONF_TIME}`, W / 2, panelY + 108);
+      ctx.fillStyle = "rgba(255,255,255,0.78)";
+      ctx.font = "bold 23px sans-serif";
+      drawWrappedCanvasText(ctx, `📍 ${MCONF_LOCATION}`, W / 2, panelY + 158, panelW - 110, 34, 3);
+      ctx.fillStyle = goldLight;
+      ctx.font = "bold 22px sans-serif";
+      ctx.fillText(`📞 ${MCONF_CONTACT}  ·  jctm.org.ng`, W / 2, panelY + 236);
+
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      ctx.font = "20px sans-serif";
+      ctx.fillText("#MinistersConference2026  ·  #JCTM  ·  #ApostolicFire", W / 2, H - 50);
+
+      setGenerated(true);
+      toast.success("Invite card generated.");
+    } catch {
+      toast.error("Could not generate your invite card. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }, [name, photo]);
+
+  const download = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !generated) {
+      toast.error("Generate your invite card first.");
+      return;
+    }
+    const link = document.createElement("a");
+    const safeName = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "guest";
+    link.download = `ministers-conference-2026-invite-${safeName}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    toast.success("Invite card downloaded.");
+  }, [generated, name]);
+
+  const share = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !generated) {
+      toast.error("Generate your invite card first.");
+      return;
+    }
+    try {
+      const blob = await canvasToPngBlob(canvas);
+      const file = new File([blob], "ministers-conference-2026-invite.png", { type: "image/png" });
+      const shareText = `${name.trim() || "I"} invite you to ${MCONF_TITLE}. ${MCONF_DATES}, ${MCONF_TIME}. ${MCONF_LOCATION}`;
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ files: [file], title: MCONF_TITLE, text: shareText });
+        return;
+      }
+      await navigator.clipboard?.writeText(`${shareText}\n\n${window.location.origin}${BASE}/events`);
+      download();
+      toast.success("Sharing is limited on this browser, so the card was downloaded and event text copied.");
+    } catch {
+      download();
+    }
+  }, [download, generated, name]);
+
+  return (
+    <>
+      {cropSrc && (
+        <MinisterConferenceCropModal
+          src={cropSrc}
+          onDone={(cropped) => {
+            setPhoto(cropped);
+            setGenerated(false);
+            setCropSrc(null);
+            toast.success("Photo added. Generate your invite card.");
+          }}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.65 }}
+        className="rounded-3xl overflow-hidden border shadow-2xl"
+        style={{
+          background: "linear-gradient(145deg,rgba(26,5,37,0.96),rgba(45,15,61,0.88))",
+          borderColor: "rgba(168,85,247,0.32)",
+          boxShadow: "0 24px 80px rgba(88,28,135,0.25)",
+        }}
+      >
+        <div className="p-6 md:p-8 border-b border-purple-400/15">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Share2 className="h-5 w-5 text-yellow-300" />
+                <h3 className="font-serif font-bold text-white text-2xl">Generate Your Personal Invite Card</h3>
+              </div>
+              <p className="text-purple-100/65 text-sm max-w-2xl">
+                Add your name and photo to create a polished PNG invite card. Everything is generated privately in your browser; photos are not uploaded to the server.
+              </p>
+            </div>
+            <div className="text-xs text-purple-100/50 md:text-right">
+              Best for WhatsApp Status, Instagram, Facebook and church groups
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-6 items-start">
+          <div className="space-y-4">
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="w-full rounded-2xl border-2 border-dashed border-purple-300/30 p-5 bg-white/5 hover:bg-white/10 transition-colors text-left"
+            >
+              <div className="flex items-center gap-4">
+                {photo ? (
+                  <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-yellow-300 shrink-0">
+                    <img src={photo} alt="Selected invite profile" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/35 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center bg-purple-500/15 border border-purple-300/25 shrink-0">
+                    <ImagePlus className="h-8 w-8 text-purple-200/70" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-white font-bold">{photo ? "Change photo" : "Upload your photo"}</p>
+                  <p className="text-purple-100/50 text-sm mt-1">JPG, PNG, or WebP up to 10 MB. You can crop before using it.</p>
+                </div>
+              </div>
+            </button>
+
+            {photo && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoto(null);
+                  setGenerated(false);
+                  toast.success("Photo removed.");
+                }}
+                className="text-xs text-purple-100/45 hover:text-red-300 transition-colors"
+              >
+                Remove photo
+              </button>
+            )}
+
+            <div>
+              <label htmlFor="mconf-invite-name" className="block text-sm font-bold text-purple-100/80 mb-2">
+                Your name
+              </label>
+              <Input
+                id="mconf-invite-name"
+                placeholder="Enter your full name"
+                value={name}
+                maxLength={52}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setGenerated(false);
+                }}
+                className="bg-white/10 border-purple-300/30 text-white placeholder:text-purple-100/35 rounded-xl h-12"
+              />
+              <p className="text-xs text-purple-100/40 mt-2">Optional, but recommended for a personal invitation.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Button
+                onClick={generate}
+                disabled={busy}
+                className="sm:col-span-3 rounded-xl h-12 font-black"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}
+              >
+                {busy ? "Generating..." : "Generate Invite Card"}
+              </Button>
+              <Button
+                onClick={share}
+                disabled={!generated || busy}
+                className="sm:col-span-2 rounded-xl gap-2 h-11 font-bold disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#d4a017,#facc15)", color: "#13051c" }}
+              >
+                <Share2 className="h-4 w-4" /> Share Card
+              </Button>
+              <Button
+                onClick={download}
+                disabled={!generated || busy}
+                variant="outline"
+                className="rounded-xl gap-2 h-11 border-purple-300/40 text-purple-100 hover:bg-purple-500/10 disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" /> Download
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-purple-300/20 bg-black/25 p-3">
+            <canvas
+              ref={canvasRef}
+              className={`w-full rounded-xl bg-[#13051c] transition-opacity duration-300 ${generated ? "opacity-100" : "opacity-45"}`}
+              style={{ aspectRatio: "3 / 4", objectFit: "contain" }}
+              aria-label="Generated Ministers Conference invite card preview"
+            />
+            {!generated && (
+              <div className="text-center py-4">
+                <p className="text-purple-100/55 text-sm">Your invite preview will appear here after generation.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
 
 function MinisterConferenceSection() {
   const [, setTick] = useState(0);
@@ -2603,6 +3183,8 @@ function MinisterConferenceSection() {
               </div>
             </motion.div>
           </div>
+
+          <MinisterConferenceInviteCardGenerator />
         </div>
       </div>
     </section>
