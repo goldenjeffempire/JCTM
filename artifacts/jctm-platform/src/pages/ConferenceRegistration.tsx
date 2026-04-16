@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import {
   User, Mail, Phone, Building2, Award, MapPin,
   MessageSquare, ChevronRight, CheckCircle2, ArrowLeft,
-  Flame, Calendar, Clock,
+  Flame, Calendar, Clock, Camera, ImagePlus,
 } from "lucide-react";
+import Cropper from "react-easy-crop";
+import type { Point, Area } from "react-easy-crop";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,86 @@ const EMPTY_FORM: FormState = {
   message: "",
 };
 
+async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string> {
+  const image = new Image();
+  image.src = imageSrc;
+  await new Promise<void>((res) => { image.onload = () => res(); });
+  const canvas = document.createElement("canvas");
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(
+    image,
+    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+    0, 0, pixelCrop.width, pixelCrop.height,
+  );
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: string) => void; onCancel: () => void }) {
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
+  const onCropComplete = useCallback((_: Area, pixels: Area) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleDone = async () => {
+    if (!croppedAreaPixels) return;
+    const cropped = await getCroppedImg(src, croppedAreaPixels);
+    onDone(cropped);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-4">
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border" style={{ background: "#1a0525", borderColor: "rgba(168,85,247,0.4)" }}>
+        <div className="px-4 pt-4 pb-2">
+          <p className="text-white font-bold text-center text-sm">Crop Your Photo</p>
+          <p className="text-white/50 text-xs text-center mt-0.5">Drag to reposition · Pinch or scroll to zoom</p>
+        </div>
+        <div className="relative w-full" style={{ height: 300 }}>
+          <Cropper
+            image={src}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+          />
+        </div>
+        <div className="px-5 py-3">
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="w-full accent-purple-400"
+          />
+        </div>
+        <div className="flex gap-3 px-4 pb-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDone}
+            className="flex-1 py-2 rounded-xl text-white text-sm font-bold transition-colors"
+            style={{ background: "#a855f7" }}
+          >
+            Use This Crop
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block text-sm font-bold mb-2" style={{ color: "#d8b4fe" }}>
@@ -80,11 +162,25 @@ export default function ConferenceRegistration() {
   const [success, setSuccess] = useState(false);
   const [regId, setRegId] = useState<number | null>(null);
 
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+
   const set = (key: keyof FormState) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setForm(prev => ({ ...prev, [key]: e.target.value }));
     setErrors(prev => ({ ...prev, [key]: undefined }));
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("Photo must be under 10 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => { setCropSrc(ev.target?.result as string); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const validate = (): boolean => {
@@ -139,12 +235,19 @@ export default function ConferenceRegistration() {
         description="Register your attendance for the JCTM Ministers Conference 2026. May 8–10, 2026. An apostolic gathering of ministers, leaders and kingdom builders."
       />
 
+      {cropSrc && (
+        <CropModal
+          src={cropSrc}
+          onDone={(cropped) => { setPhoto(cropped); setCropSrc(null); }}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
+
       {/* Hero */}
       <div
         className="relative overflow-hidden"
         style={{ background: "linear-gradient(180deg,#0d020f 0%,#2a0a35 60%,#0d020f 100%)" }}
       >
-        {/* Starfield */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length: 40 }).map((_, i) => (
             <div
@@ -227,10 +330,19 @@ export default function ConferenceRegistration() {
                   transition={{ duration: 0.5 }}
                   className="flex flex-col items-center text-center py-16 px-4"
                 >
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-2xl"
-                    style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", boxShadow: "0 0 60px rgba(168,85,247,0.4)" }}>
-                    <CheckCircle2 className="h-10 w-10 text-white" />
-                  </div>
+                  {/* Photo avatar on success screen */}
+                  {photo ? (
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 mb-6 shadow-2xl"
+                      style={{ borderColor: "#a855f7", boxShadow: "0 0 40px rgba(168,85,247,0.4)" }}>
+                      <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-2xl"
+                      style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", boxShadow: "0 0 60px rgba(168,85,247,0.4)" }}>
+                      <CheckCircle2 className="h-10 w-10 text-white" />
+                    </div>
+                  )}
+
                   <h2 className="font-serif font-black text-3xl md:text-4xl text-white mb-3">
                     Registration Confirmed!
                   </h2>
@@ -266,7 +378,7 @@ export default function ConferenceRegistration() {
                     </Link>
                     <Button
                       variant="outline"
-                      onClick={() => { setSuccess(false); setForm(EMPTY_FORM); setRegId(null); }}
+                      onClick={() => { setSuccess(false); setForm(EMPTY_FORM); setRegId(null); setPhoto(null); }}
                       className="rounded-xl px-6 h-12 font-bold border-purple-400/40 text-purple-200 hover:bg-purple-500/10"
                     >
                       Register Another Person
@@ -333,6 +445,84 @@ export default function ConferenceRegistration() {
 
                     <form onSubmit={handleSubmit} noValidate>
                       <div className="p-6 md:p-8 space-y-5">
+
+                        {/* ── Photo Upload ──────────────────────────────── */}
+                        <div>
+                          <FieldLabel>Your Photo</FieldLabel>
+                          <div className="flex flex-col items-center gap-3 py-2">
+                            <input
+                              ref={photoRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handlePhotoChange}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => photoRef.current?.click()}
+                              className="relative group transition-all duration-200"
+                              aria-label="Upload your photo"
+                            >
+                              {photo ? (
+                                <div className="relative">
+                                  <div
+                                    className="w-28 h-28 rounded-full overflow-hidden border-4 shadow-2xl group-hover:border-purple-300 transition-all"
+                                    style={{ borderColor: "#a855f7", boxShadow: "0 0 32px rgba(168,85,247,0.35)" }}
+                                  >
+                                    <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                                  </div>
+                                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <Camera className="h-7 w-7 text-white" />
+                                  </div>
+                                  <div
+                                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2"
+                                    style={{ background: "#a855f7", borderColor: "#1a0525" }}
+                                  >
+                                    <Camera className="h-4 w-4 text-white" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div
+                                  className="w-28 h-28 rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-1.5 transition-all group-hover:bg-white/5"
+                                  style={{ borderColor: "rgba(168,85,247,0.5)", background: "rgba(45,15,61,0.5)" }}
+                                >
+                                  <ImagePlus className="h-7 w-7 text-purple-400/70 group-hover:text-purple-400 transition-colors" />
+                                  <span className="text-[10px] text-purple-400/60 group-hover:text-purple-400 font-bold uppercase tracking-wide transition-colors">
+                                    Add Photo
+                                  </span>
+                                </div>
+                              )}
+                            </button>
+
+                            {photo ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => photoRef.current?.click()}
+                                  className="text-xs font-semibold transition-colors"
+                                  style={{ color: "#a855f7" }}
+                                >
+                                  Change photo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
+                                  className="text-xs text-white/30 hover:text-red-400 transition-colors"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-white/35 text-center leading-relaxed">
+                                Optional · Tap to upload a photo<br />
+                                <span className="text-white/20">JPG, PNG up to 10 MB</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="h-px" style={{ background: "rgba(168,85,247,0.15)" }} />
 
                         {/* Full Name */}
                         <div>
