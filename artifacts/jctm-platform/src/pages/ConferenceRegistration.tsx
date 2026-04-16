@@ -188,7 +188,6 @@ export default function ConferenceRegistration() {
     if (!form.fullName.trim()) e.fullName = "Full name is required.";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       e.email = "Enter a valid email address.";
-    if (!form.phone.trim()) e.phone = "Phone number is required.";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -203,8 +202,8 @@ export default function ConferenceRegistration() {
     try {
       const payload: Record<string, string | undefined> = {
         fullName: form.fullName.trim(),
-        phone: form.phone.trim(),
       };
+      if (form.phone.trim()) payload.phone = form.phone.trim();
       if (form.email.trim()) payload.email = form.email.trim();
       if (form.ministry.trim()) payload.ministry = form.ministry.trim();
       if (form.role) payload.role = form.role;
@@ -438,8 +437,8 @@ export default function ConferenceRegistration() {
                         Register to Attend
                       </h2>
                       <p className="text-purple-100/60 text-sm">
-                        Secure your place at the Ministers Conference 2026. All fields marked{" "}
-                        <span className="text-yellow-400">*</span> are required.
+                        Secure your place at the Ministers Conference 2026. Only your{" "}
+                        <span className="text-yellow-400">name</span> is required — all other fields are optional.
                       </p>
                     </div>
 
@@ -545,7 +544,7 @@ export default function ConferenceRegistration() {
 
                         {/* Phone */}
                         <div>
-                          <FieldLabel required>Phone Number</FieldLabel>
+                          <FieldLabel>Phone Number</FieldLabel>
                           <div className="relative">
                             <FieldIcon icon={Phone} />
                             <Input
@@ -558,9 +557,6 @@ export default function ConferenceRegistration() {
                               style={inputStyle}
                             />
                           </div>
-                          {errors.phone && (
-                            <p className="text-red-400 text-xs mt-1.5">{errors.phone}</p>
-                          )}
                         </div>
 
                         {/* Email */}
