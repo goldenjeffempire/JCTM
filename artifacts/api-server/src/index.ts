@@ -268,6 +268,21 @@ async function runStartupMigrations() {
       ON push_subscriptions (is_active) WHERE is_active = true
     `);
 
+    // ── Ministers Conference Registrations ───────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS conference_registrations (
+        id serial PRIMARY KEY,
+        full_name text NOT NULL,
+        email text,
+        phone text,
+        ministry text,
+        role text,
+        state_or_country text,
+        message text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");

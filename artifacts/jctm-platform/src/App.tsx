@@ -41,6 +41,7 @@ const Blog = lazy(() => import("@/pages/Blog"));
 const BlogPost = lazy(() => import("@/pages/BlogPost"));
 const Gallery = lazy(() => import("@/pages/Gallery"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const ConferenceRegistration = lazy(() => import("@/pages/ConferenceRegistration"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,7 @@ function Router() {
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/gallery" component={Gallery} />
+        <Route path="/conference-registration" component={ConferenceRegistration} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

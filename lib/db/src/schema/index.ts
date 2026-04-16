@@ -14,3 +14,4 @@ export * from "./blogPosts";
 export * from "./aiFeedback";
 export * from "./settings";
 export * from "./gallery";
+export * from "./conferenceRegistrations";
