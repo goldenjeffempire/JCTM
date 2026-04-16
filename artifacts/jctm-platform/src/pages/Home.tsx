@@ -2375,6 +2375,204 @@ function CrusadeInviteSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// MINISTER CONFERENCE 2026 — Invite Section
+// ═══════════════════════════════════════════════════════════════════════════
+const MCONF_YT = "hQFA1Y9NAcY";
+const MCONF_SHARE = encodeURIComponent(`🔥 MINISTER CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th May — Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Temple, JCTM Headquarters, Warri, Delta State\n\n📞 +234(0)8081313111\n🌐 www.jctm.org.ng\n\n#MinisterConference2026 #JCTM #ProphetAmos #ApostolicFire`);
+
+function MinisterConferenceSection() {
+  const [, setTick] = useState(0);
+  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(id); }, []);
+
+  const target = new Date("2026-05-08T07:00:00.000Z"); // 8:00 AM WAT = UTC+1
+  const now = new Date();
+  const diff = Math.max(0, target.getTime() - now.getTime());
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+
+  const sharePlatforms = [
+    { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${MCONF_SHARE}` },
+    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jctm.org.ng/events")}&quote=${MCONF_SHARE}` },
+    { label: "X", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${MCONF_SHARE}&url=${encodeURIComponent("https://jctm.org.ng/events")}` },
+    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${encodeURIComponent("https://jctm.org.ng/events")}&text=${MCONF_SHARE}` },
+  ];
+
+  return (
+    <section className="py-0 relative overflow-hidden" style={{ background: "linear-gradient(180deg,#0d020f 0%,#2a0a35 50%,#0d020f 100%)" }}>
+      {/* Starfield */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {Array.from({ length: 50 }).map((_, i) => (
+          <div key={i} className="absolute rounded-full" style={{
+            width: `${(i % 3) * 0.8 + 0.6}px`, height: `${(i % 3) * 0.8 + 0.6}px`,
+            top: `${(i * 37 + 11) % 100}%`, left: `${(i * 53 + 7) % 100}%`,
+            background: `rgba(220,180,255,${(i % 5) * 0.08 + 0.08})`,
+          }} />
+        ))}
+      </div>
+
+      {/* Purple glow orbs */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full blur-3xl" style={{ background: "radial-gradient(ellipse, rgba(168,85,247,0.12) 0%, transparent 70%)" }} />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] rounded-full blur-2xl" style={{ background: "radial-gradient(ellipse, rgba(212,160,23,0.08) 0%, transparent 70%)" }} />
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-20">
+        <div className="max-w-5xl mx-auto">
+
+          {/* Label */}
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8">
+            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border mb-4"
+              style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.12)", color: "#d8b4fe" }}>
+              <Flame className="h-3.5 w-3.5" /> Jesus Christ Temple Ministry Presents
+            </span>
+            <h2 className="font-serif font-black text-4xl md:text-6xl text-white mb-3 leading-tight">
+              Minister{" "}
+              <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>Conference</span>{" "}
+              <span className="text-purple-300">2026</span>
+            </h2>
+            <p className="text-purple-200/70 font-serif italic text-lg max-w-xl mx-auto">&ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;</p>
+          </motion.div>
+
+          {/* 2-col layout: Invite Card + Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+
+            {/* Left — styled conference invite card */}
+            <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
+              <div className="relative rounded-3xl overflow-hidden border-2 shadow-2xl shadow-purple-500/20 h-full flex flex-col"
+                style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)", minHeight: "420px" }}>
+
+                {/* Top accent bar */}
+                <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
+
+                {/* Inner content — conference invite feel */}
+                <div className="flex flex-col items-center justify-center flex-1 px-8 py-10 text-center gap-5">
+
+                  {/* Ministry seal */}
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center border-2 shadow-lg shadow-purple-500/30"
+                    style={{ background: "linear-gradient(135deg,#4c1d70,#7c3aed)", borderColor: "rgba(168,85,247,0.5)" }}>
+                    <span className="text-3xl">✝</span>
+                  </div>
+
+                  <div>
+                    <p className="text-purple-300/70 text-[10px] uppercase tracking-[0.2em] font-bold mb-2">Jesus Christ Temple Ministry</p>
+                    <h3 className="text-white font-serif font-black text-3xl leading-tight mb-1">Minister<br />Conference 2026</h3>
+                    <div className="w-16 h-0.5 mx-auto my-3" style={{ background: "linear-gradient(90deg,transparent,#a855f7,transparent)" }} />
+                    <p className="text-purple-200/60 text-sm font-serif italic">&ldquo;An Apostolic Gathering of Ministers &amp; Kingdom Builders&rdquo;</p>
+                  </div>
+
+                  {/* Key info pills */}
+                  <div className="flex flex-col gap-2.5 w-full max-w-xs">
+                    {[
+                      { icon: Calendar, text: "May 8 – 10, 2026" },
+                      { icon: Clock, text: "8:00 AM Daily (WAT)" },
+                      { icon: MapPin, text: "Ebrumede Temple, JCTM HQ" },
+                    ].map(({ icon: Icon, text }) => (
+                      <div key={text} className="flex items-center gap-3 rounded-xl px-4 py-2.5"
+                        style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                        <Icon className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                        <span className="text-white/75 text-sm font-medium">{text}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Share */}
+                  <div className="w-full">
+                    <p className="text-purple-400/60 text-[10px] font-bold uppercase tracking-widest mb-3">Share the Conference</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {sharePlatforms.map(p => (
+                        <a key={p.label} href={p.href} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+                          style={{ background: p.bg }}>
+                          <span>{p.emoji}</span> {p.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom accent bar */}
+                <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
+              </div>
+            </motion.div>
+
+            {/* Right — countdown + details + video */}
+            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}
+              className="flex flex-col gap-6">
+
+              {/* Countdown */}
+              <div className="rounded-3xl p-6 text-center" style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
+                <p className="text-purple-400/70 text-xs uppercase tracking-widest font-bold mb-4">
+                  {diff > 0 ? "Conference Begins In" : "🔥 The Conference Is NOW!"}
+                </p>
+                {diff > 0 && (
+                  <div className="flex justify-center gap-3">
+                    {[{ v: days, l: "Days" }, { v: hours, l: "Hrs" }, { v: mins, l: "Min" }, { v: secs, l: "Sec" }].map(({ v, l }) => (
+                      <div key={l} className="flex flex-col items-center rounded-xl px-3 py-2 min-w-[52px]"
+                        style={{ background: "linear-gradient(135deg,#2d0f3d,#4c1d70)", border: "1px solid rgba(168,85,247,0.3)" }}>
+                        <span className="text-2xl font-black text-white font-mono tabular-nums">{String(v).padStart(2, "0")}</span>
+                        <span className="text-[9px] text-purple-400/60 uppercase tracking-wider">{l}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Details */}
+              <div className="rounded-3xl p-6 space-y-3" style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
+                {[
+                  { icon: Calendar, text: "Friday 8th May — Sunday 10th May, 2026" },
+                  { icon: Clock, text: "8:00 AM Daily (West Africa Time)" },
+                  { icon: MapPin, text: "Ebrumede Temple, JCTM Headquarters, Warri, Delta State" },
+                  { icon: Globe, text: "Watch on Temple TV · jctm.org.ng" },
+                ].map(({ icon: Icon, text }) => (
+                  <div key={text} className="flex items-start gap-3 text-sm text-white/80">
+                    <Icon className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* YouTube promo — autoplay, muted, loop */}
+              <div className="rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(168,85,247,0.25)" }}>
+                <div className="aspect-video">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${MCONF_YT}?autoplay=1&mute=1&loop=1&playlist=${MCONF_YT}&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
+                    title="Minister Conference 2026"
+                    allow="autoplay; fullscreen"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="w-full h-full"
+                  />
+                </div>
+              </div>
+
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link href="/events" className="flex-1">
+                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide"
+                    style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}>
+                    ✋ View Event Details
+                  </motion.button>
+                </Link>
+                <a href={`https://youtu.be/${MCONF_YT}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white">
+                    <Youtube className="h-5 w-5" /> Watch on YouTube
+                  </motion.button>
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // UPCOMING EVENTS
 // ═══════════════════════════════════════════════════════════════════════════
 function SundayServiceCard() {
@@ -3634,6 +3832,7 @@ export default function Home() {
       <ScriptureFeature />
       <EventsSection />
       <CrusadeInviteSection />
+      <MinisterConferenceSection />
       <GlobalReach />
       <GlobalAltarSection />
       <GivingBand />
