@@ -8,7 +8,7 @@
  * quota is exhausted.
  *
  * What it does:
- *  • Fetches https://www.youtube.com/feeds/videos.xml?channel_id=<CHANNEL_ID>
+ *  • Fetches https://www.youtube.com/xml/feeds/videos.xml?channel_id=<CHANNEL_ID>
  *  • Parses the Atom XML (no third-party parser — simple regex extraction)
  *  • Upserts each entry into `sermon_data`:
  *      – INSERT new videos (with RSS-quality thumbnail as placeholder)
@@ -29,7 +29,7 @@ import type { Logger } from "pino";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+export const RSS_URL = `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
 export const RSS_INTERVAL_MS = 5 * 60 * 1_000; // 5 minutes
 
 // ─── Types ────────────────────────────────────────────────────────────────────
