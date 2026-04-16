@@ -9,6 +9,7 @@ import {
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download, CalendarPlus,
   Flame, CheckCircle2, ExternalLink,
 } from "lucide-react";
+import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -671,11 +672,15 @@ function StaticEventCard({ event, index }: { event: StaticEvent; index: number }
 function EventCard({ event, index }: { event: EventItem; index: number }) {
   const start = new Date(event.startDate);
   const past = isPast(start);
-  const imageUrl = event.imageUrl?.startsWith("/")
+  const isMinisterConference = event.title.toLowerCase().includes("minister") && event.title.toLowerCase().includes("conference");
+  const imageUrl = isMinisterConference
+    ? ministerConferenceFlyer
+    : event.imageUrl?.startsWith("/")
     ? event.imageUrl
     : event.imageUrl
     ? `/${event.imageUrl}`
     : null;
+  const registerUrl = isMinisterConference ? "/conference-registration" : "/crusade";
 
   return (
     <motion.div
@@ -797,7 +802,7 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
               style={{ background: "linear-gradient(135deg,#0ea5e9,#0284c7)", color: "#fff" }}
               asChild
             >
-              <a href="/crusade">✋ Register to Attend</a>
+              <a href={registerUrl}>✋ Register to Attend</a>
             </Button>
             <AddToCalendar event={event} />
           </div>
