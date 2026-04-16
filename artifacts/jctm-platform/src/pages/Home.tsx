@@ -2539,7 +2539,7 @@ async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-function MinisterConferenceInviteCardGenerator() {
+export function MinisterConferenceInviteCardGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");

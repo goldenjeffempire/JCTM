@@ -10,6 +10,7 @@ import {
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { MinisterConferenceInviteCardGenerator } from "@/pages/Home";
 
 function toICSDate(date: Date) {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -607,6 +608,10 @@ export default function Events() {
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
         </motion.div>
+
+        <div className="mb-12">
+          <MinisterConferenceInviteCardGenerator />
+        </div>
 
         {/* Featured Video */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">

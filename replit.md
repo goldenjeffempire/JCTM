@@ -268,6 +268,7 @@ Served at root level (not under `/api`) in `app.ts`:
 - Added visitor-facing flyer actions: direct JPEG download, native mobile share/copy fallback, and quick links for WhatsApp, Facebook, X, Telegram, LinkedIn, and Instagram.
 - Conference location text updated to Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State.
 - Added a production-ready audience invite-card generator to the homepage Ministers Conference section: name input, local photo upload/cropping, private browser-side 1080×1440 PNG canvas generation, download, native file sharing, and fallback download/copy behavior.
+- The same audience invite-card generator is also available on `/events` so visitors can create cards after opening the conference details page.
 
 ### Sermon Detail Page (`/sermons/:id`) — Complete Rebuild
 - **Two-column layout** — Main player + sidebar on desktop; single column on mobile
