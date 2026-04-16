@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Share2, Copy, Check, RefreshCw, Flame, ChevronRight,
-  Calendar, Mic2, Sparkles, Heart, Sun,
+  Calendar, Mic2, Sparkles, Heart, Sun, ImageDown,
 } from "lucide-react";
+import { toPng } from "html-to-image";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,7 @@ interface DailyDevotion {
 }
 
 function skeleton(className: string) {
-  return (
-    <div
-      className={`animate-pulse rounded-lg bg-white/8 ${className}`}
-    />
-  );
+  return <div className={`animate-pulse rounded-lg bg-white/8 ${className}`} />;
 }
 
 function ReflectionBlock({ text }: { text: string }) {
@@ -36,10 +33,221 @@ function ReflectionBlock({ text }: { text: string }) {
   return (
     <div className="space-y-4">
       {paragraphs.map((p, i) => (
-        <p key={i} className="text-white/75 leading-relaxed text-[15px]">
-          {p}
-        </p>
+        <p key={i} className="text-white/75 leading-relaxed text-[15px]">{p}</p>
       ))}
+    </div>
+  );
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trimEnd() + "…";
+}
+
+function DevotionShareCard({
+  devotion,
+  dateLabel,
+  cardRef,
+}: {
+  devotion: DailyDevotion;
+  dateLabel: string;
+  cardRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const scripture = truncate(devotion.scripture, 200);
+  const declaration = truncate(devotion.declaration, 160);
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        position: "absolute",
+        left: "-9999px",
+        top: 0,
+        width: "540px",
+        height: "675px",
+        background: "linear-gradient(145deg, #05061a 0%, #0b0d25 45%, #090717 100%)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        fontFamily: "'Georgia', 'Times New Roman', serif",
+      }}
+    >
+      {/* Background glow orb */}
+      <div style={{
+        position: "absolute",
+        top: "-60px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "500px",
+        height: "300px",
+        background: "radial-gradient(ellipse, rgba(251,191,36,0.14) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute",
+        bottom: "-40px",
+        right: "-40px",
+        width: "280px",
+        height: "280px",
+        background: "radial-gradient(ellipse, rgba(124,58,237,0.1) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+
+      {/* Top border accent */}
+      <div style={{
+        height: "3px",
+        background: "linear-gradient(90deg, transparent 0%, #f59e0b 30%, #fde68a 50%, #f59e0b 70%, transparent 100%)",
+        flexShrink: 0,
+      }} />
+
+      {/* Content */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        padding: "32px 36px",
+        gap: "0",
+      }}>
+
+        {/* Header: brand + date */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{
+              width: "28px", height: "28px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ color: "white", fontSize: "13px", fontWeight: "700", fontFamily: "sans-serif" }}>✦</span>
+            </div>
+            <div>
+              <div style={{ color: "#fbbf24", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", fontFamily: "sans-serif", textTransform: "uppercase" }}>
+                JCTM Daily Devotion
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "10px", fontFamily: "sans-serif", marginTop: "1px" }}>
+                Temple TV · jctm.org.ng
+              </div>
+            </div>
+          </div>
+          <div style={{
+            background: "rgba(251,191,36,0.1)",
+            border: "1px solid rgba(251,191,36,0.2)",
+            borderRadius: "20px",
+            padding: "4px 12px",
+            color: "#fde68a",
+            fontSize: "10px",
+            fontFamily: "sans-serif",
+          }}>
+            {dateLabel}
+          </div>
+        </div>
+
+        {/* Title */}
+        <h2 style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "700",
+          lineHeight: "1.25",
+          marginBottom: "20px",
+          fontFamily: "'Georgia', 'Times New Roman', serif",
+        }}>
+          {devotion.title}
+        </h2>
+
+        {/* Gold divider */}
+        <div style={{
+          height: "1px",
+          background: "linear-gradient(90deg, #f59e0b 0%, rgba(245,158,11,0.15) 100%)",
+          marginBottom: "20px",
+          flexShrink: 0,
+        }} />
+
+        {/* Scripture */}
+        <div style={{
+          background: "rgba(251,191,36,0.07)",
+          border: "1px solid rgba(251,191,36,0.18)",
+          borderRadius: "14px",
+          padding: "18px 20px",
+          marginBottom: "18px",
+          flexShrink: 0,
+        }}>
+          <div style={{
+            borderLeft: "3px solid rgba(245,158,11,0.6)",
+            paddingLeft: "14px",
+          }}>
+            <p style={{
+              color: "rgba(254,243,199,0.88)",
+              fontSize: "14px",
+              lineHeight: "1.65",
+              fontStyle: "italic",
+              margin: "0 0 8px 0",
+              fontFamily: "'Georgia', 'Times New Roman', serif",
+            }}>
+              "{scripture}"
+            </p>
+            <p style={{
+              color: "#f59e0b",
+              fontSize: "11px",
+              fontWeight: "700",
+              margin: 0,
+              fontFamily: "sans-serif",
+              letterSpacing: "0.04em",
+            }}>
+              — {devotion.reference}
+            </p>
+          </div>
+        </div>
+
+        {/* Declaration */}
+        <div style={{
+          background: "rgba(16,185,129,0.07)",
+          border: "1px solid rgba(16,185,129,0.2)",
+          borderRadius: "14px",
+          padding: "16px 20px",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          minHeight: 0,
+        }}>
+          <div style={{ color: "#34d399", fontSize: "10px", fontWeight: "700", letterSpacing: "0.1em", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: "8px" }}>
+            Today's Declaration
+          </div>
+          <p style={{
+            color: "rgba(236,253,245,0.9)",
+            fontSize: "13px",
+            lineHeight: "1.6",
+            fontWeight: "600",
+            margin: 0,
+            fontFamily: "'Georgia', 'Times New Roman', serif",
+          }}>
+            "{declaration}"
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: "18px",
+          flexShrink: 0,
+        }}>
+          <div style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px", fontFamily: "sans-serif" }}>
+            Jesus Christ Temple Ministry · Warri, Nigeria
+          </div>
+          <div style={{ color: "rgba(251,191,36,0.4)", fontSize: "10px", fontFamily: "sans-serif" }}>
+            jctm.org.ng/devotion
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom border accent */}
+      <div style={{
+        height: "2px",
+        background: "linear-gradient(90deg, transparent 0%, rgba(124,58,237,0.5) 50%, transparent 100%)",
+        flexShrink: 0,
+      }} />
     </div>
   );
 }
@@ -49,9 +257,11 @@ export default function Devotion() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [declarationMode, setDeclarationMode] = useState(false);
   const [currentWord, setCurrentWord] = useState(0);
   const [declarationWords, setDeclarationWords] = useState<string[]>([]);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const today = new Date();
   const dateLabel = format(today, "EEEE, MMMM d, yyyy");
@@ -75,7 +285,7 @@ export default function Devotion() {
 
   const handleCopy = async () => {
     if (!devotion) return;
-    const text = `📖 ${devotion.title}\n\n${devotion.scripture} — ${devotion.reference}\n\n${devotion.reflection}\n\n✦ Prophetic Word:\n${devotion.propheticWord}\n\n🙏 Prayer: ${devotion.prayerFocus}\n\n📣 Declaration: ${devotion.declaration}\n\nFrom JCTM Daily Devotion`;
+    const text = `📖 ${devotion.title}\n\n${devotion.scripture} — ${devotion.reference}\n\n${devotion.reflection}\n\n✦ Prophetic Word:\n${devotion.propheticWord}\n\n🙏 Prayer: ${devotion.prayerFocus}\n\n📣 Declaration: ${devotion.declaration}\n\nFrom JCTM Daily Devotion · jctm.org.ng`;
     await navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success("Devotion copied to clipboard");
@@ -83,13 +293,37 @@ export default function Devotion() {
   };
 
   const handleShare = async () => {
-    if (!devotion) return;
-    const text = `📖 *${devotion.title}* — ${devotion.reference}\n\n"${devotion.scripture}"\n\n${devotion.declaration}\n\n#JCTM #DailyDevotion`;
-    if (navigator.share) {
-      await navigator.share({ title: devotion.title, text }).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(text);
-      toast.success("Share text copied!");
+    if (!devotion || !cardRef.current) return;
+    setSharing(true);
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#05061a",
+      });
+
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], "jctm-devotion.png", { type: "image/png" });
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: devotion.title,
+          text: `📖 ${devotion.title} — ${devotion.reference}\n\n"${devotion.scripture}"\n\n${devotion.declaration}\n\n#JCTM #DailyDevotion #TempleTV`,
+          files: [file],
+        });
+      } else {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `jctm-devotion-${devotion.date}.png`;
+        link.click();
+        toast.success("Devotion card downloaded!");
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        toast.error("Could not generate share card. Try copying instead.");
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -169,6 +403,11 @@ export default function Devotion() {
           }
         ]}
       />
+
+      {/* Hidden share card — rendered off-screen for image capture */}
+      {devotion && (
+        <DevotionShareCard devotion={devotion} dateLabel={format(today, "MMMM d, yyyy")} cardRef={cardRef} />
+      )}
 
       <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #06071a 0%, #0c0e26 40%, #0a0818 100%)" }}>
 
@@ -371,10 +610,16 @@ export default function Devotion() {
               <div className="flex items-center gap-3 pt-2">
                 <Button
                   onClick={handleShare}
-                  variant="outline"
-                  className="flex-1 h-11 rounded-xl text-sm font-medium border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-white/3 hover:bg-white/6 transition-all"
+                  disabled={sharing}
+                  className="flex-1 h-11 rounded-xl text-sm font-medium border-0 text-white transition-all"
+                  style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.1))", border: "1px solid rgba(251,191,36,0.25)" }}
                 >
-                  <Share2 className="h-4 w-4 mr-2" /> Share
+                  {sharing ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ImageDown className="h-4 w-4 mr-2" />
+                  )}
+                  {sharing ? "Creating…" : "Share Card"}
                 </Button>
                 <Button
                   onClick={handleCopy}
@@ -394,6 +639,11 @@ export default function Devotion() {
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Share hint */}
+              <p className="text-center text-white/25 text-xs -mt-1">
+                "Share Card" generates a beautiful image card for social media
+              </p>
 
               {/* Related links */}
               <div className="grid grid-cols-2 gap-3 pt-1">
