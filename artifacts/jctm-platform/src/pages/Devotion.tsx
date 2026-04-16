@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BookOpen, Share2, Copy, Check, RefreshCw, Flame, ChevronRight,
-  Calendar, Mic2, Sparkles, Heart, Sun, ImageDown, BookMarked,
+  BookOpen, RefreshCw, Flame, ChevronRight,
+  Calendar, Mic2, Sparkles, Heart, Sun, Download, BookMarked, ImageDown,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { Layout } from "@/components/layout/Layout";
@@ -528,8 +528,7 @@ export default function Devotion() {
   const [devotion, setDevotion] = useState<DailyDevotion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  const [sharingPlatform, setSharingPlatform] = useState<string | null>(null);
   const [declarationMode, setDeclarationMode] = useState(false);
   const [currentWord, setCurrentWord] = useState(0);
   const [declarationWords, setDeclarationWords] = useState<string[]>([]);
@@ -568,49 +567,81 @@ export default function Devotion() {
       .catch(() => {});
   }, []);
 
-  const handleCopy = async () => {
-    if (!devotion) return;
-    const text = `📖 ${devotion.title}\n\n${devotion.scripture} — ${devotion.reference}\n\n${devotion.reflection}\n\n✦ Prophetic Word:\n${devotion.propheticWord}\n\n🙏 Prayer: ${devotion.prayerFocus}\n\n📣 Declaration: ${devotion.declaration}\n\nFrom JCTM Daily Devotion · jctm.org.ng`;
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast.success("Devotion copied to clipboard");
-    setTimeout(() => setCopied(false), 2500);
+  const generateCard = async (): Promise<{ dataUrl: string; file: File } | null> => {
+    if (!devotion || !cardRef.current) return null;
+    const dataUrl = await toPng(cardRef.current, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: "#080512",
+      width: 540,
+      height: 810,
+    });
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], `jctm-devotion-${devotion.date}.png`, { type: "image/png" });
+    return { dataUrl, file };
   };
 
-  const handleShare = async () => {
-    if (!devotion || !cardRef.current) return;
-    setSharing(true);
-    try {
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2,
-        cacheBust: true,
-        backgroundColor: "#080512",
-        width: 540,
-        height: 810,
-      });
+  const downloadCard = (dataUrl: string) => {
+    if (!devotion) return;
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `jctm-devotion-${devotion.date}.png`;
+    link.click();
+  };
 
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], "jctm-devotion.png", { type: "image/png" });
+  const handlePlatformShare = async (platform: "native" | "whatsapp" | "instagram" | "facebook" | "download") => {
+    if (!devotion) return;
+    setSharingPlatform(platform);
+    try {
+      const result = await generateCard();
+      if (!result) return;
+      const { dataUrl, file } = result;
+
+      const captionText = `📖 ${devotion.title}\n— ${devotion.reference}\n\n"${devotion.declaration}"\n\n#JCTM #DailyDevotion #TempleTV jctm.org.ng`;
+
+      if (platform === "download") {
+        downloadCard(dataUrl);
+        toast.success("Devotion card saved to your downloads!");
+        return;
+      }
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           title: devotion.title,
-          text: `📖 ${devotion.title} — ${devotion.reference}\n\n"${devotion.scripture}"\n\n${devotion.declaration}\n\n#JCTM #DailyDevotion #TempleTV`,
+          text: captionText,
           files: [file],
         });
-      } else {
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = `jctm-devotion-${devotion.date}.png`;
-        link.click();
-        toast.success("Devotion card downloaded!");
+        return;
+      }
+
+      downloadCard(dataUrl);
+
+      const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+      switch (platform) {
+        case "whatsapp":
+          toast.success("Image saved! Tap to open WhatsApp and attach it.", { duration: 5000 });
+          await delay(600);
+          window.open(`https://wa.me/?text=${encodeURIComponent(captionText)}`, "_blank");
+          break;
+        case "instagram":
+          toast.success("Image saved! Open Instagram → New post → select it from your gallery.", { duration: 5000 });
+          await delay(600);
+          window.open("https://www.instagram.com/", "_blank");
+          break;
+        case "facebook":
+          toast.success("Image saved! Share it as a photo on Facebook.", { duration: 5000 });
+          await delay(600);
+          window.open("https://www.facebook.com/", "_blank");
+          break;
+        default:
+          toast.success("Devotion card downloaded!");
       }
     } catch (err) {
       if (err instanceof Error && err.name !== "AbortError") {
-        toast.error("Could not generate share card. Try copying instead.");
+        toast.error("Could not generate the share card. Please try again.");
       }
     } finally {
-      setSharing(false);
+      setSharingPlatform(null);
     }
   };
 
@@ -893,44 +924,118 @@ export default function Devotion() {
                 </div>
               </div>
 
-              {/* Action bar */}
-              <div className="flex items-center gap-3 pt-2">
-                <Button
-                  onClick={handleShare}
-                  disabled={sharing}
-                  className="flex-1 h-11 rounded-xl text-sm font-medium border-0 text-white transition-all"
-                  style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.1))", border: "1px solid rgba(251,191,36,0.25)" }}
-                >
-                  {sharing ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <ImageDown className="h-4 w-4 mr-2" />
-                  )}
-                  {sharing ? "Creating…" : "Share Card"}
-                </Button>
-                <Button
-                  onClick={handleCopy}
-                  variant="outline"
-                  className="flex-1 h-11 rounded-xl text-sm font-medium border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-white/3 hover:bg-white/6 transition-all"
-                >
-                  {copied ? <Check className="h-4 w-4 mr-2 text-green-400" /> : <Copy className="h-4 w-4 mr-2" />}
-                  {copied ? "Copied!" : "Copy All"}
-                </Button>
-                <Button
-                  onClick={load}
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-11 rounded-xl border-white/10 text-white/40 hover:text-white hover:border-white/20 bg-white/3 hover:bg-white/6 transition-all shrink-0"
-                  title="Reload"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
+              {/* Image Share System */}
+              <div className="rounded-3xl border border-white/8 overflow-hidden pt-2" style={{ background: "rgba(255,255,255,0.02)" }}>
+                {/* Section header */}
+                <div className="px-6 pt-5 pb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-500/80 to-yellow-600/80 flex items-center justify-center">
+                        <ImageDown className="h-3 w-3 text-white" />
+                      </div>
+                      <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Share Devotion</span>
+                    </div>
+                    <button
+                      onClick={load}
+                      title="Reload"
+                      className="h-7 w-7 rounded-lg flex items-center justify-center text-white/25 hover:text-white/50 hover:bg-white/5 transition-all"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-white/25 leading-relaxed">
+                    Generates a branded 1080×1620 devotion image card — no plain text, only a beautiful visual.
+                  </p>
+                </div>
 
-              {/* Share hint */}
-              <p className="text-center text-white/25 text-xs -mt-1">
-                "Share Card" generates a 1080×1620 branded image — optimised for Instagram, WhatsApp & social media
-              </p>
+                <div className="px-6 pb-6 space-y-3">
+                  {/* Primary share button */}
+                  <button
+                    onClick={() => handlePlatformShare("native")}
+                    disabled={!!sharingPlatform}
+                    className="w-full h-12 rounded-2xl flex items-center justify-center gap-2.5 text-sm font-semibold text-white transition-all disabled:opacity-60 active:scale-[0.98]"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(251,191,36,0.22) 0%, rgba(245,158,11,0.14) 100%)",
+                      border: "1px solid rgba(251,191,36,0.3)",
+                      boxShadow: "0 4px 24px rgba(245,158,11,0.12)",
+                    }}
+                  >
+                    {sharingPlatform === "native" ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageDown className="h-4 w-4 text-amber-400" />
+                    )}
+                    {sharingPlatform === "native" ? "Generating card…" : "Share Devotion Image"}
+                  </button>
+
+                  {/* Platform row */}
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {/* WhatsApp */}
+                    <button
+                      onClick={() => handlePlatformShare("whatsapp")}
+                      disabled={!!sharingPlatform}
+                      className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl transition-all disabled:opacity-50 active:scale-[0.96] hover:brightness-110"
+                      style={{ background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.2)" }}
+                    >
+                      {sharingPlatform === "whatsapp" ? (
+                        <RefreshCw className="h-5 w-5 text-green-400 animate-spin" />
+                      ) : (
+                        <span className="text-xl leading-none">💬</span>
+                      )}
+                      <span className="text-[10px] font-bold text-green-400 uppercase tracking-wide">WhatsApp</span>
+                    </button>
+
+                    {/* Instagram */}
+                    <button
+                      onClick={() => handlePlatformShare("instagram")}
+                      disabled={!!sharingPlatform}
+                      className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl transition-all disabled:opacity-50 active:scale-[0.96] hover:brightness-110"
+                      style={{ background: "rgba(225,48,108,0.1)", border: "1px solid rgba(225,48,108,0.2)" }}
+                    >
+                      {sharingPlatform === "instagram" ? (
+                        <RefreshCw className="h-5 w-5 text-pink-400 animate-spin" />
+                      ) : (
+                        <span className="text-xl leading-none">📷</span>
+                      )}
+                      <span className="text-[10px] font-bold text-pink-400 uppercase tracking-wide">Instagram</span>
+                    </button>
+
+                    {/* Facebook */}
+                    <button
+                      onClick={() => handlePlatformShare("facebook")}
+                      disabled={!!sharingPlatform}
+                      className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl transition-all disabled:opacity-50 active:scale-[0.96] hover:brightness-110"
+                      style={{ background: "rgba(24,119,242,0.1)", border: "1px solid rgba(24,119,242,0.2)" }}
+                    >
+                      {sharingPlatform === "facebook" ? (
+                        <RefreshCw className="h-5 w-5 text-blue-400 animate-spin" />
+                      ) : (
+                        <span className="text-xl leading-none">👍</span>
+                      )}
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Facebook</span>
+                    </button>
+                  </div>
+
+                  {/* Download only */}
+                  <button
+                    onClick={() => handlePlatformShare("download")}
+                    disabled={!!sharingPlatform}
+                    className="w-full h-10 rounded-2xl flex items-center justify-center gap-2 text-xs font-semibold text-white/40 hover:text-white/60 transition-all disabled:opacity-40 active:scale-[0.98]"
+                    style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}
+                  >
+                    {sharingPlatform === "download" ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    {sharingPlatform === "download" ? "Saving…" : "Download image only"}
+                  </button>
+
+                  <p className="text-center text-white/18 text-[10px] leading-relaxed pt-0.5">
+                    On mobile, tap a platform button → image opens in native share sheet.{"\n"}On desktop, the image downloads to your folder — then upload it to the platform.
+                  </p>
+                </div>
+              </div>
 
               {/* Related links */}
               <div className="grid grid-cols-2 gap-3 pt-1">
