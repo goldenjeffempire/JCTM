@@ -263,6 +263,11 @@ Served at root level (not under `/api`) in `app.ts`:
 
 ## Recent Enhancements (April 2026)
 
+### Ministers Conference Flyer Sharing
+- Home page Ministers Conference 2026 section now uses the uploaded official flyer image from `attached_assets` via Vite asset import.
+- Added visitor-facing flyer actions: direct JPEG download, native mobile share/copy fallback, and quick links for WhatsApp, Facebook, X, Telegram, LinkedIn, and Instagram.
+- Conference location text updated to Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State.
+
 ### Sermon Detail Page (`/sermons/:id`) — Complete Rebuild
 - **Two-column layout** — Main player + sidebar on desktop; single column on mobile
 - **Related sermons sidebar** — Auto-fetches 6 related sermons by keyword from current sermon title

@@ -10,7 +10,7 @@ import {
   Radio, BookOpen, Heart, Sparkles, ChevronRight, Globe,
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
   Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
-  Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X,
+  Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X, Download, Share2,
 } from "lucide-react";
 import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
@@ -28,6 +28,7 @@ import { GlobalAltar } from "@/components/GlobalAltar";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 
 const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => ({ default: m.GlobalAltar3D })));
 const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").then(m => ({ default: m.MinistrySlideshow })));
@@ -2378,7 +2379,23 @@ function CrusadeInviteSection() {
 // MINISTER CONFERENCE 2026 — Invite Section
 // ═══════════════════════════════════════════════════════════════════════════
 const MCONF_YT = "hQFA1Y9NAcY";
-const MCONF_SHARE = encodeURIComponent(`🔥 MINISTER CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th May — Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Temple, JCTM Headquarters, Warri, Delta State\n\n📞 +234(0)8081313111\n🌐 www.jctm.org.ng\n\n#MinisterConference2026 #JCTM #ProphetAmos #ApostolicFire`);
+const MCONF_TITLE = "Ministers Conference 2026";
+const MCONF_LOCATION = "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State";
+const MCONF_SHARE_TEXT = `🔥 MINISTERS CONFERENCE 2026!
+
+Jesus Christ Temple Ministry presents Ministers Conference 2026.
+
+📅 Friday 8th May — Sunday 10th May, 2026
+⏰ 8:00 AM Daily (WAT)
+📍 ${MCONF_LOCATION}
+
+📞 +234(0)8081313111
+🌐 www.jctm.org.ng
+
+Download and share the official flyer.
+
+#MinistersConference2026 #JCTM #ProphetAmos #ApostolicFire`;
+const MCONF_SHARE = encodeURIComponent(MCONF_SHARE_TEXT);
 
 function MinisterConferenceSection() {
   const [, setTick] = useState(0);
@@ -2391,13 +2408,40 @@ function MinisterConferenceSection() {
   const hours = Math.floor((diff % 86400000) / 3600000);
   const mins = Math.floor((diff % 3600000) / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
+  const shareUrl = `${window.location.origin}${BASE}/events`;
 
   const sharePlatforms = [
     { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${MCONF_SHARE}` },
-    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jctm.org.ng/events")}&quote=${MCONF_SHARE}` },
-    { label: "X", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${MCONF_SHARE}&url=${encodeURIComponent("https://jctm.org.ng/events")}` },
-    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${encodeURIComponent("https://jctm.org.ng/events")}&text=${MCONF_SHARE}` },
+    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${MCONF_SHARE}` },
+    { label: "X", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${MCONF_SHARE}&url=${encodeURIComponent(shareUrl)}` },
+    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${MCONF_SHARE}` },
+    { label: "LinkedIn", emoji: "in", bg: "#0A66C2", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+    { label: "Instagram", emoji: "📷", bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)", href: "https://www.instagram.com/templetv.jctm/" },
   ];
+
+  const handleDownloadFlyer = () => {
+    const link = document.createElement("a");
+    link.href = ministerConferenceFlyer;
+    link.download = "ministers-conference-2026-flyer.jpeg";
+    link.click();
+  };
+
+  const handleNativeShare = async () => {
+    const payload = {
+      title: MCONF_TITLE,
+      text: MCONF_SHARE_TEXT,
+      url: shareUrl,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(payload);
+      } catch {
+        return;
+      }
+    } else {
+      await navigator.clipboard.writeText(`${MCONF_SHARE_TEXT}\n\n${shareUrl}`);
+    }
+  };
 
   return (
     <section className="py-0 relative overflow-hidden" style={{ background: "linear-gradient(180deg,#0d020f 0%,#2a0a35 50%,#0d020f 100%)" }}>
@@ -2428,7 +2472,7 @@ function MinisterConferenceSection() {
               <Flame className="h-3.5 w-3.5" /> Jesus Christ Temple Ministry Presents
             </span>
             <h2 className="font-serif font-black text-4xl md:text-6xl text-white mb-3 leading-tight">
-              Minister{" "}
+              Ministers{" "}
               <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>Conference</span>{" "}
               <span className="text-purple-300">2026</span>
             </h2>
@@ -2441,54 +2485,47 @@ function MinisterConferenceSection() {
             {/* Left — styled conference invite card */}
             <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
               <div className="relative rounded-3xl overflow-hidden border-2 shadow-2xl shadow-purple-500/20 h-full flex flex-col"
-                style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)", minHeight: "420px" }}>
+                style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)" }}>
 
                 {/* Top accent bar */}
                 <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
 
-                {/* Inner content — conference invite feel */}
-                <div className="flex flex-col items-center justify-center flex-1 px-8 py-10 text-center gap-5">
+                <div className="relative bg-black/30">
+                  <img
+                    src={ministerConferenceFlyer}
+                    alt="Ministers Conference 2026 official flyer"
+                    className="w-full h-auto object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
 
-                  {/* Ministry seal */}
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center border-2 shadow-lg shadow-purple-500/30"
-                    style={{ background: "linear-gradient(135deg,#4c1d70,#7c3aed)", borderColor: "rgba(168,85,247,0.5)" }}>
-                    <span className="text-3xl">✝</span>
-                  </div>
-
-                  <div>
-                    <p className="text-purple-300/70 text-[10px] uppercase tracking-[0.2em] font-bold mb-2">Jesus Christ Temple Ministry</p>
-                    <h3 className="text-white font-serif font-black text-3xl leading-tight mb-1">Minister<br />Conference 2026</h3>
-                    <div className="w-16 h-0.5 mx-auto my-3" style={{ background: "linear-gradient(90deg,transparent,#a855f7,transparent)" }} />
-                    <p className="text-purple-200/60 text-sm font-serif italic">&ldquo;An Apostolic Gathering of Ministers &amp; Kingdom Builders&rdquo;</p>
-                  </div>
-
-                  {/* Key info pills */}
-                  <div className="flex flex-col gap-2.5 w-full max-w-xs">
-                    {[
-                      { icon: Calendar, text: "May 8 – 10, 2026" },
-                      { icon: Clock, text: "8:00 AM Daily (WAT)" },
-                      { icon: MapPin, text: "Ebrumede Temple, JCTM HQ" },
-                    ].map(({ icon: Icon, text }) => (
-                      <div key={text} className="flex items-center gap-3 rounded-xl px-4 py-2.5"
-                        style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)" }}>
-                        <Icon className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                        <span className="text-white/75 text-sm font-medium">{text}</span>
-                      </div>
+                <div className="px-5 py-5 text-center space-y-4">
+                  <p className="text-purple-200/80 text-sm font-medium">
+                    Download the official flyer, then share it across WhatsApp, Facebook, Instagram, X, Telegram, LinkedIn, and your groups.
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <button
+                      onClick={handleDownloadFlyer}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+                      style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download Flyer
+                    </button>
+                    <button
+                      onClick={handleNativeShare}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+                      style={{ background: "linear-gradient(135deg,#d4a017,#facc15)", color: "#13051c" }}
+                    >
+                      <Share2 className="h-3.5 w-3.5" /> Share Flyer
+                    </button>
+                    {sharePlatforms.map(p => (
+                      <a key={p.label} href={p.href} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-3 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
+                        style={{ background: p.bg }}>
+                        <span>{p.emoji}</span> {p.label}
+                      </a>
                     ))}
-                  </div>
-
-                  {/* Share */}
-                  <div className="w-full">
-                    <p className="text-purple-400/60 text-[10px] font-bold uppercase tracking-widest mb-3">Share the Conference</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {sharePlatforms.map(p => (
-                        <a key={p.label} href={p.href} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                          style={{ background: p.bg }}>
-                          <span>{p.emoji}</span> {p.label}
-                        </a>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -2524,7 +2561,7 @@ function MinisterConferenceSection() {
                 {[
                   { icon: Calendar, text: "Friday 8th May — Sunday 10th May, 2026" },
                   { icon: Clock, text: "8:00 AM Daily (West Africa Time)" },
-                  { icon: MapPin, text: "Ebrumede Temple, JCTM Headquarters, Warri, Delta State" },
+                  { icon: MapPin, text: MCONF_LOCATION },
                   { icon: Globe, text: "Watch on Temple TV · jctm.org.ng" },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-start gap-3 text-sm text-white/80">
@@ -2554,7 +2591,7 @@ function MinisterConferenceSection() {
                   <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide"
                     style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}>
-                    ✋ View Event Details
+                    ✋ View Conference Details
                   </motion.button>
                 </Link>
                 <a href={`https://youtu.be/${MCONF_YT}`} target="_blank" rel="noopener noreferrer" className="flex-1">
