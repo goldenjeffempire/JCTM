@@ -39,6 +39,17 @@ export type SSEEvent = {
   type: "rebroadcast_ended";
   data: { expiredAt: string };
 } | {
+  type: "gallery_updated";
+  data: {
+    action: "created" | "updated" | "deleted" | "thumbnail_ready";
+    imageId?: number;
+    objectPath?: string | null;
+    thumbnailPath?: string | null;
+    isPublished?: boolean;
+    isFeatured?: boolean;
+    changedAt: string;
+  };
+} | {
   type: "ping";
   data: Record<string, never>;
 };

@@ -19,6 +19,8 @@ import {
   getGalleryAdminTokenFromRequest,
 } from "../lib/adminAuth.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
+import { sseBroadcaster } from "../lib/sse-broadcaster.js";
+import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -39,17 +41,42 @@ function serializeImage(img: typeof galleryImagesTable.$inferSelect) {
   };
 }
 
+function broadcastGalleryUpdate(
+  action: "created" | "updated" | "deleted" | "thumbnail_ready",
+  image?: Partial<typeof galleryImagesTable.$inferSelect>,
+) {
+  sseBroadcaster.broadcast({
+    type: "gallery_updated",
+    data: {
+      action,
+      imageId: image?.id,
+      objectPath: image?.objectPath ?? null,
+      thumbnailPath: image?.thumbnailPath ?? null,
+      isPublished: image?.isPublished,
+      isFeatured: image?.isFeatured,
+      changedAt: new Date().toISOString(),
+    },
+  });
+}
+
+router.get("/gallery/stream", (req, res): void => {
+  const clientId = randomUUID();
+  req.log.info({ clientId, total: sseBroadcaster.size() + 1 }, "Gallery SSE client connected");
+  sseBroadcaster.add(clientId, res);
+
+  req.on("close", () => {
+    req.log.info({ clientId }, "Gallery SSE client disconnected");
+  });
+});
+
 router.get("/gallery/featured", async (_req, res): Promise<void> => {
   const images = await db
     .select()
     .from(galleryImagesTable)
-    .where(and(
-      eq(galleryImagesTable.isPublished, true),
-      eq(galleryImagesTable.isFeatured, true),
-    ))
-    .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
+    .where(eq(galleryImagesTable.isPublished, true))
+    .orderBy(desc(galleryImagesTable.isFeatured), desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
 
-  res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
+  res.setHeader("Cache-Control", "no-store");
   res.json(ListFeaturedGalleryImagesResponse.parse(images.map(serializeImage)));
 });
 
@@ -147,12 +174,13 @@ router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => 
       serviceDate: parsed.data.serviceDate ?? null,
       altText: parsed.data.altText ?? null,
       isPublished: parsed.data.isPublished ?? true,
-      isFeatured: parsed.data.isFeatured ?? false,
+      isFeatured: parsed.data.isFeatured ?? true,
       sortOrder: parsed.data.sortOrder ?? 0,
     })
     .returning();
 
   res.status(201).json(serializeImage(image));
+  broadcastGalleryUpdate("created", image);
 
   // Fire-and-forget: generate a WebP thumbnail in the background.
   // Capture the logger reference before the async block so it remains valid
@@ -167,6 +195,7 @@ router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => 
         .update(galleryImagesTable)
         .set({ thumbnailPath })
         .where(eq(galleryImagesTable.id, imageId));
+      broadcastGalleryUpdate("thumbnail_ready", { ...image, thumbnailPath });
     } catch (err) {
       log.warn({ err, imageId }, "Thumbnail generation failed — original image will be used");
     }
@@ -209,6 +238,7 @@ router.patch("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void
   }
 
   res.json(serializeImage(image));
+  broadcastGalleryUpdate("updated", image);
 });
 
 router.post("/gallery/:id/regenerate-thumbnail", requireGalleryAdmin, async (req, res): Promise<void> => {
@@ -236,6 +266,7 @@ router.post("/gallery/:id/regenerate-thumbnail", requireGalleryAdmin, async (req
       .where(eq(galleryImagesTable.id, existing.id))
       .returning();
     res.json(serializeImage(updated));
+    broadcastGalleryUpdate("thumbnail_ready", updated);
   } catch (err) {
     req.log.error({ err, imageId: existing.id }, "Thumbnail regeneration failed");
     res.status(500).json({ error: "Failed to generate thumbnail. The original image may not be in storage yet." });
@@ -265,6 +296,7 @@ router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<voi
     .where(eq(galleryImagesTable.id, parsed.data.id));
 
   res.json({ success: true });
+  broadcastGalleryUpdate("deleted", existing);
 
   // Clean up GCS objects in the background after responding
   const log = req.log;

@@ -421,6 +421,8 @@ export function MinistrySlideshow() {
         preloadedRef.current = true;
         injectPreload(s[0]);
       }
+    } else {
+      setImgIdx(0);
     }
   }, []);
 
@@ -438,9 +440,16 @@ export function MinistrySlideshow() {
     const handleVisibility = () => { if (!document.hidden) fetchFeatured(false); };
     document.addEventListener("visibilitychange", handleVisibility);
 
+    const eventSource = new EventSource(`${BASE_URL}/api/gallery/stream`);
+    eventSource.addEventListener("gallery_updated", () => {
+      fetchFeatured(false);
+    });
+    eventSource.onerror = () => {};
+
     return () => {
       clearInterval(syncTimer);
       document.removeEventListener("visibilitychange", handleVisibility);
+      eventSource.close();
     };
   }, [fetchFeatured]);
 

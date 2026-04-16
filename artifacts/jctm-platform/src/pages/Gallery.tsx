@@ -247,7 +247,7 @@ function GalleryCard({
           <button
             onClick={(e) => { e.stopPropagation(); onToggleFeatured(image.id, image.isFeatured); }}
             className={`p-1.5 rounded-full text-white transition-colors ${image.isFeatured ? "bg-amber-500/90 hover:bg-amber-500" : "bg-black/50 hover:bg-amber-500/80"}`}
-            title={image.isFeatured ? "Remove from slideshow" : "Feature in slideshow"}
+            title={image.isFeatured ? "Remove homepage highlight" : "Highlight in homepage slideshow"}
           >
             <Star className={`h-3.5 w-3.5 ${image.isFeatured ? "fill-white" : ""}`} />
           </button>
@@ -698,7 +698,7 @@ function UploadPanel({
               serviceDate: serviceDate || null,
               altText: title.trim() || null,
               isPublished: true,
-              isFeatured: false,
+              isFeatured: true,
               sortOrder: 0,
             },
           })
@@ -890,7 +890,7 @@ export default function Gallery() {
   const handleToggleFeatured = async (id: number, current: boolean) => {
     try {
       await updateImage({ id, data: { isFeatured: !current } });
-      toast.success(current ? "Removed from homepage slideshow." : "Added to homepage slideshow.");
+      toast.success(current ? "Removed homepage highlight. This photo will still remain in the slideshow." : "Highlighted in homepage slideshow.");
       refetch();
     } catch (error) {
       if (error instanceof Error && error.message.includes("401")) galleryAuth.logout();
