@@ -804,6 +804,21 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
             >
               <a href={registerUrl}>✋ Register to Attend</a>
             </Button>
+            {isMinisterConference && (
+              <button
+                onClick={() => {
+                  const link = document.createElement("a");
+                  link.href = ministerConferenceFlyer;
+                  link.download = "minister-conference-2026-flyer.jpeg";
+                  link.click();
+                  toast.success("Flyer downloaded! Share it with friends and family.");
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm border border-sky-300 text-sky-600 hover:bg-sky-50 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Download Flyer
+              </button>
+            )}
             <AddToCalendar event={event} />
           </div>
         )}
