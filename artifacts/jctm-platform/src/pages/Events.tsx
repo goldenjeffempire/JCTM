@@ -886,7 +886,8 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
 }
 
 const YOUTUBE_LIVE_ID = "UCPFFvkE-KGpR37qJgvYriJg";
-const FEATURED_VIDEO_ID = "oJUkSAZu0y0";
+const CRUSADE_VIDEO_ID = "oJUkSAZu0y0";
+const MINISTER_CONF_VIDEO_ID = "hQFA1Y9NAcY";
 
 export default function Events() {
   const [showLive, setShowLive] = useState(false);
@@ -942,21 +943,66 @@ export default function Events() {
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
         </motion.div>
 
-        {/* Featured Video */}
+        {/* Promo Videos */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">
-          <h2 className="text-xl font-serif font-bold text-primary mb-4 flex items-center gap-2">
-            <Youtube className="h-5 w-5 text-red-600" /> Featured Video
+          <h2 className="text-xl font-serif font-bold text-primary mb-5 flex items-center gap-2">
+            <Youtube className="h-5 w-5 text-red-600" /> Event Promo Videos
           </h2>
-          <div className="rounded-2xl overflow-hidden border border-border shadow-lg">
-            <div className="aspect-video">
-              <iframe
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${FEATURED_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${FEATURED_VIDEO_ID}&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
-                title="Featured Video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Warri Crusade 2026 */}
+            <div className="rounded-2xl overflow-hidden border border-border shadow-lg flex flex-col">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-muted/30">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white" style={{ background: "#D4A017" }}>
+                  🔥 Crusade
+                </span>
+                <span className="text-sm font-semibold text-primary truncate">Warri City Crusade 2026</span>
+                <a
+                  href={`https://www.youtube.com/watch?v=${CRUSADE_VIDEO_ID}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto shrink-0 flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold"
+                >
+                  <Youtube className="h-3.5 w-3.5" /> YouTube
+                </a>
+              </div>
+              <div className="aspect-video">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${CRUSADE_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_VIDEO_ID}&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
+                  title="Warri City Crusade 2026 — Official Promo Video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
+            </div>
+
+            {/* Ministers Conference 2026 */}
+            <div className="rounded-2xl overflow-hidden border border-border shadow-lg flex flex-col">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-muted/30">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white" style={{ background: "#7c3aed" }}>
+                  🙏 Conference
+                </span>
+                <span className="text-sm font-semibold text-primary truncate">Ministers Conference 2026</span>
+                <a
+                  href={`https://www.youtube.com/watch?v=${MINISTER_CONF_VIDEO_ID}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto shrink-0 flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold"
+                >
+                  <Youtube className="h-3.5 w-3.5" /> YouTube
+                </a>
+              </div>
+              <div className="aspect-video">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${MINISTER_CONF_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${MINISTER_CONF_VIDEO_ID}&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
+                  title="Ministers Conference 2026 — Official Promo Video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
             </div>
           </div>
         </motion.div>
