@@ -31,6 +31,19 @@ let devotionNotificationSentDate: string | null = null; // ISO date string (YYYY
 
 // ─── State exports (for health endpoint) ──────────────────────────────────────
 
+export function isQuotaPaused(): boolean {
+  return quotaPausedUntil !== null && Date.now() < quotaPausedUntil;
+}
+
+export function getQuotaResetTime(): Date | null {
+  if (quotaPausedUntil === null || Date.now() >= quotaPausedUntil) return null;
+  return new Date(quotaPausedUntil);
+}
+
+export function setQuotaPaused(until: number): void {
+  quotaPausedUntil = until;
+}
+
 export function getCronState() {
   return {
     quotaPausedUntil: quotaPausedUntil ? new Date(quotaPausedUntil).toISOString() : null,

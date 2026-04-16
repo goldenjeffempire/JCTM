@@ -443,7 +443,7 @@ export async function enrichVideoIds(
  */
 export async function subscribeToWebSub(callbackUrl: string, log?: Logger): Promise<void> {
   const HUB = "https://pubsubhubbub.appspot.com/subscribe";
-  const TOPIC = `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+  const TOPIC = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
 
   const body = new URLSearchParams({
     "hub.callback": callbackUrl,

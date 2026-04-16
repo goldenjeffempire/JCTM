@@ -10,7 +10,9 @@ import {
   GetSermonStatsResponse,
   SyncSermonsResponse,
 } from "@workspace/api-zod";
-import { syncIncremental, harvestAll, iso8601ToSeconds } from "../lib/youtube-sync.js";
+import { syncIncremental, harvestAll, iso8601ToSeconds, QuotaExceededError } from "../lib/youtube-sync.js";
+import { syncFromRSS } from "../lib/rss-sync.js";
+import { isQuotaPaused, getQuotaResetTime, setQuotaPaused } from "../lib/cron.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -454,20 +456,52 @@ router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> =>
 // ──────────────────────────────────────────────────────
 router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<void> => {
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+  const isHarvest = req.query.harvest === "true";
 
+  // ── Helper: run RSS fallback sync ──────────────────────────────────────────
+  async function runRSSFallback(reason: string): Promise<void> {
+    req.log.info({ reason }, "Manual sync falling back to RSS feed");
+    try {
+      const rssResult = await syncFromRSS(req.log);
+      if (rssResult.total > 0) {
+        sseBroadcaster.broadcast({ type: "sync_complete", data: { synced: rssResult.inserted, source: "rss" } });
+      }
+      const resetTime = getQuotaResetTime();
+      const resetMsg = resetTime
+        ? ` YouTube API quota resets at ${resetTime.toUTCString()}.`
+        : "";
+      res.status(503).json({
+        error: reason,
+        fallback: "rss",
+        rssResult: { inserted: rssResult.inserted, updated: rssResult.updated, total: rssResult.total },
+        message: `YouTube API unavailable — RSS fallback ran instead (${rssResult.total} videos checked, ${rssResult.inserted} new).${resetMsg}`,
+      });
+    } catch (rssErr) {
+      req.log.error({ rssErr }, "RSS fallback also failed");
+      res.status(503).json({ error: reason, message: "Both YouTube API and RSS fallback failed." });
+    }
+  }
+
+  // ── No API key: run RSS only ───────────────────────────────────────────────
   if (!YOUTUBE_API_KEY) {
-    res.status(503).json({ error: "YouTube API key not configured. Set YOUTUBE_API_KEY environment variable." });
+    await runRSSFallback("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.");
     return;
   }
 
-  const isHarvest = req.query.harvest === "true";
+  // ── Quota paused: run RSS fallback immediately without hitting the API ─────
+  if (isQuotaPaused()) {
+    const resetTime = getQuotaResetTime();
+    const resetMsg = resetTime ? ` Quota resets at ${resetTime.toUTCString()}.` : "";
+    await runRSSFallback(`YouTube API quota exceeded.${resetMsg}`);
+    return;
+  }
 
+  // ── Normal API sync ────────────────────────────────────────────────────────
   try {
     const result = isHarvest
       ? await harvestAll(YOUTUBE_API_KEY, req.log)
       : await syncIncremental(YOUTUBE_API_KEY, req.log);
 
-    // Broadcast sync complete event to any connected SSE clients
     sseBroadcaster.broadcast({
       type: "sync_complete",
       data: { synced: result.synced, featured: result.featured },
@@ -475,8 +509,21 @@ router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<vo
 
     res.json(SyncSermonsResponse.parse({ synced: result.synced, message: result.message }));
   } catch (err) {
-    req.log.error({ err }, "YouTube sync failed");
-    res.status(500).json({ error: "Failed to sync sermons from YouTube" });
+    if (err instanceof QuotaExceededError) {
+      // Quota just got exhausted — record it in the shared cron state so the
+      // automatic 30-min sync also respects the pause, then fall back to RSS.
+      const nowMs = Date.now();
+      const now = new Date();
+      const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      const pauseMs = midnight.getTime() - nowMs;
+      setQuotaPaused(nowMs + pauseMs);
+      req.log.warn({ resumesInHours: Math.round(pauseMs / 3600000) }, "Manual sync hit YouTube quota — pausing until UTC midnight");
+      await runRSSFallback(`YouTube API quota exceeded. Quota resets at ${midnight.toUTCString()}.`);
+    } else {
+      req.log.error({ err }, "YouTube sync failed");
+      const message = err instanceof Error ? err.message : "Unknown error";
+      res.status(500).json({ error: "Failed to sync sermons from YouTube", details: message });
+    }
   }
 });
 
