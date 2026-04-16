@@ -31,13 +31,25 @@ You write in the spirit of the Correction Mandate — sound doctrine, holiness, 
 Prophet Amos Evomobor leads this ministry. He carries a strong prophetic anointing rooted in the Word.
 
 Guidelines:
-- Draw from KJV/NKJV scriptures — explore the FULL breadth of scripture: Old Testament (Torah, Prophets, Psalms, Wisdom books), Epistles, Gospels, Revelation
+- Draw from KJV/NKJV scriptures — explore the FULL breadth of scripture across ALL 66 books of the Bible without repetition:
+  * Old Testament: Genesis, Exodus, Leviticus, Numbers, Deuteronomy (Torah)
+  * Historical: Joshua, Judges, Ruth, 1-2 Samuel, 1-2 Kings, 1-2 Chronicles, Ezra, Nehemiah, Esther
+  * Wisdom/Poetry: Job, Psalms, Proverbs, Ecclesiastes, Song of Solomon
+  * Major Prophets: Isaiah, Jeremiah, Lamentations, Ezekiel, Daniel
+  * Minor Prophets: Hosea, Joel, Amos, Obadiah, Jonah, Micah, Nahum, Habakkuk, Zephaniah, Haggai, Zechariah, Malachi
+  * Gospels: Matthew, Mark, Luke, John
+  * Acts of the Apostles
+  * Pauline Epistles: Romans, 1-2 Corinthians, Galatians, Ephesians, Philippians, Colossians, 1-2 Thessalonians, 1-2 Timothy, Titus, Philemon
+  * General Epistles: Hebrews, James, 1-2 Peter, 1-2-3 John, Jude
+  * Revelation
+- Approach each devotion from a COMPLETELY DIFFERENT theological angle, life application, or doctrinal truth than all previous ones
 - Focus on practical holiness, faith, and doctrinal truth
 - Avoid prosperity gospel themes
 - Write with warmth, depth, and pastoral care
 - Connect the devotion to everyday Nigerian and global Christian life
-- Each devotion must feel entirely fresh and distinct — unique title, unique scripture, unique angle
+- Each devotion must feel entirely fresh and distinct — unique title, unique scripture, unique angle, unique application
 - The propheticWord should feel like a direct word from the Lord for today — bold, specific, and scriptural. It is a short prophetic utterance (2-4 sentences), written in first person as if God is speaking ("I say to you…", "This is the hour…", "Do not fear…"). It should align with the devotion's theme.
+- You have a mandate to produce UNIQUE content every single day for at least 3 years (over 1,000 days) — never repeat a scripture reference, theme angle, or title concept
 
 Return ONLY a valid JSON object with NO markdown wrapper, NO code blocks, and NO extra text. Return the raw JSON object only.
 The JSON must have exactly these fields:
@@ -306,24 +318,53 @@ export async function ensureDevotionForDate(
     };
   }
 
-  // 2. Build uniqueness context from last 90 days
-  const recentRows = await db
-    .select({ reference: devotionsTable.reference, title: devotionsTable.title })
+  // 2. Build uniqueness context from ALL historical devotions (guarantees 3+ years non-repetition)
+  const allRows = await db
+    .select({ reference: devotionsTable.reference, title: devotionsTable.title, date: devotionsTable.date })
     .from(devotionsTable)
     .orderBy(desc(devotionsTable.date))
-    .limit(90);
+    .limit(1200); // covers 3+ years of daily devotions
 
-  const usedReferences = recentRows.map((r) => r.reference);
-  const usedTitles = recentRows.map((r) => r.title);
+  const usedReferences = allRows.map((r) => r.reference);
+  const usedTitles = allRows.map((r) => r.title);
+
+  // Extract unique Bible books that have been used to guide canon section rotation
+  const usedBooks: string[] = [
+    ...new Set(
+      (usedReferences as string[]).map((ref: string) => ref.split(/\s+\d/)[0]?.trim() ?? ref)
+    ),
+  ];
+
+  // Determine which canon sections are under-represented for rotation guidance
+  const canonSections: Record<string, string[]> = {
+    "OT Torah (Genesis–Deuteronomy)": ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"],
+    "OT Historical (Joshua–Esther)": ["Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther"],
+    "OT Wisdom/Poetry (Job–Song of Solomon)": ["Job", "Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon"],
+    "OT Major Prophets (Isaiah–Daniel)": ["Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel"],
+    "OT Minor Prophets (Hosea–Malachi)": ["Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi"],
+    "NT Gospels (Matthew–John)": ["Matthew", "Mark", "Luke", "John"],
+    "NT Acts": ["Acts"],
+    "NT Pauline Epistles (Romans–Philemon)": ["Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon"],
+    "NT General Epistles (Hebrews–Jude)": ["Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude"],
+    "NT Revelation": ["Revelation"],
+  };
+
+  const underUsedSections = Object.entries(canonSections)
+    .filter(([, books]) => books.every((b: string) => !usedBooks.some((ub: string) => ub.includes(b))))
+    .map(([section]) => section);
+
+  const recentBooks = usedBooks.slice(0, 14); // last ~2 weeks of books for immediate avoidance
 
   const avoidClause =
     usedReferences.length > 0
-      ? `\n\nCRITICAL UNIQUENESS RULES — you MUST follow these:\n` +
-        `1. Do NOT use any of these recently used scripture references (past ${usedReferences.length} days): ${usedReferences.join(", ")}.\n` +
-        `2. Do NOT use titles similar to any of these recent titles: ${usedTitles.slice(0, 20).join(" | ")}.\n` +
-        `3. Choose scripture from a DIFFERENT book, testament, or genre than recently used.\n` +
-        `4. The theme, angle, and insight must be completely fresh and unlike any of the above.`
-      : "";
+      ? `\n\nCRITICAL UNIQUENESS MANDATE — this system generates unique devotions every day for 3+ years:\n` +
+        `1. NEVER use any of these ${usedReferences.length} already-used scripture references: ${usedReferences.join(", ")}.\n` +
+        `2. NEVER use titles similar to these: ${usedTitles.slice(0, 30).join(" | ")}.\n` +
+        `3. AVOID scripture from these recently used books (past 2 weeks): ${recentBooks.join(", ")}.\n` +
+        `4. PREFER scripture from these under-represented canon sections: ${underUsedSections.length > 0 ? underUsedSections.join(", ") : "any section not recently used"}.\n` +
+        `5. The core theme, theological angle, life application, and insight must be entirely new.\n` +
+        `6. Remember: over 1,000 days of unique content is required — think creatively across all 66 books.`
+      : "\n\nThis is the FIRST devotion in the series. Begin with a foundational, powerful scripture that sets the tone for years of fresh content to come.";
 
   // 3. Generate via OpenAI
   const date = new Date(dateStr + "T00:00:00Z");

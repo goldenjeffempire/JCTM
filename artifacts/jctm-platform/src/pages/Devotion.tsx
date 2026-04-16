@@ -44,6 +44,178 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max - 1).trimEnd() + "…";
 }
 
+// Daily rotating card themes — 7 designs, one per day of week
+const CARD_THEMES = [
+  // 0 Sunday — Royal Gold (worship)
+  {
+    bg: "linear-gradient(155deg, #0a0710 0%, #130d1f 35%, #0d0a15 70%, #070509 100%)",
+    accentPrimary: "#f59e0b",
+    accentSecondary: "#fde68a",
+    accentMuted: "rgba(251,191,36,0.12)",
+    accentBorder: "rgba(251,191,36,0.22)",
+    glow1: "radial-gradient(ellipse, rgba(245,158,11,0.18) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(180,83,9,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #d97706 20%, #fde68a 50%, #d97706 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(245,158,11,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(251,191,36,0.08)",
+    scriptureCardBorder: "rgba(251,191,36,0.2)",
+    scriptureLeft: "#d97706",
+    propheticBg: "rgba(124,58,237,0.08)",
+    propheticBorder: "rgba(124,58,237,0.2)",
+    propheticColor: "#c4b5fd",
+    propheticLabel: "#a78bfa",
+    declarationBg: "rgba(16,185,129,0.07)",
+    declarationBorder: "rgba(16,185,129,0.18)",
+    declarationColor: "#6ee7b7",
+    declarationLabel: "#34d399",
+    label: "✦ Sunday Word",
+  },
+  // 1 Monday — Deep Navy / Sapphire (new beginnings)
+  {
+    bg: "linear-gradient(155deg, #040d1a 0%, #071428 35%, #050f20 70%, #030810 100%)",
+    accentPrimary: "#60a5fa",
+    accentSecondary: "#bfdbfe",
+    accentMuted: "rgba(96,165,250,0.1)",
+    accentBorder: "rgba(96,165,250,0.2)",
+    glow1: "radial-gradient(ellipse, rgba(59,130,246,0.16) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(29,78,216,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #2563eb 20%, #93c5fd 50%, #2563eb 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(96,165,250,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(96,165,250,0.08)",
+    scriptureCardBorder: "rgba(96,165,250,0.2)",
+    scriptureLeft: "#3b82f6",
+    propheticBg: "rgba(245,158,11,0.07)",
+    propheticBorder: "rgba(245,158,11,0.18)",
+    propheticColor: "#fde68a",
+    propheticLabel: "#fbbf24",
+    declarationBg: "rgba(16,185,129,0.07)",
+    declarationBorder: "rgba(16,185,129,0.18)",
+    declarationColor: "#6ee7b7",
+    declarationLabel: "#34d399",
+    label: "✦ Monday Word",
+  },
+  // 2 Tuesday — Emerald / Forest (renewal)
+  {
+    bg: "linear-gradient(155deg, #030f0a 0%, #051a0f 35%, #041209 70%, #020a05 100%)",
+    accentPrimary: "#34d399",
+    accentSecondary: "#a7f3d0",
+    accentMuted: "rgba(52,211,153,0.1)",
+    accentBorder: "rgba(52,211,153,0.2)",
+    glow1: "radial-gradient(ellipse, rgba(16,185,129,0.16) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(5,150,105,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #059669 20%, #6ee7b7 50%, #059669 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(52,211,153,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(52,211,153,0.07)",
+    scriptureCardBorder: "rgba(52,211,153,0.2)",
+    scriptureLeft: "#10b981",
+    propheticBg: "rgba(245,158,11,0.07)",
+    propheticBorder: "rgba(245,158,11,0.18)",
+    propheticColor: "#fde68a",
+    propheticLabel: "#fbbf24",
+    declarationBg: "rgba(96,165,250,0.07)",
+    declarationBorder: "rgba(96,165,250,0.18)",
+    declarationColor: "#93c5fd",
+    declarationLabel: "#60a5fa",
+    label: "✦ Tuesday Word",
+  },
+  // 3 Wednesday — Deep Crimson / Rose (grace & sacrifice)
+  {
+    bg: "linear-gradient(155deg, #120408 0%, #1e0610 35%, #160408 70%, #0d0206 100%)",
+    accentPrimary: "#fb7185",
+    accentSecondary: "#fecdd3",
+    accentMuted: "rgba(251,113,133,0.1)",
+    accentBorder: "rgba(251,113,133,0.2)",
+    glow1: "radial-gradient(ellipse, rgba(244,63,94,0.16) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(159,18,57,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #be123c 20%, #fda4af 50%, #be123c 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(251,113,133,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(251,113,133,0.07)",
+    scriptureCardBorder: "rgba(251,113,133,0.2)",
+    scriptureLeft: "#f43f5e",
+    propheticBg: "rgba(245,158,11,0.07)",
+    propheticBorder: "rgba(245,158,11,0.18)",
+    propheticColor: "#fde68a",
+    propheticLabel: "#fbbf24",
+    declarationBg: "rgba(124,58,237,0.07)",
+    declarationBorder: "rgba(124,58,237,0.18)",
+    declarationColor: "#c4b5fd",
+    declarationLabel: "#a78bfa",
+    label: "✦ Wednesday Word",
+  },
+  // 4 Thursday — Deep Amber / Harvest (provision)
+  {
+    bg: "linear-gradient(155deg, #0e0900 0%, #1a1000 35%, #120c00 70%, #0a0700 100%)",
+    accentPrimary: "#fb923c",
+    accentSecondary: "#fed7aa",
+    accentMuted: "rgba(251,146,60,0.1)",
+    accentBorder: "rgba(251,146,60,0.2)",
+    glow1: "radial-gradient(ellipse, rgba(234,88,12,0.18) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(154,52,18,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #c2410c 20%, #fdba74 50%, #c2410c 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(251,146,60,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(251,146,60,0.08)",
+    scriptureCardBorder: "rgba(251,146,60,0.2)",
+    scriptureLeft: "#ea580c",
+    propheticBg: "rgba(245,158,11,0.07)",
+    propheticBorder: "rgba(245,158,11,0.18)",
+    propheticColor: "#fde68a",
+    propheticLabel: "#fbbf24",
+    declarationBg: "rgba(16,185,129,0.07)",
+    declarationBorder: "rgba(16,185,129,0.18)",
+    declarationColor: "#6ee7b7",
+    declarationLabel: "#34d399",
+    label: "✦ Thursday Word",
+  },
+  // 5 Friday — Indigo / Cyan (clarity & prayer)
+  {
+    bg: "linear-gradient(155deg, #04080f 0%, #060c16 35%, #050912 70%, #030609 100%)",
+    accentPrimary: "#22d3ee",
+    accentSecondary: "#a5f3fc",
+    accentMuted: "rgba(34,211,238,0.1)",
+    accentBorder: "rgba(34,211,238,0.2)",
+    glow1: "radial-gradient(ellipse, rgba(6,182,212,0.16) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(8,145,178,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #0891b2 20%, #67e8f9 50%, #0891b2 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(34,211,238,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(34,211,238,0.07)",
+    scriptureCardBorder: "rgba(34,211,238,0.2)",
+    scriptureLeft: "#06b6d4",
+    propheticBg: "rgba(124,58,237,0.08)",
+    propheticBorder: "rgba(124,58,237,0.2)",
+    propheticColor: "#c4b5fd",
+    propheticLabel: "#a78bfa",
+    declarationBg: "rgba(245,158,11,0.07)",
+    declarationBorder: "rgba(245,158,11,0.18)",
+    declarationColor: "#fde68a",
+    declarationLabel: "#fbbf24",
+    label: "✦ Friday Word",
+  },
+  // 6 Saturday — Deep Violet / Sacred (consecration)
+  {
+    bg: "linear-gradient(155deg, #080512 0%, #0e0820 35%, #0a0618 70%, #060410 100%)",
+    accentPrimary: "#a78bfa",
+    accentSecondary: "#ddd6fe",
+    accentMuted: "rgba(167,139,250,0.1)",
+    accentBorder: "rgba(167,139,250,0.2)",
+    glow1: "radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 65%)",
+    glow2: "radial-gradient(ellipse, rgba(91,33,182,0.12) 0%, transparent 65%)",
+    topBar: "linear-gradient(90deg, transparent, #7c3aed 20%, #c4b5fd 50%, #7c3aed 80%, transparent)",
+    bottomBar: "linear-gradient(90deg, transparent, rgba(167,139,250,0.4) 50%, transparent)",
+    scriptureCardBg: "rgba(167,139,250,0.08)",
+    scriptureCardBorder: "rgba(167,139,250,0.2)",
+    scriptureLeft: "#8b5cf6",
+    propheticBg: "rgba(245,158,11,0.07)",
+    propheticBorder: "rgba(245,158,11,0.18)",
+    propheticColor: "#fde68a",
+    propheticLabel: "#fbbf24",
+    declarationBg: "rgba(16,185,129,0.07)",
+    declarationBorder: "rgba(16,185,129,0.18)",
+    declarationColor: "#6ee7b7",
+    declarationLabel: "#34d399",
+    label: "✦ Saturday Word",
+  },
+];
+
 function DevotionShareCard({
   devotion,
   dateLabel,
@@ -53,8 +225,12 @@ function DevotionShareCard({
   dateLabel: string;
   cardRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const scripture = truncate(devotion.scripture, 200);
-  const declaration = truncate(devotion.declaration, 160);
+  const scripture = truncate(devotion.scripture, 190);
+  const propheticWord = truncate(devotion.propheticWord, 160);
+  const declaration = truncate(devotion.declaration, 150);
+
+  const dayOfWeek = new Date().getDay();
+  const theme = CARD_THEMES[dayOfWeek]!;
 
   return (
     <div
@@ -64,162 +240,254 @@ function DevotionShareCard({
         left: "-9999px",
         top: 0,
         width: "540px",
-        height: "675px",
-        background: "linear-gradient(145deg, #05061a 0%, #0b0d25 45%, #090717 100%)",
+        height: "810px",
+        background: theme.bg,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        fontFamily: "'Georgia', 'Times New Roman', serif",
+        fontFamily: "Georgia, 'Times New Roman', serif",
       }}
     >
-      {/* Background glow orb */}
+      {/* Glow orb top-center */}
       <div style={{
         position: "absolute",
-        top: "-60px",
+        top: "-80px",
         left: "50%",
         transform: "translateX(-50%)",
-        width: "500px",
-        height: "300px",
-        background: "radial-gradient(ellipse, rgba(251,191,36,0.14) 0%, transparent 70%)",
+        width: "520px",
+        height: "340px",
+        background: theme.glow1,
         pointerEvents: "none",
       }} />
+      {/* Glow orb bottom-right */}
       <div style={{
         position: "absolute",
-        bottom: "-40px",
-        right: "-40px",
-        width: "280px",
-        height: "280px",
-        background: "radial-gradient(ellipse, rgba(124,58,237,0.1) 0%, transparent 70%)",
+        bottom: "-60px",
+        right: "-60px",
+        width: "320px",
+        height: "320px",
+        background: theme.glow2,
+        pointerEvents: "none",
+      }} />
+      {/* Subtle grid pattern overlay */}
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        backgroundImage: `linear-gradient(${theme.accentBorder} 1px, transparent 1px), linear-gradient(90deg, ${theme.accentBorder} 1px, transparent 1px)`,
+        backgroundSize: "54px 54px",
+        opacity: 0.15,
         pointerEvents: "none",
       }} />
 
-      {/* Top border accent */}
-      <div style={{
-        height: "3px",
-        background: "linear-gradient(90deg, transparent 0%, #f59e0b 30%, #fde68a 50%, #f59e0b 70%, transparent 100%)",
-        flexShrink: 0,
-      }} />
+      {/* Top accent bar */}
+      <div style={{ height: "3px", background: theme.topBar, flexShrink: 0 }} />
 
-      {/* Content */}
+      {/* ── Content ── */}
       <div style={{
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        padding: "32px 36px",
-        gap: "0",
+        padding: "28px 36px 24px",
       }}>
 
-        {/* Header: brand + date */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Header: brand + day label */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* Logo circle with cross */}
             <div style={{
-              width: "28px", height: "28px",
+              width: "36px", height: "36px",
               borderRadius: "50%",
-              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              background: `linear-gradient(135deg, ${theme.accentPrimary}, ${theme.accentSecondary}22)`,
+              border: `1.5px solid ${theme.accentBorder}`,
               display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
             }}>
-              <span style={{ color: "white", fontSize: "13px", fontWeight: "700", fontFamily: "sans-serif" }}>✦</span>
+              <span style={{ color: "white", fontSize: "16px", fontFamily: "sans-serif", lineHeight: 1 }}>✝</span>
             </div>
             <div>
-              <div style={{ color: "#fbbf24", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", fontFamily: "sans-serif", textTransform: "uppercase" }}>
+              <div style={{
+                color: theme.accentPrimary,
+                fontSize: "11px", fontWeight: "700",
+                letterSpacing: "0.12em",
+                fontFamily: "sans-serif", textTransform: "uppercase",
+              }}>
                 JCTM Daily Devotion
               </div>
-              <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "10px", fontFamily: "sans-serif", marginTop: "1px" }}>
-                Temple TV · jctm.org.ng
+              <div style={{ color: "rgba(255,255,255,0.32)", fontSize: "9.5px", fontFamily: "sans-serif", marginTop: "2px", letterSpacing: "0.04em" }}>
+                Jesus Christ Temple Ministry · Warri, Nigeria
               </div>
             </div>
           </div>
+          {/* Day badge */}
           <div style={{
-            background: "rgba(251,191,36,0.1)",
-            border: "1px solid rgba(251,191,36,0.2)",
+            background: theme.accentMuted,
+            border: `1px solid ${theme.accentBorder}`,
             borderRadius: "20px",
-            padding: "4px 12px",
-            color: "#fde68a",
-            fontSize: "10px",
+            padding: "5px 13px",
+            color: theme.accentSecondary,
+            fontSize: "9.5px",
             fontFamily: "sans-serif",
+            fontWeight: "600",
+            letterSpacing: "0.06em",
+            whiteSpace: "nowrap",
           }}>
-            {dateLabel}
+            {theme.label}
           </div>
+        </div>
+
+        {/* Date */}
+        <div style={{
+          color: "rgba(255,255,255,0.28)",
+          fontSize: "10px",
+          fontFamily: "sans-serif",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}>
+          {dateLabel}
         </div>
 
         {/* Title */}
         <h2 style={{
           color: "white",
-          fontSize: "24px",
+          fontSize: "26px",
           fontWeight: "700",
-          lineHeight: "1.25",
-          marginBottom: "20px",
-          fontFamily: "'Georgia', 'Times New Roman', serif",
+          lineHeight: "1.22",
+          marginBottom: "0",
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          letterSpacing: "-0.01em",
         }}>
           {devotion.title}
         </h2>
 
-        {/* Gold divider */}
+        {/* Accent divider */}
         <div style={{
-          height: "1px",
-          background: "linear-gradient(90deg, #f59e0b 0%, rgba(245,158,11,0.15) 100%)",
-          marginBottom: "20px",
+          height: "1.5px",
+          background: `linear-gradient(90deg, ${theme.accentPrimary} 0%, ${theme.accentPrimary}22 70%, transparent 100%)`,
+          margin: "16px 0",
           flexShrink: 0,
+          borderRadius: "1px",
         }} />
 
-        {/* Scripture */}
+        {/* Scripture block */}
         <div style={{
-          background: "rgba(251,191,36,0.07)",
-          border: "1px solid rgba(251,191,36,0.18)",
-          borderRadius: "14px",
-          padding: "18px 20px",
-          marginBottom: "18px",
+          background: theme.scriptureCardBg,
+          border: `1px solid ${theme.scriptureCardBorder}`,
+          borderRadius: "16px",
+          padding: "16px 18px",
+          marginBottom: "14px",
           flexShrink: 0,
         }}>
           <div style={{
-            borderLeft: "3px solid rgba(245,158,11,0.6)",
-            paddingLeft: "14px",
+            borderLeft: `3px solid ${theme.scriptureLeft}`,
+            paddingLeft: "13px",
           }}>
+            <div style={{
+              color: theme.accentPrimary,
+              fontSize: "9px",
+              fontWeight: "700",
+              letterSpacing: "0.12em",
+              fontFamily: "sans-serif",
+              textTransform: "uppercase",
+              marginBottom: "7px",
+            }}>
+              📖 Scripture
+            </div>
             <p style={{
-              color: "rgba(254,243,199,0.88)",
-              fontSize: "14px",
+              color: "rgba(255,255,255,0.85)",
+              fontSize: "13.5px",
               lineHeight: "1.65",
               fontStyle: "italic",
-              margin: "0 0 8px 0",
-              fontFamily: "'Georgia', 'Times New Roman', serif",
+              margin: "0 0 9px 0",
+              fontFamily: "Georgia, 'Times New Roman', serif",
             }}>
               "{scripture}"
             </p>
             <p style={{
-              color: "#f59e0b",
-              fontSize: "11px",
+              color: theme.accentPrimary,
+              fontSize: "10.5px",
               fontWeight: "700",
               margin: 0,
               fontFamily: "sans-serif",
-              letterSpacing: "0.04em",
+              letterSpacing: "0.05em",
             }}>
               — {devotion.reference}
             </p>
           </div>
         </div>
 
-        {/* Declaration */}
+        {/* Prophetic Word block */}
         <div style={{
-          background: "rgba(16,185,129,0.07)",
-          border: "1px solid rgba(16,185,129,0.2)",
-          borderRadius: "14px",
-          padding: "16px 20px",
+          background: theme.propheticBg,
+          border: `1px solid ${theme.propheticBorder}`,
+          borderRadius: "16px",
+          padding: "14px 18px",
+          marginBottom: "14px",
+          flexShrink: 0,
+        }}>
+          <div style={{
+            color: theme.propheticLabel,
+            fontSize: "9px",
+            fontWeight: "700",
+            letterSpacing: "0.12em",
+            fontFamily: "sans-serif",
+            textTransform: "uppercase",
+            marginBottom: "7px",
+          }}>
+            ✦ Prophetic Word
+          </div>
+          <p style={{
+            color: theme.propheticColor,
+            fontSize: "12.5px",
+            lineHeight: "1.6",
+            fontStyle: "italic",
+            margin: "0 0 6px 0",
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontWeight: "500",
+          }}>
+            "{propheticWord}"
+          </p>
+          <p style={{
+            color: "rgba(255,255,255,0.22)",
+            fontSize: "9px",
+            margin: 0,
+            fontFamily: "sans-serif",
+            letterSpacing: "0.04em",
+          }}>
+            — Prophet Amos Evomobor, JCTM
+          </p>
+        </div>
+
+        {/* Declaration block */}
+        <div style={{
+          background: theme.declarationBg,
+          border: `1px solid ${theme.declarationBorder}`,
+          borderRadius: "16px",
+          padding: "14px 18px",
           flex: 1,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           minHeight: 0,
         }}>
-          <div style={{ color: "#34d399", fontSize: "10px", fontWeight: "700", letterSpacing: "0.1em", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: "8px" }}>
-            Today's Declaration
+          <div style={{
+            color: theme.declarationLabel,
+            fontSize: "9px",
+            fontWeight: "700",
+            letterSpacing: "0.12em",
+            fontFamily: "sans-serif",
+            textTransform: "uppercase",
+            marginBottom: "7px",
+          }}>
+            📣 Today's Declaration
           </div>
           <p style={{
-            color: "rgba(236,253,245,0.9)",
+            color: "rgba(255,255,255,0.9)",
             fontSize: "13px",
             lineHeight: "1.6",
             fontWeight: "600",
             margin: 0,
-            fontFamily: "'Georgia', 'Times New Roman', serif",
+            fontFamily: "Georgia, 'Times New Roman', serif",
           }}>
             "{declaration}"
           </p>
@@ -232,22 +500,26 @@ function DevotionShareCard({
           justifyContent: "space-between",
           marginTop: "18px",
           flexShrink: 0,
+          paddingTop: "14px",
+          borderTop: `1px solid rgba(255,255,255,0.06)`,
         }}>
-          <div style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px", fontFamily: "sans-serif" }}>
-            Jesus Christ Temple Ministry · Warri, Nigeria
+          <div style={{ color: "rgba(255,255,255,0.2)", fontSize: "9.5px", fontFamily: "sans-serif", letterSpacing: "0.04em" }}>
+            Temple TV · jctm.org.ng
           </div>
-          <div style={{ color: "rgba(251,191,36,0.4)", fontSize: "10px", fontFamily: "sans-serif" }}>
+          <div style={{
+            color: theme.accentPrimary,
+            fontSize: "9.5px",
+            fontFamily: "sans-serif",
+            opacity: 0.55,
+            letterSpacing: "0.04em",
+          }}>
             jctm.org.ng/devotion
           </div>
         </div>
       </div>
 
-      {/* Bottom border accent */}
-      <div style={{
-        height: "2px",
-        background: "linear-gradient(90deg, transparent 0%, rgba(124,58,237,0.5) 50%, transparent 100%)",
-        flexShrink: 0,
-      }} />
+      {/* Bottom accent bar */}
+      <div style={{ height: "3px", background: theme.bottomBar, flexShrink: 0 }} />
     </div>
   );
 }
@@ -312,7 +584,9 @@ export default function Devotion() {
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-        backgroundColor: "#05061a",
+        backgroundColor: "#080512",
+        width: 540,
+        height: 810,
       });
 
       const blob = await (await fetch(dataUrl)).blob();
@@ -655,7 +929,7 @@ export default function Devotion() {
 
               {/* Share hint */}
               <p className="text-center text-white/25 text-xs -mt-1">
-                "Share Card" generates a beautiful image card for social media
+                "Share Card" generates a 1080×1620 branded image — optimised for Instagram, WhatsApp & social media
               </p>
 
               {/* Related links */}
