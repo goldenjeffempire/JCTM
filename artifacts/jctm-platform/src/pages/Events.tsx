@@ -12,7 +12,6 @@ import {
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 
 function toICSDate(date: Date) {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -175,33 +174,6 @@ function CountdownInline({ target }: { target: string }) {
   );
 }
 
-function PurpleCountdown({ target }: { target: string }) {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const end = new Date(target);
-  const now = new Date();
-  if (isPast(end)) return <span className="text-green-300 font-semibold text-sm">In Progress</span>;
-
-  const days = differenceInDays(end, now);
-  const hours = differenceInHours(end, now) % 24;
-  const mins = differenceInMinutes(end, now) % 60;
-  const secs = differenceInSeconds(end, now) % 60;
-
-  return (
-    <div className="flex gap-2 flex-wrap">
-      {[{ v: days, l: "Days" }, { v: hours, l: "Hrs" }, { v: mins, l: "Min" }, { v: secs, l: "Sec" }].map(({ v, l }) => (
-        <div key={l} className="flex flex-col items-center rounded-xl px-3 py-2 min-w-[52px]" style={{ background: "rgba(168,85,247,0.18)", border: "1px solid rgba(168,85,247,0.3)" }}>
-          <span className="text-2xl font-bold text-white font-mono tabular-nums leading-none">{String(v).padStart(2, "0")}</span>
-          <span className="text-[9px] text-purple-300/60 uppercase tracking-wider mt-0.5">{l}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 type EventItem = {
   id: number | string;
@@ -252,26 +224,6 @@ const STATIC_UPCOMING_EVENTS: StaticEvent[] = [
       "Miracle-working power of God",
       "Mass salvation & healing",
       "Free entry for everyone",
-    ],
-  },
-  {
-    id: "ministers-conference-2026",
-    title: "Ministers Conference 2026",
-    subtitle: "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders",
-    description: "Apostolic fire and prophetic impartation|Word-centred ministry from the front lines|Networking with ministers & kingdom builders across the Body of Christ",
-    startDate: "2026-05-08T08:00:00+01:00",
-    endDate: "2026-05-10T20:00:00+01:00",
-    location: "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State",
-    eventType: "Conference",
-    imageUrl: ministerConferenceFlyer,
-    youtubeVideoId: "hQFA1Y9NAcY",
-    registerUrl: "/conference-registration",
-    accentHex: "#a855f7",
-    labelColor: "#ffffff",
-    highlights: [
-      "Apostolic fire & prophetic impartation",
-      "Word-centred ministry from the front lines",
-      "Ministers & kingdom builders networking",
     ],
   },
 ];
@@ -912,109 +864,6 @@ export default function Events() {
           <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry Calendar</span>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
-        </motion.div>
-
-        {/* Ministers Conference 2026 — Featured Hero Banner */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65 }}
-          className="mb-12 rounded-3xl overflow-hidden border-2 shadow-2xl"
-          style={{
-            background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)",
-            borderColor: "rgba(168,85,247,0.45)",
-            boxShadow: "0 20px 60px rgba(88,28,135,0.25)",
-          }}
-        >
-          <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] gap-0">
-            {/* Flyer */}
-            <div className="relative bg-black/30 lg:border-r" style={{ borderColor: "rgba(168,85,247,0.2)" }}>
-              <img
-                src={ministerConferenceFlyer}
-                alt="Ministers Conference 2026 official flyer"
-                className="w-full h-full object-contain object-top"
-                loading="lazy"
-                decoding="async"
-                style={{ maxHeight: 440 }}
-              />
-            </div>
-
-            {/* Details + CTA */}
-            <div className="flex flex-col justify-center p-6 md:p-8 gap-5">
-              <div>
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border mb-4"
-                  style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.12)", color: "#d8b4fe" }}>
-                  <Flame className="h-3 w-3" /> Jesus Christ Temple Ministry Presents
-                </span>
-                <h2 className="font-serif font-black text-3xl md:text-4xl text-white mb-1 leading-tight">
-                  Ministers{" "}
-                  <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>Conference</span>{" "}
-                  <span className="text-purple-300">2026</span>
-                </h2>
-                <p className="text-purple-200/65 font-serif italic text-sm mb-4">
-                  &ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;
-                </p>
-
-                {/* Countdown for Ministers Conference */}
-                <div className="mb-5">
-                  <p className="text-[10px] text-purple-300/60 uppercase tracking-widest font-semibold mb-2">Event Begins In</p>
-                  <PurpleCountdown target="2026-05-08T08:00:00+01:00" />
-                </div>
-
-                <div className="space-y-2.5 mb-5">
-                  {[
-                    { icon: Calendar, text: "Friday 8th May — Sunday 10th May, 2026" },
-                    { icon: Clock, text: "8:00 AM Daily (West Africa Time)" },
-                    { icon: MapPin, text: "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State" },
-                  ].map(({ icon: Icon, text }) => (
-                    <div key={text} className="flex items-start gap-3 text-sm text-white/80">
-                      <Icon className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
-                      <span>{text}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-2 mb-5">
-                  {[
-                    "Apostolic fire and prophetic impartation",
-                    "Word-centred ministry from the front lines",
-                    "Networking with ministers & kingdom builders",
-                  ].map(item => (
-                    <div key={item} className="flex items-center gap-2.5 text-sm text-purple-100/70">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link href="/conference-registration" className="flex-1">
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide"
-                    style={{ background: "linear-gradient(135deg,#d4a017,#facc15)", color: "#13051c", boxShadow: "0 8px 28px rgba(212,160,23,0.35)" }}
-                  >
-                    ✋ Register to Attend
-                  </motion.button>
-                </Link>
-                <a href="https://youtu.be/hQFA1Y9NAcY" target="_blank" rel="noopener noreferrer" className="flex-1">
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="w-full py-4 rounded-2xl font-serif font-bold text-base tracking-wide flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    <Youtube className="h-5 w-5" /> Watch on YouTube
-                  </motion.button>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
         </motion.div>
 
         {/* Featured Video */}
