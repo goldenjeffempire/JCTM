@@ -169,7 +169,7 @@ export async function syncFromRSS(log?: Logger): Promise<RSSSyncResult> {
   const entries = parseRSSFeed(xml);
 
   if (entries.length === 0) {
-    log?.warn("RSS feed returned no entries — skipping upsert");
+    log?.info("RSS feed returned no entries — skipping upsert");
     return { inserted: 0, updated: 0, total: 0, insertedVideoIds: [] };
   }
 

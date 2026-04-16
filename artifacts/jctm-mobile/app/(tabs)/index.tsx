@@ -93,7 +93,12 @@ function FeaturedCard({ colors }: { colors: ReturnType<typeof useColors> }) {
   );
 }
 
-type Devotion = { title?: string; verse?: string; content?: string; reference?: string };
+type Devotion = {
+  title?: string;
+  scripture?: string;
+  reference?: string;
+  declaration?: string;
+};
 
 function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
   const [devotion, setDevotion] = useState<Devotion | null>(null);
@@ -101,7 +106,9 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
   useEffect(() => {
     fetch(`${BASE}/api/devotion/daily`)
       .then((r) => r.json())
-      .then(setDevotion)
+      .then((data: { devotion?: Devotion }) => {
+        if (data?.devotion) setDevotion(data.devotion);
+      })
       .catch(() => {});
   }, []);
 
@@ -113,11 +120,16 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
       {devotion.title && (
         <Text style={styles.devotionTitle} numberOfLines={2}>{devotion.title}</Text>
       )}
-      {devotion.verse && (
-        <Text style={styles.devotionVerse} numberOfLines={3}>"{devotion.verse}"</Text>
+      {devotion.scripture && (
+        <Text style={styles.devotionVerse} numberOfLines={3}>"{devotion.scripture}"</Text>
       )}
       {devotion.reference && (
         <Text style={styles.devotionRef}>— {devotion.reference}</Text>
+      )}
+      {devotion.declaration && (
+        <Text style={[styles.devotionDeclaration]} numberOfLines={2}>
+          ✦ {devotion.declaration}
+        </Text>
       )}
       <TouchableOpacity
         style={styles.devotionReadBtn}
@@ -335,6 +347,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   devotionRef: { color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 14 },
+  devotionDeclaration: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
+    fontStyle: "italic",
+    lineHeight: 16,
+    marginBottom: 12,
+  },
   devotionReadBtn: { backgroundColor: "#fff", borderRadius: 10, paddingVertical: 10, alignItems: "center" },
   devotionReadBtnText: { fontWeight: "700", fontSize: 13 },
   crusadeBanner: {

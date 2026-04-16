@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Share2, Copy, Check, RefreshCw, Flame, ChevronRight,
-  Calendar, Mic2, Sparkles, Heart, Sun, ImageDown,
+  Calendar, Mic2, Sparkles, Heart, Sun, ImageDown, BookMarked,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { Layout } from "@/components/layout/Layout";
@@ -261,6 +261,8 @@ export default function Devotion() {
   const [declarationMode, setDeclarationMode] = useState(false);
   const [currentWord, setCurrentWord] = useState(0);
   const [declarationWords, setDeclarationWords] = useState<string[]>([]);
+  const [history, setHistory] = useState<DailyDevotion[]>([]);
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   const today = new Date();
@@ -282,6 +284,17 @@ export default function Devotion() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/devotion/history?limit=8`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { devotions?: DailyDevotion[] } | null) => {
+        if (!data?.devotions) return;
+        const todayStr = new Date().toISOString().split("T")[0]!;
+        setHistory(data.devotions.filter(d => d.date !== todayStr).slice(0, 7));
+      })
+      .catch(() => {});
+  }, []);
 
   const handleCopy = async () => {
     if (!devotion) return;
@@ -662,6 +675,86 @@ export default function Devotion() {
                 ))}
               </div>
             </motion.div>
+
+            {/* Past Devotions Archive */}
+            {history.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="mt-2"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <BookMarked className="h-4 w-4 text-white/30" />
+                  <span className="text-xs font-semibold text-white/30 uppercase tracking-wider">Past Devotions</span>
+                </div>
+                <div className="space-y-3">
+                  {history.map((past) => {
+                    const isOpen = expandedHistory === past.date;
+                    const pastDate = new Date(past.date + "T00:00:00Z");
+                    const pastLabel = format(pastDate, "EEEE, MMMM d");
+                    return (
+                      <div
+                        key={past.date}
+                        className="rounded-2xl border border-white/6 overflow-hidden transition-all"
+                        style={{ background: "rgba(255,255,255,0.02)" }}
+                      >
+                        <button
+                          onClick={() => setExpandedHistory(isOpen ? null : past.date)}
+                          className="w-full flex items-start justify-between gap-3 p-5 text-left hover:bg-white/3 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-semibold text-amber-400/40 uppercase tracking-wider mb-1">
+                              {pastLabel}
+                            </p>
+                            <p className="text-white/70 text-sm font-medium leading-snug truncate">
+                              {past.title}
+                            </p>
+                            <p className="text-white/30 text-xs mt-1">
+                              {past.reference}
+                            </p>
+                          </div>
+                          <ChevronRight
+                            className={`h-4 w-4 text-white/20 shrink-0 mt-0.5 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-5 pb-5 space-y-4 border-t border-white/5 pt-4">
+                                <blockquote className="pl-3 border-l-2 border-amber-500/30">
+                                  <p className="text-amber-100/60 text-sm italic leading-relaxed">
+                                    "{past.scripture}"
+                                  </p>
+                                  <footer className="text-amber-400/40 text-xs mt-1 font-semibold">
+                                    — {past.reference}
+                                  </footer>
+                                </blockquote>
+                                <div className="space-y-2">
+                                  {past.reflection.split(/\n+/).filter(Boolean).slice(0, 2).map((p, i) => (
+                                    <p key={i} className="text-white/50 text-[13px] leading-relaxed">{p}</p>
+                                  ))}
+                                </div>
+                                <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3">
+                                  <p className="text-[10px] font-semibold text-emerald-400/40 uppercase tracking-wider mb-1.5">Declaration</p>
+                                  <p className="text-emerald-100/60 text-xs font-medium leading-relaxed italic">"{past.declaration}"</p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
           )}
         </div>
       </div>

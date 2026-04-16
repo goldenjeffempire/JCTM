@@ -180,6 +180,18 @@ export function buildNewSermonNotification(title: string): NotificationPayload {
   };
 }
 
+export function buildDailyDevotionNotification(title: string, reference: string): NotificationPayload {
+  return {
+    title: "📖 JCTM Daily Devotion",
+    body: `"${title}" — ${reference} · Open today's word`,
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: "/devotion",
+    tag: "daily-devotion",
+    data: { type: "daily_devotion", title, reference, timestamp: new Date().toISOString() },
+  };
+}
+
 // ─── Push Dispatch ────────────────────────────────────────────────────────────
 
 interface DispatchResult {
