@@ -675,9 +675,10 @@ export default function Devotion() {
                 ))}
               </div>
             </motion.div>
+          )}
 
-            {/* Past Devotions Archive */}
-            {history.length > 0 && (
+          {/* Past Devotions Archive */}
+          {history.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -755,7 +756,6 @@ export default function Devotion() {
                 </div>
               </motion.div>
             )}
-          )}
         </div>
       </div>
     </Layout>

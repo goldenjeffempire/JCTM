@@ -1,0 +1,48 @@
+2026-04-16T09:52:13.055929405Z ==> Downloading cache...
+2026-04-16T09:52:13.100993964Z ==> Cloning from https://github.com/goldenjeffempire/JCTM
+2026-04-16T09:52:25.927442563Z ==> Checking out commit 06f21c34ac2e17eeed50fc22ffb67906dd9d0335 in branch main
+2026-04-16T09:52:52.735692559Z ==> Downloaded 292MB in 9s. Extraction took 25s.
+2026-04-16T09:53:05.030118866Z ==> Using Node.js version 22.22.0 (default)
+2026-04-16T09:53:05.05715459Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-04-16T09:53:05.177235783Z ==> Running build command 'npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build && pnpm --filter @workspace/api-server run build'...
+2026-04-16T09:53:06.524843501Z 
+2026-04-16T09:53:06.524861971Z changed 1 package in 1s
+2026-04-16T09:53:06.524923933Z 
+2026-04-16T09:53:06.524932413Z 1 package is looking for funding
+2026-04-16T09:53:06.524936423Z   run `npm fund` for details
+2026-04-16T09:53:09.982245918Z 
+2026-04-16T09:53:09.982268729Z > @workspace/jctm-platform@0.0.0 build /opt/render/project/src/artifacts/jctm-platform
+2026-04-16T09:53:09.982273419Z > node scripts/write-ads-txt.mjs && vite build --config vite.config.ts
+2026-04-16T09:53:09.982278199Z 
+2026-04-16T09:53:10.506747908Z vite v7.3.1 building client environment for production...
+2026-04-16T09:53:10.594927643Z transforming...
+2026-04-16T09:53:11.76522063Z ✓ 71 modules transformed.
+2026-04-16T09:53:11.766096349Z ✗ Build failed in 1.22s
+2026-04-16T09:53:11.76612582Z error during build:
+2026-04-16T09:53:11.76613158Z [vite:esbuild] Transform failed with 1 error:
+2026-04-16T09:53:11.76613702Z /opt/render/project/src/artifacts/jctm-platform/src/pages/Devotion.tsx:679:12: ERROR: Expected ")" but found "{"
+2026-04-16T09:53:11.76614233Z file: /opt/render/project/src/artifacts/jctm-platform/src/pages/Devotion.tsx:679:12
+2026-04-16T09:53:11.76614658Z 
+2026-04-16T09:53:11.76615093Z Expected ")" but found "{"
+2026-04-16T09:53:11.76615556Z 677 |              </motion.div>
+2026-04-16T09:53:11.76615984Z 678 |  
+2026-04-16T09:53:11.76616483Z 679 |              {/* Past Devotions Archive */}
+2026-04-16T09:53:11.76616917Z     |              ^
+2026-04-16T09:53:11.766173521Z 680 |              {history.length > 0 && (
+2026-04-16T09:53:11.766179651Z 681 |                <motion.div
+2026-04-16T09:53:11.766183731Z 
+2026-04-16T09:53:11.766188751Z     at failureErrorWithLog (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1467:15)
+2026-04-16T09:53:11.766193001Z     at /opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:736:50
+2026-04-16T09:53:11.766198101Z     at responseCallbacks.<computed> (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:603:9)
+2026-04-16T09:53:11.766202331Z     at handleIncomingPacket (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:658:12)
+2026-04-16T09:53:11.766206841Z     at Socket.readFromStdout (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:581:7)
+2026-04-16T09:53:11.766211341Z     at Socket.emit (node:events:519:28)
+2026-04-16T09:53:11.766215831Z     at addChunk (node:internal/streams/readable:561:12)
+2026-04-16T09:53:11.766220991Z     at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-04-16T09:53:11.766225302Z     at Readable.push (node:internal/streams/readable:392:5)
+2026-04-16T09:53:11.766243722Z     at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+2026-04-16T09:53:11.896645604Z /opt/render/project/src/artifacts/jctm-platform:
+2026-04-16T09:53:11.896661604Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/jctm-platform@0.0.0 build: `node scripts/write-ads-txt.mjs && vite build --config vite.config.ts`
+2026-04-16T09:53:11.896666365Z Exit status 1
+2026-04-16T09:53:11.961583955Z ==> Build failed 😞
+2026-04-16T09:53:11.961597235Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
