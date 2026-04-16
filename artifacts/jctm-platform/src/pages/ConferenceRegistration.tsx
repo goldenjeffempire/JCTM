@@ -5,7 +5,7 @@ import {
   User, Mail, Phone, Building2, Award, MapPin,
   MessageSquare, ChevronRight, CheckCircle2, ArrowLeft,
   Flame, Calendar, Clock, Camera, ImagePlus, Copy, Check, Share2, Download,
-  Sparkles, Instagram, Facebook, Youtube,
+  Sparkles, Instagram, Facebook, Youtube, Users,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
@@ -695,6 +695,7 @@ export default function ConferenceRegistration() {
   const [regId, setRegId] = useState<number | null>(null);
   const [invitedBy, setInvitedBy] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [attendCount, setAttendCount] = useState<number | null>(null);
 
   const [photo, setPhoto] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -704,6 +705,11 @@ export default function ConferenceRegistration() {
     const params = new URLSearchParams(window.location.search);
     const name = params.get("invited_by");
     if (name) setInvitedBy(decodeURIComponent(name));
+
+    fetch(`${BASE}/api/conference/count`)
+      .then(r => r.json())
+      .then(d => setAttendCount(d.count))
+      .catch(() => {});
   }, []);
 
   const set = (key: keyof FormState) => (
@@ -847,6 +853,18 @@ export default function ConferenceRegistration() {
                 </div>
               ))}
             </div>
+
+            {attendCount !== null && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-5 inline-flex items-center gap-2 text-sm text-white/60"
+              >
+                <Users className="h-4 w-4 text-purple-400" />
+                <span className="text-purple-300 font-bold">{attendCount.toLocaleString()}</span> ministers have registered
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </div>
