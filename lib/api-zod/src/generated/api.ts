@@ -228,6 +228,7 @@ export const ListEventsResponseItem = zod.object({
   location: zod.string().nullish(),
   eventType: zod.string(),
   imageUrl: zod.string().nullish(),
+  youtubeUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListEventsResponse = zod.array(ListEventsResponseItem);
@@ -257,6 +258,7 @@ export const GetUpcomingEventsResponseItem = zod.object({
   location: zod.string().nullish(),
   eventType: zod.string(),
   imageUrl: zod.string().nullish(),
+  youtubeUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const GetUpcomingEventsResponse = zod.array(

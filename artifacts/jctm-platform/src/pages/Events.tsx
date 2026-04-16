@@ -434,9 +434,13 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
           <div className="aspect-video">
             <iframe
               className="w-full h-full"
-              src={`https://www.youtube.com/embed/${event.youtubeUrl}?rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
+              src={
+                !past
+                  ? `https://www.youtube.com/embed/${event.youtubeUrl}?autoplay=1&mute=1&loop=1&playlist=${event.youtubeUrl}&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`
+                  : `https://www.youtube.com/embed/${event.youtubeUrl}?rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`
+              }
               title={event.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
             />
