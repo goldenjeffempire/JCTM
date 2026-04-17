@@ -2,8 +2,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import {
-  User, Mail, Phone, Building2, Award, MapPin,
-  MessageSquare, ChevronRight, CheckCircle2, ArrowLeft,
+  Phone, MapPin,
+  CheckCircle2, ArrowLeft,
   Flame, Calendar, Clock, Camera, ImagePlus, Copy, Check, Share2, Download,
   Sparkles, Instagram, Facebook, Youtube, Users, ExternalLink,
 } from "lucide-react";
@@ -670,28 +670,11 @@ function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: s
   );
 }
 
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
-  return (
-    <label className="block text-sm font-bold mb-2" style={{ color: "#d8b4fe" }}>
-      {children}
-      {required && <span className="text-yellow-400 ml-1">*</span>}
-    </label>
-  );
-}
-
-function FieldIcon({ icon: Icon }: { icon: React.ElementType }) {
-  return (
-    <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-      <Icon className="h-4 w-4" style={{ color: "#a855f7" }} />
-    </span>
-  );
-}
-
 const inputCls =
-  "w-full pl-11 pr-4 py-3 rounded-xl border text-white placeholder:text-white/30 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40";
+  "w-full px-4 py-3 rounded-xl border text-white placeholder:text-white/40 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40";
 const inputStyle = {
-  background: "rgba(45,15,61,0.7)",
-  borderColor: "rgba(168,85,247,0.3)",
+  background: "rgba(255,255,255,0.08)",
+  borderColor: "rgba(168,85,247,0.25)",
 };
 
 const CONF_AD_COPIES = {
@@ -987,7 +970,6 @@ export default function ConferenceRegistration() {
     }
   };
 
-  const inviteLink = `${typeof window !== "undefined" ? window.location.origin : ""}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}`;
 
   return (
     <Layout>
@@ -1097,463 +1079,309 @@ export default function ConferenceRegistration() {
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
 
-            <AnimatePresence mode="wait">
-              {success ? (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="flex flex-col items-center text-center py-12 px-4"
-                >
-                  {/* Photo avatar on success screen */}
-                  {photo ? (
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 mb-6 shadow-2xl"
-                      style={{ borderColor: "#a855f7", boxShadow: "0 0 40px rgba(168,85,247,0.4)" }}>
-                      <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-2xl"
-                      style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", boxShadow: "0 0 60px rgba(168,85,247,0.4)" }}>
-                      <CheckCircle2 className="h-10 w-10 text-white" />
-                    </div>
-                  )}
-
-                  <h2 className="font-serif font-black text-3xl md:text-4xl text-white mb-3">
-                    Registration Confirmed!
-                  </h2>
-                  {regId && (
-                    <p className="text-purple-300/70 text-sm mb-3">Reference #{regId}</p>
-                  )}
-                  <p className="text-purple-100/70 text-lg max-w-lg mb-8">
-                    Welcome, {form.fullName.split(" ")[0]}. Your attendance has been registered for the{" "}
-                    <span className="text-purple-300 font-bold">Ministers Conference 2026</span>. We look forward to seeing you!
+            {invitedBy && !success && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 flex items-center gap-4 rounded-2xl px-5 py-4 border"
+                style={{ background: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.35)" }}
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg"
+                  style={{ background: "rgba(168,85,247,0.2)" }}>
+                  🙏
+                </div>
+                <div>
+                  <p className="text-purple-200 text-sm font-bold">You've been personally invited!</p>
+                  <p className="text-purple-300/70 text-xs mt-0.5">
+                    <span className="text-yellow-300 font-semibold">{invitedBy}</span> invites you to the Ministers Conference 2026. Register below to secure your place.
                   </p>
+                </div>
+              </motion.div>
+            )}
 
-                  <div className="rounded-3xl p-6 mb-8 max-w-md w-full text-left space-y-3"
-                    style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                    <p className="text-purple-200/80 text-sm font-bold uppercase tracking-wider mb-2">Event Details</p>
-                    {[
-                      { icon: Calendar, text: "Friday 8th May — Sunday 10th May, 2026" },
-                      { icon: Clock, text: "8:00 AM Daily (West Africa Time)" },
-                      { icon: MapPin, text: "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State" },
-                    ].map(({ icon: Icon, text }) => (
-                      <div key={text} className="flex items-start gap-3 text-sm text-white/80">
-                        <Icon className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
-                        <span>{text}</span>
-                      </div>
-                    ))}
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 items-start">
 
-                  <div className="flex flex-col sm:flex-row gap-3 mb-8">
-                    <Link href="/">
-                      <Button className="rounded-xl px-6 h-12 font-bold"
-                        style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}>
-                        <ArrowLeft className="h-4 w-4 mr-2" /> Return to Home
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="outline"
-                      onClick={() => { setSuccess(false); setForm(EMPTY_FORM); setRegId(null); setPhoto(null); }}
-                      className="rounded-xl px-6 h-12 font-bold border-purple-400/40 text-purple-200 hover:bg-purple-500/10"
-                    >
-                      Register Another Person
-                    </Button>
-                  </div>
+              {/* Left — Flyer + info */}
+              <div className="space-y-6">
+                <div className="rounded-3xl overflow-hidden border-2 shadow-2xl shadow-purple-500/20"
+                  style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)" }}>
+                  <div className="h-1 w-full"
+                    style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
+                  <img
+                    src={ministerConferenceFlyer}
+                    alt="Ministers Conference 2026 official flyer"
+                    className="w-full h-auto object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="h-0.5 w-full"
+                    style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
+                </div>
 
-                  {/* Shareable Invite Link */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                    className="rounded-3xl p-6 max-w-md w-full text-left"
-                    style={{ background: "rgba(45,15,61,0.9)", border: "1px solid rgba(168,85,247,0.3)" }}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Share2 className="h-4 w-4 text-purple-400" />
-                      <p className="text-purple-200 text-sm font-bold">Invite Others to Register</p>
+                <div className="rounded-3xl p-5 space-y-3"
+                  style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
+                  <p className="text-purple-200/80 text-xs font-bold uppercase tracking-wider">Why Attend?</p>
+                  {[
+                    "Apostolic fire and prophetic impartation",
+                    "Word-centred ministry from the front lines",
+                    "Networking with ministers & kingdom builders",
+                    "Encounter the presence of God corporately",
+                  ].map(item => (
+                    <div key={item} className="flex items-start gap-3 text-sm text-white/75">
+                      <CheckCircle2 className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                      <span>{item}</span>
                     </div>
-                    <p className="text-purple-300/60 text-xs mb-4 leading-relaxed">
-                      Share this personal invite link — anyone who opens it will see your name on the registration page and be encouraged to secure their place.
-                    </p>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Link box */}
-                    <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-4"
-                      style={{ background: "rgba(26,5,37,0.8)", borderColor: "rgba(168,85,247,0.25)" }}>
-                      <span className="flex-1 text-xs text-purple-300/70 truncate font-mono">
-                        {`${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}`}
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}`
-                          );
-                          setLinkCopied(true);
-                          toast.success("Invite link copied!");
-                          setTimeout(() => setLinkCopied(false), 2500);
-                        }}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                        style={{
-                          background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(168,85,247,0.2)",
-                          color: linkCopied ? "#4ade80" : "#d8b4fe",
-                          border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(168,85,247,0.35)"}`,
-                        }}
+              {/* Right — Registration Card */}
+              <div className="rounded-3xl overflow-hidden border shadow-2xl"
+                style={{ background: "linear-gradient(145deg,rgba(26,5,37,0.96),rgba(45,15,61,0.88))", borderColor: "rgba(168,85,247,0.3)", boxShadow: "0 24px 80px rgba(88,28,135,0.2)" }}>
+
+                {/* Card header */}
+                <div className="p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.15)", background: "rgba(168,85,247,0.06)" }}>
+                  <h3 className="font-serif font-bold text-white text-xl mb-1 flex items-center gap-2">
+                    <span>✋</span> Register Your Attendance
+                  </h3>
+                  <p className="text-white/50 text-sm">Let the ministry know you're coming. Registration is free.</p>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  <AnimatePresence mode="wait">
+                    {success ? (
+                      <motion.div
+                        key="success"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-center py-4"
                       >
-                        {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        {linkCopied ? "Copied!" : "Copy"}
-                      </button>
-                    </div>
+                        {rsvpPhoto ? (
+                          <div className="flex justify-center mb-4">
+                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
+                              <img src={rsvpPhoto} alt="Your photo" className="w-full h-full object-cover" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-5xl mb-4">🙌</div>
+                        )}
+                        <h4 className="font-serif font-bold text-white text-2xl mb-2">You're Registered!</h4>
+                        {regId && (
+                          <p className="text-purple-300/60 text-xs mb-1">Reference #{regId}</p>
+                        )}
+                        <p className="text-purple-300 text-sm mb-1">See you at the Church Auditorium, Effurun on May 8th.</p>
+                        <p className="text-white/50 text-xs mb-6">Scroll down to generate your personalised invite card.</p>
 
-                    {/* WhatsApp share */}
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(
-                        `🙏 *Ministers Conference 2026 — Personal Invitation*\n\n` +
-                        `I am ${form.fullName} and I personally invite you to join me at the JCTM Ministers Conference 2026!\n\n` +
-                        `📅 May 8–10, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n` +
-                        `Click the link below to register and secure your place:\n` +
-                        `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}\n\n` +
-                        `This is a divine appointment — don't miss it!\n🌐 www.jctm.org.ng`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
-                      style={{ background: "#25D366" }}
-                    >
-                      <span className="text-base leading-none">💬</span>
-                      Share Invite via WhatsApp
-                    </a>
-                  </motion.div>
-
-                  {/* Invite Card Generator */}
-                  <div className="w-full max-w-md">
-                    <ConferenceInviteCardGenerator initialName={form.fullName} initialPhoto={photo} />
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="form"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  {invitedBy && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mb-8 flex items-center gap-4 rounded-2xl px-5 py-4 border"
-                      style={{ background: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.35)" }}
-                    >
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg"
-                        style={{ background: "rgba(168,85,247,0.2)" }}>
-                        🙏
-                      </div>
-                      <div>
-                        <p className="text-purple-200 text-sm font-bold">You've been personally invited!</p>
-                        <p className="text-purple-300/70 text-xs mt-0.5">
-                          <span className="text-yellow-300 font-semibold">{invitedBy}</span> invites you to the Ministers Conference 2026. Register below to secure your place.
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                  <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 items-start"
-                >
-                  {/* Left — Flyer + info */}
-                  <div className="space-y-6">
-                    <div className="rounded-3xl overflow-hidden border-2 shadow-2xl shadow-purple-500/20"
-                      style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)" }}>
-                      <div className="h-1 w-full"
-                        style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
-                      <img
-                        src={ministerConferenceFlyer}
-                        alt="Ministers Conference 2026 official flyer"
-                        className="w-full h-auto object-contain"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div className="h-0.5 w-full"
-                        style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
-                    </div>
-
-                    <div className="rounded-3xl p-5 space-y-3"
-                      style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                      <p className="text-purple-200/80 text-xs font-bold uppercase tracking-wider">Why Attend?</p>
-                      {[
-                        "Apostolic fire and prophetic impartation",
-                        "Word-centred ministry from the front lines",
-                        "Networking with ministers & kingdom builders",
-                        "Encounter the presence of God corporately",
-                      ].map(item => (
-                        <div key={item} className="flex items-start gap-3 text-sm text-white/75">
-                          <CheckCircle2 className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Right — Registration Form */}
-                  <div className="rounded-3xl overflow-hidden border shadow-2xl"
-                    style={{ background: "linear-gradient(145deg,rgba(26,5,37,0.96),rgba(45,15,61,0.88))", borderColor: "rgba(168,85,247,0.3)", boxShadow: "0 24px 80px rgba(88,28,135,0.2)" }}>
-
-                    {/* Form header */}
-                    <div className="p-6 md:p-8 border-b" style={{ borderColor: "rgba(168,85,247,0.15)" }}>
-                      <h2 className="font-serif font-black text-2xl text-white mb-1">
-                        Register to Attend
-                      </h2>
-                      <p className="text-purple-100/60 text-sm">
-                        Secure your place at the Ministers Conference 2026.
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} noValidate>
-                      <div className="p-6 md:p-8 space-y-5">
-
-                        {/* ── Photo Upload ──────────────────────────────── */}
-                        <div>
-                          <FieldLabel>Your Photo</FieldLabel>
-                          <div className="flex flex-col items-center gap-3 py-2">
-                            <input
-                              ref={photoRef}
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handlePhotoChange}
-                            />
+                        {/* Shareable Invite Link */}
+                        <div className="rounded-2xl p-4 text-left border border-purple-400/20 mt-2"
+                          style={{ background: "rgba(45,15,61,0.8)" }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Share2 className="h-4 w-4 text-purple-400" />
+                            <p className="text-purple-300 text-sm font-bold">Invite Others to Register</p>
+                          </div>
+                          <p className="text-white/50 text-xs mb-3 leading-relaxed">
+                            Share this personal link — anyone who opens it will see your name and be inspired to register.
+                          </p>
+                          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-3"
+                            style={{ background: "rgba(26,5,37,0.9)", borderColor: "rgba(168,85,247,0.25)" }}>
+                            <span className="flex-1 text-xs text-purple-300/60 truncate font-mono">
+                              {`${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}`}
+                            </span>
                             <button
-                              type="button"
-                              onClick={() => photoRef.current?.click()}
-                              className="relative group transition-all duration-200"
-                              aria-label="Upload your photo"
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}`
+                                );
+                                setLinkCopied(true);
+                                toast.success("Invite link copied!");
+                                setTimeout(() => setLinkCopied(false), 2500);
+                              }}
+                              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                              style={{
+                                background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(168,85,247,0.15)",
+                                color: linkCopied ? "#4ade80" : "#d8b4fe",
+                                border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(168,85,247,0.35)"}`,
+                              }}
                             >
-                              {photo ? (
-                                <div className="relative">
-                                  <div
-                                    className="w-28 h-28 rounded-full overflow-hidden border-4 shadow-2xl group-hover:border-purple-300 transition-all"
-                                    style={{ borderColor: "#a855f7", boxShadow: "0 0 32px rgba(168,85,247,0.35)" }}
-                                  >
-                                    <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
-                                  </div>
-                                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                    <Camera className="h-7 w-7 text-white" />
-                                  </div>
-                                  <div
-                                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2"
-                                    style={{ background: "#a855f7", borderColor: "#1a0525" }}
-                                  >
-                                    <Camera className="h-4 w-4 text-white" />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div
-                                  className="w-28 h-28 rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-1.5 transition-all group-hover:bg-white/5"
-                                  style={{ borderColor: "rgba(168,85,247,0.5)", background: "rgba(45,15,61,0.5)" }}
-                                >
-                                  <ImagePlus className="h-7 w-7 text-purple-400/70 group-hover:text-purple-400 transition-colors" />
-                                  <span className="text-[10px] text-purple-400/60 group-hover:text-purple-400 font-bold uppercase tracking-wide transition-colors">
-                                    Add Photo
-                                  </span>
-                                </div>
-                              )}
+                              {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                              {linkCopied ? "Copied!" : "Copy"}
                             </button>
+                          </div>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(
+                              `🙏 *Ministers Conference 2026 — Personal Invitation*\n\n` +
+                              `I am ${rsvpName} and I personally invite you to join me at the JCTM Ministers Conference 2026!\n\n` +
+                              `📅 May 8–10, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n` +
+                              `Click the link below to register and secure your place:\n` +
+                              `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}\n\n` +
+                              `This is a divine appointment — don't miss it!\n🌐 www.jctm.org.ng`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90 touch-manipulation"
+                            style={{ background: "#25D366" }}
+                          >
+                            <span className="text-base leading-none">💬</span>
+                            Share Invite via WhatsApp
+                          </a>
+                        </div>
 
+                        <button
+                          onClick={() => { setSuccess(false); setForm(EMPTY_FORM); setRegId(null); setPhoto(null); setRsvpName(""); setRsvpPhoto(null); }}
+                          className="mt-4 text-xs text-white/30 hover:text-purple-400 transition-colors touch-manipulation"
+                        >
+                          Register another person
+                        </button>
+                      </motion.div>
+                    ) : (
+                      <motion.form
+                        key="form"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onSubmit={handleSubmit}
+                        noValidate
+                        className="space-y-3"
+                      >
+                        {/* Photo upload */}
+                        <div className="flex flex-col items-center gap-2">
+                          <input
+                            ref={photoRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePhotoChange}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => photoRef.current?.click()}
+                            className="relative group transition-all duration-200"
+                            aria-label="Upload your photo"
+                          >
                             {photo ? (
-                              <div className="flex flex-col items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => photoRef.current?.click()}
-                                  className="text-xs font-semibold transition-colors"
-                                  style={{ color: "#a855f7" }}
-                                >
-                                  Change photo
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
-                                  className="text-xs text-white/30 hover:text-red-400 transition-colors"
-                                >
-                                  Remove
-                                </button>
+                              <div className="relative">
+                                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl group-hover:border-purple-300 transition-all">
+                                  <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <Camera className="h-6 w-6 text-white" />
+                                </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-white/35 text-center leading-relaxed">
-                                Optional · Tap to upload a photo<br />
-                                <span className="text-white/20">JPG, PNG up to 10 MB</span>
-                              </p>
+                              <div className="w-24 h-24 rounded-full border-2 border-dashed border-purple-400/50 flex flex-col items-center justify-center gap-1 bg-white/5 group-hover:bg-white/10 group-hover:border-purple-400 transition-all">
+                                <ImagePlus className="h-6 w-6 text-purple-400/70 group-hover:text-purple-400" />
+                                <span className="text-[10px] text-purple-400/60 group-hover:text-purple-400 font-semibold uppercase tracking-wide">Add Photo</span>
+                              </div>
                             )}
-                          </div>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="h-px" style={{ background: "rgba(168,85,247,0.15)" }} />
-
-                        {/* Full Name */}
-                        <div>
-                          <FieldLabel required>Full Name</FieldLabel>
-                          <div className="relative">
-                            <FieldIcon icon={User} />
-                            <Input
-                              placeholder="e.g. Pastor John Adeyemi"
-                              value={form.fullName}
-                              onChange={set("fullName")}
-                              maxLength={120}
-                              className={inputCls}
-                              style={inputStyle}
-                            />
-                          </div>
-                          {errors.fullName && (
-                            <p className="text-red-400 text-xs mt-1.5">{errors.fullName}</p>
-                          )}
-                        </div>
-
-                        {/* Phone */}
-                        <div>
-                          <FieldLabel>Phone Number</FieldLabel>
-                          <div className="relative">
-                            <FieldIcon icon={Phone} />
-                            <Input
-                              type="tel"
-                              placeholder="e.g. +234 801 234 5678"
-                              value={form.phone}
-                              onChange={set("phone")}
-                              maxLength={30}
-                              className={inputCls}
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Email */}
-                        <div>
-                          <FieldLabel>Email Address</FieldLabel>
-                          <div className="relative">
-                            <FieldIcon icon={Mail} />
-                            <Input
-                              type="email"
-                              placeholder="e.g. pastor@church.org"
-                              value={form.email}
-                              onChange={set("email")}
-                              maxLength={160}
-                              className={inputCls}
-                              style={inputStyle}
-                            />
-                          </div>
-                          {errors.email && (
-                            <p className="text-red-400 text-xs mt-1.5">{errors.email}</p>
-                          )}
-                        </div>
-
-                        {/* Ministry / Church */}
-                        <div>
-                          <FieldLabel>Ministry / Church Name</FieldLabel>
-                          <div className="relative">
-                            <FieldIcon icon={Building2} />
-                            <Input
-                              placeholder="e.g. Grace Apostolic Church, Lagos"
-                              value={form.ministry}
-                              onChange={set("ministry")}
-                              maxLength={160}
-                              className={inputCls}
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Role */}
-                        <div>
-                          <FieldLabel>Role / Designation</FieldLabel>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                              <Award className="h-4 w-4" style={{ color: "#a855f7" }} />
-                            </span>
-                            <select
-                              value={form.role}
-                              onChange={set("role")}
-                              className="w-full pl-11 pr-4 py-3 rounded-xl border text-white text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 appearance-none"
-                              style={{ ...inputStyle, color: form.role ? "#fff" : "rgba(255,255,255,0.3)" }}
+                          </button>
+                          {photo && (
+                            <button
+                              type="button"
+                              onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
+                              className="text-xs text-white/40 hover:text-red-400 transition-colors"
                             >
-                              <option value="" style={{ background: "#1a0525", color: "#9ca3af" }}>Select your role…</option>
-                              {ROLES.map(r => (
-                                <option key={r} value={r} style={{ background: "#1a0525", color: "#fff" }}>{r}</option>
-                              ))}
-                            </select>
-                            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-400/60 pointer-events-none rotate-90" />
-                          </div>
+                              Remove photo
+                            </button>
+                          )}
+                          <p className="text-xs text-white/40 text-center">Optional · Your photo appears on your invite card</p>
                         </div>
 
-                        {/* State / Country */}
-                        <div>
-                          <FieldLabel>State / Country of Origin</FieldLabel>
-                          <div className="relative">
-                            <FieldIcon icon={MapPin} />
-                            <Input
-                              placeholder="e.g. Lagos, Nigeria"
-                              value={form.stateOrCountry}
-                              onChange={set("stateOrCountry")}
-                              maxLength={100}
-                              className={inputCls}
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
+                        <Input
+                          required
+                          placeholder="Full Name *"
+                          value={form.fullName}
+                          onChange={set("fullName")}
+                          maxLength={120}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        {errors.fullName && (
+                          <p className="text-red-400 text-xs -mt-1">{errors.fullName}</p>
+                        )}
 
-                        {/* Message */}
-                        <div>
-                          <FieldLabel>Additional Message</FieldLabel>
-                          <div className="relative">
-                            <span className="absolute left-4 top-3.5 pointer-events-none">
-                              <MessageSquare className="h-4 w-4" style={{ color: "#a855f7" }} />
-                            </span>
-                            <textarea
-                              rows={3}
-                              placeholder="Any special requests, prayer points or notes…"
-                              value={form.message}
-                              onChange={set("message")}
-                              maxLength={500}
-                              className="w-full pl-11 pr-4 py-3 rounded-xl border text-white placeholder:text-white/30 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 resize-none"
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
+                        <Input
+                          type="tel"
+                          placeholder="Phone Number (optional)"
+                          value={form.phone}
+                          onChange={set("phone")}
+                          maxLength={30}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
 
-                        {/* Submit */}
-                        <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} className="pt-2">
-                          <Button
-                            type="submit"
-                            disabled={submitting}
-                            className="w-full h-14 rounded-2xl font-black text-lg tracking-wide disabled:opacity-60"
-                            style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}
-                          >
-                            {submitting ? (
-                              <span className="flex items-center gap-2">
-                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                                </svg>
-                                Submitting…
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-2">
-                                Complete Registration <ChevronRight className="h-5 w-5" />
-                              </span>
-                            )}
-                          </Button>
-                        </motion.div>
+                        <Input
+                          type="email"
+                          placeholder="Email Address (optional)"
+                          value={form.email}
+                          onChange={set("email")}
+                          maxLength={160}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        {errors.email && (
+                          <p className="text-red-400 text-xs -mt-1">{errors.email}</p>
+                        )}
 
-                        <p className="text-center text-purple-100/40 text-xs">
-                          Your information is kept private and will only be used for conference logistics.
-                        </p>
-                      </div>
-                    </form>
-                  </div>
-                  </div>
+                        <Input
+                          placeholder="Ministry / Church Name (optional)"
+                          value={form.ministry}
+                          onChange={set("ministry")}
+                          maxLength={160}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
 
-                  {/* Social Ad Copy Generator */}
-                  <ConferenceAdCopySection />
-                </motion.div>
-              )}
-            </AnimatePresence>
+                        <select
+                          value={form.role}
+                          onChange={set("role")}
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 appearance-none"
+                          style={{ ...inputStyle, color: form.role ? "#fff" : "rgba(255,255,255,0.4)" }}
+                        >
+                          <option value="" style={{ background: "#1a0525", color: "#9ca3af" }}>Role / Designation (optional)</option>
+                          {ROLES.map(r => (
+                            <option key={r} value={r} style={{ background: "#1a0525", color: "#fff" }}>{r}</option>
+                          ))}
+                        </select>
+
+                        <Input
+                          placeholder="State / Country (optional)"
+                          value={form.stateOrCountry}
+                          onChange={set("stateOrCountry")}
+                          maxLength={100}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+
+                        <textarea
+                          rows={3}
+                          placeholder="Additional message or prayer points (optional)"
+                          value={form.message}
+                          onChange={set("message")}
+                          maxLength={500}
+                          className="w-full px-4 py-3 rounded-xl border text-white placeholder:text-white/40 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 resize-none"
+                          style={inputStyle}
+                        />
+
+                        <motion.button
+                          type="submit"
+                          disabled={submitting}
+                          whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(168,85,247,0.5)" }}
+                          whileTap={{ scale: 0.98 }}
+                          className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide disabled:opacity-60 cursor-pointer transition-all duration-200"
+                          style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)", color: "#fff" }}
+                        >
+                          {submitting ? "Registering…" : "✋ I Will Attend!"}
+                        </motion.button>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Ad Copy Generator */}
+            <ConferenceAdCopySection />
 
           </div>
         </div>
