@@ -20,11 +20,13 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }: { initialName?: string; initialPhoto?: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cardAreaRef = useRef<HTMLDivElement>(null);
   const photoRef2 = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initialName);
   const [photo, setPhoto2] = useState<string | null>(initialPhoto);
   const [generated, setGenerated] = useState(false);
   const [cropSrc2, setCropSrc2] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => { if (initialName) setName(initialName); }, [initialName]);
   useEffect(() => { if (initialPhoto) setPhoto2(initialPhoto); }, [initialPhoto]);
@@ -39,179 +41,188 @@ function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }
     e.target.value = "";
   };
 
-  const generate = useCallback(async () => {
+  // overridePhoto: used immediately after cropping, before React state flushes
+  const generate = useCallback(async (overridePhoto?: string | null) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const W = 1080, H = 1440;
-    canvas.width = W;
-    canvas.height = H;
+    setIsGenerating(true);
+    try {
+      const W = 1080, H = 1440;
+      canvas.width = W;
+      canvas.height = H;
 
-    const purple     = "#a855f7";
-    const purpleDeep = "#7c3aed";
-    const purpleLight = "#d8b4fe";
-    const gold       = "#D4A017";
-    const goldLight  = "#FFD700";
-    const white      = "#ffffff";
-    const green      = "#00c853";
+      const currentPhoto = overridePhoto !== undefined ? overridePhoto : photo;
 
-    // ── BACKGROUND ──────────────────────────────────────────────────
-    const bg = ctx.createLinearGradient(0, 0, W * 0.6, H);
-    bg.addColorStop(0,    "#0d020f");
-    bg.addColorStop(0.35, "#1a0525");
-    bg.addColorStop(0.7,  "#2d0f3d");
-    bg.addColorStop(1,    "#0d020f");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+      const purple      = "#a855f7";
+      const purpleDeep  = "#7c3aed";
+      const purpleLight = "#d8b4fe";
+      const gold        = "#D4A017";
+      const goldLight   = "#FFD700";
+      const white       = "#ffffff";
+      const green       = "#00c853";
 
-    // Top purple radial glow
-    const topGlow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, W);
-    topGlow.addColorStop(0, "rgba(168,85,247,0.6)");
-    topGlow.addColorStop(1, "rgba(13,2,15,0)");
-    ctx.fillStyle = topGlow;
-    ctx.fillRect(0, 0, W, H * 0.55);
+      // ── BACKGROUND ─────────────────────────────────────────────────
+      const bg = ctx.createLinearGradient(0, 0, W * 0.6, H);
+      bg.addColorStop(0,    "#0d020f");
+      bg.addColorStop(0.35, "#1a0525");
+      bg.addColorStop(0.7,  "#2d0f3d");
+      bg.addColorStop(1,    "#0d020f");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
 
-    // Bottom gold accent glow
-    const btmGlow = ctx.createRadialGradient(W / 2, H, 0, W / 2, H, W * 0.6);
-    btmGlow.addColorStop(0, "rgba(212,160,23,0.2)");
-    btmGlow.addColorStop(1, "rgba(13,2,15,0)");
-    ctx.fillStyle = btmGlow;
-    ctx.fillRect(0, 0, W, H);
+      const topGlow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, W);
+      topGlow.addColorStop(0, "rgba(168,85,247,0.6)");
+      topGlow.addColorStop(1, "rgba(13,2,15,0)");
+      ctx.fillStyle = topGlow;
+      ctx.fillRect(0, 0, W, H * 0.55);
 
-    // ── DOT GRID ────────────────────────────────────────────────────
-    const gs = 54;
-    ctx.fillStyle = "rgba(168,85,247,0.06)";
-    for (let gx = 0; gx <= W; gx += gs)
-      for (let gy = 0; gy <= H; gy += gs) {
-        ctx.beginPath(); ctx.arc(gx, gy, 1.2, 0, Math.PI * 2); ctx.fill();
+      const btmGlow = ctx.createRadialGradient(W / 2, H, 0, W / 2, H, W * 0.6);
+      btmGlow.addColorStop(0, "rgba(212,160,23,0.2)");
+      btmGlow.addColorStop(1, "rgba(13,2,15,0)");
+      ctx.fillStyle = btmGlow;
+      ctx.fillRect(0, 0, W, H);
+
+      // ── DOT GRID ───────────────────────────────────────────────────
+      const gs = 54;
+      ctx.fillStyle = "rgba(168,85,247,0.06)";
+      for (let gx = 0; gx <= W; gx += gs)
+        for (let gy = 0; gy <= H; gy += gs) {
+          ctx.beginPath(); ctx.arc(gx, gy, 1.2, 0, Math.PI * 2); ctx.fill();
+        }
+
+      ctx.textAlign = "center";
+
+      // ── "CONFIRMED" BADGE ──────────────────────────────────────────
+      const cPillW = 220, cPillH = 50, cPillX = W - cPillW - 44, cPillY = 46;
+      ctx.fillStyle = "rgba(0,200,83,0.18)";
+      ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 25); ctx.fill();
+      ctx.strokeStyle = green; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 25); ctx.stroke();
+      ctx.fillStyle = green; ctx.font = "bold 20px sans-serif";
+      ctx.fillText("✓  CONFIRMED", cPillX + cPillW / 2, cPillY + 34);
+
+      // ── MINISTRY LABEL ─────────────────────────────────────────────
+      ctx.fillStyle = "rgba(216,180,254,0.40)";
+      ctx.font = "bold 17px sans-serif";
+      ctx.fillText("J E S U S   C H R I S T   T E M P L E   M I N I S T R Y", W / 2, 82);
+
+      // ── EVENT TITLE ────────────────────────────────────────────────
+      ctx.shadowColor = "rgba(168,85,247,0.7)"; ctx.shadowBlur = 36;
+      ctx.fillStyle = purpleLight; ctx.font = "bold 80px serif";
+      ctx.fillText("MINISTERS", W / 2, 170);
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+      ctx.strokeStyle = purple; ctx.lineWidth = 3;
+      ctx.font = "bold 74px serif";
+      ctx.strokeText("CONFERENCE", W / 2, 252);
+      ctx.fillStyle = white; ctx.fillText("CONFERENCE", W / 2, 252);
+
+      ctx.shadowColor = "rgba(255,215,0,0.5)"; ctx.shadowBlur = 24;
+      ctx.fillStyle = goldLight; ctx.font = "bold 108px serif";
+      ctx.fillText("2026", W / 2, 370);
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+      ctx.fillStyle = "rgba(216,180,254,0.55)"; ctx.font = "italic 24px serif";
+      ctx.fillText("\u201CAn Apostolic Gathering of Ministers,", W / 2, 415);
+      ctx.fillText("Leaders & Kingdom Builders\u201D", W / 2, 447);
+
+      // ── GOLD DIVIDER ───────────────────────────────────────────────
+      const div = ctx.createLinearGradient(80, 0, W - 80, 0);
+      div.addColorStop(0, "transparent");
+      div.addColorStop(0.25, "rgba(212,160,23,0.6)");
+      div.addColorStop(0.75, "rgba(212,160,23,0.6)");
+      div.addColorStop(1, "transparent");
+      ctx.strokeStyle = div; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(80, 475); ctx.lineTo(W - 80, 475); ctx.stroke();
+
+      // ── PHOTO + NAME SECTION ───────────────────────────────────────
+      const circleY = 620, circleR = 140;
+
+      if (currentPhoto) {
+        const img = new Image();
+        img.src = currentPhoto;
+        await new Promise<void>((res) => { img.onload = () => res(); img.onerror = () => res(); });
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(W / 2, circleY, circleR, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(img, W / 2 - circleR, circleY - circleR, circleR * 2, circleR * 2);
+        ctx.restore();
+        ctx.strokeStyle = purple; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.arc(W / 2, circleY, circleR + 4, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = gold; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(W / 2, circleY, circleR + 12, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        const placeholderGrad = ctx.createRadialGradient(W / 2, circleY, 0, W / 2, circleY, circleR);
+        placeholderGrad.addColorStop(0, "#3b0764");
+        placeholderGrad.addColorStop(1, "#1a0525");
+        ctx.fillStyle = placeholderGrad;
+        ctx.beginPath(); ctx.arc(W / 2, circleY, circleR, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = purple; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(W / 2, circleY, circleR, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = "rgba(168,85,247,0.5)";
+        ctx.beginPath(); ctx.arc(W / 2, circleY - 40, 55, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(W / 2, circleY + 95, 100, 0, Math.PI, true); ctx.fill();
       }
 
-    ctx.textAlign = "center";
+      // Name — scale font down so long names never overflow
+      const displayName = name.trim() || "Your Name Here";
+      let nameFontSize = 52;
+      ctx.font = `bold ${nameFontSize}px serif`;
+      while (ctx.measureText(displayName).width > W - 140 && nameFontSize > 22) {
+        nameFontSize -= 2;
+        ctx.font = `bold ${nameFontSize}px serif`;
+      }
+      ctx.shadowColor = "rgba(168,85,247,0.5)"; ctx.shadowBlur = 20;
+      ctx.fillStyle = white;
+      ctx.fillText(displayName, W / 2, circleY + circleR + 70);
+      ctx.shadowBlur = 0;
 
-    // ── "CONFIRMED" BADGE ───────────────────────────────────────────
-    const cPillW = 220, cPillH = 50, cPillX = W - cPillW - 44, cPillY = 46;
-    ctx.fillStyle = "rgba(0,200,83,0.18)";
-    ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 25); ctx.fill();
-    ctx.strokeStyle = green; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 25); ctx.stroke();
-    ctx.fillStyle = green; ctx.font = "bold 20px sans-serif";
-    ctx.fillText("✓  CONFIRMED", cPillX + cPillW / 2, cPillY + 34);
+      ctx.fillStyle = "rgba(216,180,254,0.6)"; ctx.font = "italic 26px serif";
+      ctx.fillText("is attending the Ministers Conference 2026", W / 2, circleY + circleR + 116);
 
-    // ── MINISTRY LABEL ───────────────────────────────────────────────
-    ctx.fillStyle = "rgba(216,180,254,0.40)";
-    ctx.font = "bold 17px sans-serif";
-    ctx.fillText("J E S U S   C H R I S T   T E M P L E   M I N I S T R Y", W / 2, 82);
+      // ── EVENT INFO BOX ─────────────────────────────────────────────
+      const boxY = circleY + circleR + 155, boxH = 200, boxX = 80;
+      ctx.fillStyle = "rgba(45,15,61,0.85)";
+      ctx.beginPath(); ctx.roundRect(boxX, boxY, W - boxX * 2, boxH, 24); ctx.fill();
+      ctx.strokeStyle = "rgba(168,85,247,0.35)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(boxX, boxY, W - boxX * 2, boxH, 24); ctx.stroke();
 
-    // ── EVENT TITLE ──────────────────────────────────────────────────
-    ctx.shadowColor = "rgba(168,85,247,0.7)"; ctx.shadowBlur = 36;
-    ctx.fillStyle = purpleLight; ctx.font = "bold 80px serif";
-    ctx.fillText("MINISTERS", W / 2, 170);
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+      const infoItems = [
+        { emoji: "📅", text: "Friday 8th – Sunday 10th May, 2026" },
+        { emoji: "⏰", text: "8:00 AM Daily (West Africa Time)" },
+        { emoji: "📍", text: "Ebrumede Roundabout, Effurun Uvwie, Delta State" },
+      ];
+      ctx.textAlign = "left";
+      let iy = boxY + 46;
+      for (const item of infoItems) {
+        ctx.font = "bold 18px sans-serif"; ctx.fillStyle = purpleLight;
+        ctx.fillText(item.emoji + "  " + item.text, boxX + 40, iy);
+        iy += 54;
+      }
+      ctx.textAlign = "center";
 
-    ctx.strokeStyle = purple; ctx.lineWidth = 3;
-    ctx.font = "bold 74px serif";
-    ctx.strokeText("CONFERENCE", W / 2, 252);
-    ctx.fillStyle = white; ctx.fillText("CONFERENCE", W / 2, 252);
+      // ── BOTTOM CTA ─────────────────────────────────────────────────
+      const ctaY = boxY + boxH + 70;
+      ctx.fillStyle = purpleDeep;
+      ctx.beginPath(); ctx.roundRect(boxX, ctaY, W - boxX * 2, 80, 40); ctx.fill();
+      ctx.fillStyle = white; ctx.font = "bold 28px serif";
+      ctx.fillText("Register Free at jctm.org.ng/conference-registration", W / 2, ctaY + 52);
 
-    ctx.shadowColor = "rgba(255,215,0,0.5)"; ctx.shadowBlur = 24;
-    ctx.fillStyle = goldLight; ctx.font = "bold 108px serif";
-    ctx.fillText("2026", W / 2, 370);
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+      // ── FOOTER ─────────────────────────────────────────────────────
+      ctx.fillStyle = "rgba(216,180,254,0.35)"; ctx.font = "bold 18px sans-serif";
+      ctx.fillText("www.jctm.org.ng  ·  #MinistersConference2026  ·  #JCTM", W / 2, H - 52);
 
-    // Subtitle
-    ctx.fillStyle = "rgba(216,180,254,0.55)"; ctx.font = "italic 24px serif";
-    ctx.fillText("\u201CAn Apostolic Gathering of Ministers,", W / 2, 415);
-    ctx.fillText("Leaders & Kingdom Builders\u201D", W / 2, 447);
-
-    // ── GOLD DIVIDER ────────────────────────────────────────────────
-    const div = ctx.createLinearGradient(80, 0, W - 80, 0);
-    div.addColorStop(0, "transparent");
-    div.addColorStop(0.25, "rgba(212,160,23,0.6)");
-    div.addColorStop(0.75, "rgba(212,160,23,0.6)");
-    div.addColorStop(1, "transparent");
-    ctx.strokeStyle = div; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(80, 475); ctx.lineTo(W - 80, 475); ctx.stroke();
-
-    // ── PHOTO + NAME SECTION ─────────────────────────────────────────
-    const circleY = 620, circleR = 140;
-
-    if (photo) {
-      const img = new Image();
-      img.src = photo;
-      await new Promise<void>((res) => { img.onload = () => res(); img.onerror = () => res(); });
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(W / 2, circleY, circleR, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(img, W / 2 - circleR, circleY - circleR, circleR * 2, circleR * 2);
-      ctx.restore();
-
-      // Purple ring
-      ctx.strokeStyle = purple; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.arc(W / 2, circleY, circleR + 4, 0, Math.PI * 2); ctx.stroke();
-      // Gold outer ring
-      ctx.strokeStyle = gold; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(W / 2, circleY, circleR + 12, 0, Math.PI * 2); ctx.stroke();
-    } else {
-      // Placeholder circle
-      const placeholderGrad = ctx.createRadialGradient(W / 2, circleY, 0, W / 2, circleY, circleR);
-      placeholderGrad.addColorStop(0, "#3b0764");
-      placeholderGrad.addColorStop(1, "#1a0525");
-      ctx.fillStyle = placeholderGrad;
-      ctx.beginPath(); ctx.arc(W / 2, circleY, circleR, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = purple; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(W / 2, circleY, circleR, 0, Math.PI * 2); ctx.stroke();
-      // Silhouette
-      ctx.fillStyle = "rgba(168,85,247,0.5)";
-      ctx.beginPath(); ctx.arc(W / 2, circleY - 40, 55, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(W / 2, circleY + 95, 100, 0, Math.PI, true); ctx.fill();
+      setGenerated(true);
+      setTimeout(() => cardAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 80);
+    } catch {
+      toast.error("Could not generate your invite card. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
-
-    // Name
-    const displayName = name.trim() || "Your Name Here";
-    ctx.shadowColor = "rgba(168,85,247,0.5)"; ctx.shadowBlur = 20;
-    ctx.fillStyle = white; ctx.font = "bold 52px serif";
-    ctx.fillText(displayName, W / 2, circleY + circleR + 70);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "rgba(216,180,254,0.6)"; ctx.font = "italic 26px serif";
-    ctx.fillText("is attending the Ministers Conference 2026", W / 2, circleY + circleR + 116);
-
-    // ── EVENT INFO BOX ───────────────────────────────────────────────
-    const boxY = circleY + circleR + 155, boxH = 200, boxX = 80;
-    ctx.fillStyle = "rgba(45,15,61,0.85)";
-    ctx.beginPath(); ctx.roundRect(boxX, boxY, W - boxX * 2, boxH, 24); ctx.fill();
-    ctx.strokeStyle = "rgba(168,85,247,0.35)"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(boxX, boxY, W - boxX * 2, boxH, 24); ctx.stroke();
-
-    const infoItems = [
-      { emoji: "📅", text: "Friday 8th – Sunday 10th May, 2026" },
-      { emoji: "⏰", text: "8:00 AM Daily (West Africa Time)" },
-      { emoji: "📍", text: "Ebrumede Roundabout, Effurun Uvwie, Delta State" },
-    ];
-    ctx.textAlign = "left";
-    let iy = boxY + 46;
-    for (const item of infoItems) {
-      ctx.font = "bold 18px sans-serif"; ctx.fillStyle = purpleLight;
-      ctx.fillText(item.emoji + "  " + item.text, boxX + 40, iy);
-      iy += 54;
-    }
-    ctx.textAlign = "center";
-
-    // ── BOTTOM CTA ───────────────────────────────────────────────────
-    const ctaY = boxY + boxH + 70;
-    ctx.fillStyle = purpleDeep;
-    ctx.beginPath(); ctx.roundRect(boxX, ctaY, W - boxX * 2, 80, 40); ctx.fill();
-    ctx.fillStyle = white; ctx.font = "bold 28px serif";
-    ctx.fillText("Register Free at jctm.org.ng/conference-registration", W / 2, ctaY + 52);
-
-    // ── FOOTER ───────────────────────────────────────────────────────
-    ctx.fillStyle = "rgba(216,180,254,0.35)"; ctx.font = "bold 18px sans-serif";
-    ctx.fillText("www.jctm.org.ng  ·  #MinistersConference2026  ·  #JCTM", W / 2, H - 52);
-
-    setGenerated(true);
   }, [name, photo]);
 
   const download = () => {
@@ -229,11 +240,11 @@ function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }
     if (!canvas) return;
     try {
       canvas.toBlob(async (blob) => {
-        if (!blob) return;
+        if (!blob) { download(); return; }
         if (navigator.share && navigator.canShare({ files: [new File([blob], "invite.jpg", { type: "image/jpeg" })] })) {
           await navigator.share({
             title: "Ministers Conference 2026 — I'm Attending!",
-            text: `🙏 I'll be at the JCTM Ministers Conference 2026 (May 8–10, Effurun, Delta State). Register free at jctm.org.ng/conference-registration`,
+            text: "🙏 I'll be at the JCTM Ministers Conference 2026 (May 8–10, Effurun, Delta State). Register free at jctm.org.ng/conference-registration",
             files: [new File([blob], "ministers-conference-2026-invite.jpg", { type: "image/jpeg" })],
           });
         } else {
@@ -250,103 +261,155 @@ function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }
       {cropSrc2 && (
         <CropModal
           src={cropSrc2}
-          onDone={(cropped) => { setPhoto2(cropped); setCropSrc2(null); setGenerated(false); }}
+          onDone={(cropped) => {
+            setPhoto2(cropped);
+            setCropSrc2(null);
+            setGenerated(false);
+            generate(cropped);
+          }}
           onCancel={() => setCropSrc2(null)}
         />
       )}
       <div className="rounded-3xl overflow-hidden border border-purple-400/20 mt-6"
         style={{ background: "rgba(45,15,61,0.7)" }}>
+
+        {/* Header */}
         <div className="p-4 sm:p-6 border-b border-purple-400/10">
-          <div className="flex items-center gap-3 mb-2">
-            <Share2 className="h-5 w-5 text-purple-400" />
+          <div className="flex items-center gap-3 mb-1.5">
+            <Share2 className="h-5 w-5 text-purple-400 shrink-0" />
             <h3 className="font-serif font-bold text-white text-lg sm:text-xl">Generate Your Invite Card</h3>
           </div>
-          <p className="text-white/60 text-sm leading-relaxed">Add your name and photo to create a personalised digital invite card to share on WhatsApp, Instagram, and Facebook.</p>
+          <p className="text-white/55 text-sm leading-relaxed">Add your name and photo to create a personalised digital invite card — ready to share on WhatsApp, Instagram, and Facebook.</p>
         </div>
-        <div className="p-4 sm:p-6 space-y-4">
-          {/* Photo + Name + Generate — stacks on mobile, row on sm+ */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            {/* Photo upload button — centered on mobile */}
-            <div className="flex justify-center sm:justify-start">
-              <input ref={photoRef2} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange2} />
+
+        <div className="p-4 sm:p-6 space-y-5">
+
+          {/* ── Photo upload ── */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <input ref={photoRef2} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange2} />
+            <div className="flex sm:block justify-center">
               <button
                 type="button"
                 onClick={() => photoRef2.current?.click()}
+                aria-label="Upload your photo"
                 className="relative group shrink-0 transition-all duration-200 touch-manipulation"
-                title="Upload your photo"
               >
                 {photo ? (
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-purple-400 shadow-lg group-hover:border-purple-300 transition-all">
+                    <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-purple-400 shadow-lg group-hover:border-purple-300 transition-all">
                       <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
                     </div>
-                    <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Camera className="h-4 w-4 text-white" />
+                    <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Camera className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2"
+                      style={{ background: "#a855f7", borderColor: "rgba(45,15,61,0.9)" }}>
+                      <Camera className="h-3 w-3 text-white" />
                     </div>
                   </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-purple-400/40 flex flex-col items-center justify-center gap-0.5 bg-white/5 group-hover:bg-white/10 group-hover:border-purple-400 transition-all">
-                    <Camera className="h-5 w-5 text-purple-400/60 group-hover:text-purple-400" />
-                    <span className="text-[8px] text-purple-400/50 group-hover:text-purple-400 font-bold uppercase tracking-wide">Photo</span>
+                  <div className="w-[72px] h-[72px] rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all group-hover:bg-white/10 group-hover:border-purple-400"
+                    style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(45,15,61,0.5)" }}>
+                    <Camera className="h-5 w-5 text-purple-400/60 group-hover:text-purple-400 transition-colors" />
+                    <span className="text-[9px] text-purple-400/50 group-hover:text-purple-400 font-bold uppercase tracking-wide transition-colors leading-none">Photo</span>
                   </div>
                 )}
               </button>
             </div>
-            {/* Name input + Generate button */}
-            <div className="flex-1 flex flex-col sm:flex-row gap-2">
+
+            {/* Name input + Generate */}
+            <div className="flex-1 flex flex-col gap-2.5">
               <input
                 placeholder="Your full name (optional)"
                 value={name}
+                enterKeyHint="go"
                 onChange={(e) => { setName(e.target.value); setGenerated(false); }}
-                className="flex-1 px-4 py-3 rounded-xl border text-white placeholder:text-white/30 text-sm font-medium outline-none focus:ring-2 focus:ring-purple-500/40"
-                style={{ background: "rgba(45,15,61,0.7)", borderColor: "rgba(168,85,247,0.3)" }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); generate(); } }}
+                className="w-full px-4 py-3 rounded-xl border text-white placeholder:text-white/30 text-sm font-medium outline-none focus:ring-2 focus:ring-purple-500/40 transition-all"
+                style={{ background: "rgba(45,15,61,0.7)", borderColor: "rgba(168,85,247,0.3)", minHeight: "48px" }}
               />
               <Button
-                onClick={generate}
-                className="rounded-xl font-bold h-12 sm:h-auto w-full sm:w-auto shrink-0 touch-manipulation"
-                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}
+                onClick={() => generate()}
+                disabled={isGenerating}
+                className="w-full rounded-xl font-bold touch-manipulation transition-all duration-200 disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", minHeight: "48px" }}
               >
-                <Sparkles className="h-4 w-4 mr-1.5" /> Generate
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2 shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Generating…
+                  </>
+                ) : (
+                  <><Sparkles className="h-4 w-4 mr-1.5 shrink-0" /> Generate Card</>
+                )}
               </Button>
             </div>
           </div>
 
-          {photo && (
+          {/* Remove photo */}
+          {photo && !isGenerating && (
             <button
               type="button"
               onClick={() => { setPhoto2(null); setGenerated(false); if (photoRef2.current) photoRef2.current.value = ""; }}
-              className="text-xs text-white/40 hover:text-red-400 transition-colors block touch-manipulation"
+              className="text-xs text-white/35 hover:text-red-400 transition-colors touch-manipulation -mt-2 block"
             >
-              Remove photo
+              ✕ Remove photo
             </button>
           )}
 
-          {/* Canvas — max-width capped so it doesn't stretch on wide screens */}
-          <div className={`transition-all duration-300 ${generated ? "opacity-100" : "opacity-0 h-0 overflow-hidden"}`}>
-            <div className="max-w-xs sm:max-w-sm mx-auto">
-              <canvas
-                ref={canvasRef}
-                className="w-full rounded-2xl border border-purple-400/20"
-                style={{ aspectRatio: "3/4", display: "block" }}
-              />
+          {/* Canvas result area */}
+          <div ref={cardAreaRef}>
+            <AnimatePresence>
+              {generated && (
+                <motion.div
+                  key="card-ready"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl mb-3 text-sm font-semibold"
+                  style={{ background: "rgba(168,85,247,0.15)", borderColor: "rgba(168,85,247,0.3)", border: "1px solid rgba(168,85,247,0.3)", color: "#d8b4fe" }}
+                >
+                  <CheckCircle2 className="h-4 w-4 text-purple-400 shrink-0" />
+                  Your invite card is ready — share it or download below!
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className={`transition-all duration-300 ${generated ? "opacity-100" : "opacity-0 h-0 overflow-hidden pointer-events-none"}`}>
+              <div className="max-w-sm mx-auto">
+                <canvas
+                  ref={canvasRef}
+                  className="w-full rounded-2xl border border-purple-400/20 shadow-xl shadow-purple-900/30"
+                  style={{ aspectRatio: "3/4", display: "block" }}
+                />
+              </div>
             </div>
           </div>
 
+          {/* Share + Download */}
           {generated && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 max-w-xs sm:max-w-sm mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="grid grid-cols-2 gap-3 max-w-sm mx-auto"
+            >
               <Button
                 onClick={share}
-                className="flex-1 gap-2 rounded-xl font-bold h-12 touch-manipulation"
-                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}
+                className="gap-2 rounded-xl font-bold touch-manipulation"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", minHeight: "48px" }}
               >
-                <Share2 className="h-4 w-4" /> Share
+                <Share2 className="h-4 w-4 shrink-0" /> Share
               </Button>
               <Button
                 onClick={download}
                 variant="outline"
-                className="flex-1 gap-2 rounded-xl border-purple-400/40 text-purple-300 hover:bg-purple-400/10 h-12 touch-manipulation"
+                className="gap-2 rounded-xl font-bold border-purple-400/40 text-purple-300 hover:bg-purple-400/10 touch-manipulation"
+                style={{ minHeight: "48px" }}
               >
-                <Download className="h-4 w-4" /> Download
+                <Download className="h-4 w-4 shrink-0" /> Download
               </Button>
             </motion.div>
           )}
@@ -410,15 +473,22 @@ function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: s
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
   }, []);
 
   const handleDone = async () => {
-    if (!croppedAreaPixels) return;
-    const cropped = await getCroppedImg(src, croppedAreaPixels);
-    onDone(cropped);
+    if (!croppedAreaPixels || isCropping) return;
+    setIsCropping(true);
+    try {
+      const cropped = await getCroppedImg(src, croppedAreaPixels);
+      onDone(cropped);
+    } catch {
+      toast.error("Could not process your photo. Please try a different image.");
+      setIsCropping(false);
+    }
   };
 
   return (
@@ -428,7 +498,7 @@ function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: s
           <p className="text-white font-bold text-center text-sm">Crop Your Photo</p>
           <p className="text-white/50 text-xs text-center mt-0.5">Drag to reposition · Pinch or scroll to zoom</p>
         </div>
-        <div className="relative w-full" style={{ height: "clamp(180px, 38vh, 300px)" }}>
+        <div className="relative w-full" style={{ height: "clamp(200px, 42vh, 320px)" }}>
           <Cropper
             image={src}
             crop={crop}
@@ -439,30 +509,47 @@ function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: s
             onCropComplete={onCropComplete}
           />
         </div>
-        <div className="px-5 py-3">
+        <div className="px-5 py-3 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-white/40 text-[11px] font-medium uppercase tracking-wider">Zoom</span>
+            <span className="text-purple-300/60 text-[11px] font-medium">{zoom.toFixed(1)}×</span>
+          </div>
           <input
             type="range"
             min={1}
             max={3}
             step={0.01}
             value={zoom}
+            aria-label="Zoom level"
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full accent-purple-400"
+            className="w-full accent-purple-400 touch-manipulation"
+            style={{ minHeight: "28px" }}
           />
         </div>
         <div className="flex gap-3 px-4 pb-4">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors touch-manipulation"
+            disabled={isCropping}
+            className="flex-1 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors touch-manipulation disabled:opacity-40"
+            style={{ minHeight: "48px" }}
           >
             Cancel
           </button>
           <button
             onClick={handleDone}
-            className="flex-1 py-3 rounded-xl text-white text-sm font-bold transition-colors touch-manipulation"
-            style={{ background: "#a855f7" }}
+            disabled={isCropping}
+            className="flex-1 rounded-xl text-white text-sm font-bold transition-all touch-manipulation disabled:opacity-60 flex items-center justify-center gap-2"
+            style={{ background: "#a855f7", minHeight: "48px" }}
           >
-            Use This Crop
+            {isCropping ? (
+              <>
+                <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Processing…
+              </>
+            ) : "Use This Crop"}
           </button>
         </div>
       </div>
