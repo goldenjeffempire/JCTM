@@ -3105,27 +3105,21 @@ function EventsSection() {
                 </TiltCard>
               </motion.div>
 
-              {/* ── Dynamic DB events ── */}
-              {events && events.slice(0, 5).map((event) => {
+              {/* ── Dynamic DB events (only those with a flyer image) ── */}
+              {events && events.filter(e => !!e.imageUrl).slice(0, 5).map((event) => {
                 const date = new Date(event.startDate);
                 return (
                   <motion.div key={event.id} variants={fadeUp}>
                     <TiltCard>
                       <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full flex flex-col">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                        {event.imageUrl ? (
-                          <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                            <div className="absolute bottom-3 left-3">
-                              <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>
-                            </div>
+                        <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                          <img src={event.imageUrl!} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-3 left-3">
+                            <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>
                           </div>
-                        ) : (
-                          <div className="bg-gradient-to-br from-accent/10 to-primary/10 flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
-                            <Calendar className="h-12 w-12 text-accent/30" />
-                          </div>
-                        )}
+                        </div>
                         <div className="p-6 flex flex-col flex-1">
                           <div className="flex items-center gap-2 mb-3">
                             <div className="bg-gradient-to-br from-accent to-[#0284C7] rounded-xl px-3 py-1.5 text-white text-center">

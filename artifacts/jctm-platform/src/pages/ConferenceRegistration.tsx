@@ -282,83 +282,82 @@ function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }
           <p className="text-white/55 text-sm leading-relaxed">Add your name and photo to create a personalised digital invite card — ready to share on WhatsApp, Instagram, and Facebook.</p>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-3">
 
-          {/* ── Photo upload ── */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <input ref={photoRef2} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange2} />
-            <div className="flex sm:block justify-center">
-              <button
-                type="button"
-                onClick={() => photoRef2.current?.click()}
-                aria-label="Upload your photo"
-                className="relative group shrink-0 transition-all duration-200 touch-manipulation"
-              >
-                {photo ? (
-                  <div className="relative">
-                    <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-purple-400 shadow-lg group-hover:border-purple-300 transition-all">
-                      <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Camera className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2"
-                      style={{ background: "#a855f7", borderColor: "rgba(45,15,61,0.9)" }}>
-                      <Camera className="h-3 w-3 text-white" />
-                    </div>
+          {/* ── Photo + Name — always a row at every breakpoint ── */}
+          <input ref={photoRef2} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange2} />
+          <div className="flex items-center gap-3">
+            {/* Photo button — fixed 64px circle, shrink-0 so it never squashes */}
+            <button
+              type="button"
+              onClick={() => photoRef2.current?.click()}
+              aria-label="Upload your photo"
+              className="relative group shrink-0 touch-manipulation transition-all duration-200"
+            >
+              {photo ? (
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-purple-400 shadow-lg group-hover:border-purple-300 transition-all" style={{ minWidth: "64px", minHeight: "64px" }}>
+                    <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
                   </div>
-                ) : (
-                  <div className="w-[72px] h-[72px] rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all group-hover:bg-white/10 group-hover:border-purple-400"
-                    style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(45,15,61,0.5)" }}>
-                    <Camera className="h-5 w-5 text-purple-400/60 group-hover:text-purple-400 transition-colors" />
-                    <span className="text-[9px] text-purple-400/50 group-hover:text-purple-400 font-bold uppercase tracking-wide transition-colors leading-none">Photo</span>
+                  <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Camera className="h-4 w-4 text-white" />
                   </div>
-                )}
-              </button>
-            </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center border-2"
+                    style={{ background: "#a855f7", borderColor: "rgba(45,15,61,0.9)" }}>
+                    <Camera className="h-2.5 w-2.5 text-white" />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-0.5 transition-all group-hover:bg-white/10 group-hover:border-purple-400"
+                  style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(45,15,61,0.5)", minWidth: "64px", minHeight: "64px" }}>
+                  <Camera className="h-4 w-4 text-purple-400/60 group-hover:text-purple-400 transition-colors" />
+                  <span className="text-[8px] text-purple-400/50 group-hover:text-purple-400 font-bold uppercase tracking-wide transition-colors leading-none">Photo</span>
+                </div>
+              )}
+            </button>
 
-            {/* Name input + Generate */}
-            <div className="flex-1 flex flex-col gap-2.5">
-              <input
-                placeholder="Your full name (optional)"
-                value={name}
-                enterKeyHint="go"
-                onChange={(e) => { setName(e.target.value); setGenerated(false); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); generate(); } }}
-                className="w-full px-4 py-3 rounded-xl border text-white placeholder:text-white/30 text-sm font-medium outline-none focus:ring-2 focus:ring-purple-500/40 transition-all"
-                style={{ background: "rgba(45,15,61,0.7)", borderColor: "rgba(168,85,247,0.3)", minHeight: "48px" }}
-              />
-              <Button
-                onClick={() => generate()}
-                disabled={isGenerating}
-                className="w-full rounded-xl font-bold touch-manipulation transition-all duration-200 disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", minHeight: "48px" }}
-              >
-                {isGenerating ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 mr-2 shrink-0" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Generating…
-                  </>
-                ) : (
-                  <><Sparkles className="h-4 w-4 mr-1.5 shrink-0" /> Generate Card</>
-                )}
-              </Button>
-            </div>
+            {/* Name input — fills remaining width, min-w-0 prevents overflow */}
+            <input
+              placeholder="Your full name (optional)"
+              value={name}
+              enterKeyHint="go"
+              onChange={(e) => { setName(e.target.value); setGenerated(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); generate(); } }}
+              className="flex-1 min-w-0 px-3 sm:px-4 py-3 rounded-xl border text-white placeholder:text-white/30 text-sm font-medium outline-none focus:ring-2 focus:ring-purple-500/40 transition-all"
+              style={{ background: "rgba(45,15,61,0.7)", borderColor: "rgba(168,85,247,0.3)", minHeight: "48px" }}
+            />
           </div>
 
-          {/* Remove photo */}
+          {/* Remove photo — subtle, only shown when photo present */}
           {photo && !isGenerating && (
             <button
               type="button"
               onClick={() => { setPhoto2(null); setGenerated(false); if (photoRef2.current) photoRef2.current.value = ""; }}
-              className="text-xs text-white/35 hover:text-red-400 transition-colors touch-manipulation -mt-2 block"
+              className="text-xs text-white/30 hover:text-red-400 transition-colors touch-manipulation pl-1"
             >
               ✕ Remove photo
             </button>
           )}
+
+          {/* Generate button — always full width */}
+          <Button
+            onClick={() => generate()}
+            disabled={isGenerating}
+            className="w-full rounded-xl font-bold touch-manipulation transition-all duration-200 disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", minHeight: "48px" }}
+          >
+            {isGenerating ? (
+              <>
+                <svg className="animate-spin h-4 w-4 mr-2 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Generating…
+              </>
+            ) : (
+              <><Sparkles className="h-4 w-4 mr-1.5 shrink-0" /> Generate My Invite Card</>
+            )}
+          </Button>
 
           {/* Canvas result area */}
           <div ref={cardAreaRef}>
