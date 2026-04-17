@@ -138,6 +138,228 @@ const SLIDES = [
     quote: "For everyone who calls on the name of the Lord will be saved.",
     ref: "Romans 10:13",
   },
+  // ── JUSTICE ────────────────────────────────────────────────────────────────
+  {
+    theme: "Justice",
+    point: "Let Justice Roll Down Like a River — God Is Watching Every Court and Marketplace",
+    quote: "But let justice roll on like a river, righteousness like a never-failing stream!",
+    ref: "Amos 5:24",
+  },
+  {
+    theme: "Justice",
+    point: "Those Who Turn Justice to Poison and Cast Righteousness to the Ground Will Not Escape God",
+    quote: "You who turn justice to wormwood and cast down righteousness to the earth!",
+    ref: "Amos 5:7",
+  },
+  {
+    theme: "Justice",
+    point: "God Will Not Tolerate a Nation That Sells the Righteous for Silver and the Poor for a Pair of Shoes",
+    quote: "They sell the righteous for silver, and the needy for a pair of sandals.",
+    ref: "Amos 2:6",
+  },
+  {
+    theme: "Justice",
+    point: "Hate Evil and Love Good — Establish Justice in the Gate, and God Will Be With You",
+    quote: "Hate evil, love good; maintain justice in the courts. Perhaps the LORD God Almighty will have mercy on the remnant of Joseph.",
+    ref: "Amos 5:15",
+  },
+  {
+    theme: "Justice",
+    point: "God Abhors Pride and Palaces Built on the Blood of the Oppressed",
+    quote: "I abhor the pride of Jacob and detest his fortresses; I will deliver up the city and everything in it.",
+    ref: "Amos 6:8",
+  },
+  {
+    theme: "Justice",
+    point: "Every Nation That Forgets the Poor Has Forgotten God — No Prosperity Can Cover That Sin",
+    quote: "For three sins of Israel, even for four, I will not relent — they trample on the heads of the poor as on the dust of the ground.",
+    ref: "Amos 2:7",
+  },
+  // ── REPENTANCE ─────────────────────────────────────────────────────────────
+  {
+    theme: "Repentance",
+    point: "God Sent Famine, Drought, Blight, and Pestilence to Call You Back — Yet You Did Not Return",
+    quote: "Yet you have not returned to Me, declares the LORD.",
+    ref: "Amos 4:9",
+  },
+  {
+    theme: "Repentance",
+    point: "Seek the LORD and Live — Do Not Seek Bethel, Seek the One Who Made the Pleiades and Orion",
+    quote: "Seek the LORD and live, or he will sweep through the tribes of Joseph like a fire.",
+    ref: "Amos 5:6",
+  },
+  {
+    theme: "Repentance",
+    point: "Seek Good and Not Evil That You May Live — Then the LORD Will Truly Be With You",
+    quote: "Seek good, not evil, that you may live. Then the LORD God Almighty will be with you, just as you say he is.",
+    ref: "Amos 5:14",
+  },
+  {
+    theme: "Repentance",
+    point: "God Withheld Rain From One City and Gave It to Another — Wake Up and Hear What He Is Saying",
+    quote: "I also withheld rain from you when the harvest was still three months away. I sent rain on one town, but withheld it from another.",
+    ref: "Amos 4:7",
+  },
+  {
+    theme: "Repentance",
+    point: "God Prepares to Meet You — Strip Off the Excuses and Return With Your Whole Heart",
+    quote: "Therefore this is what I will do to you, Israel, and because I will do this to you, prepare to meet your God, O Israel.",
+    ref: "Amos 4:12",
+  },
+  {
+    theme: "Repentance",
+    point: "The God Who Makes the Morning and Darkens the Day Is Calling You Back Before Night Falls on Your Soul",
+    quote: "He who made the Pleiades and Orion, who turns midnight into dawn and darkens day into night — the LORD is his name.",
+    ref: "Amos 5:8",
+  },
+  // ── ACCOUNTABILITY ─────────────────────────────────────────────────────────
+  {
+    theme: "Accountability",
+    point: "God Has Set a Plumb Line Among His People — Every Crooked Wall Will Be Measured and Torn Down",
+    quote: "Look, I am setting a plumb line among my people Israel; I will spare them no longer.",
+    ref: "Amos 7:8",
+  },
+  {
+    theme: "Accountability",
+    point: "Can Two Walk Together Unless They Are Agreed? God Will Not Walk With the Unrepentant",
+    quote: "Do two walk together unless they have agreed to do so?",
+    ref: "Amos 3:3",
+  },
+  {
+    theme: "Accountability",
+    point: "God Reveals His Secrets to His Servants the Prophets — Accountability Begins With Hearing the Word",
+    quote: "Surely the Sovereign LORD does nothing without revealing his plan to his servants the prophets.",
+    ref: "Amos 3:7",
+  },
+  {
+    theme: "Accountability",
+    point: "The Lion Has Roared — Only Those Who Have Not Heard Can Claim Ignorance Before God",
+    quote: "The lion has roared — who will not fear? The Sovereign LORD has spoken — who can but prophesy?",
+    ref: "Amos 3:8",
+  },
+  {
+    theme: "Accountability",
+    point: "You Were Chosen Above All Families of the Earth — Therefore God Will Punish You for All Your Iniquities",
+    quote: "You only have I chosen of all the families of the earth; therefore I will punish you for all your sins.",
+    ref: "Amos 3:2",
+  },
+  {
+    theme: "Accountability",
+    point: "Does Disaster Come to a City Unless the LORD Has Appointed It? Nothing Happens Without His Knowledge",
+    quote: "When disaster comes to a city, has not the LORD caused it?",
+    ref: "Amos 3:6",
+  },
+  // ── OPPRESSION ─────────────────────────────────────────────────────────────
+  {
+    theme: "Oppression",
+    point: "Those Who Trample the Poor and Build Mansions on Their Suffering Will Not Dwell in Those Houses",
+    quote: "You trample on the poor and force him to give you grain. Therefore, though you have built stone mansions, you will not live in them.",
+    ref: "Amos 5:11",
+  },
+  {
+    theme: "Oppression",
+    point: "Hear This, You Who Swallow Up the Needy — God Has Not Forgotten Their Cry",
+    quote: "Hear this, you who trample the needy and do away with the poor of the land.",
+    ref: "Amos 8:4",
+  },
+  {
+    theme: "Oppression",
+    point: "The Merchant Who Cheats With False Weights Is an Abomination — God Sees Every Scale",
+    quote: "Skimping on the measure, boosting the price and cheating with dishonest scales.",
+    ref: "Amos 8:5",
+  },
+  {
+    theme: "Oppression",
+    point: "God Will Never Forget Any of the Deeds of Those Who Exploit the Vulnerable — His Eyes Are Everywhere",
+    quote: "I will never forget anything they have done.",
+    ref: "Amos 8:7",
+  },
+  {
+    theme: "Oppression",
+    point: "The Women Who Oppress the Poor and Crush the Needy Will Be Led Away With Hooks — God Is Not Mocked",
+    quote: "Hear this word, you cows of Bashan on Mount Samaria, you women who oppress the poor and crush the needy.",
+    ref: "Amos 4:1",
+  },
+  {
+    theme: "Oppression",
+    point: "Woe to Those at Ease in Zion — Comfort Blind Men to the Ruin of the Poor Around Them",
+    quote: "Woe to you who are complacent in Zion, and to you who feel secure on Mount Samaria.",
+    ref: "Amos 6:1",
+  },
+  // ── TRUE WORSHIP ───────────────────────────────────────────────────────────
+  {
+    theme: "True Worship",
+    point: "God Despises Religious Festivals That Are Not Backed by Justice and Clean Hands",
+    quote: "I hate, I despise your religious festivals; your assemblies are a stench to me.",
+    ref: "Amos 5:21",
+  },
+  {
+    theme: "True Worship",
+    point: "God Will Not Accept Your Burnt Offerings When Your Hands Are Full of the Blood of the Poor",
+    quote: "Even though you bring me burnt offerings and grain offerings, I will not accept them.",
+    ref: "Amos 5:22",
+  },
+  {
+    theme: "True Worship",
+    point: "You Cannot Lift Melodious Songs to God While You Crush Your Brother Under Your Feet",
+    quote: "Away with the noise of your songs! I will not listen to the music of your harps.",
+    ref: "Amos 5:23",
+  },
+  {
+    theme: "True Worship",
+    point: "True Worship Produces Justice and Righteousness — Without These It Is Only Performance Before God",
+    quote: "But let justice roll on like a river, righteousness like a never-failing stream!",
+    ref: "Amos 5:24",
+  },
+  {
+    theme: "True Worship",
+    point: "Those Who Swear by the Idols of Samaria Will Fall and Never Rise Again — Worship Only the Living God",
+    quote: "Those who swear by the sin of Samaria — who say, 'As your god lives, Dan,' or 'As the god of Beersheba lives' — they will fall, never to rise again.",
+    ref: "Amos 8:14",
+  },
+  {
+    theme: "True Worship",
+    point: "Did You Bring Me Offerings and Sacrifices in the Wilderness? God Wants Your Heart, Not Your Religion",
+    quote: "Did you bring me sacrifices and offerings forty years in the wilderness, people of Israel?",
+    ref: "Amos 5:25",
+  },
+  // ── JUDGMENT & MERCY ───────────────────────────────────────────────────────
+  {
+    theme: "Judgment & Mercy",
+    point: "The Day of the LORD Is Darkness and Not Light — Those Who Desire It Without Holiness Have Missed It",
+    quote: "Woe to you who long for the day of the LORD! That day will be darkness, not light.",
+    ref: "Amos 5:18",
+  },
+  {
+    theme: "Judgment & Mercy",
+    point: "In That Day God Will Restore the Fallen Tabernacle of David — His Mercy Follows His Judgment",
+    quote: "In that day I will restore David's fallen shelter — I will repair its broken walls and restore its ruins.",
+    ref: "Amos 9:11",
+  },
+  {
+    theme: "Judgment & Mercy",
+    point: "Though You Climb to the Heavens or Hide in the Depths, There Is No Escaping the Eye of God",
+    quote: "Though they climb up to the heavens, from there I will bring them down; though they hide themselves on the summit of Carmel, I will search them out.",
+    ref: "Amos 9:2–3",
+  },
+  {
+    theme: "Judgment & Mercy",
+    point: "God Will Sift Israel Among All Nations — Not One Grain of Truth Will Fall to the Ground Unnoticed",
+    quote: "For I will give the command, and I will shake the people of Israel among all the nations as grain is shaken in a sieve, and not a pebble will reach the ground.",
+    ref: "Amos 9:9",
+  },
+  {
+    theme: "Judgment & Mercy",
+    point: "The Days Are Coming When the Plowman Will Overtake the Reaper — God's Restoration Is Overwhelming",
+    quote: "The days are coming when the reaper will be overtaken by the plowman and the planter by the one treading grapes.",
+    ref: "Amos 9:13",
+  },
+  {
+    theme: "Judgment & Mercy",
+    point: "God Will Plant His People in Their Own Land and They Shall Never Again Be Uprooted — His Promise Stands",
+    quote: "I will plant Israel in their own land, never again to be uprooted from the land I have given them, says the LORD your God.",
+    ref: "Amos 9:15",
+  },
 ];
 
 const THEME: Record<string, { accent: string; pill: string; bg: string; quoteColor: string }> = {
@@ -158,6 +380,42 @@ const THEME: Record<string, { accent: string; pill: string; bg: string; quoteCol
     pill: "rgba(52,211,153,0.14)",
     bg: "linear-gradient(160deg,#003828 0%,#001810 100%)",
     quoteColor: "rgba(167,243,208,0.85)",
+  },
+  Justice: {
+    accent: "#F59E0B",
+    pill: "rgba(245,158,11,0.14)",
+    bg: "linear-gradient(160deg,#3a1f00 0%,#1a0d00 100%)",
+    quoteColor: "rgba(253,230,138,0.85)",
+  },
+  Repentance: {
+    accent: "#FB923C",
+    pill: "rgba(251,146,60,0.14)",
+    bg: "linear-gradient(160deg,#3a1500 0%,#1a0800 100%)",
+    quoteColor: "rgba(254,215,170,0.85)",
+  },
+  Accountability: {
+    accent: "#F87171",
+    pill: "rgba(248,113,113,0.14)",
+    bg: "linear-gradient(160deg,#3a0000 0%,#1a0000 100%)",
+    quoteColor: "rgba(254,202,202,0.85)",
+  },
+  Oppression: {
+    accent: "#FB7185",
+    pill: "rgba(251,113,133,0.14)",
+    bg: "linear-gradient(160deg,#2d0a12 0%,#140006 100%)",
+    quoteColor: "rgba(255,205,215,0.85)",
+  },
+  "True Worship": {
+    accent: "#FBBF24",
+    pill: "rgba(251,191,36,0.14)",
+    bg: "linear-gradient(160deg,#2c2000 0%,#120e00 100%)",
+    quoteColor: "rgba(254,240,138,0.85)",
+  },
+  "Judgment & Mercy": {
+    accent: "#2DD4BF",
+    pill: "rgba(45,212,191,0.14)",
+    bg: "linear-gradient(160deg,#003033 0%,#001518 100%)",
+    quoteColor: "rgba(153,246,228,0.85)",
   },
 };
 
