@@ -50,12 +50,12 @@ function CountdownBlock({ value, label }: { value: number; label: string }) {
         initial={{ rotateX: -90, opacity: 0 }}
         animate={{ rotateX: 0, opacity: 1 }}
         transition={{ duration: 0.35 }}
-        className="w-20 h-20 md:w-28 md:h-28 rounded-2xl flex items-center justify-center font-mono font-black text-4xl md:text-5xl text-white shadow-2xl border border-purple-400/30"
+        className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-xl sm:rounded-2xl flex items-center justify-center font-mono font-black text-2xl sm:text-4xl md:text-5xl text-white shadow-2xl border border-purple-400/30"
         style={{ background: "linear-gradient(135deg, #1a0525 0%, #3b0764 100%)" }}
       >
         {String(value).padStart(2, "0")}
       </motion.div>
-      <span className="mt-2 text-[10px] md:text-xs text-purple-400 uppercase tracking-[0.2em] font-bold">{label}</span>
+      <span className="mt-1.5 sm:mt-2 text-[9px] sm:text-[10px] md:text-xs text-purple-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] font-bold">{label}</span>
     </div>
   );
 }
@@ -786,12 +786,12 @@ function ConferenceAdCopySection() {
       style={{ background: "rgba(45,15,61,0.7)", borderColor: "rgba(168,85,247,0.2)" }}
     >
       {/* Header */}
-      <div className="p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.12)" }}>
+      <div className="p-4 sm:p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.12)" }}>
         <div className="flex items-center gap-3 mb-2">
-          <Sparkles className="h-5 w-5 text-purple-400" />
-          <h3 className="font-serif font-bold text-white text-xl">Social Ad Copy Generator</h3>
+          <Sparkles className="h-5 w-5 text-purple-400 shrink-0" />
+          <h3 className="font-serif font-bold text-white text-lg sm:text-xl">Social Ad Copy Generator</h3>
         </div>
-        <p className="text-white/50 text-sm">3 professionally crafted ad versions for every platform. Copy and share instantly — no writing needed.</p>
+        <p className="text-white/50 text-xs sm:text-sm">3 professionally crafted ad versions for every platform. Copy and share instantly — no writing needed.</p>
       </div>
 
       {/* Tabs */}
@@ -802,22 +802,22 @@ function ConferenceAdCopySection() {
             <button
               key={key}
               onClick={() => setActive(key)}
-              className={`flex-1 py-3 px-2 text-xs font-bold uppercase tracking-wider transition-all duration-200 flex flex-col items-center gap-1 ${
+              className={`flex-1 py-2.5 sm:py-3 px-1.5 sm:px-2 text-[9px] sm:text-xs font-bold uppercase tracking-wide sm:tracking-wider transition-all duration-200 flex flex-col items-center gap-1 touch-manipulation ${
                 active === key
                   ? "border-b-2 border-purple-400 bg-purple-400/5"
                   : "text-white/35 hover:text-white/60"
               }`}
               style={{ color: active === key ? "#d8b4fe" : undefined }}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {val.label}
+              <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <span className="leading-tight text-center">{val.label}</span>
             </button>
           );
         })}
       </div>
 
       {/* Body */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-medium uppercase tracking-widest" style={{ color: "rgba(216,180,254,0.55)" }}>
             {CONF_AD_COPIES[active].platform}
@@ -1070,27 +1070,27 @@ export default function ConferenceRegistration() {
           style={{ width: "300px", background: "linear-gradient(to right, transparent, #a855f7, transparent)" }}
         />
 
-        <div className="relative z-10 container mx-auto px-4 py-16 max-w-5xl">
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 py-10 sm:py-14 md:py-16 max-w-5xl">
 
           {/* ── Header ────────────────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-10 sm:mb-14 md:mb-16"
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border"
+              className="inline-flex flex-wrap justify-center items-center gap-2 px-4 sm:px-5 py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-5 sm:mb-6 border"
               style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.1)", color: "#d8b4fe" }}
             >
-              <Flame className="h-3.5 w-3.5" />
+              <Flame className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
               Jesus Christ Temple Ministry Presents
             </motion.div>
 
-            <h2 className="font-serif font-black text-5xl md:text-7xl text-white mb-4 leading-none tracking-tight">
+            <h2 className="font-serif font-black text-[2rem] xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white mb-3 sm:mb-4 leading-tight sm:leading-none tracking-tight px-2 sm:px-0">
               Ministers{" "}
               <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>
                 Conference
@@ -1098,21 +1098,21 @@ export default function ConferenceRegistration() {
               <span className="text-purple-300">2026</span>
             </h2>
 
-            <p className="text-lg md:text-xl font-serif italic text-purple-300/90 mb-3 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl font-serif italic text-purple-300/90 mb-3 max-w-2xl mx-auto leading-relaxed px-4 sm:px-0">
               An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders
             </p>
 
             <div
-              className="inline-block px-6 py-3 rounded-2xl mb-8 max-w-lg mx-auto"
+              className="block w-full max-w-lg mx-auto px-4 sm:px-6 py-3 rounded-2xl mb-6 sm:mb-8"
               style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)" }}
             >
-              <p className="text-purple-200 font-bold text-base md:text-lg leading-snug">
+              <p className="text-purple-200 font-bold text-sm sm:text-base md:text-lg leading-snug">
                 &ldquo;The apostolic fire is being restored to the Church&rdquo;
               </p>
             </div>
 
             {/* Event meta — simple inline flex, no pill backgrounds */}
-            <div className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs sm:text-sm text-white/70 px-2">
               {[
                 { icon: Calendar, text: "Friday 8th – Sunday 10th May, 2026" },
                 { icon: Clock, text: "8:00 AM Daily (WAT)" },
@@ -1120,7 +1120,7 @@ export default function ConferenceRegistration() {
                 { icon: Phone, text: CONF_CONTACT },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-1.5">
-                  <Icon className="h-3.5 w-3.5 text-purple-400" />
+                  <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-purple-400 shrink-0" />
                   <span>{text}</span>
                 </div>
               ))}
@@ -1135,13 +1135,13 @@ export default function ConferenceRegistration() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
-            className="text-center mb-16"
+            className="text-center mb-10 sm:mb-14 md:mb-16"
           >
-            <p className="text-xs text-purple-400/60 uppercase tracking-[0.3em] font-bold mb-6">
+            <p className="text-[10px] sm:text-xs text-purple-400/60 uppercase tracking-[0.25em] sm:tracking-[0.3em] font-bold mb-4 sm:mb-6">
               {countdown.started ? "The Conference Has Begun!" : "Conference Begins In"}
             </p>
             {!countdown.started ? (
-              <div className="flex justify-center gap-4 md:gap-6">
+              <div className="flex justify-center gap-2 sm:gap-4 md:gap-6">
                 <CountdownBlock value={countdown.days} label="Days" />
                 <CountdownBlock value={countdown.hours} label="Hours" />
                 <CountdownBlock value={countdown.minutes} label="Minutes" />
@@ -1170,7 +1170,7 @@ export default function ConferenceRegistration() {
           </motion.div>
 
           {/* ── Two-column: Registration + Map ────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-10 sm:mb-12">
 
             {/* Left — Registration Card */}
             <motion.div
@@ -1180,14 +1180,14 @@ export default function ConferenceRegistration() {
               className="rounded-3xl overflow-hidden"
               style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}
             >
-              <div className="p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.15)", background: "rgba(168,85,247,0.08)" }}>
-                <h3 className="font-serif font-bold text-white text-xl mb-1 flex items-center gap-2">
+              <div className="p-4 sm:p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.15)", background: "rgba(168,85,247,0.08)" }}>
+                <h3 className="font-serif font-bold text-white text-lg sm:text-xl mb-1 flex items-center gap-2">
                   <span>✋</span> Register Your Attendance
                 </h3>
-                <p className="text-white/50 text-sm">Let the ministry know you're coming. Registration is free.</p>
+                <p className="text-white/50 text-xs sm:text-sm">Let the ministry know you're coming. Registration is free.</p>
               </div>
 
-              <div className="p-6 space-y-5">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
                 {invitedBy && !success && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }}
@@ -1424,8 +1424,8 @@ export default function ConferenceRegistration() {
                         disabled={submitting}
                         whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(168,85,247,0.5)" }}
                         whileTap={{ scale: 0.98 }}
-                        className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide disabled:opacity-60 cursor-pointer transition-all duration-200"
-                        style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)", color: "#fff" }}
+                        className="w-full py-4 rounded-2xl font-serif font-black text-base sm:text-lg tracking-wide disabled:opacity-60 cursor-pointer transition-all duration-200 touch-manipulation"
+                        style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)", color: "#fff", minHeight: "56px" }}
                       >
                         {submitting ? "Registering…" : "✋ I Will Attend!"}
                       </motion.button>
@@ -1455,7 +1455,7 @@ export default function ConferenceRegistration() {
                   Open in Maps <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
-              <div className="relative" style={{ height: "400px" }}>
+              <div className="relative h-[260px] sm:h-[320px] lg:h-[400px]">
                 <iframe
                   title="Ministers Conference 2026 Venue Location"
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3975.8!2d5.773!3d5.548!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1041efa0b9d1c8e7%3A0xa3f1e0f0c0e0b0c0!2sEbrumede+Roundabout%2C+Effurun%2C+Delta+State%2C+Nigeria!5e0!3m2!1sen!2sng!4v1700000000001!5m2!1sen!2sng"
@@ -1467,7 +1467,7 @@ export default function ConferenceRegistration() {
                   referrerPolicy="no-referrer-when-downgrade"
                 />
               </div>
-              <div className="p-4" style={{ background: "rgba(45,15,61,0.8)" }}>
+              <div className="p-3 sm:p-4" style={{ background: "rgba(45,15,61,0.8)" }}>
                 <p className="text-white/70 text-xs flex items-start gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
                   {CONF_LOCATION}
@@ -1501,27 +1501,27 @@ export default function ConferenceRegistration() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="text-center rounded-3xl p-8 border border-purple-400/20"
+            className="text-center rounded-3xl p-5 sm:p-8 border border-purple-400/20"
             style={{ background: "rgba(45,15,61,0.6)" }}
           >
-            <h3 className="font-serif font-bold text-white text-2xl mb-2">Spread The Word</h3>
-            <p className="text-white/60 text-sm mb-6">Every minister needs to hear this call. Share the conference with pastors, elders, and church leaders in your network.</p>
-            <div className="flex flex-wrap justify-center gap-3 mb-6">
+            <h3 className="font-serif font-bold text-white text-xl sm:text-2xl mb-2">Spread The Word</h3>
+            <p className="text-white/60 text-xs sm:text-sm mb-5 sm:mb-6 max-w-md mx-auto">Every minister needs to hear this call. Share the conference with pastors, elders, and church leaders in your network.</p>
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-5 sm:mb-6">
               {[
                 {
-                  label: "Share on WhatsApp",
+                  label: "WhatsApp",
                   bg: "#25D366",
                   href: `https://wa.me/?text=${encodeURIComponent(`🙏 MINISTERS CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026\n8:00 AM Daily\n📍 Church Auditorium, Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n📞 ${CONF_CONTACT}\n\n#MinistersConference2026 #JCTM`)}`,
                   emoji: "💬",
                 },
                 {
-                  label: "Share on Facebook",
+                  label: "Facebook",
                   bg: "#1877F2",
                   href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jctm.org.ng/conference-registration")}`,
                   emoji: "👍",
                 },
                 {
-                  label: "Share on X / Twitter",
+                  label: "X / Twitter",
                   bg: "#000000",
                   href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🙏 Ministers Conference 2026 — "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\n📅 May 8–10, 2026\n⏰ 8AM Daily\n📍 Effurun Uvwie, Delta State\n\n#MinistersConference2026 #JCTM`)}&url=${encodeURIComponent("https://jctm.org.ng/conference-registration")}`,
                   emoji: "𝕏",
@@ -1532,16 +1532,18 @@ export default function ConferenceRegistration() {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-xl"
-                  style={{ background: bg }}
+                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-xl touch-manipulation"
+                  style={{ background: bg, minHeight: "44px" }}
                 >
-                  <span>{emoji}</span> {label}
+                  <span>{emoji}</span>
+                  <span className="hidden xs:inline">Share on </span>{label}
                 </a>
               ))}
             </div>
-            <div className="flex items-center justify-center gap-2 text-white/50 text-sm">
+            <div className="flex items-center justify-center flex-wrap gap-1 text-white/50 text-sm">
               <Phone className="h-4 w-4 text-purple-400" />
-              Enquiries: <a href={`tel:${CONF_CONTACT.replace(/\s/g, "")}`} className="text-purple-300 font-bold hover:underline ml-1">{CONF_CONTACT}</a>
+              <span>Enquiries:</span>
+              <a href={`tel:${CONF_CONTACT.replace(/\s/g, "")}`} className="text-purple-300 font-bold hover:underline">{CONF_CONTACT}</a>
             </div>
           </motion.div>
 
