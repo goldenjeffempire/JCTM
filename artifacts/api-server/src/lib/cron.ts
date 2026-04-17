@@ -1,5 +1,5 @@
 import { syncRecentIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
-import { syncFromRSS, RSS_INTERVAL_MS } from "./rss-sync.js";
+import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
 import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification } from "./push-manager.js";
@@ -22,6 +22,8 @@ let reminderCronHandle:  ReturnType<typeof setInterval> | null = null;
 let quotaPausedUntil: number | null = null;
 let openaiQuotaPausedUntil: number | null = null;
 const OPENAI_QUOTA_BACKOFF_MS = 60 * 60 * 1000; // 1 hour cooldown after 429
+let rssBackoffUntil: number | null = null;
+const RSS_404_BACKOFF_MS = 30 * 60 * 1000; // 30 min cooldown after 404 (hosting IP restriction)
 let lastWebSubRenewal: Date | null = null;
 let webSubCallbackUrl: string | null = null;
 let lastRSSSync: Date | null = null;
@@ -251,8 +253,13 @@ async function runApiSync(apiKey: string, log: Logger): Promise<void> {
 // ─── RSS sync ─────────────────────────────────────────────────────────────────
 
 async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
+  // Back off after a 404 — YouTube refuses RSS from some hosting IPs; no
+  // point hammering it every 5 minutes until the cooldown expires.
+  if (rssBackoffUntil !== null && Date.now() < rssBackoffUntil) return;
+
   try {
     const result = await syncFromRSS(log);
+    rssBackoffUntil = null; // clear any previous backoff on success
     lastRSSSync = new Date();
 
     if (result.inserted > 0) {
@@ -293,7 +300,18 @@ async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
       }
     }
   } catch (err) {
-    log.warn({ err }, "RSS sync failed (non-fatal)");
+    if (err instanceof RSSHttpError && err.status === 404) {
+      // 404 most likely means YouTube is refusing the request from this
+      // hosting provider's IP range.  Back off for 30 minutes so we don't
+      // flood logs with repeated WARN entries on every 5-min tick.
+      rssBackoffUntil = Date.now() + RSS_404_BACKOFF_MS;
+      log.info(
+        { status: 404, resumesInMinutes: 30 },
+        "RSS feed returned 404 — likely IP-range restriction by YouTube; backing off for 30 min",
+      );
+    } else {
+      log.warn({ err }, "RSS sync failed (non-fatal)");
+    }
   }
 }
 

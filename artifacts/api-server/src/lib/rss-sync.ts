@@ -32,6 +32,15 @@ import type { Logger } from "pino";
 export const RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
 export const RSS_INTERVAL_MS = 5 * 60 * 1_000; // 5 minutes
 
+// ─── Typed error ──────────────────────────────────────────────────────────────
+
+export class RSSHttpError extends Error {
+  constructor(public readonly status: number, statusText: string) {
+    super(`RSS fetch failed: HTTP ${status} ${statusText}`);
+    this.name = "RSSHttpError";
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface RSSEntry {
@@ -145,7 +154,7 @@ async function fetchRSS(log?: Logger): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new Error(`RSS fetch failed: HTTP ${res.status} ${res.statusText}`);
+    throw new RSSHttpError(res.status, res.statusText);
   }
 
   return res.text();
