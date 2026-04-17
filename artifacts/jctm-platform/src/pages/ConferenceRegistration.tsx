@@ -1,9 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "wouter";
 import {
   Phone, MapPin,
-  CheckCircle2, ArrowLeft,
+  CheckCircle2,
   Flame, Calendar, Clock, Camera, ImagePlus, Copy, Check, Share2, Download,
   Sparkles, Instagram, Facebook, Youtube, Users, ExternalLink,
 } from "lucide-react";
@@ -978,6 +977,53 @@ export default function ConferenceRegistration() {
         description="Register your attendance for the JCTM Ministers Conference 2026. May 8–10, 2026. An apostolic gathering of ministers, leaders and kingdom builders. Ebrumede Roundabout, Effurun Uvwie, Delta State."
         path="/conference-registration"
         keywords="Ministers Conference 2026, JCTM conference, Jesus Christ Temple Ministry conference, Prophet Amos Evomobor, church conference Delta State 2026, apostolic gathering Nigeria"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Ministers Conference 2026", url: "https://jctm.org.ng/conference-registration" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": "Ministers Conference 2026 — JCTM",
+            "description": "An apostolic gathering of ministers, leaders and kingdom builders hosted by Jesus Christ Temple Ministry (JCTM), featuring prophetic impartation, apostolic teaching, and corporate prayer.",
+            "startDate": "2026-05-08T07:00:00+01:00",
+            "endDate": "2026-05-10T20:00:00+01:00",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "url": "https://jctm.org.ng/conference-registration",
+            "image": "https://jctm.org.ng/opengraph.jpg",
+            "location": {
+              "@type": "Place",
+              "name": "JCTM Church Auditorium",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Km1 East West Rd., Ebrumede Roundabout",
+                "addressLocality": "Effurun Uvwie",
+                "addressRegion": "Delta State",
+                "addressCountry": "NG"
+              }
+            },
+            "organizer": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "performer": {
+              "@type": "Person",
+              "name": "Prophet Amos Evomobor",
+              "url": "https://jctm.org.ng/leadership"
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "NGN",
+              "availability": "https://schema.org/InStock",
+              "url": "https://jctm.org.ng/conference-registration",
+              "validFrom": "2026-01-01"
+            }
+          }
+        ]}
       />
 
       {cropSrc && (
@@ -992,6 +1038,9 @@ export default function ConferenceRegistration() {
         className="relative min-h-screen"
         style={{ background: "linear-gradient(180deg, #0d020f 0%, #1a0525 40%, #2d0f3d 70%, #0d020f 100%)" }}
       >
+        {/* Hidden SEO heading */}
+        <h1 className="sr-only">Ministers Conference 2026 — Register to Attend | JCTM</h1>
+
         {/* Starfield */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {Array.from({ length: 80 }).map((_, i) => (
@@ -1010,382 +1059,495 @@ export default function ConferenceRegistration() {
             />
           ))}
         </div>
+
+        {/* Purple radial glow */}
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[250px] rounded-full blur-3xl pointer-events-none"
-          style={{ background: "radial-gradient(ellipse, rgba(168,85,247,0.15) 0%, transparent 70%)" }}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-1 opacity-25 pointer-events-none"
+          style={{ height: "300px", background: "linear-gradient(to bottom, #a855f7, transparent)" }}
+        />
+        <div
+          className="absolute top-[150px] left-1/2 -translate-x-1/2 h-1 opacity-25 pointer-events-none"
+          style={{ width: "300px", background: "linear-gradient(to right, transparent, #a855f7, transparent)" }}
         />
 
-        <div className="relative z-10 container mx-auto px-4 pt-16 pb-12">
+        <div className="relative z-10 container mx-auto px-4 py-16 max-w-5xl">
+
+          {/* ── Header ────────────────────────────────────────────── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-10"
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
           >
-            <Link href="/">
-              <span className="inline-flex items-center gap-1.5 text-purple-300/70 hover:text-purple-300 text-sm mb-6 transition-colors cursor-pointer">
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
-              </span>
-            </Link>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border"
+              style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.1)", color: "#d8b4fe" }}
+            >
+              <Flame className="h-3.5 w-3.5" />
+              Jesus Christ Temple Ministry Presents
+            </motion.div>
 
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border mb-5"
-              style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.12)", color: "#d8b4fe" }}>
-              <Flame className="h-3.5 w-3.5" /> Jesus Christ Temple Ministry Presents
-            </div>
-
-            <h1 className="font-serif font-black text-4xl md:text-5xl text-white mb-3 leading-tight">
+            <h2 className="font-serif font-black text-5xl md:text-7xl text-white mb-4 leading-none tracking-tight">
               Ministers{" "}
-              <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>Conference</span>{" "}
+              <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>
+                Conference
+              </span>{" "}
               <span className="text-purple-300">2026</span>
-            </h1>
-            <p className="text-purple-200/70 font-serif italic text-lg max-w-xl mx-auto mb-6">
-              &ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;
+            </h2>
+
+            <p className="text-lg md:text-xl font-serif italic text-purple-300/90 mb-3 max-w-2xl mx-auto leading-relaxed">
+              An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders
             </p>
 
-            <div className="flex flex-wrap justify-center gap-4 text-sm">
+            <div
+              className="inline-block px-6 py-3 rounded-2xl mb-8 max-w-lg mx-auto"
+              style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)" }}
+            >
+              <p className="text-purple-200 font-bold text-base md:text-lg leading-snug">
+                &ldquo;The apostolic fire is being restored to the Church&rdquo;
+              </p>
+            </div>
+
+            {/* Event meta — simple inline flex, no pill backgrounds */}
+            <div className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
               {[
-                { icon: Calendar, text: "May 8–10, 2026" },
+                { icon: Calendar, text: "Friday 8th – Sunday 10th May, 2026" },
                 { icon: Clock, text: "8:00 AM Daily (WAT)" },
-                { icon: MapPin, text: "Effurun Uvwie, Delta State" },
+                { icon: MapPin, text: "Ebrumede Roundabout, Effurun Uvwie, Delta State" },
+                { icon: Phone, text: CONF_CONTACT },
               ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-2 px-4 py-2 rounded-xl"
-                  style={{ background: "rgba(45,15,61,0.7)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                  <Icon className="h-4 w-4 text-purple-400" />
-                  <span className="text-white/80 font-medium">{text}</span>
+                <div key={text} className="flex items-center gap-1.5">
+                  <Icon className="h-3.5 w-3.5 text-purple-400" />
+                  <span>{text}</span>
                 </div>
               ))}
             </div>
+          </motion.div>
 
+          {/* ── Flyer Showcase ────────────────────────────────────── */}
+          <ConferenceFlyerShowcase />
+
+          {/* ── Countdown ─────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
+            className="text-center mb-16"
+          >
+            <p className="text-xs text-purple-400/60 uppercase tracking-[0.3em] font-bold mb-6">
+              {countdown.started ? "The Conference Has Begun!" : "Conference Begins In"}
+            </p>
+            {!countdown.started ? (
+              <div className="flex justify-center gap-4 md:gap-6">
+                <CountdownBlock value={countdown.days} label="Days" />
+                <CountdownBlock value={countdown.hours} label="Hours" />
+                <CountdownBlock value={countdown.minutes} label="Minutes" />
+                <CountdownBlock value={countdown.seconds} label="Seconds" />
+              </div>
+            ) : (
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="text-3xl font-serif font-black text-purple-300"
+              >
+                🙏 The Conference Is Happening NOW! 🙏
+              </motion.div>
+            )}
             {attendCount !== null && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6 }}
-                className="mt-5 inline-flex items-center gap-2 text-sm text-white/60"
+                className="mt-6 inline-flex items-center gap-2 text-sm text-white/60"
               >
                 <Users className="h-4 w-4 text-purple-400" />
                 <span className="text-purple-300 font-bold">{attendCount.toLocaleString()}</span> ministers have registered
               </motion.div>
             )}
           </motion.div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div
-        className="min-h-screen py-12"
-        style={{ background: "linear-gradient(180deg,#0d020f 0%,#160325 100%)" }}
-      >
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
+          {/* ── Two-column: Registration + Map ────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
 
-            {invitedBy && !success && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-8 flex items-center gap-4 rounded-2xl px-5 py-4 border"
-                style={{ background: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.35)" }}
-              >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg"
-                  style={{ background: "rgba(168,85,247,0.2)" }}>
-                  🙏
-                </div>
-                <div>
-                  <p className="text-purple-200 text-sm font-bold">You've been personally invited!</p>
-                  <p className="text-purple-300/70 text-xs mt-0.5">
-                    <span className="text-yellow-300 font-semibold">{invitedBy}</span> invites you to the Ministers Conference 2026. Register below to secure your place.
-                  </p>
-                </div>
-              </motion.div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 items-start">
-
-              {/* Left — Flyer + info */}
-              <div className="space-y-6">
-                <div className="rounded-3xl overflow-hidden border-2 shadow-2xl shadow-purple-500/20"
-                  style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)" }}>
-                  <div className="h-1 w-full"
-                    style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
-                  <img
-                    src={ministerConferenceFlyer}
-                    alt="Ministers Conference 2026 official flyer"
-                    className="w-full h-auto object-contain"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="h-0.5 w-full"
-                    style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
-                </div>
-
-                <div className="rounded-3xl p-5 space-y-3"
-                  style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                  <p className="text-purple-200/80 text-xs font-bold uppercase tracking-wider">Why Attend?</p>
-                  {[
-                    "Apostolic fire and prophetic impartation",
-                    "Word-centred ministry from the front lines",
-                    "Networking with ministers & kingdom builders",
-                    "Encounter the presence of God corporately",
-                  ].map(item => (
-                    <div key={item} className="flex items-start gap-3 text-sm text-white/75">
-                      <CheckCircle2 className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* Left — Registration Card */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="rounded-3xl overflow-hidden"
+              style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}
+            >
+              <div className="p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.15)", background: "rgba(168,85,247,0.08)" }}>
+                <h3 className="font-serif font-bold text-white text-xl mb-1 flex items-center gap-2">
+                  <span>✋</span> Register Your Attendance
+                </h3>
+                <p className="text-white/50 text-sm">Let the ministry know you're coming. Registration is free.</p>
               </div>
 
-              {/* Right — Registration Card */}
-              <div className="rounded-3xl overflow-hidden border shadow-2xl"
-                style={{ background: "linear-gradient(145deg,rgba(26,5,37,0.96),rgba(45,15,61,0.88))", borderColor: "rgba(168,85,247,0.3)", boxShadow: "0 24px 80px rgba(88,28,135,0.2)" }}>
+              <div className="p-6 space-y-5">
+                {invitedBy && !success && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 border border-purple-400/30"
+                    style={{ background: "rgba(168,85,247,0.08)" }}
+                  >
+                    <span className="text-xl shrink-0">🙏</span>
+                    <div>
+                      <p className="text-purple-200 text-xs font-bold">You've been personally invited!</p>
+                      <p className="text-white/50 text-xs mt-0.5">
+                        <span className="text-yellow-300 font-semibold">{invitedBy}</span> invites you to the Ministers Conference 2026. Register below — free entry for all.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
 
-                {/* Card header */}
-                <div className="p-6 border-b" style={{ borderColor: "rgba(168,85,247,0.15)", background: "rgba(168,85,247,0.06)" }}>
-                  <h3 className="font-serif font-bold text-white text-xl mb-1 flex items-center gap-2">
-                    <span>✋</span> Register Your Attendance
-                  </h3>
-                  <p className="text-white/50 text-sm">Let the ministry know you're coming. Registration is free.</p>
-                </div>
-
-                <div className="p-6 space-y-5">
-                  <AnimatePresence mode="wait">
-                    {success ? (
-                      <motion.div
-                        key="success"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="text-center py-4"
-                      >
-                        {rsvpPhoto ? (
-                          <div className="flex justify-center mb-4">
-                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
-                              <img src={rsvpPhoto} alt="Your photo" className="w-full h-full object-cover" />
-                            </div>
+                <AnimatePresence mode="wait">
+                  {success ? (
+                    <motion.div
+                      key="success"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center py-4"
+                    >
+                      {rsvpPhoto ? (
+                        <div className="flex justify-center mb-4">
+                          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
+                            <img src={rsvpPhoto} alt="Your photo" className="w-full h-full object-cover" />
                           </div>
-                        ) : (
-                          <div className="text-5xl mb-4">🙌</div>
-                        )}
-                        <h4 className="font-serif font-bold text-white text-2xl mb-2">You're Registered!</h4>
-                        {regId && (
-                          <p className="text-purple-300/60 text-xs mb-1">Reference #{regId}</p>
-                        )}
-                        <p className="text-purple-300 text-sm mb-1">See you at the Church Auditorium, Effurun on May 8th.</p>
-                        <p className="text-white/50 text-xs mb-6">Scroll down to generate your personalised invite card.</p>
-
-                        {/* Shareable Invite Link */}
-                        <div className="rounded-2xl p-4 text-left border border-purple-400/20 mt-2"
-                          style={{ background: "rgba(45,15,61,0.8)" }}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Share2 className="h-4 w-4 text-purple-400" />
-                            <p className="text-purple-300 text-sm font-bold">Invite Others to Register</p>
-                          </div>
-                          <p className="text-white/50 text-xs mb-3 leading-relaxed">
-                            Share this personal link — anyone who opens it will see your name and be inspired to register.
-                          </p>
-                          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-3"
-                            style={{ background: "rgba(26,5,37,0.9)", borderColor: "rgba(168,85,247,0.25)" }}>
-                            <span className="flex-1 text-xs text-purple-300/60 truncate font-mono">
-                              {`${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}`}
-                            </span>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(
-                                  `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}`
-                                );
-                                setLinkCopied(true);
-                                toast.success("Invite link copied!");
-                                setTimeout(() => setLinkCopied(false), 2500);
-                              }}
-                              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                              style={{
-                                background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(168,85,247,0.15)",
-                                color: linkCopied ? "#4ade80" : "#d8b4fe",
-                                border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(168,85,247,0.35)"}`,
-                              }}
-                            >
-                              {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                              {linkCopied ? "Copied!" : "Copy"}
-                            </button>
-                          </div>
-                          <a
-                            href={`https://wa.me/?text=${encodeURIComponent(
-                              `🙏 *Ministers Conference 2026 — Personal Invitation*\n\n` +
-                              `I am ${rsvpName} and I personally invite you to join me at the JCTM Ministers Conference 2026!\n\n` +
-                              `📅 May 8–10, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n` +
-                              `Click the link below to register and secure your place:\n` +
-                              `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}\n\n` +
-                              `This is a divine appointment — don't miss it!\n🌐 www.jctm.org.ng`
-                            )}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90 touch-manipulation"
-                            style={{ background: "#25D366" }}
-                          >
-                            <span className="text-base leading-none">💬</span>
-                            Share Invite via WhatsApp
-                          </a>
                         </div>
+                      ) : (
+                        <div className="text-5xl mb-4">🙌</div>
+                      )}
+                      <h4 className="font-serif font-bold text-white text-2xl mb-2">You're Registered!</h4>
+                      {regId && (
+                        <p className="text-purple-300/60 text-xs mb-1">Reference #{regId}</p>
+                      )}
+                      <p className="text-purple-300 text-sm mb-1">See you at the Church Auditorium, Effurun on May 8th.</p>
+                      <p className="text-white/50 text-xs mb-6">Scroll down to generate your personalised invite card.</p>
 
-                        <button
-                          onClick={() => { setSuccess(false); setForm(EMPTY_FORM); setRegId(null); setPhoto(null); setRsvpName(""); setRsvpPhoto(null); }}
-                          className="mt-4 text-xs text-white/30 hover:text-purple-400 transition-colors touch-manipulation"
+                      {/* Invite link */}
+                      <div className="rounded-2xl p-4 text-left border border-purple-400/20"
+                        style={{ background: "rgba(26,5,37,0.8)" }}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Share2 className="h-4 w-4 text-purple-400" />
+                          <p className="text-purple-300 text-sm font-bold">Invite Others to Register</p>
+                        </div>
+                        <p className="text-white/50 text-xs mb-3 leading-relaxed">
+                          Share this personal link — anyone who opens it will see your name and be inspired to register.
+                        </p>
+                        <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-3"
+                          style={{ background: "rgba(13,2,15,0.9)", borderColor: "rgba(168,85,247,0.25)" }}>
+                          <span className="flex-1 text-xs text-purple-300/60 truncate font-mono">
+                            {`${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}`}
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}`
+                              );
+                              setLinkCopied(true);
+                              toast.success("Invite link copied!");
+                              setTimeout(() => setLinkCopied(false), 2500);
+                            }}
+                            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                            style={{
+                              background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(168,85,247,0.15)",
+                              color: linkCopied ? "#4ade80" : "#d8b4fe",
+                              border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(168,85,247,0.35)"}`,
+                            }}
+                          >
+                            {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                            {linkCopied ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(
+                            `🙏 *Ministers Conference 2026 — Personal Invitation*\n\n` +
+                            `I am ${rsvpName} and I personally invite you to join me at the JCTM Ministers Conference 2026!\n\n` +
+                            `📅 May 8–10, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n` +
+                            `Click the link below to register and secure your place:\n` +
+                            `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}\n\n` +
+                            `This is a divine appointment — don't miss it!\n🌐 www.jctm.org.ng`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90 touch-manipulation"
+                          style={{ background: "#25D366" }}
                         >
-                          Register another person
-                        </button>
-                      </motion.div>
-                    ) : (
-                      <motion.form
-                        key="form"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onSubmit={handleSubmit}
-                        noValidate
-                        className="space-y-3"
+                          <span className="text-base leading-none">💬</span>
+                          Share Invite via WhatsApp
+                        </a>
+                      </div>
+                      <button
+                        onClick={() => { setSuccess(false); setForm(EMPTY_FORM); setRegId(null); setPhoto(null); setRsvpName(""); setRsvpPhoto(null); }}
+                        className="mt-4 text-xs text-white/30 hover:text-purple-400 transition-colors touch-manipulation"
                       >
-                        {/* Photo upload */}
-                        <div className="flex flex-col items-center gap-2">
-                          <input
-                            ref={photoRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handlePhotoChange}
-                          />
+                        Register another person
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.form
+                      key="form"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onSubmit={handleSubmit}
+                      noValidate
+                      className="space-y-3"
+                    >
+                      {/* Photo upload */}
+                      <div className="flex flex-col items-center gap-2">
+                        <input
+                          ref={photoRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handlePhotoChange}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => photoRef.current?.click()}
+                          className="relative group transition-all duration-200"
+                          aria-label="Upload your photo"
+                        >
+                          {photo ? (
+                            <div className="relative">
+                              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl group-hover:border-purple-300 transition-all">
+                                <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <Camera className="h-6 w-6 text-white" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-24 h-24 rounded-full border-2 border-dashed border-purple-400/50 flex flex-col items-center justify-center gap-1 bg-white/5 group-hover:bg-white/10 group-hover:border-purple-400 transition-all">
+                              <ImagePlus className="h-6 w-6 text-purple-400/70 group-hover:text-purple-400" />
+                              <span className="text-[10px] text-purple-400/60 group-hover:text-purple-400 font-semibold uppercase tracking-wide">Add Photo</span>
+                            </div>
+                          )}
+                        </button>
+                        {photo && (
                           <button
                             type="button"
-                            onClick={() => photoRef.current?.click()}
-                            className="relative group transition-all duration-200"
-                            aria-label="Upload your photo"
+                            onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
+                            className="text-xs text-white/40 hover:text-red-400 transition-colors"
                           >
-                            {photo ? (
-                              <div className="relative">
-                                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl group-hover:border-purple-300 transition-all">
-                                  <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
-                                </div>
-                                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                  <Camera className="h-6 w-6 text-white" />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-24 h-24 rounded-full border-2 border-dashed border-purple-400/50 flex flex-col items-center justify-center gap-1 bg-white/5 group-hover:bg-white/10 group-hover:border-purple-400 transition-all">
-                                <ImagePlus className="h-6 w-6 text-purple-400/70 group-hover:text-purple-400" />
-                                <span className="text-[10px] text-purple-400/60 group-hover:text-purple-400 font-semibold uppercase tracking-wide">Add Photo</span>
-                              </div>
-                            )}
+                            Remove photo
                           </button>
-                          {photo && (
-                            <button
-                              type="button"
-                              onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
-                              className="text-xs text-white/40 hover:text-red-400 transition-colors"
-                            >
-                              Remove photo
-                            </button>
-                          )}
-                          <p className="text-xs text-white/40 text-center">Optional · Your photo appears on your invite card</p>
-                        </div>
-
-                        <Input
-                          required
-                          placeholder="Full Name *"
-                          value={form.fullName}
-                          onChange={set("fullName")}
-                          maxLength={120}
-                          className={inputCls}
-                          style={inputStyle}
-                        />
-                        {errors.fullName && (
-                          <p className="text-red-400 text-xs -mt-1">{errors.fullName}</p>
                         )}
+                        <p className="text-xs text-white/40 text-center">Optional · Your photo appears on your invite card</p>
+                      </div>
 
-                        <Input
-                          type="tel"
-                          placeholder="Phone Number (optional)"
-                          value={form.phone}
-                          onChange={set("phone")}
-                          maxLength={30}
-                          className={inputCls}
-                          style={inputStyle}
-                        />
+                      <Input
+                        required
+                        placeholder="Full Name *"
+                        value={form.fullName}
+                        onChange={set("fullName")}
+                        maxLength={120}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                      {errors.fullName && (
+                        <p className="text-red-400 text-xs -mt-1">{errors.fullName}</p>
+                      )}
 
-                        <Input
-                          type="email"
-                          placeholder="Email Address (optional)"
-                          value={form.email}
-                          onChange={set("email")}
-                          maxLength={160}
-                          className={inputCls}
-                          style={inputStyle}
-                        />
-                        {errors.email && (
-                          <p className="text-red-400 text-xs -mt-1">{errors.email}</p>
-                        )}
+                      <Input
+                        type="tel"
+                        placeholder="Phone Number (optional)"
+                        value={form.phone}
+                        onChange={set("phone")}
+                        maxLength={30}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
 
-                        <Input
-                          placeholder="Ministry / Church Name (optional)"
-                          value={form.ministry}
-                          onChange={set("ministry")}
-                          maxLength={160}
-                          className={inputCls}
-                          style={inputStyle}
-                        />
+                      <Input
+                        type="email"
+                        placeholder="Email Address (optional)"
+                        value={form.email}
+                        onChange={set("email")}
+                        maxLength={160}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                      {errors.email && (
+                        <p className="text-red-400 text-xs -mt-1">{errors.email}</p>
+                      )}
 
-                        <select
-                          value={form.role}
-                          onChange={set("role")}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 appearance-none"
-                          style={{ ...inputStyle, color: form.role ? "#fff" : "rgba(255,255,255,0.4)" }}
-                        >
-                          <option value="" style={{ background: "#1a0525", color: "#9ca3af" }}>Role / Designation (optional)</option>
-                          {ROLES.map(r => (
-                            <option key={r} value={r} style={{ background: "#1a0525", color: "#fff" }}>{r}</option>
-                          ))}
-                        </select>
+                      <Input
+                        placeholder="Ministry / Church Name (optional)"
+                        value={form.ministry}
+                        onChange={set("ministry")}
+                        maxLength={160}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
 
-                        <Input
-                          placeholder="State / Country (optional)"
-                          value={form.stateOrCountry}
-                          onChange={set("stateOrCountry")}
-                          maxLength={100}
-                          className={inputCls}
-                          style={inputStyle}
-                        />
+                      <select
+                        value={form.role}
+                        onChange={set("role")}
+                        className="w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 appearance-none"
+                        style={{ ...inputStyle, color: form.role ? "#fff" : "rgba(255,255,255,0.4)" }}
+                      >
+                        <option value="" style={{ background: "#1a0525", color: "#9ca3af" }}>Role / Designation (optional)</option>
+                        {ROLES.map(r => (
+                          <option key={r} value={r} style={{ background: "#1a0525", color: "#fff" }}>{r}</option>
+                        ))}
+                      </select>
 
-                        <textarea
-                          rows={3}
-                          placeholder="Additional message or prayer points (optional)"
-                          value={form.message}
-                          onChange={set("message")}
-                          maxLength={500}
-                          className="w-full px-4 py-3 rounded-xl border text-white placeholder:text-white/40 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 resize-none"
-                          style={inputStyle}
-                        />
+                      <Input
+                        placeholder="State / Country (optional)"
+                        value={form.stateOrCountry}
+                        onChange={set("stateOrCountry")}
+                        maxLength={100}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
 
-                        <motion.button
-                          type="submit"
-                          disabled={submitting}
-                          whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(168,85,247,0.5)" }}
-                          whileTap={{ scale: 0.98 }}
-                          className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide disabled:opacity-60 cursor-pointer transition-all duration-200"
-                          style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)", color: "#fff" }}
-                        >
-                          {submitting ? "Registering…" : "✋ I Will Attend!"}
-                        </motion.button>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
-                </div>
+                      <textarea
+                        rows={3}
+                        placeholder="Additional message or prayer points (optional)"
+                        value={form.message}
+                        onChange={set("message")}
+                        maxLength={500}
+                        className="w-full px-4 py-3 rounded-xl border text-white placeholder:text-white/40 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-purple-500/40 resize-none"
+                        style={inputStyle}
+                      />
+
+                      <motion.button
+                        type="submit"
+                        disabled={submitting}
+                        whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(168,85,247,0.5)" }}
+                        whileTap={{ scale: 0.98 }}
+                        className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide disabled:opacity-60 cursor-pointer transition-all duration-200"
+                        style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)", color: "#fff" }}
+                      >
+                        {submitting ? "Registering…" : "✋ I Will Attend!"}
+                      </motion.button>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Social Ad Copy Generator */}
-            <ConferenceAdCopySection />
-
+            {/* Right — Map */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="rounded-3xl overflow-hidden"
+              style={{ border: "1px solid rgba(168,85,247,0.25)" }}
+            >
+              <div className="p-4 flex items-center gap-2" style={{ background: "rgba(45,15,61,0.8)", borderBottom: "1px solid rgba(168,85,247,0.15)" }}>
+                <MapPin className="h-4 w-4 text-purple-400" />
+                <span className="text-white text-sm font-semibold">Live Location Map</span>
+                <a
+                  href="https://maps.google.com/?q=Church+Auditorium+Ebrumede+Roundabout+Effurun+Uvwie+Delta+State+Nigeria"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto text-xs text-purple-400/70 hover:text-purple-400 flex items-center gap-1"
+                >
+                  Open in Maps <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              <div className="relative" style={{ height: "400px" }}>
+                <iframe
+                  title="Ministers Conference 2026 Venue Location"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3975.8!2d5.773!3d5.548!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1041efa0b9d1c8e7%3A0xa3f1e0f0c0e0b0c0!2sEbrumede+Roundabout%2C+Effurun%2C+Delta+State%2C+Nigeria!5e0!3m2!1sen!2sng!4v1700000000001!5m2!1sen!2sng"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+              <div className="p-4" style={{ background: "rgba(45,15,61,0.8)" }}>
+                <p className="text-white/70 text-xs flex items-start gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                  {CONF_LOCATION}
+                </p>
+              </div>
+            </motion.div>
           </div>
+
+          {/* ── Invite Card Generator ──────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.6 }}
+            className="mb-12"
+          >
+            <ConferenceInviteCardGenerator initialName={rsvpName} initialPhoto={rsvpPhoto} />
+          </motion.div>
+
+          {/* ── Ad Copy Generator ──────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.7 }}
+            className="mb-8"
+          >
+            <ConferenceAdCopySection />
+          </motion.div>
+
+          {/* ── Spread the Word ────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="text-center rounded-3xl p-8 border border-purple-400/20"
+            style={{ background: "rgba(45,15,61,0.6)" }}
+          >
+            <h3 className="font-serif font-bold text-white text-2xl mb-2">Spread The Word</h3>
+            <p className="text-white/60 text-sm mb-6">Every minister needs to hear this call. Share the conference with pastors, elders, and church leaders in your network.</p>
+            <div className="flex flex-wrap justify-center gap-3 mb-6">
+              {[
+                {
+                  label: "Share on WhatsApp",
+                  bg: "#25D366",
+                  href: `https://wa.me/?text=${encodeURIComponent(`🙏 MINISTERS CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026\n8:00 AM Daily\n📍 Church Auditorium, Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n📞 ${CONF_CONTACT}\n\n#MinistersConference2026 #JCTM`)}`,
+                  emoji: "💬",
+                },
+                {
+                  label: "Share on Facebook",
+                  bg: "#1877F2",
+                  href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jctm.org.ng/conference-registration")}`,
+                  emoji: "👍",
+                },
+                {
+                  label: "Share on X / Twitter",
+                  bg: "#000000",
+                  href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🙏 Ministers Conference 2026 — "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\n📅 May 8–10, 2026\n⏰ 8AM Daily\n📍 Effurun Uvwie, Delta State\n\n#MinistersConference2026 #JCTM`)}&url=${encodeURIComponent("https://jctm.org.ng/conference-registration")}`,
+                  emoji: "𝕏",
+                },
+              ].map(({ label, bg, href, emoji }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-xl"
+                  style={{ background: bg }}
+                >
+                  <span>{emoji}</span> {label}
+                </a>
+              ))}
+            </div>
+            <div className="flex items-center justify-center gap-2 text-white/50 text-sm">
+              <Phone className="h-4 w-4 text-purple-400" />
+              Enquiries: <a href={`tel:${CONF_CONTACT.replace(/\s/g, "")}`} className="text-purple-300 font-bold hover:underline ml-1">{CONF_CONTACT}</a>
+            </div>
+          </motion.div>
+
         </div>
       </div>
     </Layout>
   );
 }
+

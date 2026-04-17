@@ -261,6 +261,23 @@ Served at root level (not under `/api`) in `app.ts`:
 
 ---
 
+## Conference Registration Page — Full Structural Alignment (April 2026)
+
+`/conference-registration` now matches the Warri Crusade page's structure, layout, and UX exactly:
+
+- **Unified background** — Single `min-h-screen` div with purple gradient replacing the old split hero/main-content sections.
+- **SEO structured data** — Full JSON-LD Event schema + breadcrumbs added (matching Crusade).
+- **Hero** — `text-5xl md:text-7xl` title with animated badge (`scale` entrance), `y:40 → y:0` at `0.8s` duration; theme quote card below; event meta as simple inline flex (no pill backgrounds).
+- **Countdown timer** — Now rendered in the hero between header and registration card, using the existing `useCountdown(CONF_START)` hook; shows "The Conference Is Happening NOW!" when started.
+- **`ConferenceFlyerShowcase`** — Now rendered in the page (was defined but never called).
+- **Two-column grid** — Registration card (left) + Google Maps embed (right); matching Crusade's layout.
+- **`invitedBy` banner** — Moved inside the registration card (matching Crusade), not outside.
+- **`ConferenceInviteCardGenerator`** — Now lives below the two-column grid, pre-filled with `rsvpName`/`rsvpPhoto` after successful registration (matching Crusade's pattern).
+- **"Spread the Word" section** — Added at the bottom with WhatsApp, Facebook, and X share buttons and phone number.
+- **Unused imports removed** — `ArrowLeft`, `Link` (from wouter) cleaned up.
+
+---
+
 ## Recent Enhancements (April 2026)
 
 ### Ministers Conference Flyer Sharing
