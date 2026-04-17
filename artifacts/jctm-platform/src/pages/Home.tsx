@@ -3062,6 +3062,49 @@ function EventsSection() {
                   </div>
                 </TiltCard>
               </motion.div>
+              {/* ── Ministers Conference 2026 — Always Featured ── */}
+              <motion.div variants={fadeUp}>
+                <TiltCard>
+                  <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border-2 group relative overflow-hidden h-full flex flex-col"
+                    style={{ borderColor: "rgba(168,85,247,0.45)", boxShadow: "0 0 36px 6px rgba(168,85,247,0.12), 0 4px 24px rgba(0,0,0,0.08)" }}>
+                    <div className="absolute top-0 left-0 w-full h-1 z-10" style={{ background: "linear-gradient(90deg,#7c3aed,#a855f7,#d8b4fe,#a855f7,#7c3aed)" }} />
+                    <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                      <img
+                        src={ministerConferenceFlyer}
+                        alt="Ministers Conference 2026 official flyer"
+                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
+                      <div className="absolute top-3 right-3">
+                        <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg" style={{ background: "#a855f7", color: "#fff" }}>Conference</span>
+                      </div>
+                    </div>
+                    <div className="p-6 flex flex-col flex-1">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="rounded-xl px-3 py-1.5 text-white text-center" style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}>
+                          <span className="block font-bold text-xs leading-none uppercase">May 8</span>
+                        </div>
+                        <Badge className="rounded-full text-xs" style={{ background: "rgba(168,85,247,0.1)", color: "#7c3aed", borderColor: "rgba(168,85,247,0.3)" }}>Upcoming</Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-primary mb-1 leading-tight group-hover:text-accent transition-colors">Ministers Conference 2026</h3>
+                      <p className="text-xs italic text-muted-foreground mb-3 line-clamp-2">&ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;</p>
+                      <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
+                        <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: "#a855f7" }} />Fri 8 – Sun 10 May, 2026</div>
+                        <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 shrink-0" style={{ color: "#a855f7" }} />8:00 AM Daily (WAT)</div>
+                        <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "#a855f7" }} /><span className="leading-snug">Church Auditorium, Ebrumede Roundabout, Effurun Uvwie, Delta State</span></div>
+                      </div>
+                      <Link href="/conference-registration">
+                        <Button className="w-full rounded-xl font-bold border-none shadow-none transition-all duration-200 text-white" style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}>
+                          Register to Attend
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </TiltCard>
+              </motion.div>
+
               {/* ── Dynamic DB events ── */}
               {events && events.slice(0, 5).map((event) => {
                 const date = new Date(event.startDate);
