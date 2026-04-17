@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PAGE_SIZE = 12;
@@ -304,6 +305,8 @@ export default function Blog() {
             </motion.div>
           </section>
         )}
+
+        <AdSlot slot={ADSENSE_SLOTS.blogFeed} minHeight={120} className="mx-auto max-w-5xl mb-8" lazy={false} />
 
         <div className="flex items-center justify-between gap-4 mb-6">
           <div>

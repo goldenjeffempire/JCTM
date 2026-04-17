@@ -411,6 +411,20 @@
       }
     }
     </script>
+    <!-- Google Consent Mode v2 — all signals denied by default until user makes a choice -->
+    <!-- This ensures GDPR/ePrivacy compliance: Google will serve non-personalized ads  -->
+    <!-- until the CookieConsent component calls gtag('consent','update',{...})         -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { window.dataLayer.push(arguments); }
+      gtag('consent', 'default', {
+        'ad_storage':         'denied',
+        'analytics_storage':  'denied',
+        'ad_user_data':       'denied',
+        'ad_personalization': 'denied',
+        'wait_for_update':    2000
+      });
+    </script>
     <!-- Google AdSense — loaded async so it never blocks initial render -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6817509745706083" crossorigin="anonymous"></script>
   </head>

@@ -241,6 +241,52 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 
 ---
 
+## AdSense Monetization — Production-Ready Implementation (April 2026)
+
+### Google Consent Mode v2 — Fully Integrated
+- Added Consent Mode v2 script block in `index.html` BEFORE the AdSense `<script>` tag.
+- Defaults all consent signals to `denied` on every page load: `ad_storage`, `analytics_storage`, `ad_user_data`, `ad_personalization`.
+- `wait_for_update: 2000` gives the React app 2 seconds to update signals before Google makes bidding decisions.
+- On page load: if user has a saved consent choice, `CookieConsent.tsx` immediately re-fires `gtag('consent','update',{...})` to restore their signals.
+- When user makes a new choice: `accept()` in `CookieConsent.tsx` calls `signalConsentToGoogle()` before dispatching the local event.
+- Benefit: Google can serve non-personalized ads even to non-consenting users (contextual targeting), while full personalization is enabled for consenting users. No policy violations.
+
+### AdSlot — Consent-Gated Rendering
+- `AdSlot` now imports and reads `useCookieConsent()`. 
+- If `consent` is `null` (user hasn't decided yet), the slot returns `null` — no ad placeholder shown while the consent modal is open.
+- If `consent.advertising === false` (user chose Essential Only), slot returns `null` — respects user's explicit choice.
+- If `consent.advertising === true` (user accepted advertising), slot loads normally via `IntersectionObserver` lazy loading.
+
+### Dead Code Removed
+- `AdSenseHead()` component returned `null` and did nothing. Removed from `AdSense.tsx` and cleaned up its import and usage from `App.tsx`.
+
+### New Ad Placements — Blog Pages
+- `Blog.tsx`: `AdSlot` (blogFeed, minHeight=120, eager) placed between featured posts and the article library grid — maximum visibility before the primary content area.
+- `BlogPost.tsx`: Two placements — (1) `blogPost` slot (eager, minHeight=120) above the article content, after the header card; (2) `blogFeed` slot (lazy, minHeight=120) after the content, before the "Continue Growing" CTA.
+- Both blog slots fall back to existing configured slot IDs: `blogFeed` → `VITE_ADSENSE_SLOT_SERMON_FEED` (2094061938), `blogPost` → `VITE_ADSENSE_SLOT_HOME_MID` (6447631104). Add `VITE_ADSENSE_SLOT_BLOG_FEED` and `VITE_ADSENSE_SLOT_BLOG_POST` secrets to use dedicated slots when created in the AdSense dashboard.
+
+### app-ads.txt Created
+- `public/app-ads.txt` created with the same publisher line as `ads.txt`: `google.com, pub-6817509745706083, DIRECT, f08c47fec0942fa0`. Required for app-based monetization compliance.
+
+### Complete Ad Placement Inventory (Production)
+| Page | Slot Env Var | Slot ID | Format | Loading |
+|------|-------------|---------|--------|---------|
+| Home (hero) | VITE_ADSENSE_SLOT_HOME_HERO | 7433409715 | auto | Eager |
+| Home (mid) | VITE_ADSENSE_SLOT_HOME_MID | 6447631104 | auto | Lazy |
+| Sermons (feed) | VITE_ADSENSE_SLOT_SERMON_FEED | 2094061938 | auto | Lazy |
+| SermonDetail (below player) | VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER | 2069402391 | auto | Eager |
+| SermonDetail (sidebar) | VITE_ADSENSE_SLOT_SERMON_SIDEBAR | 2609067251 | rectangle | Lazy |
+| IntroVideos (feed) | VITE_ADSENSE_SLOT_INTRO_FEED | — (not set) | auto | Lazy |
+| Blog (feed header) | VITE_ADSENSE_SLOT_BLOG_FEED | fallback: 2094061938 | auto | Eager |
+| BlogPost (above content) | VITE_ADSENSE_SLOT_BLOG_POST | fallback: 6447631104 | auto | Eager |
+| BlogPost (below content) | VITE_ADSENSE_SLOT_BLOG_FEED | fallback: 2094061938 | auto | Lazy |
+
+### Outstanding — To Do in AdSense Dashboard
+- Create dedicated ad units for Blog Feed and Blog Post placements, then set `VITE_ADSENSE_SLOT_BLOG_FEED` and `VITE_ADSENSE_SLOT_BLOG_POST` secrets with those IDs.
+- Create and set `VITE_ADSENSE_SLOT_INTRO_FEED` — the IntroVideos page placement will silently skip rendering until a valid slot ID is configured.
+
+---
+
 ## Replit Migration Status
 
 - Dependencies installed with `pnpm install`.

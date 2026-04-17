@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ReactNode, useState } from "react";
+import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -202,9 +203,14 @@ export default function BlogPost() {
             )}
 
             <div className="border-t border-border/40 mb-10" />
+
+            <AdSlot slot={ADSENSE_SLOTS.blogPost} minHeight={120} className="mb-10" lazy={false} />
+
             <ContentRenderer content={post.content} />
 
-            <div className="border-t border-border/40 mt-12 pt-8">
+            <AdSlot slot={ADSENSE_SLOTS.blogFeed} minHeight={120} className="mt-12 mb-4" />
+
+            <div className="border-t border-border/40 mt-8 pt-8">
               <div className="glass-panel rounded-3xl p-6 border border-accent/20 text-center">
                 <BookOpen className="h-8 w-8 text-accent mx-auto mb-3" />
                 <h3 className="font-serif font-bold text-primary text-xl mb-2">Continue Growing in the Word</h3>

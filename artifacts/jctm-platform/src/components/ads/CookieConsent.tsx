@@ -44,6 +44,24 @@ function dispatchConsentUpdate() {
   window.dispatchEvent(new Event("jctm:consent-updated"));
 }
 
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+    dataLayer?: unknown[];
+  }
+}
+
+function signalConsentToGoogle(state: ConsentState) {
+  if (typeof window.gtag !== "function") return;
+  const gd = (granted: boolean) => (granted ? "granted" : "denied");
+  window.gtag("consent", "update", {
+    ad_storage:         gd(state.advertising),
+    ad_user_data:       gd(state.advertising),
+    ad_personalization: gd(state.advertising),
+    analytics_storage:  gd(state.analytics),
+  });
+}
+
 type ToggleProps = { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean };
 function Toggle({ checked, onChange, disabled }: ToggleProps) {
   return (
@@ -73,7 +91,10 @@ export function CookieConsent() {
 
   useEffect(() => {
     try {
-      if (!getConsentState()) {
+      const saved = getConsentState();
+      if (saved) {
+        signalConsentToGoogle(saved);
+      } else {
         const t = setTimeout(() => setVisible(true), 800);
         return () => clearTimeout(t);
       }
@@ -85,6 +106,7 @@ export function CookieConsent() {
 
   const accept = useCallback((state: ConsentState) => {
     saveConsent(state);
+    signalConsentToGoogle(state);
     dispatchConsentUpdate();
     setVisible(false);
   }, []);

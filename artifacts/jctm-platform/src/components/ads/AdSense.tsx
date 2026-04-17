@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useCookieConsent } from "./CookieConsent";
 
 declare global {
   interface Window {
@@ -20,20 +21,18 @@ export const ADSENSE_ENABLED = hasValidClient && enabledInCurrentEnvironment;
 export const ADSENSE_CLIENT_ID = clientId;
 
 export const ADSENSE_SLOTS = {
-  homeHero: import.meta.env.VITE_ADSENSE_SLOT_HOME_HERO ?? "",
-  homeMid: import.meta.env.VITE_ADSENSE_SLOT_HOME_MID ?? "",
-  sermonFeed: import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED ?? "",
-  sermonSidebar: import.meta.env.VITE_ADSENSE_SLOT_SERMON_SIDEBAR ?? "",
-  introFeed: import.meta.env.VITE_ADSENSE_SLOT_INTRO_FEED ?? "",
+  homeHero:        import.meta.env.VITE_ADSENSE_SLOT_HOME_HERO         ?? "",
+  homeMid:         import.meta.env.VITE_ADSENSE_SLOT_HOME_MID          ?? "",
+  sermonFeed:      import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED       ?? "",
+  sermonSidebar:   import.meta.env.VITE_ADSENSE_SLOT_SERMON_SIDEBAR    ?? "",
+  introFeed:       import.meta.env.VITE_ADSENSE_SLOT_INTRO_FEED        ?? "",
   liveBelowPlayer: import.meta.env.VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER ?? "",
+  blogFeed:        import.meta.env.VITE_ADSENSE_SLOT_BLOG_FEED         ?? import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED  ?? "",
+  blogPost:        import.meta.env.VITE_ADSENSE_SLOT_BLOG_POST         ?? import.meta.env.VITE_ADSENSE_SLOT_HOME_MID     ?? "",
 };
 
 function isValidSlot(slot: string | undefined): slot is string {
   return Boolean(slot && /^\d+$/.test(slot));
-}
-
-export function AdSenseHead() {
-  return null;
 }
 
 interface AdSlotProps {
@@ -56,7 +55,11 @@ export function AdSlot({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pushedRef = useRef(false);
   const [shouldLoad, setShouldLoad] = useState(!lazy);
-  const canRender = ADSENSE_ENABLED && isValidSlot(slot);
+  const consent = useCookieConsent();
+
+  const consentResolved = consent !== null;
+  const advertisingAllowed = consent?.advertising !== false;
+  const canRender = ADSENSE_ENABLED && isValidSlot(slot) && consentResolved && advertisingAllowed;
 
   useEffect(() => {
     if (!canRender || shouldLoad || !lazy) return;
@@ -90,7 +93,11 @@ export function AdSlot({
     }
   }, [canRender, shouldLoad]);
 
-  if (!canRender) return null;
+  if (!ADSENSE_ENABLED || !isValidSlot(slot)) return null;
+
+  if (!consentResolved || !advertisingAllowed) {
+    return null;
+  }
 
   return (
     <aside
