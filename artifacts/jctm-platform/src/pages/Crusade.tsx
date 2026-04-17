@@ -369,7 +369,7 @@ function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: s
           <p className="text-white font-bold text-center text-sm">Crop Your Photo</p>
           <p className="text-white/50 text-xs text-center mt-0.5">Drag to reposition · Pinch or use slider to zoom</p>
         </div>
-        <div className="relative w-full" style={{ height: 300 }}>
+        <div className="relative w-full" style={{ height: "clamp(180px, 38vh, 300px)" }}>
           <Cropper
             image={src}
             crop={crop}
@@ -394,13 +394,13 @@ function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: s
         <div className="flex gap-3 px-4 pb-4">
           <button
             onClick={onCancel}
-            className="flex-1 py-2 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors"
+            className="flex-1 py-3 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors touch-manipulation"
           >
             Cancel
           </button>
           <button
             onClick={handleDone}
-            className="flex-1 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-bold transition-colors"
+            className="flex-1 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-bold transition-colors touch-manipulation"
           >
             Use This Crop
           </button>
@@ -700,49 +700,53 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
       />
     )}
     <div className="rounded-3xl overflow-hidden border border-yellow-400/20" style={{ background: "rgba(10,26,74,0.7)" }}>
-      <div className="p-6 border-b border-yellow-400/10">
+      <div className="p-4 sm:p-6 border-b border-yellow-400/10">
         <div className="flex items-center gap-3 mb-2">
           <Share2 className="h-5 w-5 text-yellow-400" />
-          <h3 className="font-serif font-bold text-white text-xl">Generate Shareable Invite Card</h3>
+          <h3 className="font-serif font-bold text-white text-lg sm:text-xl">Generate Shareable Invite Card</h3>
         </div>
-        <p className="text-white/60 text-sm">Add your name and photo to create a personalised digital invite to share on WhatsApp and Instagram.</p>
+        <p className="text-white/60 text-sm leading-relaxed">Add your name and photo to create a personalised digital invite to share on WhatsApp and Instagram.</p>
       </div>
-      <div className="p-6 space-y-4">
-        {/* Photo + Name row */}
-        <div className="flex items-center gap-4">
-          <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-          <button
-            type="button"
-            onClick={() => photoRef.current?.click()}
-            className="relative group shrink-0 transition-all duration-200"
-            title="Upload your photo"
-          >
-            {photo ? (
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400 shadow-lg group-hover:border-yellow-300 transition-all">
-                  <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+      <div className="p-4 sm:p-6 space-y-4">
+        {/* Photo + Name + Generate — stacks on mobile, row on sm+ */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          {/* Photo upload button — centered on mobile */}
+          <div className="flex justify-center sm:justify-start">
+            <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <button
+              type="button"
+              onClick={() => photoRef.current?.click()}
+              className="relative group shrink-0 transition-all duration-200 touch-manipulation"
+              title="Upload your photo"
+            >
+              {photo ? (
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400 shadow-lg group-hover:border-yellow-300 transition-all">
+                    <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Camera className="h-4 w-4 text-white" />
+                  </div>
                 </div>
-                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                  <Camera className="h-4 w-4 text-white" />
+              ) : (
+                <div className="w-16 h-16 rounded-full border-2 border-dashed border-yellow-400/40 flex flex-col items-center justify-center gap-0.5 bg-white/5 group-hover:bg-white/10 group-hover:border-yellow-400 transition-all">
+                  <Camera className="h-5 w-5 text-yellow-400/60 group-hover:text-yellow-400" />
+                  <span className="text-[8px] text-yellow-400/50 group-hover:text-yellow-400 font-bold uppercase tracking-wide">Photo</span>
                 </div>
-              </div>
-            ) : (
-              <div className="w-16 h-16 rounded-full border-2 border-dashed border-yellow-400/40 flex flex-col items-center justify-center gap-0.5 bg-white/5 group-hover:bg-white/10 group-hover:border-yellow-400 transition-all">
-                <Camera className="h-5 w-5 text-yellow-400/60 group-hover:text-yellow-400" />
-                <span className="text-[8px] text-yellow-400/50 group-hover:text-yellow-400 font-bold uppercase">Photo</span>
-              </div>
-            )}
-          </button>
-          <div className="flex-1 flex gap-2">
+              )}
+            </button>
+          </div>
+          {/* Name input + Generate button */}
+          <div className="flex-1 flex flex-col sm:flex-row gap-2">
             <Input
               placeholder="Your full name (optional)"
               value={name}
               onChange={(e) => { setName(e.target.value); setGenerated(false); }}
-              className="bg-white/10 border-yellow-400/30 text-white placeholder:text-white/40 rounded-xl"
+              className="bg-white/10 border-yellow-400/30 text-white placeholder:text-white/40 rounded-xl flex-1"
             />
             <Button
               onClick={generate}
-              className="rounded-xl shrink-0 font-bold"
+              className="rounded-xl font-bold h-12 sm:h-auto w-full sm:w-auto shrink-0 touch-manipulation"
               style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}
             >
               Generate
@@ -754,24 +758,29 @@ function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initia
           <button
             type="button"
             onClick={() => { setPhoto(null); setGenerated(false); if (photoRef.current) photoRef.current.value = ""; }}
-            className="text-xs text-white/40 hover:text-red-400 transition-colors block"
+            className="text-xs text-white/40 hover:text-red-400 transition-colors block touch-manipulation"
           >
             Remove photo
           </button>
         )}
 
-        <canvas
-          ref={canvasRef}
-          className={`w-full rounded-2xl border border-yellow-400/20 transition-opacity duration-300 ${generated ? "opacity-100" : "opacity-0 h-0"}`}
-          style={{ aspectRatio: "1/1", objectFit: "contain" }}
-        />
+        {/* Canvas — correct 3:4 aspect ratio, max-width capped for clean display */}
+        <div className={`transition-all duration-300 ${generated ? "opacity-100" : "opacity-0 h-0 overflow-hidden"}`}>
+          <div className="max-w-xs sm:max-w-sm mx-auto">
+            <canvas
+              ref={canvasRef}
+              className="w-full rounded-2xl border border-yellow-400/20"
+              style={{ aspectRatio: "3/4", display: "block" }}
+            />
+          </div>
+        </div>
 
         {generated && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
-            <Button onClick={share} className="flex-1 gap-2 rounded-xl" style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 max-w-xs sm:max-w-sm mx-auto">
+            <Button onClick={share} className="flex-1 gap-2 rounded-xl font-bold h-12 touch-manipulation" style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}>
               <Share2 className="h-4 w-4" /> Share
             </Button>
-            <Button onClick={download} variant="outline" className="flex-1 gap-2 rounded-xl border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10">
+            <Button onClick={download} variant="outline" className="flex-1 gap-2 rounded-xl border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10 h-12 touch-manipulation">
               <Download className="h-4 w-4" /> Download
             </Button>
           </motion.div>
@@ -1037,7 +1046,7 @@ function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | nul
             )}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90 touch-manipulation"
             style={{ background: "#25D366" }}
           >
             <span className="text-base leading-none">💬</span>
