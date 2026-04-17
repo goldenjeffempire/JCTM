@@ -878,6 +878,75 @@ function ConferenceAdCopySection() {
   );
 }
 
+const CONF_YT_VIDEO = "hQFA1Y9NAcY";
+
+function ConferenceVideoLoop() {
+  const videoShareText = encodeURIComponent(
+    `🙏 Watch the official Ministers Conference 2026 promo!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026 · 8AM Daily\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\nhttps://youtu.be/${CONF_YT_VIDEO}\n\n#MinistersConference2026 #JCTM #ProphetAmos`
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.4 }}
+      className="mb-10 rounded-3xl overflow-hidden border border-purple-400/20"
+      style={{ background: "rgba(15,5,30,0.7)" }}
+    >
+      <div className="p-6 border-b border-purple-400/10">
+        <div className="flex items-center gap-3 mb-1">
+          <Youtube className="h-5 w-5 text-red-500" />
+          <h3 className="font-serif font-bold text-white text-xl">Ministers Conference 2026 — YouTube Ad (Running Now)</h3>
+          <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-bold uppercase tracking-widest">
+            <span className="h-2 w-2 bg-red-400 rounded-full animate-pulse" /> Live Promo
+          </span>
+        </div>
+        <p className="text-white/60 text-sm">The official conference video uploaded to YouTube. Playing as a continuous ad — watch, share, and amplify the reach across all platforms.</p>
+      </div>
+      <div className="p-4">
+        <div className="rounded-2xl overflow-hidden shadow-2xl" style={{ aspectRatio: "16/9" }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${CONF_YT_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${CONF_YT_VIDEO}&controls=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
+            title="Ministers Conference 2026 — Official Promo Video"
+            allow="autoplay; fullscreen; accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="w-full h-full"
+          />
+        </div>
+        <div className="flex flex-wrap gap-3 mt-5 justify-center">
+          <a
+            href={`https://wa.me/?text=${videoShareText}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
+            style={{ background: "#25D366" }}
+          >
+            💬 Share on WhatsApp
+          </a>
+          <a
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://youtu.be/${CONF_YT_VIDEO}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
+            style={{ background: "#1877F2" }}
+          >
+            👍 Share on Facebook
+          </a>
+          <a
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`🙏 "An Apostolic Gathering of Ministers" — Watch the Ministers Conference 2026 promo! May 8–10, Effurun. #MinistersConference2026`)}&url=https://youtu.be/${CONF_YT_VIDEO}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-black hover:bg-gray-900 transition-all hover:scale-105 shadow-lg"
+          >
+            𝕏 Share on X
+          </a>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function ConferenceRegistration() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<FormState>>({});
@@ -1129,6 +1198,9 @@ export default function ConferenceRegistration() {
 
           {/* ── Flyer Showcase ────────────────────────────────────── */}
           <ConferenceFlyerShowcase />
+
+          {/* ── YouTube Ad ────────────────────────────────────────── */}
+          <ConferenceVideoLoop />
 
           {/* ── Countdown ─────────────────────────────────────────── */}
           <motion.div
