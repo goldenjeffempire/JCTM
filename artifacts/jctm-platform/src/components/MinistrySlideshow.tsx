@@ -2,7 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 // ─── Sermon-Driven Slide Content ─────────────────────────────────────────────
-const SLIDES = [
+type Slide = {
+  theme: string;
+  point: string;
+  quote: string;
+  ref: string;
+  sourceTitle?: string;
+  sourceVideoId?: string;
+  publishedAt?: string;
+};
+
+type TeachingPointsResponse = {
+  source?: string;
+  generatedAt?: string;
+  refreshSeconds?: number;
+  themes?: string[];
+  points?: Slide[];
+};
+
+const SLIDES: Slide[] = [
   // ── TRUTH ──────────────────────────────────────────────────────────────────
   {
     theme: "Truth",
@@ -393,6 +411,48 @@ const THEME: Record<string, { accent: string; pill: string; bg: string; quoteCol
     bg: "linear-gradient(160deg,#3a1500 0%,#1a0800 100%)",
     quoteColor: "rgba(254,215,170,0.85)",
   },
+  Faith: {
+    accent: "#60A5FA",
+    pill: "rgba(96,165,250,0.14)",
+    bg: "linear-gradient(160deg,#082f5f 0%,#031326 100%)",
+    quoteColor: "rgba(191,219,254,0.88)",
+  },
+  Prayer: {
+    accent: "#A78BFA",
+    pill: "rgba(167,139,250,0.14)",
+    bg: "linear-gradient(160deg,#25145a 0%,#100622 100%)",
+    quoteColor: "rgba(221,214,254,0.88)",
+  },
+  Grace: {
+    accent: "#22C55E",
+    pill: "rgba(34,197,94,0.14)",
+    bg: "linear-gradient(160deg,#063d1e 0%,#03180d 100%)",
+    quoteColor: "rgba(187,247,208,0.88)",
+  },
+  "Spiritual Growth": {
+    accent: "#14B8A6",
+    pill: "rgba(20,184,166,0.14)",
+    bg: "linear-gradient(160deg,#043f3a 0%,#021716 100%)",
+    quoteColor: "rgba(153,246,228,0.88)",
+  },
+  Deliverance: {
+    accent: "#E879F9",
+    pill: "rgba(232,121,249,0.14)",
+    bg: "linear-gradient(160deg,#431047 0%,#1b061d 100%)",
+    quoteColor: "rgba(245,208,254,0.88)",
+  },
+  Obedience: {
+    accent: "#FACC15",
+    pill: "rgba(250,204,21,0.14)",
+    bg: "linear-gradient(160deg,#403700 0%,#171300 100%)",
+    quoteColor: "rgba(254,249,195,0.88)",
+  },
+  Worship: {
+    accent: "#FBBF24",
+    pill: "rgba(251,191,36,0.14)",
+    bg: "linear-gradient(160deg,#3b2600 0%,#170d00 100%)",
+    quoteColor: "rgba(254,240,138,0.88)",
+  },
   Accountability: {
     accent: "#F87171",
     pill: "rgba(248,113,113,0.14)",
@@ -429,6 +489,72 @@ function shuffleArray<T>(arr: T[]): T[] {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+function slideKey(slide: Slide): string {
+  return `${slide.theme}:${slide.sourceVideoId ?? slide.point}`.toLowerCase();
+}
+
+function isValidSlide(value: unknown): value is Slide {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Slide>;
+  return Boolean(
+    candidate.theme &&
+    candidate.point &&
+    candidate.quote &&
+    candidate.ref &&
+    typeof candidate.theme === "string" &&
+    typeof candidate.point === "string" &&
+    typeof candidate.quote === "string" &&
+    typeof candidate.ref === "string",
+  );
+}
+
+function spreadSlideThemes(slides: Slide[]): Slide[] {
+  const buckets = new Map<string, Slide[]>();
+  for (const slide of slides) {
+    const bucket = buckets.get(slide.theme) ?? [];
+    bucket.push(slide);
+    buckets.set(slide.theme, bucket);
+  }
+  const output: Slide[] = [];
+  while (buckets.size > 0) {
+    const entries = [...buckets.entries()].sort((a, b) => b[1].length - a[1].length);
+    let progressed = false;
+    for (const [theme, bucket] of entries) {
+      if (output.at(-1)?.theme === theme && entries.length > 1) continue;
+      const next = bucket.shift();
+      if (next) {
+        output.push(next);
+        progressed = true;
+      }
+      if (bucket.length === 0) buckets.delete(theme);
+    }
+    if (!progressed) {
+      const [theme, bucket] = entries[0]!;
+      const next = bucket.shift();
+      if (next) output.push(next);
+      if (bucket.length === 0) buckets.delete(theme);
+    }
+  }
+  return output;
+}
+
+function buildSlideDeck(dynamicSlides: Slide[]): Slide[] {
+  const seen = new Set<string>();
+  const primary = dynamicSlides.filter((slide) => {
+    const key = slideKey(slide);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const fallback = shuffleArray(SLIDES).filter((slide) => {
+    const key = slideKey(slide);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return spreadSlideThemes([...shuffleArray(primary), ...fallback]).slice(0, 96);
 }
 
 // ─── Image asset maps ─────────────────────────────────────────────────────────
@@ -562,9 +688,9 @@ function SlideDots({
 function CaptionContent({
   slide, layout,
 }: {
-  slide: typeof SLIDES[number]; layout: "overlay" | "side";
+  slide: Slide; layout: "overlay" | "side";
 }) {
-  const th = THEME[slide.theme];
+  const th = THEME[slide.theme] ?? THEME["Spiritual Growth"];
   const isSide = layout === "side";
   return (
     <div className={isSide ? "flex flex-col justify-center h-full" : "text-center"}>
@@ -610,23 +736,23 @@ function CaptionContent({
       </p>
 
       <p className={`text-white/25 text-[9px] uppercase tracking-widest ${isSide ? "mt-5 hidden sm:block" : "mt-3"}`}>
-        Jesus Christ Temple Ministry · Warri, Nigeria
+        {slide.sourceTitle ? "From Temple TV Sermons · JCTM Warri" : "Jesus Christ Temple Ministry · Warri, Nigeria"}
       </p>
     </div>
   );
 }
 
-function SlideCaption({ slideIdx, layout }: { slideIdx: number; layout: "overlay" | "side" }) {
+function SlideCaption({ slide, slideIdx, layout }: { slide: Slide; slideIdx: number; layout: "overlay" | "side" }) {
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={slideIdx}
+        key={`${slideIdx}-${slideKey(slide)}`}
         initial={{ opacity: 0, y: layout === "overlay" ? 18 : 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: layout === "overlay" ? -12 : -6 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       >
-        <CaptionContent slide={SLIDES[slideIdx % SLIDES.length]} layout={layout} />
+        <CaptionContent slide={slide} layout={layout} />
       </motion.div>
     </AnimatePresence>
   );
@@ -639,11 +765,13 @@ export function MinistrySlideshow() {
   const [shuffled, setShuffled] = useState<ImageEntry[]>([]);
   const [imgIdx, setImgIdx]     = useState(0);
   const [slideIdx, setSlideIdx] = useState(0);
+  const [slides, setSlides]     = useState<Slide[]>(() => buildSlideDeck([]));
   const [orientations, setOrientations] = useState<Record<string, Orientation>>({});
 
   const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const preloadedRef   = useRef(false);
   const lastKeyRef     = useRef<string>("");   // tracks last-seen image set for diffing
+  const lastSlideKeyRef = useRef<string>("");
   const initializedRef = useRef(false);
 
   // ── Fetch + smart-update featured images ─────────────────────────────────
@@ -684,32 +812,73 @@ export function MinistrySlideshow() {
     }
   }, []);
 
+  const fetchTeachingPoints = useCallback(async (isInitial = false) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/sermons/teaching-points?limit=60`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = await res.json() as TeachingPointsResponse;
+      const dynamicSlides = Array.isArray(data.points) ? data.points.filter(isValidSlide) : [];
+      if (dynamicSlides.length === 0) return;
+
+      const key = dynamicSlides.map(slideKey).join("|");
+      if (key === lastSlideKeyRef.current && !isInitial) return;
+      lastSlideKeyRef.current = key;
+
+      const nextDeck = buildSlideDeck(dynamicSlides);
+      setSlides(nextDeck);
+      setSlideIdx((current) => isInitial ? Math.floor(Math.random() * nextDeck.length) : current % nextDeck.length);
+    } catch {
+      if (isInitial) setSlides(buildSlideDeck([]));
+    }
+  }, []);
+
   // ── Initialise once ──────────────────────────────────────────────────────
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
     fetchFeatured(true);
+    fetchTeachingPoints(true);
 
     // Poll every 3 minutes for new featured images added by admins
-    const syncTimer = setInterval(() => { fetchFeatured(false); }, SYNC_INTERVAL_MS);
+    const syncTimer = setInterval(() => {
+      fetchFeatured(false);
+      fetchTeachingPoints(false);
+    }, SYNC_INTERVAL_MS);
 
     // Also refresh immediately when the tab regains focus
-    const handleVisibility = () => { if (!document.hidden) fetchFeatured(false); };
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        fetchFeatured(false);
+        fetchTeachingPoints(false);
+      }
+    };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    const eventSource = new EventSource(`${BASE_URL}/api/gallery/stream`);
-    eventSource.addEventListener("gallery_updated", () => {
+    const galleryEvents = new EventSource(`${BASE_URL}/api/gallery/stream`);
+    galleryEvents.addEventListener("gallery_updated", () => {
       fetchFeatured(false);
     });
-    eventSource.onerror = () => {};
+    galleryEvents.onerror = () => {};
+
+    const sermonEvents = new EventSource(`${BASE_URL}/api/sermons/stream`);
+    sermonEvents.addEventListener("new_sermon", () => {
+      fetchTeachingPoints(false);
+    });
+    sermonEvents.addEventListener("sync_complete", () => {
+      fetchTeachingPoints(false);
+    });
+    sermonEvents.onerror = () => {};
 
     return () => {
       clearInterval(syncTimer);
       document.removeEventListener("visibilitychange", handleVisibility);
-      eventSource.close();
+      galleryEvents.close();
+      sermonEvents.close();
     };
-  }, [fetchFeatured]);
+  }, [fetchFeatured, fetchTeachingPoints]);
 
   // ── Orientation detection + background preload ───────────────────────────
   const detectOrientation = useCallback((entry: ImageEntry) => {
@@ -738,19 +907,19 @@ export function MinistrySlideshow() {
 
   // ── Auto-advance (always running — no pause) ─────────────────────────────
   useEffect(() => {
-    if (!shuffled.length) return;
+    if (!shuffled.length || !slides.length) return;
     intervalRef.current = setInterval(() => {
       setImgIdx((i)   => (i   + 1) % shuffled.length);
-      setSlideIdx((s) => (s   + 1) % SLIDES.length);
+      setSlideIdx((s) => (s   + 1) % slides.length);
     }, INTERVAL_MS);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [shuffled]);
+  }, [shuffled, slides.length]);
 
   const currentEntry = shuffled[imgIdx];
   const orientation  = currentEntry ? (orientations[currentEntry.webp] ?? "landscape") : "landscape";
   const isPortrait   = orientation === "portrait";
-  const slide        = SLIDES[slideIdx % SLIDES.length];
-  const theme        = THEME[slide.theme];
+  const slide        = slides[slideIdx % slides.length] ?? SLIDES[0]!;
+  const theme        = THEME[slide.theme] ?? THEME["Spiritual Growth"];
   const isEager      = imgIdx < 2;
 
   if (!shuffled.length || !currentEntry) return null;
@@ -821,7 +990,7 @@ export function MinistrySlideshow() {
                 }}
               />
               <div className="relative z-10 px-6 sm:px-9 py-7">
-                <SlideCaption slideIdx={slideIdx} layout="side" />
+                <SlideCaption slide={slide} slideIdx={slideIdx} layout="side" />
               </div>
             </div>
           </motion.div>
@@ -871,7 +1040,7 @@ export function MinistrySlideshow() {
             />
             {/* Caption */}
             <div className="absolute inset-x-0 bottom-0 px-7 sm:px-14 pb-10 sm:pb-12">
-              <SlideCaption slideIdx={slideIdx} layout="overlay" />
+              <SlideCaption slide={slide} slideIdx={slideIdx} layout="overlay" />
             </div>
           </motion.div>
         )}
@@ -893,7 +1062,7 @@ export function MinistrySlideshow() {
 
       {/* ── Bottom bar: dots ──────────────────────────── */}
       <div className="absolute bottom-3 inset-x-0 flex items-center justify-center z-40 pointer-events-none">
-        <SlideDots total={SLIDES.length} current={slideIdx % SLIDES.length} accent={theme.accent} />
+        <SlideDots total={slides.length} current={slideIdx % slides.length} accent={theme.accent} />
       </div>
     </div>
   );

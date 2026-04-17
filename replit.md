@@ -58,6 +58,7 @@ All routes verified HTTP 200:
 - **Admin access**: unified role-based system — see Role-Based Admin section below. Gallery role also checks legacy `GALLERY_ADMIN_PASSPHRASE_HASH` for backward compat.
 - **Homepage sync**: New uploads are featured by default and the Home page Ministry in Pictures slideshow pulls `GET /api/gallery/featured`, with bundled images as fallback.
 - **Real-time homepage slideshow sync**: `GET /api/gallery/featured` now returns all published gallery images, ordered with highlighted images first, so every uploaded/published image automatically appears in “Ministry in Pictures.” Gallery create/update/delete/thumbnail events broadcast through `/api/gallery/stream`, and the homepage slideshow refreshes immediately without manual intervention while retaining 3-minute polling and focus refresh as fallbacks.
+- **Sermon-aligned teaching rotation**: “Ministry in Pictures” also loads `GET /api/sermons/teaching-points`, which derives rotating teaching points and Bible verses from current YouTube-synced sermon metadata. The slideshow merges those dynamic sermon points with its curated fallback library, spreads themes to avoid repetition, listens to sermon sync SSE events, and polls every 3 minutes.
 - **Categories**: Built-in and dynamically created categories are exposed through `GET /api/gallery/categories` and available in the Gallery filter/upload dashboard.
 - **Footer**: Admin link removed from footer; admin dashboard accessible only via direct URL (`/admin`).
 

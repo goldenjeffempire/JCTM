@@ -27,12 +27,187 @@ const PINNED_INTRO_TITLES = new Set([
   "the generation of the evil one and the generation of the saint",
 ]);
 
+type SermonTeachingPoint = {
+  theme: string;
+  point: string;
+  quote: string;
+  ref: string;
+  sourceTitle: string;
+  sourceVideoId: string;
+  publishedAt: string;
+};
+
+const SCRIPTURE_BANK: Record<string, Array<{ quote: string; ref: string }>> = {
+  Faith: [
+    { quote: "Now faith is the substance of things hoped for, the evidence of things not seen.", ref: "Hebrews 11:1" },
+    { quote: "For we walk by faith, not by sight.", ref: "2 Corinthians 5:7" },
+    { quote: "According to your faith let it be to you.", ref: "Matthew 9:29" },
+    { quote: "If you can believe, all things are possible to him who believes.", ref: "Mark 9:23" },
+  ],
+  Repentance: [
+    { quote: "Repent therefore and be converted, that your sins may be blotted out.", ref: "Acts 3:19" },
+    { quote: "Return to Me, and I will return to you, says the LORD of hosts.", ref: "Malachi 3:7" },
+    { quote: "Create in me a clean heart, O God, and renew a steadfast spirit within me.", ref: "Psalm 51:10" },
+    { quote: "The sacrifices of God are a broken spirit, a broken and a contrite heart.", ref: "Psalm 51:17" },
+  ],
+  Holiness: [
+    { quote: "Pursue peace with all people, and holiness, without which no one will see the Lord.", ref: "Hebrews 12:14" },
+    { quote: "Be holy, for I am holy.", ref: "1 Peter 1:16" },
+    { quote: "Cleanse your hands, you sinners; and purify your hearts, you double-minded.", ref: "James 4:8" },
+    { quote: "Blessed are the pure in heart, for they shall see God.", ref: "Matthew 5:8" },
+  ],
+  Prayer: [
+    { quote: "Men always ought to pray and not lose heart.", ref: "Luke 18:1" },
+    { quote: "Pray without ceasing.", ref: "1 Thessalonians 5:17" },
+    { quote: "The effective, fervent prayer of a righteous man avails much.", ref: "James 5:16" },
+    { quote: "Call to Me, and I will answer you, and show you great and mighty things.", ref: "Jeremiah 33:3" },
+  ],
+  Grace: [
+    { quote: "By grace you have been saved through faith, and that not of yourselves; it is the gift of God.", ref: "Ephesians 2:8" },
+    { quote: "My grace is sufficient for you, for My strength is made perfect in weakness.", ref: "2 Corinthians 12:9" },
+    { quote: "The grace of God that brings salvation has appeared to all men.", ref: "Titus 2:11" },
+    { quote: "Let us therefore come boldly to the throne of grace.", ref: "Hebrews 4:16" },
+  ],
+  "Spiritual Growth": [
+    { quote: "Grow in the grace and knowledge of our Lord and Savior Jesus Christ.", ref: "2 Peter 3:18" },
+    { quote: "As newborn babes, desire the pure milk of the word, that you may grow thereby.", ref: "1 Peter 2:2" },
+    { quote: "That Christ may dwell in your hearts through faith; that you, being rooted and grounded in love.", ref: "Ephesians 3:17" },
+    { quote: "Leaving the discussion of the elementary principles of Christ, let us go on to perfection.", ref: "Hebrews 6:1" },
+  ],
+  Salvation: [
+    { quote: "For everyone who calls on the name of the LORD shall be saved.", ref: "Romans 10:13" },
+    { quote: "Nor is there salvation in any other, for there is no other name under heaven given among men by which we must be saved.", ref: "Acts 4:12" },
+    { quote: "Enter by the narrow gate; for wide is the gate and broad is the way that leads to destruction.", ref: "Matthew 7:13" },
+  ],
+  Justice: [
+    { quote: "Let justice run down like water, and righteousness like a mighty stream.", ref: "Amos 5:24" },
+    { quote: "He has shown you, O man, what is good; and what does the LORD require of you but to do justly, to love mercy, and to walk humbly with your God?", ref: "Micah 6:8" },
+    { quote: "Open your mouth, judge righteously, and plead the cause of the poor and needy.", ref: "Proverbs 31:9" },
+  ],
+  Truth: [
+    { quote: "You shall know the truth, and the truth shall make you free.", ref: "John 8:32" },
+    { quote: "Sanctify them by Your truth. Your word is truth.", ref: "John 17:17" },
+    { quote: "Buy the truth, and do not sell it, also wisdom and instruction and understanding.", ref: "Proverbs 23:23" },
+  ],
+  Deliverance: [
+    { quote: "Therefore if the Son makes you free, you shall be free indeed.", ref: "John 8:36" },
+    { quote: "He has delivered us from the power of darkness and conveyed us into the kingdom of the Son of His love.", ref: "Colossians 1:13" },
+    { quote: "The Spirit of the LORD is upon Me, because He has anointed Me to preach deliverance to the captives.", ref: "Luke 4:18" },
+  ],
+  Obedience: [
+    { quote: "If you love Me, keep My commandments.", ref: "John 14:15" },
+    { quote: "To obey is better than sacrifice, and to heed than the fat of rams.", ref: "1 Samuel 15:22" },
+    { quote: "Be doers of the word, and not hearers only, deceiving yourselves.", ref: "James 1:22" },
+  ],
+  Worship: [
+    { quote: "God is Spirit, and those who worship Him must worship in spirit and truth.", ref: "John 4:24" },
+    { quote: "Let justice run down like water, and righteousness like a mighty stream.", ref: "Amos 5:24" },
+    { quote: "Present your bodies a living sacrifice, holy, acceptable to God, which is your reasonable service.", ref: "Romans 12:1" },
+  ],
+};
+
+const THEME_RULES: Array<{ theme: string; patterns: RegExp[] }> = [
+  { theme: "Faith", patterns: [/faith/i, /believ/i, /trust/i, /confidence/i, /cannot fail/i] },
+  { theme: "Repentance", patterns: [/repent/i, /return/i, /sin/i, /sinner/i, /backslid/i, /confess/i, /forgiv/i] },
+  { theme: "Holiness", patterns: [/holi/i, /righteous/i, /sanct/i, /purity/i, /pure/i, /consecr/i, /worldliness/i] },
+  { theme: "Prayer", patterns: [/prayer/i, /pray/i, /intercession/i, /altar/i, /fast/i, /supplication/i] },
+  { theme: "Grace", patterns: [/grace/i, /mercy/i, /saved/i, /salvation/i, /redeem/i, /blood of jesus/i] },
+  { theme: "Spiritual Growth", patterns: [/grow/i, /matur/i, /word/i, /wisdom/i, /knowledge/i, /disciple/i, /christian life/i, /meditate/i] },
+  { theme: "Justice", patterns: [/justice/i, /poor/i, /needy/i, /oppress/i, /exploit/i, /money/i, /house agent/i, /excessive/i, /bribe/i] },
+  { theme: "Deliverance", patterns: [/deliver/i, /liberat/i, /demon/i, /bondage/i, /captiv/i, /evil spirit/i, /freedom/i] },
+  { theme: "Obedience", patterns: [/obey/i, /obedien/i, /command/i, /submit/i, /will of god/i, /serve/i] },
+  { theme: "Worship", patterns: [/worship/i, /praise/i, /thanksgiving/i, /holy ghost service/i, /spirit and truth/i] },
+  { theme: "Truth", patterns: [/truth/i, /doctrine/i, /message/i, /gospel/i, /baptism/i, /primitive christianity/i] },
+];
+
 function normalizeTitle(title: string | null | undefined): string {
   return (title ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function isPinnedIntroTitle(title: string | null | undefined): boolean {
   return PINNED_INTRO_TITLES.has(normalizeTitle(title));
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function cleanSermonTitle(title: string): string {
+  return title
+    .replace(/\btemple tv\b/gi, "")
+    .replace(/\blive stream\b/gi, "")
+    .replace(/\blive service\b/gi, "service")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,!.?:;])/g, "$1")
+    .trim();
+}
+
+function themeForSermon(title: string, description: string | null): string {
+  const text = `${title} ${description ?? ""}`;
+  return THEME_RULES.find(rule => rule.patterns.some(pattern => pattern.test(text)))?.theme ?? "Spiritual Growth";
+}
+
+function scriptureFor(theme: string, key: string): { quote: string; ref: string } {
+  const bank = SCRIPTURE_BANK[theme] ?? SCRIPTURE_BANK["Spiritual Growth"]!;
+  return bank[hashString(`${theme}:${key}`) % bank.length]!;
+}
+
+function pointForTheme(theme: string, title: string): string {
+  const sermon = cleanSermonTitle(title);
+  const points: Record<string, string> = {
+    Faith: `Let the message "${sermon}" strengthen your faith to trust God beyond what your eyes can see.`,
+    Repentance: `"${sermon}" calls every heart back to sincere repentance, clean hands, and a restored walk with God.`,
+    Holiness: `The teaching "${sermon}" points believers back to holiness, purity, and a life separated unto the Lord.`,
+    Prayer: `"${sermon}" reminds the church that prayer keeps the altar burning and opens the heart to God's will.`,
+    Grace: `Through "${sermon}", receive grace as power to be saved, corrected, restored, and kept in Christ.`,
+    "Spiritual Growth": `"${sermon}" invites believers to grow deeper in the Word, maturity, discipline, and daily obedience.`,
+    Justice: `"${sermon}" reminds the church that righteousness must touch daily life, justice, mercy, and honest dealings before God.`,
+    Deliverance: `The sermon "${sermon}" declares that Jesus Christ still delivers souls from darkness into lasting freedom.`,
+    Obedience: `"${sermon}" teaches that true love for God is proven through obedience, surrender, and faithful service.`,
+    Worship: `The message "${sermon}" lifts worship beyond ceremony into Spirit, truth, righteousness, and a yielded heart.`,
+    Truth: `"${sermon}" anchors the soul in God's truth so the believer is not carried away by error or empty religion.`,
+  };
+  return points[theme] ?? points["Spiritual Growth"]!;
+}
+
+function rotateByFreshness<T>(items: T[], seed: number): T[] {
+  if (items.length <= 1) return items;
+  const offset = seed % items.length;
+  return [...items.slice(offset), ...items.slice(0, offset)];
+}
+
+function spreadThemes(points: SermonTeachingPoint[]): SermonTeachingPoint[] {
+  const buckets = new Map<string, SermonTeachingPoint[]>();
+  for (const point of points) {
+    const bucket = buckets.get(point.theme) ?? [];
+    bucket.push(point);
+    buckets.set(point.theme, bucket);
+  }
+  const output: SermonTeachingPoint[] = [];
+  while (buckets.size > 0) {
+    const entries = [...buckets.entries()].sort((a, b) => b[1].length - a[1].length);
+    let progressed = false;
+    for (const [theme, bucket] of entries) {
+      if (output.at(-1)?.theme === theme && entries.length > 1) continue;
+      const next = bucket.shift();
+      if (next) {
+        output.push(next);
+        progressed = true;
+      }
+      if (bucket.length === 0) buckets.delete(theme);
+    }
+    if (!progressed) {
+      const [theme, bucket] = entries[0]!;
+      const next = bucket.shift();
+      if (next) output.push(next);
+      if (bucket.length === 0) buckets.delete(theme);
+    }
+  }
+  return output;
 }
 
 // ──────────────────────────────────────────────────────
@@ -313,6 +488,74 @@ router.get("/sermons/intro", async (req, res): Promise<void> => {
   }));
 
   res.json({ videos: serialized, total, hasMore, offset, limit });
+});
+
+router.get("/sermons/teaching-points", async (req, res): Promise<void> => {
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "48")), 12), 80);
+  const pool = await db
+    .select({
+      videoId: sermonsTable.videoId,
+      title: sermonsTable.title,
+      description: sermonsTable.description,
+      publishedAt: sermonsTable.publishedAt,
+      viewCount: sermonsTable.viewCount,
+      duration: sermonsTable.duration,
+    })
+    .from(sermonsTable)
+    .orderBy(desc(sermonsTable.publishedAt))
+    .limit(240);
+
+  const seenTitles = new Set<string>();
+  const latestTime = pool[0]?.publishedAt instanceof Date ? pool[0].publishedAt.getTime() : Date.now();
+  const rotationSeed = Math.floor(Date.now() / (6 * 60 * 60 * 1000)) + Math.floor(latestTime / (24 * 60 * 60 * 1000));
+
+  const scored = pool
+    .map((sermon) => {
+      const titleKey = normalizeTitle(sermon.title).replace(/\b(live|service|program|sunday|wednesday|friday)\b/g, "").trim();
+      if (!titleKey || seenTitles.has(titleKey)) return null;
+      seenTitles.add(titleKey);
+      const theme = themeForSermon(sermon.title, sermon.description);
+      const scripture = scriptureFor(theme, `${sermon.videoId}:${sermon.publishedAt?.toISOString?.() ?? ""}`);
+      const durationSeconds = sermon.duration ? iso8601ToSeconds(sermon.duration) : 0;
+      const score =
+        (sermon.publishedAt ? new Date(sermon.publishedAt).getTime() / 1_000_000_000 : 0) +
+        Math.min(sermon.viewCount ?? 0, 500_000) / 10_000 +
+        (durationSeconds >= 15 * 60 ? 15 : 0) +
+        (THEME_RULES.some(rule => rule.theme === theme && rule.patterns.some(pattern => pattern.test(sermon.title))) ? 20 : 0);
+      return {
+        score,
+        point: {
+          theme,
+          point: pointForTheme(theme, sermon.title),
+          quote: scripture.quote,
+          ref: scripture.ref,
+          sourceTitle: cleanSermonTitle(sermon.title),
+          sourceVideoId: sermon.videoId,
+          publishedAt: sermon.publishedAt instanceof Date ? sermon.publishedAt.toISOString() : new Date(sermon.publishedAt).toISOString(),
+        } satisfies SermonTeachingPoint,
+      };
+    })
+    .filter((item): item is { score: number; point: SermonTeachingPoint } => item !== null)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.point);
+
+  const requiredThemes = ["Faith", "Repentance", "Holiness", "Prayer", "Grace", "Spiritual Growth"];
+  const topByTheme = requiredThemes
+    .map(theme => scored.find(point => point.theme === theme))
+    .filter((point): point is SermonTeachingPoint => point !== undefined);
+  const topKeys = new Set(topByTheme.map(point => point.sourceVideoId));
+  const remaining = scored.filter(point => !topKeys.has(point.sourceVideoId));
+  const rotated = rotateByFreshness([...topByTheme, ...remaining], rotationSeed);
+  const points = spreadThemes(rotated).slice(0, limit);
+
+  res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+  res.json({
+    source: "youtube-sermon-metadata",
+    generatedAt: new Date().toISOString(),
+    refreshSeconds: 300,
+    themes: [...new Set(points.map(point => point.theme))],
+    points,
+  });
 });
 
 // ──────────────────────────────────────────────────────
