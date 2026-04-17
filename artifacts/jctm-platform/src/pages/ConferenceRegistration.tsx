@@ -5,7 +5,7 @@ import {
   User, Mail, Phone, Building2, Award, MapPin,
   MessageSquare, ChevronRight, CheckCircle2, ArrowLeft,
   Flame, Calendar, Clock, Camera, ImagePlus, Copy, Check, Share2, Download,
-  Sparkles, Instagram, Facebook, Youtube, Users,
+  Sparkles, Instagram, Facebook, Youtube, Users, ExternalLink,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
@@ -17,6 +17,120 @@ import { toast } from "sonner";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const CONF_START    = new Date("2026-05-08T07:00:00+01:00");
+const CONF_LOCATION = "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State";
+const CONF_CONTACT  = "+234(0)8081313111";
+
+function useCountdown(target: Date) {
+  const [t, setT] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, started: false });
+  useEffect(() => {
+    const calc = () => {
+      const diff = target.getTime() - Date.now();
+      if (diff <= 0) { setT({ days: 0, hours: 0, minutes: 0, seconds: 0, started: true }); return; }
+      setT({
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff % 86400000) / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+        seconds: Math.floor((diff % 60000) / 1000),
+        started: false,
+      });
+    };
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [target]);
+  return t;
+}
+
+function CountdownBlock({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <motion.div
+        key={value}
+        initial={{ rotateX: -90, opacity: 0 }}
+        animate={{ rotateX: 0, opacity: 1 }}
+        transition={{ duration: 0.35 }}
+        className="w-20 h-20 md:w-28 md:h-28 rounded-2xl flex items-center justify-center font-mono font-black text-4xl md:text-5xl text-white shadow-2xl border border-purple-400/30"
+        style={{ background: "linear-gradient(135deg, #1a0525 0%, #3b0764 100%)" }}
+      >
+        {String(value).padStart(2, "0")}
+      </motion.div>
+      <span className="mt-2 text-[10px] md:text-xs text-purple-400 uppercase tracking-[0.2em] font-bold">{label}</span>
+    </div>
+  );
+}
+
+function ConferenceFlyerShowcase() {
+  const shareText = encodeURIComponent(
+    `🙏 MINISTERS CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n📞 ${CONF_CONTACT}\n🌐 www.jctm.org.ng\n\n#MinistersConference2026 #JCTM #ProphetAmos`
+  );
+  const shareUrl = encodeURIComponent("https://jctm.org.ng/conference-registration");
+  const platforms = [
+    { label: "WhatsApp",   emoji: "💬",  bg: "#25D366",   href: `https://wa.me/?text=${shareText}` },
+    { label: "Facebook",   emoji: "👍",  bg: "#1877F2",   href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}&quote=${shareText}` },
+    { label: "X / Twitter",emoji: "𝕏",   bg: "#000",      href: `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}` },
+    { label: "Telegram",   emoji: "✈️",  bg: "#0088CC",   href: `https://t.me/share/url?url=${shareUrl}&text=${shareText}` },
+    { label: "Instagram",  emoji: "📷",  bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)", href: "https://www.instagram.com/templetv.jctm/" },
+  ];
+
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = ministerConferenceFlyer;
+    link.download = "ministers-conference-2026-flyer.jpeg";
+    link.click();
+    toast.success("Flyer downloaded! Share it everywhere — WhatsApp, Facebook, Instagram.");
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+      className="mb-14 rounded-3xl overflow-hidden border-2 group relative"
+      style={{ borderColor: "rgba(168,85,247,0.6)" }}
+    >
+      <img
+        src={ministerConferenceFlyer}
+        alt="Ministers Conference 2026 — Official Event Flyer"
+        className="w-full object-cover group-hover:scale-105 transition-transform duration-700"
+        style={{ maxHeight: "600px", objectPosition: "center top" }}
+        loading="lazy"
+        decoding="async"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0d020f] via-[#0d020f]/30 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+        <p className="text-purple-300 text-xs font-bold uppercase tracking-[0.25em] mb-4 flex items-center gap-2">
+          <Share2 className="h-3.5 w-3.5" />
+          Official Flyer — Share on All Platforms
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          {platforms.map(p => (
+            <a
+              key={p.label}
+              href={p.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
+              style={{ background: p.bg }}
+            >
+              <span>{p.emoji}</span>
+              <span className="hidden sm:inline">{p.label}</span>
+            </a>
+          ))}
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg border-2"
+            style={{ borderColor: "#a855f7", color: "#d8b4fe", background: "rgba(168,85,247,0.12)" }}
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Download Flyer</span>
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }: { initialName?: string; initialPhoto?: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -791,10 +905,13 @@ export default function ConferenceRegistration() {
   const [invitedBy, setInvitedBy] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [attendCount, setAttendCount] = useState<number | null>(null);
+  const [rsvpName, setRsvpName] = useState("");
+  const [rsvpPhoto, setRsvpPhoto] = useState<string | null>(null);
 
   const [photo, setPhoto] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+  const countdown = useCountdown(CONF_START);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -860,7 +977,9 @@ export default function ConferenceRegistration() {
       if (!res.ok) throw new Error(data?.error ?? "Registration failed.");
       setRegId(data?.registration?.id ?? null);
       setSuccess(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setRsvpName(form.fullName.trim());
+      setRsvpPhoto(photo);
+      toast.success(`Welcome, ${form.fullName.split(" ")[0]}! Your registration is confirmed. 🙏`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -868,11 +987,15 @@ export default function ConferenceRegistration() {
     }
   };
 
+  const inviteLink = `${typeof window !== "undefined" ? window.location.origin : ""}/conference-registration?invited_by=${encodeURIComponent(form.fullName)}`;
+
   return (
     <Layout>
       <SEO
-        title="Register to Attend — Ministers Conference 2026 | JCTM"
-        description="Register your attendance for the JCTM Ministers Conference 2026. May 8–10, 2026. An apostolic gathering of ministers, leaders and kingdom builders."
+        title="Ministers Conference 2026 — Register to Attend | JCTM"
+        description="Register your attendance for the JCTM Ministers Conference 2026. May 8–10, 2026. An apostolic gathering of ministers, leaders and kingdom builders. Ebrumede Roundabout, Effurun Uvwie, Delta State."
+        path="/conference-registration"
+        keywords="Ministers Conference 2026, JCTM conference, Jesus Christ Temple Ministry conference, Prophet Amos Evomobor, church conference Delta State 2026, apostolic gathering Nigeria"
       />
 
       {cropSrc && (
@@ -883,22 +1006,24 @@ export default function ConferenceRegistration() {
         />
       )}
 
-      {/* Hero */}
       <div
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(180deg,#0d020f 0%,#2a0a35 60%,#0d020f 100%)" }}
+        className="relative min-h-screen"
+        style={{ background: "linear-gradient(180deg, #0d020f 0%, #1a0525 40%, #2d0f3d 70%, #0d020f 100%)" }}
       >
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {Array.from({ length: 40 }).map((_, i) => (
+        {/* Starfield */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 80 }).map((_, i) => (
             <div
               key={i}
               className="absolute rounded-full"
               style={{
-                width: `${(i % 3) * 0.8 + 0.5}px`,
-                height: `${(i % 3) * 0.8 + 0.5}px`,
-                top: `${(i * 41 + 13) % 100}%`,
-                left: `${(i * 59 + 7) % 100}%`,
-                background: `rgba(220,180,255,${(i % 5) * 0.07 + 0.06})`,
+                width: `${Math.random() * 2 + 1}px`,
+                height: `${Math.random() * 2 + 1}px`,
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                background: `rgba(180,100,255,${Math.random() * 0.6 + 0.1})`,
+                animation: `pulse ${2 + Math.random() * 3}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 3}s`,
               }}
             />
           ))}
