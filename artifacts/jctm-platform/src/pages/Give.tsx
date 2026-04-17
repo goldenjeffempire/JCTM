@@ -4,7 +4,7 @@ import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
-import { Heart, Shield, Star, CheckCircle, Globe } from "lucide-react";
+import { Heart, Shield, Star, CheckCircle, Globe, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useGeo } from "@/contexts/GeoContext";
 
@@ -30,6 +30,15 @@ export default function Give() {
   const [step, setStep] = useState<"form" | "success">("form");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedAccount(text);
+      toast.success(`${label} copied!`);
+      setTimeout(() => setCopiedAccount(null), 2000);
+    }).catch(() => toast.error("Failed to copy to clipboard"));
+  };
 
   const presets = currency === "NGN" ? PRESET_NGN : PRESET_USD;
   const symbol = currency === "NGN" ? "₦" : "$";
@@ -275,7 +284,16 @@ export default function Give() {
                 ].map(({ bank, number }) => (
                   <div key={bank} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
                     <span className="text-muted-foreground font-medium">{bank}</span>
-                    <span className="font-mono font-bold text-primary tracking-wide">{number}</span>
+                    <button
+                      onClick={() => copyToClipboard(number, `${bank} account number`)}
+                      className="flex items-center gap-1.5 font-mono font-bold text-primary tracking-wide hover:text-accent transition-colors group"
+                      title="Copy account number"
+                    >
+                      <span>{number}</span>
+                      {copiedAccount === number
+                        ? <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                        : <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-60 shrink-0 transition-opacity" />}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -293,11 +311,29 @@ export default function Give() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Account No</span>
-                  <span className="font-mono font-bold text-primary tracking-wide">0737296821</span>
+                  <button
+                    onClick={() => copyToClipboard("0737296821", "USD account number")}
+                    className="flex items-center gap-1.5 font-mono font-bold text-primary tracking-wide hover:text-accent transition-colors group"
+                    title="Copy account number"
+                  >
+                    <span>0737296821</span>
+                    {copiedAccount === "0737296821"
+                      ? <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                      : <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-60 shrink-0 transition-opacity" />}
+                  </button>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Swift Code</span>
-                  <span className="font-mono font-bold text-accent tracking-widest">GTBINGLA</span>
+                  <button
+                    onClick={() => copyToClipboard("GTBINGLA", "Swift code")}
+                    className="flex items-center gap-1.5 font-mono font-bold text-accent tracking-widest hover:opacity-70 transition-opacity group"
+                    title="Copy swift code"
+                  >
+                    <span>GTBINGLA</span>
+                    {copiedAccount === "GTBINGLA"
+                      ? <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                      : <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-60 shrink-0 transition-opacity" />}
+                  </button>
                 </div>
               </div>
             </div>

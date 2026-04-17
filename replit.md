@@ -220,6 +220,27 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 - **Compliance**: Privacy Policy (`/privacy`) accurately discloses AdSense cookie use with opt-out link. `CookieNotice` component (`artifacts/jctm-platform/src/components/ads/CookieNotice.tsx`) shows a dismissible banner on first visit (localStorage flag `jctm_cookie_notice_dismissed`).
 - **Policy safety**: No ads inside iframes, live players, or chat. Slots have fixed `minHeight` to prevent CLS. `data-full-width-responsive="true"` on all ins elements.
 
+## Comprehensive Audit & Hardening (April 2026)
+
+### Critical Bug Fixes
+- **`health.ts` cronState type mismatch** — `/api/healthz` was accessing flat `cronState.quotaPausedUntil`, `cronState.lastAPISync`, `cronState.lastWebSubRenewal` etc., but `getCronState()` returns a nested structure (`cronState.youtube.*`, `cronState.websub.*`). Fixed to use correct nested property paths. Health endpoint now correctly reports YouTube quota state, sync timestamps, and WebSub renewal data.
+
+### TypeScript Hygiene — Zero-Error Build
+- Built all shared lib packages (`@workspace/db`, `@workspace/api-zod`, `@workspace/api-client-react`, `@workspace/integrations-openai-ai-server`, `@workspace/integrations-openai-ai-react`) which resolved 109 TS6305 errors across the API server and 27+ errors across the frontend.
+- All remaining `TS7006 implicit any` parameters confirmed clean with both `tsc --noEmit` and `tsc --noEmit --skipLibCheck`.
+
+### Post-Merge Script Hardened
+- `scripts/post-merge.sh` now builds all 5 lib packages in dependency order after `pnpm install`.
+- Post-merge timeout raised from 20s → 180s (3 minutes) to accommodate full lib build cycle.
+
+### UX Improvement — Give Page Copy-to-Clipboard
+- All NGN bank account numbers (UBA, FCMB, GTBank, Zenith Bank), USD account number, and Swift code on `/give` now have a click-to-copy button with a checkmark confirmation and toast notification. No clipboard icon shown until hover to keep the layout clean.
+
+### Error Visibility Improvement
+- `Prayer.tsx` fetch failure (loading prayer requests) now logs the error to the console with `console.warn` instead of silently swallowing it — making it easier to debug network issues without surfacing errors to users.
+
+---
+
 ## Replit Migration Status
 
 - Dependencies installed with `pnpm install`.

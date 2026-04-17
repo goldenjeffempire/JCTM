@@ -89,7 +89,9 @@ function PrayerWall() {
     try {
       const res = await fetch(`${BASE}/api/prayer/requests`);
       if (res.ok) setRequests(await res.json());
-    } catch {}
+    } catch (err) {
+      console.warn("Prayer wall: failed to load requests", err);
+    }
     setLoading(false);
   }, []);
 
