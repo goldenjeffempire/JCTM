@@ -1477,37 +1477,6 @@ export default function Crusade() {
             <InviteCardGenerator initialName={rsvpName} initialPhoto={rsvpPhoto} />
           </motion.div>
 
-          {/* YouTube Ad Banner Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.7 }}
-            className="rounded-3xl overflow-hidden border border-yellow-400/20 mb-12"
-            style={{ background: "rgba(10,26,74,0.7)" }}
-          >
-            <div className="p-6 border-b border-yellow-400/10">
-              <div className="flex items-center gap-3 mb-2">
-                <Youtube className="h-5 w-5 text-red-500" />
-                <h3 className="font-serif font-bold text-white text-xl">YouTube Live Ad Banner</h3>
-              </div>
-              <p className="text-white/60 text-sm">This banner appears at the bottom of all JCTM YouTube sermon pages, inviting viewers to the crusade.</p>
-            </div>
-            <div className="p-6">
-              <div className="rounded-xl overflow-hidden">
-                <div className="bg-black relative" style={{ aspectRatio: "16/9", maxHeight: "280px" }}>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-white/20 text-6xl">▶</div>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0">
-                    <CrusadeAdBanner compact />
-                  </div>
-                </div>
-              </div>
-              <p className="text-white/40 text-xs mt-3 text-center">Preview: banner overlay as shown on sermon videos</p>
-            </div>
-          </motion.div>
-
           {/* Contact & Share */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
