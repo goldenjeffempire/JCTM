@@ -313,11 +313,25 @@ router.get("/sermons/shorts", async (_req, res): Promise<void> => {
 // GET /sermons/featured  — latest / featured sermon
 // ──────────────────────────────────────────────────────
 router.get("/sermons/featured", async (req, res): Promise<void> => {
-  // Prefer the most recently published sermon (always show the latest upload)
+  // Priority ordering:
+  //  1. Videos whose broadcast ended within the last 7 days (most recent broadcast first)
+  //     — this surfaces the just-concluded live service immediately in Today's Highlight
+  //     and Latest Broadcast sections
+  //  2. Featured (is_featured = true) sermons by publishedAt
+  //  3. Any sermon by publishedAt
   const [sermon] = await db
     .select()
     .from(sermonsTable)
-    .orderBy(desc(sermonsTable.publishedAt))
+    .orderBy(
+      sql`CASE
+        WHEN ${sermonsTable.broadcastEndedAt} IS NOT NULL
+          AND ${sermonsTable.broadcastEndedAt} > NOW() - INTERVAL '8 days'
+        THEN 0 ELSE 1
+      END ASC`,
+      sql`${sermonsTable.broadcastEndedAt} DESC NULLS LAST`,
+      desc(sermonsTable.isFeatured),
+      desc(sermonsTable.publishedAt),
+    )
     .limit(1);
 
   if (!sermon) {
@@ -329,6 +343,7 @@ router.get("/sermons/featured", async (req, res): Promise<void> => {
     ...sermon,
     publishedAt: sermon.publishedAt instanceof Date ? sermon.publishedAt.toISOString() : sermon.publishedAt,
     createdAt: sermon.createdAt instanceof Date ? sermon.createdAt.toISOString() : sermon.createdAt,
+    broadcastEndedAt: sermon.broadcastEndedAt instanceof Date ? sermon.broadcastEndedAt.toISOString() : (sermon.broadcastEndedAt ?? null),
   }));
 });
 

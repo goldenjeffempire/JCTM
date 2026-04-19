@@ -1406,12 +1406,18 @@ const PROPHETIC_WORDS = [
 ];
 
 function BentoGrid() {
-  const { data: sermon, isLoading: sermonLoading } = useGetFeaturedSermon({ query: { queryKey: getGetFeaturedSermonQueryKey() } });
+  const { data: sermon, isLoading: sermonLoading } = useGetFeaturedSermon({
+    query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 60_000, staleTime: 30_000 },
+  });
   const { data: stats } = useGetSermonStats({ query: { queryKey: getGetSermonStatsQueryKey() } });
   const countdown = useNextService();
   const [wordIdx, setWordIdx] = useState(0);
   const [hoveredSermon, setHoveredSermon] = useState(false);
   const ytId = (sermon as { videoId?: string })?.videoId;
+
+  // Flag to show "Latest Broadcast" instead of "Featured Message" when the video was a recent live stream
+  const bentoBroadcastEndedAt = (sermon as { broadcastEndedAt?: string | null })?.broadcastEndedAt;
+  const bentoIsRecentBroadcast = !!bentoBroadcastEndedAt && (Date.now() - new Date(bentoBroadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000;
 
   useEffect(() => {
     const t = setInterval(() => setWordIdx(i => (i + 1) % PROPHETIC_WORDS.length), 6000);
@@ -1485,17 +1491,31 @@ function BentoGrid() {
                             </div>
                             <div className="absolute bottom-0 left-0 right-0 p-6">
                               <span className="text-accent text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                                <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse" />Latest from Temple TV
+                                <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse" />
+                                {bentoIsRecentBroadcast ? "Latest Broadcast" : "Latest from Temple TV"}
                               </span>
                               <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{sermon.title}</h3>
-                              <p className="text-white/50 text-xs mt-1.5">Hover to preview · <span className="text-accent">Published {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}</span></p>
+                              <p className="text-white/50 text-xs mt-1.5">
+                                Hover to preview · <span className="text-accent">
+                                  {bentoIsRecentBroadcast && bentoBroadcastEndedAt
+                                    ? `Aired ${formatDistanceToNow(new Date(bentoBroadcastEndedAt), { addSuffix: true })}`
+                                    : `Published ${formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}`}
+                                </span>
+                              </p>
                             </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
                     <div className="p-5 flex items-center justify-between bg-primary">
-                      <Badge variant="secondary" className="text-[10px] rounded-full bg-white/10 text-white border-white/10">Featured Message</Badge>
+                      <Badge variant="secondary" className={`text-[10px] rounded-full border ${bentoIsRecentBroadcast ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-white/10 text-white border-white/10"}`}>
+                        {bentoIsRecentBroadcast ? (
+                          <span className="flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                            Latest Broadcast
+                          </span>
+                        ) : "Featured Message"}
+                      </Badge>
                       <Link href="/sermons">
                         <Button size="sm" className="rounded-full bg-accent hover:bg-accent/90 text-white text-xs h-8 px-4">
                           <Play className="h-3 w-3 mr-1.5 fill-white" />Watch Full
@@ -2006,11 +2026,18 @@ function MandateReveal() {
 // SERMON SPOTLIGHT
 // ═══════════════════════════════════════════════════════════════════════════
 function SermonSpotlight() {
-  const { data: sermon, isLoading } = useGetFeaturedSermon({ query: { queryKey: getGetFeaturedSermonQueryKey() } });
+  const { data: sermon, isLoading } = useGetFeaturedSermon({
+    query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 60_000, staleTime: 30_000 },
+  });
   const [playing, setPlaying] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
   const ytId = (sermon as { videoId?: string })?.videoId;
+
+  // Determine whether this sermon was a recent live broadcast (within last 7 days)
+  const broadcastEndedAt = (sermon as { broadcastEndedAt?: string | null })?.broadcastEndedAt;
+  const isRecentBroadcast = !!broadcastEndedAt && (Date.now() - new Date(broadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000;
+  const broadcastAgo = broadcastEndedAt ? formatDistanceToNow(new Date(broadcastEndedAt), { addSuffix: true }) : null;
 
   return (
     <section ref={ref} className="py-28 bg-background">
@@ -2018,7 +2045,13 @@ function SermonSpotlight() {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <motion.div variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"}>
             <motion.div variants={fadeUp}>
-              <span className="inline-flex items-center gap-2 text-accent text-xs font-bold uppercase tracking-widest mb-5"><span className="h-px w-8 bg-accent inline-block" />Latest Broadcast</span>
+              <span className="inline-flex items-center gap-2 text-accent text-xs font-bold uppercase tracking-widest mb-5">
+                <span className="h-px w-8 bg-accent inline-block" />
+                {isRecentBroadcast ? "Latest Broadcast" : "Featured Message"}
+                {isRecentBroadcast && broadcastAgo && (
+                  <span className="ml-1 text-white/50 normal-case font-normal tracking-normal">— aired {broadcastAgo}</span>
+                )}
+              </span>
             </motion.div>
             <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-primary mb-6 leading-tight">
               Restoring the Path of{" "}<span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-[#0284C7]">True Worship</span>
@@ -2067,8 +2100,14 @@ function SermonSpotlight() {
                         <div className="aspect-video relative overflow-hidden">
                           <img src={sermon.thumbnailUrl} alt={sermon.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
                           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
-                          {(sermon as { isLive?: boolean }).isLive && (
-                            <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full"><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-white" /></span>REBROADCAST NOW</div>
+                          {isRecentBroadcast && (
+                            <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                              </span>
+                              LATEST BROADCAST
+                            </div>
                           )}
                           <button onClick={() => setPlaying(true)} className="absolute inset-0 flex items-center justify-center" aria-label="Play sermon">
                             <motion.div whileHover={{ scale: 1.12 }} whileTap={{ scale: 0.95 }} className="h-20 w-20 bg-accent rounded-full flex items-center justify-center shadow-2xl shadow-accent/50 ring-4 ring-white/20">
@@ -2077,11 +2116,25 @@ function SermonSpotlight() {
                           </button>
                         </div>
                         <div className="p-6 bg-primary text-white">
-                          <span className="text-accent text-xs font-bold uppercase tracking-widest">Featured Message</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-accent text-xs font-bold uppercase tracking-widest">
+                              {isRecentBroadcast ? "Latest Broadcast" : "Featured Message"}
+                            </span>
+                            {isRecentBroadcast && broadcastAgo && (
+                              <span className="text-white/40 text-xs">aired {broadcastAgo}</span>
+                            )}
+                          </div>
                           <h3 className="text-xl font-serif font-bold mt-2 mb-1 leading-tight line-clamp-2">{sermon.title}</h3>
-                          <p className="text-white/50 text-xs mb-4">{formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}</p>
+                          <p className="text-white/50 text-xs mb-4">
+                            {isRecentBroadcast && broadcastEndedAt
+                              ? `Broadcast ended ${formatDistanceToNow(new Date(broadcastEndedAt), { addSuffix: true })}`
+                              : formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}
+                          </p>
                           <div className="flex gap-3">
-                            <button onClick={() => setPlaying(true)} className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"><Play className="h-4 w-4 fill-white" />Watch Now</button>
+                            <button onClick={() => setPlaying(true)} className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center justify-center gap-2">
+                              <Play className="h-4 w-4 fill-white" />
+                              {isRecentBroadcast ? "Watch Broadcast" : "Watch Now"}
+                            </button>
                           </div>
                         </div>
                       </>

@@ -65,6 +65,7 @@ export const GetFeaturedSermonResponse = zod.object({
   isFeatured: zod.boolean(),
   isLive: zod.boolean(),
   createdAt: zod.string(),
+  broadcastEndedAt: zod.string().nullish(),
 });
 
 /**

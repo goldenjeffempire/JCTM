@@ -523,10 +523,13 @@ async function pollAndBroadcast(): Promise<void> {
           // Track when the stream ended for extended 5-second polling window
           lastWentOfflineAt = Date.now();
 
-          // Stamp broadcastEndedAt in DB so server restarts can restore rebroadcast state
+          // Stamp broadcastEndedAt + is_featured in DB so:
+          //  - Server restarts can restore rebroadcast state
+          //  - GET /api/sermons/featured prioritises this video for 7 days
+          //    (surfaces it in Today's Highlight and Latest Broadcast sections)
           if (justEndedVideoId) {
             db.update(sermonsTable)
-              .set({ broadcastEndedAt: new Date() })
+              .set({ broadcastEndedAt: new Date(), isFeatured: true })
               .where(eq(sermonsTable.videoId, justEndedVideoId))
               .catch(() => {});
           }

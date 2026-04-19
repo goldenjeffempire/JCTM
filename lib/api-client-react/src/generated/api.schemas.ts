@@ -41,6 +41,8 @@ export interface Sermon {
   isFeatured: boolean;
   isLive: boolean;
   createdAt: string;
+  /** @nullable — set when a live broadcast ended; used to surface this video as Latest Broadcast */
+  broadcastEndedAt?: string | null;
 }
 
 export interface SermonStats {
