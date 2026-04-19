@@ -137,6 +137,21 @@ async function runStartupMigrations() {
     await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS featured boolean NOT NULL DEFAULT false`);
     await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS seo_title text`);
     await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS seo_description text`);
+
+    // ── Push dispatch log ────────────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_dispatch_log (
+        id serial PRIMARY KEY,
+        notification_title text NOT NULL,
+        notification_type text NOT NULL DEFAULT 'custom',
+        sent integer NOT NULL DEFAULT 0,
+        failed integer NOT NULL DEFAULT 0,
+        deactivated integer NOT NULL DEFAULT 0,
+        total_attempted integer NOT NULL DEFAULT 0,
+        delivery_rate real NOT NULL DEFAULT 0,
+        dispatched_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
     await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_title text`);
     await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_description text`);
     await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS schema_json text`);

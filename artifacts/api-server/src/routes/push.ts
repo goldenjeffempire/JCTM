@@ -164,6 +164,36 @@ router.get("/push/devices", async (_req, res): Promise<void> => {
   }
 });
 
+// ─── GET /push/delivery-log — recent dispatch history ────────────────────────
+
+router.get("/push/delivery-log", requireAdminRole("livestream"), async (_req, res): Promise<void> => {
+  try {
+    const result = await pool.query<{
+      id: string;
+      notification_title: string;
+      notification_type: string;
+      sent: string;
+      failed: string;
+      deactivated: string;
+      total_attempted: string;
+      delivery_rate: string;
+      dispatched_at: string;
+    }>(`
+      SELECT id, notification_title, notification_type,
+             sent, failed, deactivated, total_attempted,
+             ROUND(delivery_rate::numeric * 100, 1)::text AS delivery_rate,
+             dispatched_at
+      FROM push_dispatch_log
+      ORDER BY dispatched_at DESC
+      LIMIT 20
+    `);
+
+    res.json({ log: result.rows });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch delivery log" });
+  }
+});
+
 // ─── POST /push/test ─────────────────────────────────────────────────────────
 
 router.post("/push/test", async (req, res): Promise<void> => {
@@ -175,13 +205,13 @@ router.post("/push/test", async (req, res): Promise<void> => {
   notification.title = "🔔 JCTM Test Notification";
   notification.body = title ?? "This is a test push notification from Temple TV Admin.";
 
-  const result = await dispatchPushNotification(notification, req.log);
+  const result = await dispatchPushNotification(notification, req.log, "test");
   res.json({ success: true, ...result });
 });
 
 router.post("/push/upcoming-service", requireAdminRole("livestream"), async (req, res): Promise<void> => {
   const notification = buildUpcomingServiceNotification();
-  const result = await dispatchPushNotification(notification, req.log);
+  const result = await dispatchPushNotification(notification, req.log, "service_alert");
   const subscribers = await getSubscriberCount();
   res.json({ success: true, subscribers, ...result });
 });
@@ -207,7 +237,7 @@ router.post("/push/broadcast", requireAdminRole("livestream"), async (req, res):
     data: { type: "admin_broadcast", timestamp: new Date().toISOString() },
   };
 
-  const result = await dispatchPushNotification(notification, req.log);
+  const result = await dispatchPushNotification(notification, req.log, "broadcast");
   const subscribers = await getSubscriberCount();
   res.json({ success: true, subscribers, ...result });
 });

@@ -218,6 +218,29 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
 
 interface GrowthRow { date: string; new_subscribers: string; cumulative: string }
 
+interface DeliveryLogRow {
+  id: string;
+  notification_title: string;
+  notification_type: string;
+  sent: string;
+  failed: string;
+  deactivated: string;
+  total_attempted: string;
+  delivery_rate: string;
+  dispatched_at: string;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  service_alert: "Service Alert",
+  broadcast:     "Broadcast",
+  test:          "Test",
+  reminder:      "Reminder",
+  daily_devotion:"Devotion",
+  new_sermon:    "New Sermon",
+  live_service:  "Live",
+  rebroadcast:   "Rebroadcast",
+};
+
 interface ChartPoint { date: string; total: number; new: number }
 interface DeviceRow { type: string; count: number; pct: number }
 
@@ -346,6 +369,18 @@ function PushNotificationsCard() {
     refetchInterval: 60_000,
   });
 
+  const { data: deliveryLog, refetch: refetchLog } = useQuery<{ log: DeliveryLogRow[] }>({
+    queryKey: ["push-delivery-log"],
+    queryFn: () =>
+      auth.adminToken
+        ? fetch(`${BASE}/api/push/delivery-log`, {
+            headers: { Authorization: `Bearer ${auth.adminToken}` },
+          }).then(r => r.json())
+        : Promise.resolve({ log: [] }),
+    enabled: !!auth.adminToken,
+    refetchInterval: auth.adminToken ? 30_000 : false,
+  });
+
   const chartData = (growthData?.growth ?? [])
     .slice(-range)
     .map(r => ({
@@ -374,6 +409,7 @@ function PushNotificationsCard() {
       if (data.success) {
         toast.success(`Service alert sent to ${data.sent ?? data.subscribers ?? 0} subscribers`);
         refetch();
+        refetchLog();
       } else {
         toast.error(data.error ?? "Failed to send");
       }
@@ -402,6 +438,7 @@ function PushNotificationsCard() {
         setCustomTitle("");
         setCustomBody("");
         refetch();
+        refetchLog();
       } else {
         toast.error(data.error ?? "Failed to send");
       }
@@ -469,45 +506,91 @@ function PushNotificationsCard() {
         )}
       </div>
 
-      {/* Quick: send service alert */}
-      <div className="mb-4">
-        <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Holy Spirit Sunday Service)</p>
-        <button
-          onClick={sendServiceAlert}
-          disabled={sending !== null}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-50 cursor-pointer"
-        >
-          {sending === "service" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-          Send "Begins Soon" Alert Now
-        </button>
-      </div>
+      {/* Broadcast actions — requires livestream admin login */}
+      <AdminLoginGate role="livestream" auth={auth} compact title="Livestream Admin">
+        <div className="space-y-4">
+          {/* Send service alert */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Holy Spirit Sunday Service)</p>
+            <button
+              onClick={sendServiceAlert}
+              disabled={sending !== null}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-50 cursor-pointer"
+            >
+              {sending === "service" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+              Send "Begins Soon" Alert Now
+            </button>
+          </div>
 
-      {/* Custom broadcast */}
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground font-medium">Custom Broadcast</p>
-        <input
-          type="text"
-          placeholder="Notification title…"
-          value={customTitle}
-          onChange={e => setCustomTitle(e.target.value)}
-          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
-        />
-        <textarea
-          placeholder="Notification message…"
-          value={customBody}
-          onChange={e => setCustomBody(e.target.value)}
-          rows={2}
-          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm outline-none focus:border-primary/50 resize-none placeholder:text-muted-foreground/50"
-        />
-        <button
-          onClick={sendCustomBroadcast}
-          disabled={sending !== null || !customTitle.trim() || !customBody.trim()}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
-        >
-          {sending === "custom" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          Broadcast to All Subscribers
-        </button>
-      </div>
+          {/* Custom broadcast */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">Custom Broadcast</p>
+            <input
+              type="text"
+              placeholder="Notification title…"
+              value={customTitle}
+              onChange={e => setCustomTitle(e.target.value)}
+              className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
+            />
+            <textarea
+              placeholder="Notification message…"
+              value={customBody}
+              onChange={e => setCustomBody(e.target.value)}
+              rows={2}
+              className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm outline-none focus:border-primary/50 resize-none placeholder:text-muted-foreground/50"
+            />
+            <button
+              onClick={sendCustomBroadcast}
+              disabled={sending !== null || !customTitle.trim() || !customBody.trim()}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
+            >
+              {sending === "custom" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Broadcast to All Subscribers
+            </button>
+          </div>
+
+          {/* Delivery log */}
+          {(deliveryLog?.log ?? []).length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground font-medium mb-2">Recent Broadcasts</p>
+              <div className="space-y-2">
+                {(deliveryLog?.log ?? []).slice(0, 8).map(row => {
+                  const rate = parseFloat(row.delivery_rate);
+                  const rateColor = rate >= 90 ? "text-emerald-400" : rate >= 70 ? "text-amber-400" : "text-red-400";
+                  const total = parseInt(row.total_attempted, 10);
+                  const typeLabel = TYPE_LABELS[row.notification_type] ?? row.notification_type;
+                  const ago = (() => {
+                    const diff = Date.now() - new Date(row.dispatched_at).getTime();
+                    const m = Math.floor(diff / 60000);
+                    if (m < 60) return `${m}m ago`;
+                    const h = Math.floor(m / 60);
+                    if (h < 24) return `${h}h ago`;
+                    return `${Math.floor(h / 24)}d ago`;
+                  })();
+                  return (
+                    <div key={row.id} className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">{typeLabel}</span>
+                          <span className="text-[10px] text-muted-foreground">{ago}</span>
+                        </div>
+                        <p className="text-xs font-medium truncate">{row.notification_title}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {row.sent} sent · {row.failed} failed · {row.deactivated} expired · {total} total
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-sm font-bold ${rateColor}`}>{rate}%</p>
+                        <p className="text-[10px] text-muted-foreground">delivery</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </AdminLoginGate>
     </Card>
   );
 }

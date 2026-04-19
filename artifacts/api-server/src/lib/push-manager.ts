@@ -217,9 +217,29 @@ interface DispatchResult {
   deactivated: number;
 }
 
+async function logDispatch(
+  title: string,
+  type: string,
+  result: DispatchResult
+): Promise<void> {
+  try {
+    const total = result.sent + result.failed + result.deactivated;
+    const rate = total > 0 ? result.sent / total : 0;
+    await pool.query(
+      `INSERT INTO push_dispatch_log
+         (notification_title, notification_type, sent, failed, deactivated, total_attempted, delivery_rate)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [title, type, result.sent, result.failed, result.deactivated, total, rate]
+    );
+  } catch {
+    // non-critical — do not throw
+  }
+}
+
 export async function dispatchPushNotification(
   notification: NotificationPayload,
-  log?: Logger
+  log?: Logger,
+  notificationType = "custom"
 ): Promise<DispatchResult> {
   if (!vapidInitialized) {
     log?.warn("VAPID not initialized — skipping push dispatch");
@@ -280,6 +300,8 @@ export async function dispatchPushNotification(
   } catch (err) {
     log?.error({ err }, "Push dispatch system error");
   }
+
+  await logDispatch(notification.title, notificationType, { sent, failed, deactivated });
 
   return { sent, failed, deactivated };
 }
