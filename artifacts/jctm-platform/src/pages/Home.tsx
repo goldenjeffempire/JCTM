@@ -16,8 +16,8 @@ import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
   useGetUpcomingEvents, getGetUpcomingEventsQueryKey,
   useGetSermonStats, getGetSermonStatsQueryKey,
-  useGetRebroadcastStatus, getGetRebroadcastStatusQueryKey,
 } from "@workspace/api-client-react";
+import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -563,9 +563,12 @@ function KineticHeadline({ lines }: { lines: { text: string; gradient?: boolean 
 // REBROADCAST BANNER — Shown for 3.5 days after each live broadcast ends
 // ═══════════════════════════════════════════════════════════════════════════
 function RebroadcastBanner() {
-  const { data } = useGetRebroadcastStatus({
-    query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
-  });
+  const liveStatus = useLivestreamStatus();
+  const rb = liveStatus.rebroadcast;
+  // Mirror the same shape that the old REST response used
+  const data = (rb.available && rb.videoId && !liveStatus.isLive)
+    ? { available: rb.available, videoId: rb.videoId, title: rb.title, expiresAt: rb.expiresAt }
+    : null;
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem("rebroadcast_dismissed") === "true"; } catch { return false; }
   });
@@ -726,10 +729,12 @@ function HeroSection() {
   const yRight = useTransform(scrollYProgress, [0, 1], [0, 40]);
   const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
   const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
-  const [isLive, setIsLive] = useState(false);
-  const [isUpcoming, setIsUpcoming] = useState(false);
-  const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
-  const [liveTitle, setLiveTitle] = useState<string | null>(null);
+  // Real-time live/rebroadcast state via SSE — updates within seconds of any state change
+  const liveStatus = useLivestreamStatus();
+  const isLive = liveStatus.isLive;
+  const isUpcoming = liveStatus.isUpcoming;
+  const liveVideoId = liveStatus.videoId;
+  const liveTitle = liveStatus.title;
   const [livePlayerOpen, setLivePlayerOpen] = useState(false);
   const [rebroadcastWidgetOpen, setRebroadcastWidgetOpen] = useState(false);
   const [playerLoading, setPlayerLoading] = useState(true);
@@ -740,12 +745,9 @@ function HeroSection() {
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
   const liveViewerCount = useLiveViewerCount(livePlayerOpen && isLive);
 
-  const { data: rebroadcastData } = useGetRebroadcastStatus({
-    query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
-  });
-
-  const rebroadcastForWidget = (rebroadcastData?.available && rebroadcastData.videoId && !isLive && !isUpcoming)
-    ? { videoId: rebroadcastData.videoId, title: rebroadcastData.title }
+  // Rebroadcast widget: derived from SSE hook — same real-time updates as live state
+  const rebroadcastForWidget = (liveStatus.rebroadcast.available && liveStatus.rebroadcast.videoId && !isLive && !isUpcoming)
+    ? { videoId: liveStatus.rebroadcast.videoId, title: liveStatus.rebroadcast.title }
     : null;
 
   const n = HERO_IMAGES.length;
@@ -760,25 +762,6 @@ function HeroSection() {
     "Doctrinal Correction.",
     "Apostolic Truth.",
   ]);
-
-  useEffect(() => {
-    const check = () => {
-      fetch(`${BASE}/api/livestream/status`)
-        .then(r => r.json())
-        .then((d: { isLive?: boolean; isUpcoming?: boolean; title?: string | null; videoId?: string | null }) => {
-          const live = d?.isLive ?? false;
-          const upcoming = d?.isUpcoming ?? false;
-          setIsLive(live);
-          setIsUpcoming(upcoming);
-          setLiveTitle(d?.title ?? null);
-          setLiveVideoId(d?.videoId ?? null);
-        })
-        .catch(() => {});
-    };
-    check();
-    const t = setInterval(check, 30000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     if (livePlayerOpen) setPlayerLoading(true);
@@ -2757,34 +2740,17 @@ function MinisterConferenceSection() {
 // ═══════════════════════════════════════════════════════════════════════════
 function SundayServiceCard() {
   const countdown = useNextService();
-  const [isLive, setIsLive] = useState(false);
-  const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
   const [showEmbed, setShowEmbed] = useState(false);
   const [watNow, setWatNow] = useState(() => getWatDate());
-  const { data: rebroadcastData } = useGetRebroadcastStatus({
-    query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
-  });
+  // Real-time live/rebroadcast state via SSE hook
+  const liveStatus = useLivestreamStatus();
+  const isLive = liveStatus.isLive;
+  const liveVideoId = liveStatus.videoId;
+  const rb = liveStatus.rebroadcast;
 
   // Tick WAT clock every second
   useEffect(() => {
     const t = setInterval(() => setWatNow(getWatDate()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Poll livestream status every 30 s
-  useEffect(() => {
-    const poll = () => {
-      fetch(`${BASE}/api/livestream/status`)
-        .then(r => r.json())
-        .then((d: { isLive?: boolean; streamUrl?: string | null; videoId?: string | null }) => {
-          setIsLive(d?.isLive ?? false);
-          const match = d?.streamUrl?.match(/[?&]v=([^&]+)/);
-          setLiveVideoId(match?.[1] ?? (d?.videoId as string | null) ?? null);
-        })
-        .catch(() => {});
-    };
-    poll();
-    const t = setInterval(poll, 30000);
     return () => clearInterval(t);
   }, []);
 
@@ -2798,10 +2764,10 @@ function SundayServiceCard() {
   // "standby"     — Sunday after 8 AM WAT, stream not yet live
   // "upcoming"    — Tue–Sat (and Sun before 8 AM), no rebroadcast
   type Phase = "upcoming" | "countdown" | "standby" | "live" | "rebroadcast";
-  const rebroadcastVideoId = rebroadcastData?.available ? (rebroadcastData.videoId ?? null) : null;
+  const rebroadcastVideoId = rb.available ? (rb.videoId ?? null) : null;
   const phase: Phase = (() => {
     if (isLive) return "live";
-    if (rebroadcastData?.available && rebroadcastVideoId) return "rebroadcast";
+    if (rb.available && rebroadcastVideoId) return "rebroadcast";
     if (isMonday) return "countdown";
     if (watDay === 0 && watNow.getHours() >= 8) return "standby";
     return "upcoming";

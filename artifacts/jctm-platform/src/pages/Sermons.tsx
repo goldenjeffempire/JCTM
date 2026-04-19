@@ -15,6 +15,7 @@ import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
 const CATEGORIES = [
   { id: "all", label: "All Sermons", emoji: "📖" },
@@ -79,9 +80,16 @@ export default function Sermons() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [livePlaying, setLivePlaying] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState(false);
-  const [liveVideoId, setLiveVideoId] = useState<string | null>(null);
-  const [liveTitle, setLiveTitle] = useState<string | null>(null);
+
+  // Real-time live/rebroadcast state via SSE — no polling needed
+  const liveStatus = useLivestreamStatus();
+  const isLive = liveStatus.isLive;
+  const liveVideoId = liveStatus.videoId;
+  const liveTitle = liveStatus.title;
+  const isRebroadcast = !isLive && liveStatus.rebroadcast.available;
+  const rebroadcastVideoId = liveStatus.rebroadcast.videoId;
+  const rebroadcastTitle = liveStatus.rebroadcast.title;
+  const rebroadcastMode = liveStatus.rebroadcast.mode;
   const loaderRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { quality, toggle: toggleQuality } = useStreamQuality();
@@ -248,25 +256,10 @@ export default function Sermons() {
     return () => { es.close(); };
   }, [debouncedSearch, loadFirstPage, refetchStats]);
 
-  // Poll livestream status from API every 60 s
+  // Close inline player when the live stream ends
   useEffect(() => {
-    const check = () => {
-      fetch(`${BASE}/api/livestream/status`)
-        .then(r => r.json())
-        .then((d: { isLive?: boolean; title?: string | null; streamUrl?: string | null }) => {
-          const live = d?.isLive ?? false;
-          setIsLive(live);
-          setLiveTitle(d?.title ?? null);
-          const match = d?.streamUrl?.match(/[?&]v=([^&]+)/);
-          setLiveVideoId(match ? match[1] ?? null : null);
-          if (!live) setLivePlaying(false);
-        })
-        .catch(() => {});
-    };
-    check();
-    const t = setInterval(check, 60_000);
-    return () => clearInterval(t);
-  }, []);
+    if (!isLive) setLivePlaying(false);
+  }, [isLive]);
 
   const filteredSermons = activeCategory === "all"
     ? sermons
@@ -364,45 +357,92 @@ export default function Sermons() {
 
       <div className="container mx-auto px-4 py-8">
 
-          {/* Live banner */}
+          {/* 🔴 LIVE banner */}
           <AnimatePresence>
             {isLive && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
-                className="glass-panel rounded-2xl border border-red-400/30 bg-red-50/30 mb-6 overflow-hidden"
+                className="glass-panel rounded-2xl border border-red-400/30 bg-red-50/30 dark:bg-red-950/20 mb-6 overflow-hidden"
               >
                 <div className="p-4 flex items-center gap-3">
-                  <span className="relative flex h-3 w-3">
+                  <span className="relative flex h-3 w-3 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
                   </span>
-                  <Radio className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-semibold text-red-600 truncate">
-                    Now Streaming Live{liveTitle ? `: ${liveTitle}` : " — Holy Spirit Sunday Service — Live"}
+                  <Radio className="h-4 w-4 text-red-500 shrink-0" />
+                  <span className="text-sm font-semibold text-red-600 dark:text-red-400 truncate">
+                    🔴 Now Streaming Live{liveTitle ? ` — ${liveTitle}` : " — Holy Spirit Sunday Service"}
                   </span>
                   <Button
                     size="sm"
                     onClick={() => { setLivePlaying(p => !p); setPlayingId(null); }}
                     className={`ml-auto shrink-0 rounded-full text-xs gap-1 ${livePlaying ? "bg-gray-500 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600"} text-white`}
                   >
-                    {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Live Now</>}
+                    {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Watch Live</>}
                   </Button>
                 </div>
-                {livePlaying && (
+                {livePlaying && liveVideoId && (
                   <div className="w-full aspect-video">
                     <iframe
                       className="w-full h-full"
-                      src={
-                        liveVideoId
-                          ? `https://www.youtube.com/embed/${liveVideoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`
-                          : `https://www.youtube.com/embed?listType=user_uploads&list=templetvjctm&autoplay=1`
-                      }
-                      allow="autoplay; fullscreen"
+                      src={`https://www.youtube.com/embed/${liveVideoId}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+                      allow="autoplay; fullscreen; encrypted-media"
                       allowFullScreen
                       referrerPolicy="strict-origin-when-cross-origin"
                       title={liveTitle ?? "Holy Spirit Sunday Service — Live"}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 📺 REBROADCAST banner — shows when today's service has ended and replays from start */}
+          <AnimatePresence>
+            {isRebroadcast && rebroadcastVideoId && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                className={`glass-panel rounded-2xl border mb-6 overflow-hidden ${
+                  rebroadcastMode === "scheduled"
+                    ? "border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20"
+                    : "border-indigo-400/20 bg-indigo-50/20 dark:bg-indigo-950/10"
+                }`}
+              >
+                <div className="p-4 flex items-center gap-3">
+                  <span className="relative flex h-3 w-3 shrink-0">
+                    <span className={`relative inline-flex rounded-full h-3 w-3 ${rebroadcastMode === "scheduled" ? "bg-amber-500" : "bg-indigo-400"}`} />
+                  </span>
+                  <Volume2 className={`h-4 w-4 shrink-0 ${rebroadcastMode === "scheduled" ? "text-amber-600" : "text-indigo-500"}`} />
+                  <span className={`text-sm font-semibold truncate ${rebroadcastMode === "scheduled" ? "text-amber-700 dark:text-amber-400" : "text-indigo-600 dark:text-indigo-400"}`}>
+                    {rebroadcastMode === "scheduled"
+                      ? `📺 Rebroadcast — ${rebroadcastTitle ?? "Today's Sunday Service"}`
+                      : `📺 Temple TV — ${rebroadcastTitle ?? "Now Playing"}`}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => { setPlayingId(rebroadcastVideoId); setLivePlaying(false); }}
+                    className={`ml-auto shrink-0 rounded-full text-xs gap-1 ${
+                      rebroadcastMode === "scheduled"
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : "bg-indigo-500 hover:bg-indigo-600"
+                    } text-white`}
+                  >
+                    <Play className="h-3 w-3" /> Watch
+                  </Button>
+                </div>
+                {playingId === rebroadcastVideoId && (
+                  <div className="w-full aspect-video">
+                    <iframe
+                      className="w-full h-full"
+                      src={`https://www.youtube.com/embed/${rebroadcastVideoId}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+                      allow="autoplay; fullscreen; encrypted-media"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      title={rebroadcastTitle ?? "Service Rebroadcast — JCTM"}
                     />
                   </div>
                 )}

@@ -6,7 +6,7 @@ import {
   UpdateLivestreamStatusResponse,
 } from "@workspace/api-zod";
 import { db, sermonsTable } from "@workspace/db";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { buildSmartRebroadcastQueue } from "../lib/broadcast-engine.js";
 import {
   dispatchPushNotification,
@@ -97,6 +97,11 @@ continuousRefreshInterval.unref();
 
 let manualOverrideLive = false;
 let manualOverrideRebroadcast = false;
+
+// Timestamp of when the last live stream went offline — used to maintain 5-second
+// polling for 30 minutes after a service ends, ensuring we catch the exact moment
+// the stream terminates and activate rebroadcast without delay.
+let lastWentOfflineAt: number | null = null;
 
 // ─── Rebroadcast Lifecycle State ──────────────────────────────────────────────
 //
@@ -500,50 +505,70 @@ async function pollAndBroadcast(): Promise<void> {
           scheduledStartTime: null,
         };
 
-        // Transition: live → offline — activate AI-curated rebroadcast window
+        // Transition: live → offline — activate rebroadcast with just-ended stream
         if (wasLive) {
+          const justEndedVideoId = livestreamState.videoId;
+          const justEndedTitle = livestreamState.title;
+
+          // Track when the stream ended for extended 5-second polling window
+          lastWentOfflineAt = Date.now();
+
+          // Stamp broadcastEndedAt in DB so server restarts can restore rebroadcast state
+          if (justEndedVideoId) {
+            db.update(sermonsTable)
+              .set({ broadcastEndedAt: new Date() })
+              .where(eq(sermonsTable.videoId, justEndedVideoId))
+              .catch(() => {});
+          }
+
           try {
-            const justEndedVideoId = livestreamState.videoId;
+            // Build smart queue for subsequent playback after the primary
+            // (excludes just-ended video from the queue since it IS the primary)
             const selection = await buildSmartRebroadcastQueue(justEndedVideoId);
-            const primary = selection.primary;
 
             const startedAt = new Date().toISOString();
             const expiresAt = new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString();
 
+            // PRIMARY = the just-concluded live stream, so viewers can watch from the start.
+            // Falls back to AI/algorithmic pick if the live video ID wasn't captured.
+            const primaryVideoId = justEndedVideoId ?? selection.primary.videoId;
+            const primaryTitle = justEndedTitle ?? selection.primary.title;
+            const primaryThumbnail = primaryVideoId
+              ? `https://i.ytimg.com/vi/${primaryVideoId}/hqdefault.jpg`
+              : (selection.primary.thumbnailUrl ?? null);
+
             rebroadcastLifecycle = {
               available: true,
-              videoId: primary.videoId,
-              title: primary.title,
-              thumbnailUrl: primary.thumbnailUrl ??
-                `https://i.ytimg.com/vi/${primary.videoId}/hqdefault.jpg`,
+              videoId: primaryVideoId,
+              title: primaryTitle,
+              thumbnailUrl: primaryThumbnail,
               startedAt,
               expiresAt,
             };
 
-            // Notify all subscribers that rebroadcast is starting
-            dispatchPushNotification(buildRebroadcastNotification(primary.title ?? "Sunday Service")).catch(() => {});
+            // Notify all subscribers that rebroadcast of today's service is starting
+            dispatchPushNotification(buildRebroadcastNotification(primaryTitle ?? "Sunday Service")).catch(() => {});
           } catch {
-            // Fallback: use last known videoId or latest from DB
-            let endedVideoId = livestreamState.videoId;
-            let endedTitle = livestreamState.title;
-            if (!endedVideoId) {
+            // Fallback: replay the just-ended video directly, or use latest from DB
+            let fallbackVideoId = justEndedVideoId;
+            let fallbackTitle = justEndedTitle;
+            if (!fallbackVideoId) {
               try {
                 const rows = await db.select().from(sermonsTable).orderBy(desc(sermonsTable.publishedAt)).limit(1);
-                if (rows[0]) { endedVideoId = rows[0].videoId; endedTitle = endedTitle ?? rows[0].title; }
+                if (rows[0]) { fallbackVideoId = rows[0].videoId; fallbackTitle = fallbackTitle ?? rows[0].title; }
               } catch { /* ignore */ }
             }
             rebroadcastLifecycle = {
               available: true,
-              videoId: endedVideoId,
-              title: endedTitle,
-              thumbnailUrl: endedVideoId ? `https://i.ytimg.com/vi/${endedVideoId}/hqdefault.jpg` : null,
+              videoId: fallbackVideoId,
+              title: fallbackTitle,
+              thumbnailUrl: fallbackVideoId ? `https://i.ytimg.com/vi/${fallbackVideoId}/hqdefault.jpg` : null,
               startedAt: new Date().toISOString(),
               expiresAt: new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString(),
             };
 
-            // Notify subscribers of rebroadcast (fallback path)
-            if (endedTitle) {
-              dispatchPushNotification(buildRebroadcastNotification(endedTitle)).catch(() => {});
+            if (fallbackTitle) {
+              dispatchPushNotification(buildRebroadcastNotification(fallbackTitle)).catch(() => {});
             }
           }
         }
@@ -573,11 +598,15 @@ setImmediate(() => { pollAndBroadcast().catch(() => {}); });
 const pollInterval = setInterval(() => { pollAndBroadcast().catch(() => {}); }, 30_000);
 pollInterval.unref();
 
-// Sunday service window: poll every 5 seconds from 8:00 AM WAT so the live
-// banner appears within seconds of the stream going live.
+// High-frequency poll: every 5 seconds when either:
+//   1. Inside the Sunday service window (08:00–10:30 WAT) — catches stream going live
+//   2. Within 30 minutes of a live stream ending — catches the exact end moment
+//      and ensures rebroadcast activates immediately
 const sundayPollInterval = setInterval(() => {
-  if (isSundayServiceWindow()) {
-    youtubeCheckCache = null; // Always bust cache in service window
+  const POST_LIVE_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+  const isPostLiveWindow = lastWentOfflineAt !== null && Date.now() - lastWentOfflineAt < POST_LIVE_WINDOW_MS;
+  if (isSundayServiceWindow() || isPostLiveWindow) {
+    youtubeCheckCache = null; // Always bust cache for high-frequency checks
     pollAndBroadcast().catch(() => {});
   }
 }, 5_000);
@@ -694,8 +723,11 @@ router.get("/livestream/status", async (_req, res): Promise<void> => {
 
   broadcastStatus(livestreamState);
 
-  res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
-  res.json(GetLivestreamStatusResponse.parse(livestreamState));
+  // Return the full SSE-equivalent payload so REST consumers (mobile, polling clients)
+  // receive identical data to SSE subscribers — live status + rebroadcast + manual overrides.
+  res.setHeader("Cache-Control", "no-store");
+  const fullPayload = JSON.parse(buildStatusPayload()) as Record<string, unknown>;
+  res.json(fullPayload);
 });
 
 // ─── POST /api/livestream/status — manual override (livestream-admin only) ───

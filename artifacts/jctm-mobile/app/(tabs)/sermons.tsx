@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useListSermons } from "@workspace/api-client-react";
+import { useListSermons, useGetLivestreamStatus } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
@@ -103,6 +103,15 @@ export default function SermonsScreen() {
     { search: search || undefined, offset, limit: LIMIT },
   );
 
+  const { data: liveData } = useGetLivestreamStatus({ query: { refetchInterval: 30_000, staleTime: 15_000 } });
+  const liveStatus = liveData as {
+    isLive?: boolean;
+    title?: string | null;
+    rebroadcast?: { available?: boolean; title?: string | null; mode?: string };
+  } | undefined;
+  const isLive = liveStatus?.isLive ?? false;
+  const isRebroadcast = !isLive && (liveStatus?.rebroadcast?.available ?? false);
+
   const sermons = (data as { sermons?: Sermon[] } | undefined)?.sermons ?? [];
   const total = (data as { total?: number } | undefined)?.total ?? 0;
   const hasMore = offset + LIMIT < total;
@@ -134,6 +143,35 @@ export default function SermonsScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Live / Rebroadcast banner */}
+      {(isLive || isRebroadcast) && (
+        <TouchableOpacity
+          onPress={() => Linking.openURL(`${BASE}/sermons`)}
+          activeOpacity={0.85}
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 8,
+            borderRadius: 12,
+            backgroundColor: isLive ? "#E53E3E" : liveStatus?.rebroadcast?.mode === "scheduled" ? "#D97706" : "#4F46E5",
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            gap: 8,
+          }}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff", opacity: 0.9 }} />
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13, flex: 1 }} numberOfLines={1}>
+            {isLive
+              ? `🔴 Live — ${liveStatus?.title ?? "Holy Spirit Sunday Service"}`
+              : `📺 ${liveStatus?.rebroadcast?.mode === "scheduled" ? "Rebroadcast" : "Now Playing"} — ${liveStatus?.rebroadcast?.title ?? "Temple TV"}`}
+          </Text>
+          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 12, opacity: 0.85 }}>
+            {isLive ? "Watch →" : "View →"}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {isLoading ? (
         <View style={styles.loader}>

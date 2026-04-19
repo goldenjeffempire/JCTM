@@ -1,0 +1,124 @@
+Design and implement a robust broadcast notification system that delivers real-time messages (e.g., “Holy Spirit Sunday Service — Now Streaming Live”) to:
+
+All subscribed users
+All returning visitors who have previously visited the platform
+
+The system must function across web, mobile, and TV interfaces, using event-driven logic and browser/device capabilities, without any AI integration.
+
+⚙️ Core Requirements
+🔔 1. Multi-Channel Notification Delivery
+
+Implement the following channels:
+
+✅ A. Web Push Notifications
+Use browser push APIs (via Service Workers)
+Request user permission on first visit (non-intrusive prompt)
+Store push subscription tokens securely
+✅ B. In-App Notifications
+Display real-time alerts when users are active on the site
+Types:
+Toast notifications
+Modal popups
+Top banners
+✅ C. Returning Visitor Targeting (Critical)
+Identify past visitors using:
+LocalStorage / IndexedDB (visitor ID)
+Cookies (fallback)
+Persist a unique visitorId for each user
+if (!localStorage.getItem("visitorId")) {
+  localStorage.setItem("visitorId", generateUUID());
+}
+🧠 2. Audience Targeting Logic
+
+Broadcast must reach:
+
+Subscribers
+Stored in database (email, push tokens, etc.)
+Returning Visitors
+Identified via stored visitorId
+Re-engaged via:
+Push notifications (if permission granted)
+On-site notifications when they revisit
+📡 3. Broadcast Trigger System
+
+Create a central broadcast function:
+
+function broadcastMessage(message) {
+  sendPushToSubscribers(message);
+  sendPushToVisitors(message);
+  triggerInAppNotification(message);
+}
+🔴 4. Live Event Trigger (Integration)
+
+Automatically trigger broadcast when:
+
+Live stream starts
+Status changes to “Live”
+
+Example:
+
+if (streamStatus === "LIVE") {
+  broadcastMessage("Holy Spirit Sunday Service — Now Streaming Live");
+}
+💬 5. Notification Content Structure
+
+Support dynamic message payload:
+
+{
+  title: "Holy Spirit Sunday Service — Live",
+  body: "Join now and experience the presence of God.",
+  url: "/live",
+  timestamp: Date.now()
+}
+📱 6. UI Behavior
+When user is ON the site:
+Show toast or modal instantly
+When user is OFF the site:
+Deliver push notification (if permission granted)
+🔄 7. Re-Engagement Logic
+
+For returning visitors:
+
+On revisit:
+Check if any broadcast was missed
+Display latest broadcast automatically
+if (lastBroadcast && !userSeen) {
+  showNotification(lastBroadcast);
+}
+🔒 8. Privacy & Control
+Allow users to:
+Enable/disable notifications
+Opt out anytime
+Respect browser permission states
+⚡ 9. Performance & Reliability
+Queue notifications for reliability
+Avoid duplicate sends
+Throttle excessive broadcasts
+🧱 10. Data Storage
+
+Store:
+
+Subscriber list
+Push tokens
+Visitor IDs
+Broadcast history
+🎯 Expected Outcome
+
+After implementation:
+
+All subscribers receive broadcasts instantly
+Returning visitors are re-engaged via push or on-site notifications
+Live events trigger automatic alerts
+Users experience a YouTube-level broadcast notification system
+System is fully automated, scalable, and production-ready
+🏁 Final Instruction
+
+Build this as a core engagement system, not a simple feature.
+It must be:
+
+Real-time
+Reliable
+Cross-platform
+Fully functional in production
+
+Deliver a high-performance broadcast system that maximizes user engagement and ensures no visitor misses a live service 🚀

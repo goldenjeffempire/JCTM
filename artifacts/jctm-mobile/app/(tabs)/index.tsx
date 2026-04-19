@@ -18,24 +18,35 @@ const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
 
 function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
-  const { data } = useGetLivestreamStatus();
-  const status = data as { isLive?: boolean; isRebroadcast?: boolean } | undefined;
-  if (!status?.isLive && !status?.isRebroadcast) return null;
+  const { data } = useGetLivestreamStatus({ query: { refetchInterval: 30_000, staleTime: 15_000 } });
+  // The status endpoint now returns the full SSE-equivalent payload including rebroadcast data
+  const status = data as {
+    isLive?: boolean;
+    title?: string | null;
+    rebroadcast?: { available?: boolean; videoId?: string | null; title?: string | null; mode?: string };
+  } | undefined;
+
+  const isLive = status?.isLive ?? false;
+  const isRebroadcast = !isLive && (status?.rebroadcast?.available ?? false);
+
+  if (!isLive && !isRebroadcast) return null;
+
+  const bannerText = isLive
+    ? `🔴 ${status?.title ?? "Holy Spirit Sunday Service — Live"}`
+    : `📺 ${status?.rebroadcast?.mode === "scheduled" ? "Rebroadcast" : "Temple TV"} — ${status?.rebroadcast?.title ?? "Now Playing"}`;
 
   return (
     <TouchableOpacity
       style={[
         styles.liveBanner,
-        { backgroundColor: status.isLive ? "#E53E3E" : "#D97706" },
+        { backgroundColor: isLive ? "#E53E3E" : isRebroadcast && status?.rebroadcast?.mode === "scheduled" ? "#D97706" : "#4F46E5" },
       ]}
-      onPress={() => Linking.openURL(`${BASE}/sermons`)}
+      onPress={() => Linking.openURL(isLive ? `${BASE}/sermons` : `${BASE}/sermons`)}
       activeOpacity={0.85}
     >
-      <View style={styles.liveDot} />
-      <Text style={styles.liveBannerText}>
-        {status.isLive ? "🔴 Holy Spirit Sunday Service — Live" : "📡 REBROADCAST — Temple TV"}
-      </Text>
-      <Text style={styles.liveBannerSub}>Watch →</Text>
+      <View style={[styles.liveDot, { backgroundColor: isLive ? "#fff" : "#fff" }]} />
+      <Text style={styles.liveBannerText} numberOfLines={1}>{bannerText}</Text>
+      <Text style={styles.liveBannerSub}>{isLive ? "Watch Live →" : "Watch →"}</Text>
     </TouchableOpacity>
   );
 }
