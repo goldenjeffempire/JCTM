@@ -197,6 +197,11 @@ interface RealtimeDashboardSnapshot {
   type: "dashboard_realtime";
   live: {
     viewers: number;
+    activeLiveViewers: number;
+    activeRebroadcastViewers: number;
+    totalLiveViewers: number;
+    totalRebroadcastViewers: number;
+    totalViewerSessions: number;
     isLive: boolean;
     isUpcoming: boolean;
     title: string | null;
@@ -230,6 +235,7 @@ interface RealtimePoint {
   audience: number;
   visitors: number;
   liveViewers: number;
+  rebroadcastViewers: number;
 }
 
 function useRealtimeDashboard() {
@@ -253,7 +259,8 @@ function useRealtimeDashboard() {
           t: label,
           audience: data.engagement.activeAudience,
           visitors: data.visitors.active,
-          liveViewers: data.live.viewers,
+          liveViewers: data.live.activeLiveViewers ?? data.live.viewers,
+          rebroadcastViewers: data.live.activeRebroadcastViewers ?? 0,
         },
       ];
       return next.length > 36 ? next.slice(next.length - 36) : next;
@@ -334,10 +341,13 @@ function AudienceCommandCenter({ snapshot, history, conn }: { snapshot: Realtime
       </div>
 
       <div className="p-5 space-y-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
             { label: "Active Audience", value: snapshot?.engagement.activeAudience ?? 0, helper: "site + live player", icon: <Signal className="w-4 h-4" />, color: "text-emerald-400 border-emerald-500/25 bg-emerald-500/10" },
-            { label: "Live Viewers", value: snapshot?.live.viewers ?? 0, helper: liveMode, icon: <Radio className="w-4 h-4" />, color: snapshot?.live.isLive ? "text-red-400 border-red-500/25 bg-red-500/10" : "text-amber-400 border-amber-500/25 bg-amber-500/10" },
+            { label: "Live Now", value: snapshot?.live.activeLiveViewers ?? snapshot?.live.viewers ?? 0, helper: liveMode, icon: <Radio className="w-4 h-4" />, color: snapshot?.live.isLive ? "text-red-400 border-red-500/25 bg-red-500/10" : "text-amber-400 border-amber-500/25 bg-amber-500/10" },
+            { label: "Rebroadcast Now", value: snapshot?.live.activeRebroadcastViewers ?? 0, helper: snapshot?.live.rebroadcastActive ? liveMode : "No rebroadcast", icon: <PlayCircle className="w-4 h-4" />, color: "text-sky-400 border-sky-500/25 bg-sky-500/10" },
+            { label: "Live Total", value: snapshot?.live.totalLiveViewers ?? 0, helper: "cumulative live stream", icon: <Users className="w-4 h-4" />, color: "text-rose-400 border-rose-500/25 bg-rose-500/10" },
+            { label: "Rebroadcast Total", value: snapshot?.live.totalRebroadcastViewers ?? 0, helper: "cumulative replay", icon: <RefreshCw className="w-4 h-4" />, color: "text-cyan-400 border-cyan-500/25 bg-cyan-500/10" },
             { label: "Website Visitors", value: snapshot?.visitors.active ?? 0, helper: `${(snapshot?.visitors.total ?? 0).toLocaleString()} all-time`, icon: <Globe className="w-4 h-4" />, color: "text-blue-400 border-blue-500/25 bg-blue-500/10" },
             { label: "24h Engagement", value: snapshot?.engagement.interactions24h ?? 0, helper: `${snapshot?.engagement.engagementDensity ?? 0} per active`, icon: <TrendingUp className="w-4 h-4" />, color: "text-violet-400 border-violet-500/25 bg-violet-500/10" },
           ].map(metric => (
@@ -377,11 +387,12 @@ function AudienceCommandCenter({ snapshot, history, conn }: { snapshot: Realtime
                     <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip
                       contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "0.75rem", fontSize: "12px", color: "hsl(var(--foreground))" }}
-                      formatter={(value: number, name: string) => [value, name === "audience" ? "Active audience" : name === "visitors" ? "Website visitors" : "Live viewers"]}
+                      formatter={(value: number, name: string) => [value, name === "audience" ? "Active audience" : name === "visitors" ? "Website visitors" : name === "rebroadcastViewers" ? "Rebroadcast viewers" : "Live viewers"]}
                     />
                     <Area type="monotone" dataKey="audience" stroke="#4ade80" strokeWidth={2.5} fill="url(#audienceGrad)" dot={false} isAnimationActive={false} />
                     <Line type="monotone" dataKey="visitors" stroke="#60a5fa" strokeWidth={1.8} dot={false} isAnimationActive={false} />
                     <Line type="monotone" dataKey="liveViewers" stroke="#f87171" strokeWidth={1.8} dot={false} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="rebroadcastViewers" stroke="#38bdf8" strokeWidth={1.8} dot={false} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

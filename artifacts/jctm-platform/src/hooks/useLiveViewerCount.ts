@@ -14,9 +14,23 @@ function getPlayerSessionId(): string {
 type ViewerEvent = {
   type: "viewer_count";
   count: number;
+  live?: number;
+  rebroadcast?: number;
+  totals?: {
+    live?: number;
+    rebroadcast?: number;
+    total?: number;
+  };
 };
 
-export function useLiveViewerCount(countThisViewer = true): number {
+type ViewerMode = "live" | "rebroadcast";
+
+function selectModeCount(data: ViewerEvent | { count?: number; live?: number; rebroadcast?: number }, mode: ViewerMode): number {
+  if (mode === "rebroadcast") return Math.max(0, data.rebroadcast ?? data.count ?? 0);
+  return Math.max(0, data.live ?? data.count ?? 0);
+}
+
+export function useLiveViewerCount(countThisViewer = true, mode: ViewerMode = "live"): number {
   const [count, setCount] = useState(0);
   const sid = useRef(getPlayerSessionId()).current;
 
@@ -27,8 +41,8 @@ export function useLiveViewerCount(countThisViewer = true): number {
       try {
         const res = await fetch(`${BASE}/api/livestream/viewers`, { cache: "no-store" });
         if (!res.ok || cancelled) return;
-        const data = await res.json() as { count?: number };
-        if (!cancelled) setCount(Math.max(0, data.count ?? 0));
+        const data = await res.json() as { count?: number; live?: number; rebroadcast?: number };
+        if (!cancelled) setCount(selectModeCount(data, mode));
       } catch {
         if (!cancelled) setCount(0);
       }
@@ -41,18 +55,18 @@ export function useLiveViewerCount(countThisViewer = true): number {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (!countThisViewer) return;
 
-    const es = new EventSource(`${BASE}/api/livestream/viewers/stream?sid=${encodeURIComponent(sid)}`);
+    const es = new EventSource(`${BASE}/api/livestream/viewers/stream?sid=${encodeURIComponent(sid)}&mode=${mode}`);
 
     es.onmessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data as string) as ViewerEvent;
         if (data.type === "viewer_count") {
-          setCount(Math.max(0, data.count));
+          setCount(selectModeCount(data, mode));
         }
       } catch {
         // Ignore malformed frames
@@ -64,7 +78,7 @@ export function useLiveViewerCount(countThisViewer = true): number {
     };
 
     return () => es.close();
-  }, [countThisViewer, sid]);
+  }, [countThisViewer, sid, mode]);
 
   return count;
 }

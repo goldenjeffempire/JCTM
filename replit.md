@@ -100,7 +100,7 @@ Three independent admin roles, each with its own passphrase, HMAC-signed JWT, an
 - Live-service and Temple TV hero actions now open the embedded in-site player modal instead of redirecting viewers to YouTube.
 - A global in-app upcoming-service pop-up now invites visitors to the Holy Spirit Sunday Service and links them back to the website; a protected push endpoint can send the same alert to active browser push subscribers.
 - Backend livestream scanning now runs an accelerated YouTube live check every 5 seconds during the Sunday 8:00 AM–10:30 AM WAT service window, alongside the standard polling fallback.
-- Livestream player presence now has its own real-time SSE channel (`GET /api/livestream/viewers/stream`) with a REST snapshot (`GET /api/livestream/viewers`), so active player viewer counts update live in the web player header and embedded chat independently of chat-only connections.
+- Livestream player presence now has its own real-time SSE channel (`GET /api/livestream/viewers/stream`) with a REST snapshot (`GET /api/livestream/viewers`), so active player viewer counts update live in the web player header and embedded chat independently of chat-only connections. Player sessions are tagged as `live` or `rebroadcast`, and cumulative totals are stored in `site_stats` as `live_stream_total_viewers` and `rebroadcast_total_viewers`.
 
 ### YouTube Sync — Fully Automated, Near-Real-Time Pipeline
 
@@ -310,7 +310,7 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 
 - Dashboard overview now consumes `GET /api/admin/realtime` and `GET /api/admin/realtime/stream` for a unified operational snapshot.
 - The stream combines active website visitor sessions from `/api/visitors/*`, active live-player viewer sessions from `/api/livestream/viewers/*`, and 24-hour engagement counts from messages, prayers, testimonies, moments, broadcast events, members, and push subscribers.
-- Admin overview includes a real-time audience command panel with active audience, live viewers, active website visitors, 24-hour engagement, device presence, and a 5-second trend chart.
+- Admin overview includes a real-time audience command panel with active audience, active live viewers, active rebroadcast viewers, cumulative live/rebroadcast viewer totals, active website visitors, 24-hour engagement, device presence, and a 5-second trend chart.
 
 ---
 

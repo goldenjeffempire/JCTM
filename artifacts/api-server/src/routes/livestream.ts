@@ -188,16 +188,105 @@ async function initRebroadcastFromDB(): Promise<void> {
 setImmediate(() => {
   initRebroadcastFromDB().catch(() => {});
   initContinuousFallback().catch(() => {});
+  ensureViewerTotals().catch(() => {});
 });
 
 // ─── SSE status broadcaster ───────────────────────────────────────────────────
 
 const statusSessions = new Map<string, Response>();
-const viewerSessions = new Map<string, Response>();
+type ViewerMode = "live" | "rebroadcast";
+type ViewerSession = { res: Response; mode: ViewerMode };
+
+const viewerSessions = new Map<string, ViewerSession>();
+const countedViewerSessions: Record<ViewerMode, Set<string>> = {
+  live: new Set(),
+  rebroadcast: new Set(),
+};
+const viewerTotalKeys: Record<ViewerMode, string> = {
+  live: "live_stream_total_viewers",
+  rebroadcast: "rebroadcast_total_viewers",
+};
+let persistedViewerTotals: Record<ViewerMode, number> = { live: 0, rebroadcast: 0 };
+let viewerTotalsReady: Promise<void> | null = null;
 
 function sseWrite(res: Response, payload: string): void {
   res.write(payload);
   (res as unknown as { flush?: () => void }).flush?.();
+}
+
+function getViewerMode(value: unknown): ViewerMode {
+  return value === "rebroadcast" ? "rebroadcast" : "live";
+}
+
+async function ensureViewerTotals(): Promise<void> {
+  if (!viewerTotalsReady) {
+    viewerTotalsReady = (async () => {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS site_stats (
+          key TEXT PRIMARY KEY,
+          value INTEGER NOT NULL DEFAULT 0
+        )
+      `);
+      await Promise.all(
+        Object.values(viewerTotalKeys).map(key =>
+          pool.query("INSERT INTO site_stats (key, value) VALUES ($1, 0) ON CONFLICT DO NOTHING", [key]),
+        ),
+      );
+      const result = await pool.query<{ key: string; value: number }>(
+        "SELECT key, value FROM site_stats WHERE key = ANY($1::text[])",
+        [Object.values(viewerTotalKeys)],
+      );
+      for (const row of result.rows) {
+        if (row.key === viewerTotalKeys.live) persistedViewerTotals.live = Number(row.value ?? 0);
+        if (row.key === viewerTotalKeys.rebroadcast) persistedViewerTotals.rebroadcast = Number(row.value ?? 0);
+      }
+    })().catch(() => {
+      viewerTotalsReady = null;
+    });
+  }
+  await viewerTotalsReady;
+}
+
+function getViewerBreakdown() {
+  let activeLive = 0;
+  let activeRebroadcast = 0;
+
+  for (const session of viewerSessions.values()) {
+    if (session.mode === "rebroadcast") activeRebroadcast += 1;
+    else activeLive += 1;
+  }
+
+  const totalLive = Math.max(persistedViewerTotals.live, countedViewerSessions.live.size);
+  const totalRebroadcast = Math.max(persistedViewerTotals.rebroadcast, countedViewerSessions.rebroadcast.size);
+
+  return {
+    activeLive,
+    activeRebroadcast,
+    activeTotal: activeLive + activeRebroadcast,
+    totalLive,
+    totalRebroadcast,
+    totalAll: totalLive + totalRebroadcast,
+  };
+}
+
+function recordViewerTotal(sid: string, mode: ViewerMode): void {
+  if (countedViewerSessions[mode].has(sid)) return;
+  countedViewerSessions[mode].add(sid);
+  void (async () => {
+    try {
+      await ensureViewerTotals();
+      const result = await pool.query<{ value: number }>(
+        `INSERT INTO site_stats (key, value) VALUES ($1, 1)
+         ON CONFLICT (key) DO UPDATE SET value = site_stats.value + 1
+         RETURNING value`,
+        [viewerTotalKeys[mode]],
+      );
+      persistedViewerTotals[mode] = Number(result.rows[0]?.value ?? persistedViewerTotals[mode] + 1);
+      broadcastViewerCount();
+    } catch {
+      persistedViewerTotals[mode] = Math.max(persistedViewerTotals[mode], countedViewerSessions[mode].size);
+    }
+  })();
 }
 
 /** Build the full status payload including rebroadcast lifecycle and manual override flags.
@@ -256,11 +345,33 @@ function broadcastStatus(state: LivestreamState): void {
 }
 
 function buildViewerPayload(): string {
-  return JSON.stringify({ type: "viewer_count", count: viewerSessions.size });
+  const viewers = getViewerBreakdown();
+  return JSON.stringify({
+    type: "viewer_count",
+    count: viewers.activeTotal,
+    live: viewers.activeLive,
+    rebroadcast: viewers.activeRebroadcast,
+    total: viewers.activeTotal,
+    active: {
+      live: viewers.activeLive,
+      rebroadcast: viewers.activeRebroadcast,
+      total: viewers.activeTotal,
+    },
+    totals: {
+      live: viewers.totalLive,
+      rebroadcast: viewers.totalRebroadcast,
+      total: viewers.totalAll,
+    },
+  });
 }
 
 export function getLiveAudienceSnapshot(): {
   viewers: number;
+  activeLiveViewers: number;
+  activeRebroadcastViewers: number;
+  totalLiveViewers: number;
+  totalRebroadcastViewers: number;
+  totalViewerSessions: number;
   isLive: boolean;
   isUpcoming: boolean;
   title: string | null;
@@ -280,8 +391,15 @@ export function getLiveAudienceSnapshot(): {
     rebroadcast?: { available?: boolean; mode?: "scheduled" | "continuous" };
   };
 
+  const viewers = getViewerBreakdown();
+
   return {
-    viewers: viewerSessions.size,
+    viewers: viewers.activeTotal,
+    activeLiveViewers: viewers.activeLive,
+    activeRebroadcastViewers: viewers.activeRebroadcast,
+    totalLiveViewers: viewers.totalLive,
+    totalRebroadcastViewers: viewers.totalRebroadcast,
+    totalViewerSessions: viewers.totalAll,
     isLive: status.isLive,
     isUpcoming: status.isUpcoming,
     title: status.title,
@@ -295,9 +413,9 @@ export function getLiveAudienceSnapshot(): {
 
 function broadcastViewerCount(): void {
   const payload = `data: ${buildViewerPayload()}\n\n`;
-  for (const [sid, res] of viewerSessions) {
+  for (const [sid, session] of viewerSessions) {
     try {
-      sseWrite(res, payload);
+      sseWrite(session.res, payload);
     } catch {
       viewerSessions.delete(sid);
     }
@@ -313,9 +431,9 @@ const statusHeartbeat = setInterval(() => {
       statusSessions.delete(sid);
     }
   }
-  for (const [sid, res] of viewerSessions) {
+  for (const [sid, session] of viewerSessions) {
     try {
-      sseWrite(res, ": keepalive\n\n");
+      sseWrite(session.res, ": keepalive\n\n");
     } catch {
       viewerSessions.delete(sid);
     }
@@ -715,10 +833,11 @@ router.get("/livestream/viewers/stream", (req: Request, res: Response): void => 
   const sid = typeof req.query.sid === "string" && req.query.sid.length > 0
     ? req.query.sid.slice(0, 64)
     : `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const mode = getViewerMode(req.query.mode);
 
   const existing = viewerSessions.get(sid);
   if (existing) {
-    try { existing.end(); } catch { /* already gone */ }
+    try { existing.res.end(); } catch { /* already gone */ }
     viewerSessions.delete(sid);
   }
 
@@ -728,11 +847,12 @@ router.get("/livestream/viewers/stream", (req: Request, res: Response): void => 
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  viewerSessions.set(sid, res);
+  viewerSessions.set(sid, { res, mode });
+  recordViewerTotal(sid, mode);
   broadcastViewerCount();
 
   req.on("close", () => {
-    if (viewerSessions.get(sid) === res) {
+    if (viewerSessions.get(sid)?.res === res) {
       viewerSessions.delete(sid);
       broadcastViewerCount();
     }
@@ -741,7 +861,23 @@ router.get("/livestream/viewers/stream", (req: Request, res: Response): void => 
 
 router.get("/livestream/viewers", (_req: Request, res: Response): void => {
   res.setHeader("Cache-Control", "no-store");
-  res.json({ count: viewerSessions.size });
+  const viewers = getViewerBreakdown();
+  res.json({
+    count: viewers.activeTotal,
+    live: viewers.activeLive,
+    rebroadcast: viewers.activeRebroadcast,
+    total: viewers.activeTotal,
+    active: {
+      live: viewers.activeLive,
+      rebroadcast: viewers.activeRebroadcast,
+      total: viewers.activeTotal,
+    },
+    totals: {
+      live: viewers.totalLive,
+      rebroadcast: viewers.totalRebroadcast,
+      total: viewers.totalAll,
+    },
+  });
 });
 
 // ─── GET /api/livestream/status — REST fallback ───────────────────────────────

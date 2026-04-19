@@ -743,12 +743,12 @@ function HeroSection() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
-  const liveViewerCount = useLiveViewerCount(livePlayerOpen && isLive);
-
   // Rebroadcast widget: derived from SSE hook — same real-time updates as live state
   const rebroadcastForWidget = (liveStatus.rebroadcast.available && liveStatus.rebroadcast.videoId && !isLive && !isUpcoming)
     ? { videoId: liveStatus.rebroadcast.videoId, title: liveStatus.rebroadcast.title }
     : null;
+  const liveViewerCount = useLiveViewerCount(livePlayerOpen && isLive, "live");
+  const rebroadcastViewerCount = useLiveViewerCount(rebroadcastWidgetOpen && Boolean(rebroadcastForWidget), "rebroadcast");
 
   const n = HERO_IMAGES.length;
   const leftImages = [0, 1, 2].map(offset => HERO_IMAGES[(activeSlide + offset) % n]);
@@ -959,6 +959,13 @@ function HeroSection() {
                   <span className="text-white/80 text-sm font-medium tracking-wide">Rebroadcast</span>
                   {rebroadcastForWidget.title && (
                     <span className="text-white/50 text-xs hidden sm:inline truncate max-w-[300px]">— {rebroadcastForWidget.title}</span>
+                  )}
+                  {rebroadcastViewerCount > 0 && (
+                    <span className="hidden sm:flex items-center gap-1 text-white/50 text-xs">
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="tabular-nums">{rebroadcastViewerCount}</span>
+                      watching
+                    </span>
                   )}
                 </div>
                 <button onClick={() => setRebroadcastWidgetOpen(false)} className="h-8 w-8 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
