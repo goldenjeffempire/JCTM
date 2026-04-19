@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startCron, setWebSubCallbackUrl } from "./lib/cron.js";
+import { startCron, setWebSubCallbackUrl, stopCron } from "./lib/cron.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { initSentry } from "./lib/sentry.js";
@@ -303,6 +303,20 @@ async function runStartupMigrations() {
       ON broadcast_events (fired_at DESC)
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS livestream_override_state (
+        id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        is_live boolean NOT NULL DEFAULT false,
+        title text,
+        stream_url text,
+        video_id text,
+        started_at text,
+        manual_live boolean NOT NULL DEFAULT false,
+        manual_rebroadcast boolean NOT NULL DEFAULT false,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
     // ── Ministers Conference Registrations ───────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS conference_registrations (
@@ -415,12 +429,23 @@ const server = app.listen(port, async (err) => {
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────
-function shutdown(signal: string) {
-  logger.info({ signal }, "Graceful shutdown initiated");
+let isShuttingDown = false;
 
-  server.close(() => {
-    logger.info("All connections closed — exiting cleanly");
-    process.exit(0);
+function shutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info({ signal }, "Graceful shutdown initiated");
+  stopCron();
+
+  server.close(async () => {
+    try {
+      await pool.end();
+      logger.info("All connections closed — exiting cleanly");
+      process.exit(0);
+    } catch (err) {
+      logger.error({ err }, "Failed to close database pool during shutdown");
+      process.exit(1);
+    }
   });
 
   setTimeout(() => {
@@ -431,3 +456,10 @@ function shutdown(signal: string) {
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT",  () => shutdown("SIGINT"));
+process.on("unhandledRejection", (err) => {
+  logger.error({ err }, "Unhandled promise rejection");
+});
+process.on("uncaughtException", (err) => {
+  logger.fatal({ err }, "Uncaught exception");
+  shutdown("uncaughtException");
+});

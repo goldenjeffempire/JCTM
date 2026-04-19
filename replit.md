@@ -32,9 +32,9 @@ The Vite dev server proxies all `/api/*` requests to `localhost:8080` (configure
 
 ## Database (PostgreSQL / Neon)
 
-15 tables, all created via raw SQL migration on startup (`artifacts/api-server/src/lib/db-migrate.ts`):
+Core tables are created or upgraded by startup migrations:
 
-`sermon_data`, `testimonies`, `event_calendar`, `giving_logs`, `member_directory`, `member_auth`, `conversations`, `messages`, `crusade_registrations`, `knowledge_chunks`, `site_stats`, `daily_devotions`, `moment_comments`, `moment_engagements`, `moment_likes`
+`sermon_data`, `testimonies`, `event_calendar`, `giving_logs`, `member_directory`, `member_auth`, `conversations`, `messages`, `crusade_registrations`, `knowledge_chunks`, `site_stats`, `daily_devotions`, `moment_comments`, `moment_engagements`, `moment_likes`, `broadcast_events`, `livestream_override_state`, gallery/admin/push/blog/livechat support tables
 
 > **Note**: `pgvector` is not available on Replit PostgreSQL. The `knowledge_chunks.embedding` column stores text.
 
@@ -93,6 +93,18 @@ Three independent admin roles, each with its own passphrase, HMAC-signed JWT, an
 **Frontend**: `hooks/useAdminAuth.ts` (`needsSetup`, `setup()`, `changePassphrase()`, `login()`, `logout()`); `components/admin/AdminLoginGate.tsx` — automatically shows Setup form, Login form, or authenticated children based on state.
 
 ## Recent Enhancements
+
+### Production Hardening Pass — April 2026
+- Added a backend `POST /api/client-errors` ingestion endpoint and wired frontend error boundaries plus global `error` / `unhandledrejection` listeners to report sanitized runtime failures through existing structured logs.
+- Hardened API error handling with request ID, method, path, and severity-aware structured logging; 4xx rejections now log as warnings while 5xx errors log as server errors.
+- Tightened production CORS behavior so broad Replit/Render wildcard origins are development-only unless explicitly configured through allowed origins.
+- Improved shutdown reliability by stopping cron jobs, clearing delayed automation timers, and closing the PostgreSQL pool before process exit; added process-level unhandled rejection and uncaught exception logging.
+- Fortified SSE cleanup and broadcast writes against closed sockets to reduce leaked intervals and stale connections under real-time load.
+- Added a strict WebSub payload size/timeout guard before XML processing to prevent oversized push payloads from consuming memory.
+- Reduced idle frontend resource usage by pausing visitor heartbeats while the tab is hidden, and made service worker registration base-path safe.
+- Made live chat and upcoming-service popup storage access resilient when browser storage is blocked or unavailable.
+- Added persistent `livestream_override_state` storage so manually activated live mode survives API restarts and deployment rollovers.
+- Centralized safe browser storage helpers and applied them to core visitor, language, geo, live viewer, admin auth, prayer, moments, intro video, crusade notification, push prompt, stream quality, and cookie-consent flows.
 
 ### Sunday 8:00 AM WAT Service Hero Notification
 - Homepage hero now shows a pinned “Service Soon” notification every Sunday from 6:00 AM to 8:00 AM WAT with a live countdown badge to 8:00 AM.
@@ -169,7 +181,7 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 - **Rate limiting** — 300/15min global; 20/min AI/chat/prayer/devotion; 30/15min auth
 - **Gzip compression** — level 6, threshold 1KB
 - **scrypt password hashing** — N=16384, per-user salt, timing-safe compare
-- **CORS** — allows `jctm.org.ng`, `*.replit.dev`, `*.replit.app`, `*.onrender.com`
+- **CORS** — configured production origins plus optional Replit/Render wildcard support only when explicitly enabled
 - **1MB JSON body limit**
 
 ---

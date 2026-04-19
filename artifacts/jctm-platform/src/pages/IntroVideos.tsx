@@ -11,19 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { getOrCreateVisitorId } from "@/lib/visitorId";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PAGE_SIZE = 20;
-
-function getVisitorId(): string {
-  const key = "jctm_visitor_id";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
 
 interface IntroItem {
   id: number;
@@ -201,7 +193,7 @@ function CommentPanel({
 }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState(() => localStorage.getItem("jctm_commenter_name") ?? "");
+  const [name, setName] = useState(() => safeLocalGet("jctm_commenter_name") ?? "");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -221,7 +213,7 @@ function CommentPanel({
     setSubmitting(true);
     try {
       const comment = await postComment(videoId, visitorId, trimName, trimBody);
-      localStorage.setItem("jctm_commenter_name", trimName);
+      safeLocalSet("jctm_commenter_name", trimName);
       setComments(prev => [comment, ...prev]);
       setBody("");
       listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -654,7 +646,7 @@ export default function IntroVideos() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [visitorId] = useState(() => getVisitorId());
+  const [visitorId] = useState(() => getOrCreateVisitorId());
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);

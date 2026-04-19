@@ -64,26 +64,37 @@ class SSEBroadcaster {
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
-    // Keep-alive ping every 25 seconds
     const pingInterval = setInterval(() => {
       if (!res.writableEnded) {
         res.write(`event: ping\ndata: {}\n\n`);
+      } else {
+        clearInterval(pingInterval);
+        this.clients.delete(id);
       }
     }, 25000);
 
     this.clients.set(id, { id, res });
 
-    res.on("close", () => {
+    const cleanup = () => {
       clearInterval(pingInterval);
       this.clients.delete(id);
-    });
+    };
+    res.once("close", cleanup);
+    res.once("finish", cleanup);
+    res.once("error", cleanup);
   }
 
   broadcast(event: SSEEvent): void {
     const payload = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
     for (const client of this.clients.values()) {
       if (!client.res.writableEnded) {
-        client.res.write(payload);
+        try {
+          client.res.write(payload);
+        } catch {
+          this.clients.delete(client.id);
+        }
+      } else {
+        this.clients.delete(client.id);
       }
     }
   }

@@ -10,6 +10,7 @@ import {
   Key, Phone, Shield,
 } from "lucide-react";
 import { toast } from "sonner";
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -39,7 +40,7 @@ export default function Join() {
 
   useEffect(() => {
     document.title = "Join | JCTM Digital Sanctuary";
-    const token = localStorage.getItem("jctm_token");
+    const token = safeLocalGet("jctm_token");
     if (token) {
       fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
@@ -49,7 +50,7 @@ export default function Join() {
             setView("dashboard");
           }
         })
-        .catch(() => { localStorage.removeItem("jctm_token"); });
+        .catch(() => { safeLocalRemove("jctm_token"); });
     }
   }, []);
 
@@ -71,7 +72,7 @@ export default function Join() {
       });
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem("jctm_token", data.token);
+        safeLocalSet("jctm_token", data.token);
         setMember(data.member);
         setView("dashboard");
         toast.success("Welcome to the JCTM Digital Sanctuary!");
@@ -93,7 +94,7 @@ export default function Join() {
       });
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem("jctm_token", data.token);
+        safeLocalSet("jctm_token", data.token);
         setMember(data.member);
         setView("dashboard");
         toast.success("Welcome back to the Sanctuary!");
@@ -105,7 +106,7 @@ export default function Join() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("jctm_token");
+    safeLocalRemove("jctm_token");
     setMember(null);
     setView("login");
     setLoginForm({ email: "", password: "" });
@@ -127,7 +128,7 @@ export default function Join() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem("jctm_token");
+    const token = safeLocalGet("jctm_token");
     if (!token) return;
 
     if (editForm.newPassword && editForm.newPassword.length < 6) {

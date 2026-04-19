@@ -186,6 +186,7 @@ async function initRebroadcastFromDB(): Promise<void> {
 // Run DB initialization immediately (non-blocking).
 // Both calls are fire-and-forget; failures are caught internally.
 setImmediate(() => {
+  initManualLivestreamOverrideFromDB().catch(() => {});
   initRebroadcastFromDB().catch(() => {});
   initContinuousFallback().catch(() => {});
   ensureViewerTotals().catch(() => {});
@@ -341,6 +342,67 @@ function broadcastStatus(state: LivestreamState): void {
     } catch {
       statusSessions.delete(sid);
     }
+  }
+}
+
+async function initManualLivestreamOverrideFromDB(): Promise<void> {
+  try {
+    const result = await pool.query<{
+      is_live: boolean;
+      title: string | null;
+      stream_url: string | null;
+      video_id: string | null;
+      started_at: string | null;
+      manual_live: boolean;
+      manual_rebroadcast: boolean;
+    }>(
+      "SELECT is_live, title, stream_url, video_id, started_at, manual_live, manual_rebroadcast FROM livestream_override_state WHERE id = 1",
+    );
+    const row = result.rows[0];
+    if (!row?.manual_live || !row.is_live) return;
+    manualOverrideLive = true;
+    manualOverrideRebroadcast = Boolean(row.manual_rebroadcast);
+    livestreamState = {
+      isLive: true,
+      isUpcoming: false,
+      title: row.title,
+      streamUrl: row.stream_url,
+      videoId: row.video_id,
+      startedAt: row.started_at,
+      scheduledStartTime: null,
+    };
+  } catch {
+    undefined;
+  }
+}
+
+async function persistManualLivestreamOverride(state: LivestreamState): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO livestream_override_state
+        (id, is_live, title, stream_url, video_id, started_at, manual_live, manual_rebroadcast, updated_at)
+       VALUES (1, $1, $2, $3, $4, $5, $6, $7, now())
+       ON CONFLICT (id) DO UPDATE SET
+        is_live = EXCLUDED.is_live,
+        title = EXCLUDED.title,
+        stream_url = EXCLUDED.stream_url,
+        video_id = EXCLUDED.video_id,
+        started_at = EXCLUDED.started_at,
+        manual_live = EXCLUDED.manual_live,
+        manual_rebroadcast = EXCLUDED.manual_rebroadcast,
+        updated_at = now()`,
+      [
+        state.isLive,
+        state.title,
+        state.streamUrl,
+        state.videoId,
+        state.startedAt,
+        manualOverrideLive,
+        manualOverrideRebroadcast,
+      ],
+    );
+  } catch {
+    undefined;
   }
 }
 
@@ -978,6 +1040,7 @@ router.post("/livestream/status", requireAdminRole("livestream"), async (req, re
   }
 
   youtubeCheckCache = null;
+  await persistManualLivestreamOverride(livestreamState);
 
   broadcastStatus(livestreamState);
 

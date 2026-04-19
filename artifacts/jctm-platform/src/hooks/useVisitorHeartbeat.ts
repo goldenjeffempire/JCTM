@@ -39,6 +39,10 @@ export function useVisitorHeartbeat(): void {
       }
     };
 
+    const sendVisibleHeartbeat = () => {
+      if (document.visibilityState === "visible") sendHeartbeat();
+    };
+
     const sendLeave = () => {
       try {
         navigator.sendBeacon(
@@ -56,17 +60,17 @@ export function useVisitorHeartbeat(): void {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visitorId, page: getPage() }),
-    }).catch(() => null);
+    }).catch(() => undefined);
 
-    // Start heartbeat loop
-    intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    intervalRef.current = setInterval(sendVisibleHeartbeat, HEARTBEAT_INTERVAL_MS);
 
-    // Remove session on tab close
+    document.addEventListener("visibilitychange", sendVisibleHeartbeat);
     window.addEventListener("beforeunload", sendLeave);
     window.addEventListener("pagehide", sendLeave);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      document.removeEventListener("visibilitychange", sendVisibleHeartbeat);
       window.removeEventListener("beforeunload", sendLeave);
       window.removeEventListener("pagehide", sendLeave);
     };

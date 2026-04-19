@@ -47,13 +47,32 @@ router.get("/sermons/websub", (req, res): void => {
 router.post("/sermons/websub", async (req, res): Promise<void> => {
   const apiKey = process.env.YOUTUBE_API_KEY;
 
-  // Consume the raw XML body — express.json/urlencoded skip non-matching
-  // content types so the stream is still in paused mode here.
   const rawBody = await new Promise<string>((resolve, reject) => {
     let data = "";
-    req.on("data", (chunk: Buffer) => { data += chunk.toString(); });
-    req.on("end",  () => resolve(data));
-    req.on("error",   reject);
+    let size = 0;
+    const timeout = setTimeout(() => reject(new Error("WebSub payload timeout")), 5000);
+    req.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > 64 * 1024) {
+        clearTimeout(timeout);
+        reject(new Error("WebSub payload too large"));
+        req.destroy();
+        return;
+      }
+      data += chunk.toString("utf8");
+    });
+    req.on("aborted", () => {
+      clearTimeout(timeout);
+      reject(new Error("WebSub request aborted"));
+    });
+    req.on("end",  () => {
+      clearTimeout(timeout);
+      resolve(data);
+    });
+    req.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
   });
 
   // Acknowledge receipt — the hub must get 2xx before it times out.

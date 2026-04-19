@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from "@/lib/utils";
 
 export type AdminRole = "gallery" | "sermon" | "livestream";
 
@@ -50,14 +51,14 @@ export function useAdminAuth(role: AdminRole): AdminAuthState {
   const logout = useCallback(() => {
     setIsAdmin(false);
     setAdminToken("");
-    window.localStorage.removeItem(STORAGE_KEY(role));
+    safeLocalRemove(STORAGE_KEY(role));
   }, [role]);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      const stored = window.localStorage.getItem(STORAGE_KEY(role));
+      const stored = safeLocalGet(STORAGE_KEY(role));
 
       if (stored) {
         try {
@@ -70,10 +71,10 @@ export function useAdminAuth(role: AdminRole): AdminAuthState {
               setIsLoading(false);
               return;
             }
-            window.localStorage.removeItem(STORAGE_KEY(role));
+            safeLocalRemove(STORAGE_KEY(role));
           }
         } catch {
-          if (!cancelled) window.localStorage.removeItem(STORAGE_KEY(role));
+          if (!cancelled) safeLocalRemove(STORAGE_KEY(role));
         }
       }
 
@@ -114,7 +115,7 @@ export function useAdminAuth(role: AdminRole): AdminAuthState {
         return false;
       }
 
-      window.localStorage.setItem(STORAGE_KEY(role), data.token);
+      safeLocalSet(STORAGE_KEY(role), data.token);
       setAdminToken(data.token);
       setIsAdmin(true);
       setNeedsSetup(false);
@@ -140,7 +141,7 @@ export function useAdminAuth(role: AdminRole): AdminAuthState {
         return false;
       }
 
-      window.localStorage.setItem(STORAGE_KEY(role), data.token);
+      safeLocalSet(STORAGE_KEY(role), data.token);
       setAdminToken(data.token);
       setIsAdmin(true);
       setNeedsSetup(false);

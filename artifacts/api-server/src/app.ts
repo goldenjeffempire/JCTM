@@ -70,16 +70,21 @@ app.use(
   cors({
     origin(origin, cb) {
       if (!origin) return cb(null, true);
+      const isProduction = process.env.NODE_ENV === "production";
+      const isConfiguredOrigin = ALLOWED_ORIGINS.has(origin);
+      const isReplitOrigin = /\.replit\.(dev|app)$/.test(origin);
+      const isRenderOrigin = /\.onrender\.com$/.test(origin);
       if (
-        ALLOWED_ORIGINS.has(origin) ||
-        /\.replit\.dev$/.test(origin) ||
-        /\.replit\.app$/.test(origin) ||
-        /\.onrender\.com$/.test(origin) ||
-        process.env.NODE_ENV !== "production"
+        isConfiguredOrigin ||
+        !isProduction ||
+        (isReplitOrigin && process.env.ALLOW_REPLIT_ORIGINS === "true") ||
+        (isRenderOrigin && process.env.ALLOW_RENDER_ORIGINS === "true")
       ) {
         return cb(null, true);
       }
-      cb(new Error(`CORS: origin '${origin}' not allowed`));
+      const err = new Error(`CORS: origin '${origin}' not allowed`) as Error & { status?: number };
+      err.status = 403;
+      cb(err);
     },
     credentials: true,
   }),
@@ -192,14 +197,26 @@ app.use((_req: Request, res: Response): void => {
 
 // Global JSON error handler — must be defined last, after all routes and middleware.
 // Express 5 automatically forwards async errors here; no try/catch needed in routes.
-app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction): void => {
+app.use((err: Error & { status?: number; statusCode?: number }, req: Request, res: Response, _next: NextFunction): void => {
   const status = err.status ?? err.statusCode ?? 500;
-  logger.error({ err, status }, "Unhandled error");
+  const meta = {
+    err,
+    status,
+    requestId: (req as Request & { id?: unknown }).id,
+    method: req.method,
+    path: req.path,
+  };
+  if (status >= 500) {
+    logger.error(meta, "Unhandled server error");
+  } else {
+    logger.warn(meta, "Request rejected");
+  }
   if (!res.headersSent) {
     res.status(status).json({
       error: process.env.NODE_ENV === "production" && status >= 500
         ? "Internal server error"
         : err.message,
+      requestId: (req as Request & { id?: unknown }).id,
     });
   }
 });

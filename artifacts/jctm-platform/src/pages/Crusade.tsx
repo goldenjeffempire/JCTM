@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from "@/lib/utils";
 
 const CRUSADE_START = new Date("2026-04-30T18:00:00+01:00");
 const CRUSADE_END = new Date("2026-05-01T21:00:00+01:00");
@@ -869,7 +870,7 @@ function NotificationManager() {
     if ("Notification" in window) {
       setPermission(Notification.permission);
     }
-    setEnabled(localStorage.getItem("crusade_notif_enabled") === "true");
+    setEnabled(safeLocalGet("crusade_notif_enabled") === "true");
   }, []);
 
   const requestAndEnable = async () => {
@@ -880,7 +881,7 @@ function NotificationManager() {
     const perm = await Notification.requestPermission();
     setPermission(perm);
     if (perm === "granted") {
-      localStorage.setItem("crusade_notif_enabled", "true");
+      safeLocalSet("crusade_notif_enabled", "true");
       setEnabled(true);
       scheduleNotifications();
       toast.success("Notifications enabled! You'll be reminded 7 days, 24 hours, and 1 hour before the crusade.");
@@ -890,7 +891,7 @@ function NotificationManager() {
   };
 
   const disable = () => {
-    localStorage.removeItem("crusade_notif_enabled");
+    safeLocalRemove("crusade_notif_enabled");
     setEnabled(false);
     toast.info("Crusade notifications disabled.");
   };
@@ -908,7 +909,7 @@ function NotificationManager() {
       const delay = fireAt - now;
       if (delay > 0 && delay < 30 * 24 * 60 * 60 * 1000) {
         setTimeout(() => {
-          if (Notification.permission === "granted" && localStorage.getItem("crusade_notif_enabled") === "true") {
+          if (Notification.permission === "granted" && safeLocalGet("crusade_notif_enabled") === "true") {
             new Notification(title, { body, icon: "/favicon.ico", tag: `crusade-${offset}` });
           }
         }, delay);

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { safeLocalGet, safeLocalSet, safeSessionGet, safeSessionSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const MSG_MAX = 300;
@@ -71,15 +72,15 @@ const REACTIONS = ["🙏", "🔥", "❤️", "🕊️", "💯", "⚡", "👏"];
 
 function getSessionId(): string {
   const key = "jctm-chat-sid";
-  const stored = sessionStorage.getItem(key);
-  if (stored) return stored;
   const id = crypto.randomUUID();
-  sessionStorage.setItem(key, id);
+  const stored = safeSessionGet(key);
+  if (stored) return stored;
+  safeSessionSet(key, id);
   return id;
 }
 
 function getStoredUsername(): string {
-  return localStorage.getItem("jctm-chat-username") ?? "";
+  return safeLocalGet("jctm-chat-username") ?? "";
 }
 
 function formatTime(ts: number): string {
@@ -276,7 +277,7 @@ export function LiveChat({ isLive = false, embedded = false, externalViewerCount
     const u = pendingUsername.trim().slice(0, 30);
     if (!u) return;
     setUsername(u); setUsernameSet(true); setPrayerName(u);
-    localStorage.setItem("jctm-chat-username", u);
+    safeLocalSet("jctm-chat-username", u);
   };
 
   const submitPrayer = async () => {

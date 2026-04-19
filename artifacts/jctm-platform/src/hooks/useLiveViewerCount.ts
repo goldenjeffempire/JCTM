@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { safeSessionGet, safeSessionSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function getPlayerSessionId(): string {
   const key = "jctm-live-player-sid";
-  const stored = sessionStorage.getItem(key);
+  const stored = safeSessionGet(key);
   if (stored) return stored;
-  const id = crypto.randomUUID();
-  sessionStorage.setItem(key, id);
+  const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  safeSessionSet(key, id);
   return id;
 }
 

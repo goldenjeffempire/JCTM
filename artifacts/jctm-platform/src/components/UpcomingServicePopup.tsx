@@ -9,7 +9,12 @@ export function UpcomingServicePopup() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const dismissedAt = Number(window.localStorage.getItem(STORAGE_KEY) ?? "0");
+    let dismissedAt = 0;
+    try {
+      dismissedAt = Number(window.localStorage.getItem(STORAGE_KEY) ?? "0");
+    } catch {
+      dismissedAt = 0;
+    }
     const hoursSinceDismissed = dismissedAt ? (Date.now() - dismissedAt) / (1000 * 60 * 60) : Infinity;
     const timer = window.setTimeout(() => {
       if (hoursSinceDismissed >= 18) setOpen(true);
@@ -18,7 +23,11 @@ export function UpcomingServicePopup() {
   }, []);
 
   const close = () => {
-    window.localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    } catch {
+      undefined;
+    }
     setOpen(false);
   };
 

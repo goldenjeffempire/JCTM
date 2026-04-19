@@ -2,6 +2,7 @@ import { Component, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/clientErrorReporting";
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("JCTM ErrorBoundary caught:", error, info);
+    reportClientError(error, { source: "app-error-boundary", componentStack: info.componentStack });
   }
 
   render() {
@@ -58,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => { window.location.href = "/"; }}
+                  onClick={() => { window.location.href = import.meta.env.BASE_URL || "/"; }}
                   className="rounded-full border-primary text-primary"
                 >
                   Return Home

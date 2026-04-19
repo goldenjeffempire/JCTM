@@ -15,6 +15,7 @@ import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
+import { safeLocalGet } from "@/lib/utils";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Bar, ComposedChart, ResponsiveContainer,
@@ -1970,7 +1971,7 @@ function TestimonyCard({ t, onApprove, onUnapprove, onDelete, isPending }: { t: 
 
 function TestimoniesSection() {
   const qc = useQueryClient();
-  const token = localStorage.getItem("jctm_token") ?? "";
+  const token = safeLocalGet("jctm_token") ?? "";
 
   const { data, isLoading, refetch } = useQuery<{ testimonies: TestimonyItem[] }>({
     queryKey: ["admin-testimonies"],
@@ -2036,7 +2037,7 @@ function TestimoniesSection() {
 // ─── Platform ─────────────────────────────────────────────────────────────────
 
 function PlatformSection() {
-  const token = localStorage.getItem("jctm_token") ?? "";
+  const token = safeLocalGet("jctm_token") ?? "";
   const [blogTopic, setBlogTopic] = useState("holiness");
   const [generating, setGenerating] = useState(false);
 

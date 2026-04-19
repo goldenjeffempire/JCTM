@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { safeSessionGet, safeSessionRemove, safeSessionSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -32,7 +33,7 @@ export function GeoProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const cached = sessionStorage.getItem("jctm-geo");
+    const cached = safeSessionGet("jctm-geo");
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as GeoInfo;
@@ -40,7 +41,7 @@ export function GeoProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       } catch {
-        sessionStorage.removeItem("jctm-geo");
+        safeSessionRemove("jctm-geo");
       }
     }
 
@@ -49,7 +50,7 @@ export function GeoProvider({ children }: { children: ReactNode }) {
       .then((data: GeoInfo | null) => {
         if (data && data.country !== "Unknown") {
           setGeo(data);
-          sessionStorage.setItem("jctm-geo", JSON.stringify(data));
+          safeSessionSet("jctm-geo", JSON.stringify(data));
         }
       })
       .catch(() => null)

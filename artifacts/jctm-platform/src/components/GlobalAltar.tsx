@@ -1,18 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, useSpring, useMotionValue } from "framer-motion";
 import { Users, Flame } from "lucide-react";
+import { getOrCreateVisitorId } from "@/lib/visitorId";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-// Generate or retrieve a stable visitor ID for this browser
-function getOrCreateVisitorId(): string {
-  const key = "jctm-visitor-id";
-  const existing = localStorage.getItem(key);
-  if (existing) return existing;
-  const id = `v-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  localStorage.setItem(key, id);
-  return id;
-}
 
 function AnimatedNumber({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);

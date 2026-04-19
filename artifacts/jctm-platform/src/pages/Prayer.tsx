@@ -11,6 +11,8 @@ import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { getOrCreateVisitorId } from "@/lib/visitorId";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -41,16 +43,6 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 80, damping: 18 } },
 };
 
-function getVisitorId(): string {
-  const key = "jctm_visitor_id";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
-
 const CAT_LABEL: Record<string, string> = {
   healing: "Healing",
   deliverance: "Deliverance",
@@ -78,7 +70,7 @@ function PrayerWall() {
   const [loading, setLoading] = useState(true);
   const [prayedFor, setPrayedFor] = useState<Set<number>>(() => {
     try {
-      const stored = localStorage.getItem("jctm_prayed_for");
+      const stored = safeLocalGet("jctm_prayed_for");
       return stored ? new Set(JSON.parse(stored)) : new Set<number>();
     } catch { return new Set<number>(); }
   });
@@ -102,7 +94,7 @@ function PrayerWall() {
     if (prayedFor.has(id)) return;
     const newSet = new Set([...prayedFor, id]);
     setPrayedFor(newSet);
-    localStorage.setItem("jctm_prayed_for", JSON.stringify([...newSet]));
+    safeLocalSet("jctm_prayed_for", JSON.stringify([...newSet]));
     setRequests(prev => prev.map(r => r.id === id ? { ...r, pray_count: r.pray_count + 1 } : r));
     try {
       await fetch(`${BASE}/api/prayer/requests/${id}/pray`, { method: "POST" });
@@ -121,7 +113,7 @@ function PrayerWall() {
       const res = await fetch(`${BASE}/api/prayer/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, visitorId: getVisitorId() }),
+        body: JSON.stringify({ ...form, visitorId: getOrCreateVisitorId() }),
       });
       if (!res.ok) throw new Error();
       const newReq: PrayerRequest = await res.json();

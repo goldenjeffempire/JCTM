@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, X } from "lucide-react";
 import { toast } from "sonner";
 import { getOrCreateVisitorId } from "@/lib/visitorId";
+import { safeSessionGet, safeSessionSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const STORAGE_KEY = "jctm_push_prompt_dismissed";
@@ -23,7 +24,7 @@ export function PushNotificationPrompt() {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (Notification.permission !== "default") return;
-    if (sessionStorage.getItem(STORAGE_KEY)) return;
+    if (safeSessionGet(STORAGE_KEY)) return;
 
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
@@ -38,7 +39,7 @@ export function PushNotificationPrompt() {
 
   const dismiss = () => {
     setVisible(false);
-    sessionStorage.setItem(STORAGE_KEY, "1");
+    safeSessionSet(STORAGE_KEY, "1");
   };
 
   const subscribe = async () => {

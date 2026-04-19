@@ -3,6 +3,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { Component, type ReactNode } from "react";
 import App from "./App";
 import "./index.css";
+import { reportClientError } from "./lib/clientErrorReporting";
 
 class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -16,6 +17,7 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("Root-level error:", error, info);
+    reportClientError(error, { source: "root-error-boundary", componentStack: info.componentStack });
   }
 
   render() {
@@ -49,11 +51,20 @@ createRoot(document.getElementById("root")!).render(
   </RootErrorBoundary>
 );
 
+window.addEventListener("error", (event) => {
+  reportClientError(event.error ?? event.message, { source: "window-error" });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  reportClientError(event.reason, { source: "unhandled-rejection" });
+});
+
 // ─── Service Worker Registration ──────────────────────────────────────────────
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    const base = import.meta.env.BASE_URL;
     navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
+      .register(`${base}sw.js`, { scope: base })
       .then((reg) => {
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;

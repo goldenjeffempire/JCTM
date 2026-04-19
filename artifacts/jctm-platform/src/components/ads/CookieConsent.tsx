@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Cookie, Shield, BarChart3, Megaphone, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
 export type ConsentState = {
   essential: true;
@@ -14,9 +15,9 @@ const LEGACY_KEY = "jctm_cookie_notice_dismissed";
 
 export function getConsentState(): ConsentState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeLocalGet(STORAGE_KEY);
     if (raw) return JSON.parse(raw) as ConsentState;
-    if (localStorage.getItem(LEGACY_KEY)) {
+    if (safeLocalGet(LEGACY_KEY)) {
       return { essential: true, analytics: true, advertising: true };
     }
   } catch { /* ignore */ }
@@ -25,8 +26,8 @@ export function getConsentState(): ConsentState | null {
 
 function saveConsent(state: ConsentState) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    localStorage.setItem(LEGACY_KEY, "1");
+    safeLocalSet(STORAGE_KEY, JSON.stringify(state));
+    safeLocalSet(LEGACY_KEY, "1");
   } catch { /* ignore */ }
 }
 

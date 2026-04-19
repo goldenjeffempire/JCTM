@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Globe, X, Check } from "lucide-react";
 import { useLanguage, LANGUAGES } from "@/contexts/LanguageContext";
 import { useGeo } from "@/contexts/GeoContext";
+import { safeSessionGet, safeSessionSet } from "@/lib/utils";
 
 const GEO_LANGUAGE_HINTS: Record<string, string> = {
   NG: "yo",
@@ -81,7 +82,7 @@ export function LanguageSuggestionBanner() {
   const [suggestedCode, setSuggestedCode] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isLoading || language !== "en" || sessionStorage.getItem(DISMISSED_KEY)) {
+    if (isLoading || language !== "en" || safeSessionGet(DISMISSED_KEY)) {
       return undefined;
     }
 
@@ -98,7 +99,7 @@ export function LanguageSuggestionBanner() {
 
   const dismiss = () => {
     setVisible(false);
-    sessionStorage.setItem(DISMISSED_KEY, "1");
+    safeSessionSet(DISMISSED_KEY, "1");
   };
 
   const accept = () => {

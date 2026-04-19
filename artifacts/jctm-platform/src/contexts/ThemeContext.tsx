@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
 type Theme = "light" | "dark";
 
@@ -17,7 +18,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
-      const stored = localStorage.getItem("jctm-theme") as Theme | null;
+      const stored = safeLocalGet("jctm-theme") as Theme | null;
       if (stored === "dark" || stored === "light") return stored;
     } catch {}
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -31,7 +32,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.remove("dark");
     }
     try {
-      localStorage.setItem("jctm-theme", theme);
+      safeLocalSet("jctm-theme", theme);
     } catch {}
   }, [theme]);
 

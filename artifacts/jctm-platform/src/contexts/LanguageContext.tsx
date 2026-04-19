@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { uiString } from "@/i18n/ui";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -92,13 +93,13 @@ const translationCache = new Map<string, string>();
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem("jctm-language") ?? "en";
+    return safeLocalGet("jctm-language") ?? "en";
   });
   const [isTranslating, setIsTranslating] = useState(false);
 
   const handleSetLanguage = useCallback((lang: string) => {
     setLanguage(lang);
-    localStorage.setItem("jctm-language", lang);
+    safeLocalSet("jctm-language", lang);
     document.documentElement.setAttribute("dir", RTL_LANGUAGES.has(lang) ? "rtl" : "ltr");
     document.documentElement.setAttribute("lang", lang);
   }, []);

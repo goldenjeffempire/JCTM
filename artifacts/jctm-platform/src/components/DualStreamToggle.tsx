@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Wifi, WifiOff, Zap, Tv } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
 export type StreamQuality = "low" | "high";
 
@@ -57,12 +58,13 @@ export function DualStreamToggle({ quality, onToggle, className = "" }: DualStre
 // Hook for managing stream quality with localStorage persistence
 export function useStreamQuality() {
   const [quality, setQuality] = useState<StreamQuality>(() => {
-    return (localStorage.getItem("jctm-stream-quality") as StreamQuality) ?? "high";
+    const stored = safeLocalGet("jctm-stream-quality");
+    return stored === "low" || stored === "high" ? stored : "high";
   });
 
   const toggle = (q: StreamQuality) => {
     setQuality(q);
-    localStorage.setItem("jctm-stream-quality", q);
+    safeLocalSet("jctm-stream-quality", q);
   };
 
   return { quality, toggle };

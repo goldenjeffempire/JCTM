@@ -18,6 +18,10 @@ let rssCronHandle:       ReturnType<typeof setInterval> | null = null;
 let websubCronHandle:    ReturnType<typeof setInterval> | null = null;
 let metadataCronHandle:  ReturnType<typeof setInterval> | null = null;
 let reminderCronHandle:  ReturnType<typeof setInterval> | null = null;
+let apiStartupTimer: ReturnType<typeof setTimeout> | null = null;
+let metadataStartupTimer: ReturnType<typeof setTimeout> | null = null;
+let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+let dailyDevotionHandle: ReturnType<typeof setInterval> | null = null;
 
 let quotaPausedUntil: number | null = null;
 let openaiQuotaPausedUntil: number | null = null;
@@ -384,7 +388,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
     // Delay the first API sync by 35 seconds so RSS has time to complete its
     // startup run (and any immediate enrichment) before the API cron fires —
     // this avoids double-consuming quota in the first seconds after boot.
-    setTimeout(() => {
+    apiStartupTimer = setTimeout(() => {
       runApiSync(apiKey, log);
       apiCronHandle = setInterval(() => runApiSync(apiKey, log), API_INTERVAL_MS);
       if (apiCronHandle) apiCronHandle.unref();
@@ -398,7 +402,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
 
   // ── AI Metadata enrichment — every 10 minutes (batch of 5) ──────────────
   log.info("Starting AI metadata enrichment cron (10-min, 5 sermons/batch)");
-  setTimeout(() => {
+  metadataStartupTimer = setTimeout(() => {
     runMetadataEnrichment(log);
     metadataCronHandle = setInterval(() => runMetadataEnrichment(log), METADATA_INTERVAL_MS);
     if (metadataCronHandle) metadataCronHandle.unref();
@@ -418,10 +422,10 @@ export function startCron(log: Logger, websubUrl?: string): void {
     { firesInMinutes: Math.round(msToMidnight / 60_000) },
     "Midnight devotion pre-generation scheduled",
   );
-  const midnightTimer = setTimeout(() => {
+  midnightTimer = setTimeout(() => {
     preGenerateTomorrowsDevotion(log);
-    const dailyHandle = setInterval(() => preGenerateTomorrowsDevotion(log), DAILY_MS);
-    dailyHandle.unref();
+    dailyDevotionHandle = setInterval(() => preGenerateTomorrowsDevotion(log), DAILY_MS);
+    dailyDevotionHandle.unref();
   }, msToMidnight);
   // Allow process to exit even if this timer is pending
   if (typeof midnightTimer === "object" && midnightTimer !== null && "unref" in midnightTimer) {
@@ -434,9 +438,16 @@ export function startCron(log: Logger, websubUrl?: string): void {
 export function stopCron(): void {
   [apiCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle]
     .forEach(h => h && clearInterval(h));
+  [apiStartupTimer, metadataStartupTimer, midnightTimer]
+    .forEach(h => h && clearTimeout(h));
+  if (dailyDevotionHandle) clearInterval(dailyDevotionHandle);
   apiCronHandle = null;
   rssCronHandle = null;
   websubCronHandle = null;
   metadataCronHandle = null;
   reminderCronHandle = null;
+  apiStartupTimer = null;
+  metadataStartupTimer = null;
+  midnightTimer = null;
+  dailyDevotionHandle = null;
 }
