@@ -319,7 +319,16 @@ async function fetchWithRetry(url: string, retries = 3, delayMs = 1000): Promise
 
 async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
   const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) return { isLive: false, isUpcoming: false, title: null, videoId: null, scheduledStartTime: null };
+
+  const empty: YouTubeCheckResult = {
+    isLive: false,
+    isUpcoming: false,
+    title: null,
+    videoId: null,
+    scheduledStartTime: null,
+  };
+
+  if (!apiKey) return empty;
 
   if (youtubeCheckCache && Date.now() - youtubeCheckCache.checkedAt < CACHE_TTL_MS) {
     return {
@@ -331,81 +340,81 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
     };
   }
 
-  const empty: YouTubeCheckResult = {
-    isLive: false,
-    isUpcoming: false,
-    title: null,
-    videoId: null,
-    scheduledStartTime: null,
-  };
-
   try {
-    const liveUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${JCTM_CHANNEL_ID}&eventType=live&type=video&key=${apiKey}`;
-    const liveRes = await fetchWithRetry(liveUrl);
+    // ── Step 1: RSS feed (quota-free) ─────────────────────────────────────────
+    // The YouTube channel Atom feed returns the latest 15 videos without
+    // consuming any YouTube Data API quota at all.  We extract the video IDs
+    // then check their live status in a single videos.list call (1 unit) instead
+    // of a search.list call (100 units each).  This reduces quota burn from
+    // 200 units/poll to 1 unit/poll — a 200× improvement that prevents quota
+    // exhaustion during the Sunday service polling window.
 
-    if (liveRes.ok) {
-      const liveData = await liveRes.json() as {
-        items?: { id?: { videoId?: string }; snippet?: { title?: string } }[];
-      };
-      const liveItems = liveData.items ?? [];
-      if (liveItems.length > 0) {
-        const first = liveItems[0]!;
-        const result: YouTubeCheckResult = {
-          isLive: true,
-          isUpcoming: false,
-          title: first.snippet?.title ?? "Holy Spirit Sunday Service — Live",
-          videoId: first.id?.videoId ?? null,
-          scheduledStartTime: null,
-        };
-        youtubeCheckCache = { ...result, checkedAt: Date.now() };
-        return result;
-      }
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${JCTM_CHANNEL_ID}`;
+    const rssRes = await fetchWithRetry(rssUrl);
+    const rssText = rssRes.ok ? await rssRes.text() : "";
+
+    // Safe regex extraction — the Atom format for this endpoint is stable
+    const rssVideoIds = [...rssText.matchAll(/<yt:videoId>([^<]+)<\/yt:videoId>/g)]
+      .map(m => m[1]!.trim())
+      .filter(Boolean)
+      .slice(0, 8); // 8 most-recent is plenty to catch any live/upcoming stream
+
+    if (rssVideoIds.length === 0) {
+      youtubeCheckCache = { ...empty, checkedAt: Date.now() };
+      return empty;
     }
 
-    const upcomingUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${JCTM_CHANNEL_ID}&eventType=upcoming&type=video&key=${apiKey}&maxResults=1`;
-    const upcomingRes = await fetchWithRetry(upcomingUrl);
+    // ── Step 2: videos.list (1 quota unit for up to 8 IDs) ───────────────────
+    const detailUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${rssVideoIds.join(",")}&key=${apiKey}`;
+    const detailRes = await fetchWithRetry(detailUrl);
 
-    if (upcomingRes.ok) {
-      const upcomingData = await upcomingRes.json() as {
-        items?: {
-          id?: { videoId?: string };
-          snippet?: { title?: string; liveBroadcastContent?: string };
-        }[];
-      };
-      const upcomingItems = upcomingData.items ?? [];
-      if (upcomingItems.length > 0) {
-        const first = upcomingItems[0]!;
-        const videoId = first.id?.videoId ?? null;
+    if (!detailRes.ok) {
+      // Quota exhausted or other API error — silently return empty so any
+      // existing manual override remains in effect and automation stands down.
+      youtubeCheckCache = { ...empty, checkedAt: Date.now() };
+      return empty;
+    }
 
-        let scheduledStartTime: string | null = null;
-        if (videoId) {
-          try {
-            const detailUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails,snippet&id=${videoId}&key=${apiKey}`;
-            const detailRes = await fetchWithRetry(detailUrl);
-            if (detailRes.ok) {
-              const detailData = await detailRes.json() as {
-                items?: {
-                  liveStreamingDetails?: { scheduledStartTime?: string };
-                  snippet?: { title?: string };
-                }[];
-              };
-              scheduledStartTime = detailData.items?.[0]?.liveStreamingDetails?.scheduledStartTime ?? null;
-            }
-          } catch {
-            // Non-critical
-          }
-        }
-
-        const result: YouTubeCheckResult = {
-          isLive: false,
-          isUpcoming: true,
-          title: first.snippet?.title ?? "Upcoming Service on Temple TV",
-          videoId,
-          scheduledStartTime,
+    const detailData = await detailRes.json() as {
+      items?: {
+        id?: string;
+        snippet?: { title?: string; liveBroadcastContent?: string };
+        liveStreamingDetails?: {
+          scheduledStartTime?: string;
+          actualStartTime?: string;
+          actualEndTime?: string;
         };
-        youtubeCheckCache = { ...result, checkedAt: Date.now() };
-        return result;
-      }
+      }[];
+    };
+
+    const items = detailData.items ?? [];
+
+    // Priority 1 — currently live
+    const liveItem = items.find(i => i.snippet?.liveBroadcastContent === "live");
+    if (liveItem) {
+      const result: YouTubeCheckResult = {
+        isLive: true,
+        isUpcoming: false,
+        title: liveItem.snippet?.title ?? "Holy Spirit Sunday Service — Live",
+        videoId: liveItem.id ?? null,
+        scheduledStartTime: null,
+      };
+      youtubeCheckCache = { ...result, checkedAt: Date.now() };
+      return result;
+    }
+
+    // Priority 2 — upcoming (scheduled broadcast not yet started)
+    const upcomingItem = items.find(i => i.snippet?.liveBroadcastContent === "upcoming");
+    if (upcomingItem) {
+      const result: YouTubeCheckResult = {
+        isLive: false,
+        isUpcoming: true,
+        title: upcomingItem.snippet?.title ?? "Upcoming Service on Temple TV",
+        videoId: upcomingItem.id ?? null,
+        scheduledStartTime: upcomingItem.liveStreamingDetails?.scheduledStartTime ?? null,
+      };
+      youtubeCheckCache = { ...result, checkedAt: Date.now() };
+      return result;
     }
 
     youtubeCheckCache = { ...empty, checkedAt: Date.now() };
