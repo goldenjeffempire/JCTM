@@ -21,6 +21,7 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
+import { Helmet } from "react-helmet-async";
 import { SEO } from "@/components/SEO";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { Badge } from "@/components/ui/badge";
@@ -710,8 +711,8 @@ function RebroadcastBanner() {
 // HERO — Cinematic Multi-Image Sanctuary: Immersive Full-Viewport
 // ═══════════════════════════════════════════════════════════════════════════
 const HERO_IMAGES = [
-  { key: "img1", src: "/founder/DSC_9074.jpg", label: "Prophetic Word", tag: "Prophet", title: "Prophetic Declaration", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img2", src: "/founder/DSC_9075.jpg", label: "Apostolic Voice", tag: "Ministry", title: "Apostolic Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img1", src: "/founder/DSC3371.jpg", label: "Prophetic Word", tag: "Prophet", title: "Prophetic Declaration", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img2", src: "/founder/DSC3376.jpg", label: "Apostolic Voice", tag: "Ministry", title: "Apostolic Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img3", src: "/founder/DSC1657.jpg", label: "Worship", tag: "Praise", title: "Corporate Worship", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach", title: "Crusade & Evangelism", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry", title: "The Preaching Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
@@ -1779,12 +1780,12 @@ function TestimoniesMarquee() {
 // PROPHET SECTION — Cinematic dual-photo editorial layout with interactive gallery
 // ═══════════════════════════════════════════════════════════════════════════
 const FOUNDER_PHOTOS = [
-  { key: "photo1", src: "/founder/DSC_0615.jpg", label: "Photo 1" },
-  { key: "photo2", src: "/founder/DSC_0649.jpg", label: "Photo 2" },
-  { key: "photo3", src: "/founder/DSC1657.jpg", label: "Photo 3" },
-  { key: "photo4", src: "/founder/DSC1671.jpg", label: "Photo 4" },
-  { key: "photo5", src: "/founder/DSC1743.jpg", label: "Photo 5" },
-  { key: "photo6", src: "/founder/DSC1774.jpg", label: "Photo 6" },
+  { key: "photo1", src: "/founder/DSC3371.jpg", label: "Portrait" },
+  { key: "photo2", src: "/founder/DSC3376.jpg", label: "Preaching" },
+  { key: "photo3", src: "/founder/DSC1657.jpg", label: "Worship" },
+  { key: "photo4", src: "/founder/DSC1671.jpg", label: "Crusade" },
+  { key: "photo5", src: "/founder/DSC1743.jpg", label: "Ministry" },
+  { key: "photo6", src: "/founder/DSC1774.jpg", label: "Prayer" },
 ];
 
 function ProphetSection() {
@@ -4014,6 +4015,10 @@ function GlobalAltarSection() {
 export default function Home() {
   return (
     <Layout>
+      <Helmet>
+        <link rel="preload" as="image" href="/founder/DSC3371.jpg" fetchpriority="high" />
+        <link rel="preload" as="image" href="/founder/DSC3376.jpg" fetchpriority="high" />
+      </Helmet>
       <SEO
         title="Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary"
         description="Welcome to JCTM — Jesus Christ Temple Ministry, Warri Nigeria. Watch Temple TV sermons and rebroadcasts, give online, experience the Correction Mandate, and connect with Prophet Amos Evomobor's ministry."
