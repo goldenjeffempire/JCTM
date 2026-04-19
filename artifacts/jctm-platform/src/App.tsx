@@ -12,6 +12,7 @@ import { VoiceTempleBots } from "@/components/VoiceTempleBots";
 import { CookieConsent } from "@/components/ads/CookieConsent";
 import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 import { BroadcastEngagementSystem } from "@/components/BroadcastEngagementSystem";
+import { useVisitorHeartbeat } from "@/hooks/useVisitorHeartbeat";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -116,6 +117,11 @@ function Router() {
   );
 }
 
+function VisitorHeartbeat() {
+  useVisitorHeartbeat();
+  return null;
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -131,6 +137,7 @@ function App() {
             <CookieConsent />
             <PushNotificationPrompt />
             <BroadcastEngagementSystem />
+            <VisitorHeartbeat />
           </ErrorBoundary>
           <Toaster
             position="top-center"

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -8,6 +8,7 @@ import {
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
   Power, Repeat2, LayoutDashboard, Image, FileText,
   Shield, Menu, KeyRound, ImageOff, Bell, Send,
+  TrendingUp, Globe, Monitor, Smartphone, Tablet, Signal,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -17,6 +18,7 @@ import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Bar, ComposedChart, ResponsiveContainer,
+  LineChart, Line,
 } from "recharts";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -143,6 +145,267 @@ function ConfigRow({ label, value, mono, status }: { label: string; value: strin
   );
 }
 
+// ─── Active Visitors Panel ────────────────────────────────────────────────────
+
+const PAGE_LABELS: Record<string, string> = {
+  "/":                    "Home",
+  "/sermons":             "Sermons",
+  "/give":                "Give",
+  "/prayer":              "Prayer",
+  "/testimonies":         "Testimonies",
+  "/events":              "Events",
+  "/blog":                "Blog",
+  "/gallery":             "Gallery",
+  "/members":             "Members",
+  "/about":               "About",
+  "/devotion":            "Devotion",
+  "/moments":             "Moments",
+  "/sermon-assistant":    "AI Assistant",
+  "/topics":              "Topics",
+  "/scripture-study":     "Scripture Study",
+  "/spiritual-insight":   "Spiritual Insight",
+  "/leadership":          "Leadership",
+  "/join":                "Join",
+  "/crusade":             "Crusade",
+  "/viewing-centres":     "Viewing Centres",
+  "/admin":               "Admin",
+};
+
+function labelPage(path: string): string {
+  if (PAGE_LABELS[path]) return PAGE_LABELS[path]!;
+  if (path.startsWith("/sermons/")) return "Sermon Detail";
+  if (path.startsWith("/blog/"))    return "Blog Post";
+  if (path.startsWith("/topics/"))  return "Topic";
+  return path;
+}
+
+interface VisitorState {
+  total: number;
+  active: number;
+  pages: { page: string; count: number }[];
+  timestamp: number;
+}
+
+interface SparkPoint { t: string; v: number }
+
+type ConnStatus = "connecting" | "connected" | "disconnected";
+
+const MAX_SPARK = 30;
+
+function ActiveVisitorsPanel() {
+  const [state, setState] = useState<VisitorState>({
+    total: 0, active: 0, pages: [], timestamp: Date.now(),
+  });
+  const [spark, setSpark] = useState<SparkPoint[]>([]);
+  const [conn, setConn] = useState<ConnStatus>("connecting");
+  const esRef = useRef<EventSource | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const connect = useCallback(() => {
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    setConn("connecting");
+
+    const es = new EventSource(`${BASE}/api/visitors/stream`);
+    esRef.current = es;
+
+    es.onopen = () => setConn("connected");
+
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data) as VisitorState;
+        setState(data);
+        const label = new Date(data.timestamp).toLocaleTimeString("en-NG", {
+          hour: "2-digit", minute: "2-digit", second: "2-digit",
+        });
+        setSpark(prev => {
+          const next = [...prev, { t: label, v: data.active }];
+          return next.length > MAX_SPARK ? next.slice(next.length - MAX_SPARK) : next;
+        });
+        setConn("connected");
+      } catch { /* ignore parse errors */ }
+    };
+
+    es.onerror = () => {
+      setConn("disconnected");
+      es.close();
+      esRef.current = null;
+      reconnectRef.current = setTimeout(connect, 5_000);
+    };
+  }, []);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      esRef.current?.close();
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    };
+  }, [connect]);
+
+  const connColor = conn === "connected" ? "text-emerald-400" : conn === "connecting" ? "text-amber-400" : "text-red-400";
+  const connDot   = conn === "connected" ? "bg-emerald-400 animate-pulse" : conn === "connecting" ? "bg-amber-400 animate-pulse" : "bg-red-500";
+  const connLabel = conn === "connected" ? "Live" : conn === "connecting" ? "Connecting…" : "Reconnecting…";
+
+  const topPages = state.pages.slice(0, 6);
+  const maxPageCount = Math.max(...topPages.map(p => p.count), 1);
+
+  const sparkMin = Math.max(0, Math.min(...spark.map(s => s.v)) - 1);
+  const sparkMax = Math.max(...spark.map(s => s.v), 1) + 1;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
+            <Signal className="w-4 h-4 text-primary" />
+          </div>
+          <span className="font-semibold text-sm">Real-Time Visitors</span>
+        </div>
+        <div className={`flex items-center gap-1.5 text-xs font-medium ${connColor}`}>
+          <span className={`w-2 h-2 rounded-full ${connDot}`} />
+          {connLabel}
+        </div>
+      </div>
+
+      <div className="p-5 space-y-5">
+        {/* Hero metrics row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Active right now */}
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Active Now
+            </div>
+            <motion.p
+              key={state.active}
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-4xl font-black text-emerald-400 tabular-nums leading-none"
+            >
+              {state.active}
+            </motion.p>
+            <p className="text-[11px] text-muted-foreground">visitors on site</p>
+          </div>
+
+          {/* Total all-time */}
+          <div className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
+              <Globe className="w-3 h-3" />
+              Total Visitors
+            </div>
+            <p className="text-4xl font-black text-primary tabular-nums leading-none">
+              {state.total.toLocaleString()}
+            </p>
+            <p className="text-[11px] text-muted-foreground">all-time unique</p>
+          </div>
+        </div>
+
+        {/* Sparkline */}
+        {spark.length > 1 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <TrendingUp className="w-3 h-3" /> Active visitors (last {spark.length} readings)
+              </span>
+              <span className="text-xs text-muted-foreground">30 s intervals</span>
+            </div>
+            <div className="h-24 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={spark} margin={{ top: 4, right: 4, left: -30, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#4ade80" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                  <YAxis
+                    domain={[sparkMin, sparkMax]}
+                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false} tickLine={false} allowDecimals={false}
+                    width={28}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "0.5rem",
+                      fontSize: "11px",
+                      color: "hsl(var(--foreground))",
+                      padding: "6px 10px",
+                    }}
+                    formatter={(v: number) => [v, "Active"]}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))", fontSize: "10px" }}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.t ?? ""}
+                  />
+                  <Line
+                    type="monotone" dataKey="v"
+                    stroke="#4ade80" strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 3, fill: "#4ade80", strokeWidth: 0 }}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Pages breakdown */}
+        {topPages.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Eye className="w-3 h-3" /> Active by Page
+            </p>
+            <div className="space-y-2">
+              {topPages.map(({ page, count }) => {
+                const pct = Math.round((count / maxPageCount) * 100);
+                return (
+                  <div key={page}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs text-foreground font-medium">{labelPage(page)}</span>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-semibold text-emerald-400">{count}</span>
+                        <span className="text-muted-foreground w-6 text-right">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-emerald-400"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {state.active === 0 && conn === "connected" && (
+          <div className="text-center py-4">
+            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">No active visitors right now</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">The panel updates within 30 seconds of a new visit</p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-1 border-t border-border text-[10px] text-muted-foreground">
+          <span>Updates every 30 s · 2-min session window</span>
+          <span>
+            {state.timestamp ? new Date(state.timestamp).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLivestreamStatus> }) {
@@ -158,6 +421,8 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
   return (
     <div className="space-y-5">
       <SectionHeader title="Overview" description="Live platform status and automation engine" />
+
+      <ActiveVisitorsPanel />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
