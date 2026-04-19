@@ -6,8 +6,7 @@ import {
   ListTestimoniesResponse,
   SubmitTestimonyBody,
 } from "@workspace/api-zod";
-import { requireAdmin } from "../middleware/auth.js";
-import { verifyAdminToken, getAdminTokenFromRequest } from "../lib/adminAuth.js";
+import { verifyAdminToken, getAdminTokenFromRequest, requireAdminRole } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 
@@ -94,7 +93,7 @@ router.post("/testimonies/:id/like", async (req, res): Promise<void> => {
 // ── PATCH /api/testimonies/:id/approve — Admin: approve a testimony ───────────
 router.patch(
   "/testimonies/:id/approve",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAdminRole(["gallery", "sermon", "livestream"]),
   async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {
@@ -131,7 +130,7 @@ router.patch(
 // ── DELETE /api/testimonies/:id — Admin: delete a testimony ───────────────────
 router.delete(
   "/testimonies/:id",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAdminRole(["gallery", "sermon", "livestream"]),
   async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {

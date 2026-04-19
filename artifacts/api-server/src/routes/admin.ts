@@ -1,14 +1,13 @@
 /**
  * Admin Routes — Protected management endpoints
  *
- * All routes require admin role via requireAdmin middleware.
+ * Management endpoints require role-based admin authorization.
  * Provides metrics, content management, feedback review, and blog generation.
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sermonsTable, aiFeedbackTable, blogPostsTable } from "@workspace/db";
 import { desc, count, avg, sql, eq } from "drizzle-orm";
-import { requireAdmin, type AuthenticatedRequest } from "../middleware/auth.js";
 import { generateBlogPost, BLOG_TOPICS } from "../lib/blog-generator.js";
 import { generateSermonTranscriptSummary } from "../lib/blog-generator.js";
 import { pool } from "@workspace/db";
@@ -16,8 +15,10 @@ import OpenAI from "openai";
 import { logger } from "../lib/logger.js";
 import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
+import { requireAdminRole } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
+const requireAnyRoleAdmin = requireAdminRole(["gallery", "sermon", "livestream"]);
 
 const getOpenAI = () =>
   process.env.OPENAI_API_KEY
@@ -99,7 +100,7 @@ async function getRealtimeDashboardSnapshot() {
   };
 }
 
-router.get("/admin/realtime", async (_req: Request, res: Response): Promise<void> => {
+router.get("/admin/realtime", requireAnyRoleAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     res.setHeader("Cache-Control", "no-store");
     res.json(await getRealtimeDashboardSnapshot());
@@ -109,7 +110,7 @@ router.get("/admin/realtime", async (_req: Request, res: Response): Promise<void
   }
 });
 
-router.get("/admin/realtime/stream", async (req: Request, res: Response): Promise<void> => {
+router.get("/admin/realtime/stream", requireAnyRoleAdmin, async (req: Request, res: Response): Promise<void> => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
@@ -143,7 +144,7 @@ router.get("/admin/realtime/stream", async (req: Request, res: Response): Promis
 // ── GET /api/admin/metrics ────────────────────────────────────────────────────
 router.get(
   "/admin/metrics",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAnyRoleAdmin,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const [sermonCount] = await db.select({ count: count() }).from(sermonsTable);
@@ -203,7 +204,7 @@ router.get(
 // ── GET /api/admin/feedback ───────────────────────────────────────────────────
 router.get(
   "/admin/feedback",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAnyRoleAdmin,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const limit = Math.min(Number(req.query.limit ?? 50), 200);
@@ -226,7 +227,7 @@ router.get(
 // ── POST /api/admin/blog/generate ─────────────────────────────────────────────
 router.post(
   "/admin/blog/generate",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
     const openai = getOpenAI();
     if (!openai) {
@@ -234,8 +235,13 @@ router.post(
       return;
     }
 
-    const { topicIndex } = req.body as { topicIndex?: number };
-    const topic = topicIndex !== undefined ? BLOG_TOPICS[topicIndex] : BLOG_TOPICS[Math.floor(Math.random() * BLOG_TOPICS.length)];
+    const { topicIndex, topic: requestedTopic } = req.body as { topicIndex?: number; topic?: string };
+    const topic =
+      typeof requestedTopic === "string" && requestedTopic.trim()
+        ? requestedTopic.trim()
+        : topicIndex !== undefined
+          ? BLOG_TOPICS[topicIndex]
+          : BLOG_TOPICS[Math.floor(Math.random() * BLOG_TOPICS.length)];
 
     if (!topic) {
       res.status(400).json({ error: "Invalid topic index" });
@@ -282,7 +288,7 @@ router.post(
 // ── POST /api/admin/sermons/:id/index-transcript ───────────────────────────────
 router.post(
   "/admin/sermons/:id/index-transcript",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
     const openai = getOpenAI();
     if (!openai) {
@@ -331,7 +337,7 @@ router.post(
 // ── GET /api/admin/members ────────────────────────────────────────────────────
 router.get(
   "/admin/members",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAnyRoleAdmin,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const result = await pool.query(
@@ -350,7 +356,7 @@ router.get(
 // ── PATCH /api/admin/members/:id/role ─────────────────────────────────────────
 router.patch(
   "/admin/members/:id/role",
-  requireAdmin as unknown as (req: Request, res: Response) => void,
+  requireAnyRoleAdmin,
   async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);
     const { role } = req.body as { role?: string };

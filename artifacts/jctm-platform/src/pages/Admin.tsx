@@ -15,7 +15,6 @@ import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
-import { safeLocalGet } from "@/lib/utils";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Bar, ComposedChart, ResponsiveContainer,
@@ -239,12 +238,28 @@ interface RealtimePoint {
   rebroadcastViewers: number;
 }
 
-function useRealtimeDashboard() {
+type AdminAuth = ReturnType<typeof useAdminAuth>;
+
+async function readApiJson<T>(res: Response, fallbackMessage: string): Promise<T> {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = typeof data?.error === "string" ? data.error : fallbackMessage;
+    throw new Error(message);
+  }
+  return data as T;
+}
+
+function formatAdminError(error: unknown, fallback = "Action failed"): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function useRealtimeDashboard(adminToken: string, onUnauthorized: () => void) {
   const [snapshot, setSnapshot] = useState<RealtimeDashboardSnapshot | null>(null);
   const [history, setHistory] = useState<RealtimePoint[]>([]);
   const [conn, setConn] = useState<ConnStatus>("connecting");
   const esRef = useRef<EventSource | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryDelayRef = useRef(2_000);
 
   const recordSnapshot = useCallback((data: RealtimeDashboardSnapshot) => {
     setSnapshot(data);
@@ -269,12 +284,25 @@ function useRealtimeDashboard() {
   }, []);
 
   const connect = useCallback(() => {
+    if (!adminToken) {
+      esRef.current?.close();
+      esRef.current = null;
+      setConn("disconnected");
+      return;
+    }
+    if (reconnectRef.current) {
+      clearTimeout(reconnectRef.current);
+      reconnectRef.current = null;
+    }
     esRef.current?.close();
     setConn("connecting");
-    const es = new EventSource(`${BASE}/api/admin/realtime/stream`);
+    const es = new EventSource(`${BASE}/api/admin/realtime/stream?adminToken=${encodeURIComponent(adminToken)}`);
     esRef.current = es;
 
-    es.onopen = () => setConn("connected");
+    es.onopen = () => {
+      retryDelayRef.current = 2_000;
+      setConn("connected");
+    };
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as RealtimeDashboardSnapshot;
@@ -289,15 +317,26 @@ function useRealtimeDashboard() {
       setConn("disconnected");
       es.close();
       esRef.current = null;
-      fetch(`${BASE}/api/admin/realtime`, { cache: "no-store" })
-        .then(r => r.ok ? r.json() : null)
+      fetch(`${BASE}/api/admin/realtime`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+        .then(r => {
+          if (r.status === 401) {
+            onUnauthorized();
+            throw new Error("unauthorized");
+          }
+          return r.ok ? r.json() : null;
+        })
         .then((data: RealtimeDashboardSnapshot | null) => {
           if (data?.type === "dashboard_realtime") recordSnapshot(data);
         })
         .catch(() => null);
-      reconnectRef.current = setTimeout(connect, 5_000);
+      const delay = retryDelayRef.current;
+      retryDelayRef.current = Math.min(delay * 2, 30_000);
+      reconnectRef.current = setTimeout(connect, delay + Math.floor(Math.random() * 750));
     };
-  }, [recordSnapshot]);
+  }, [adminToken, onUnauthorized, recordSnapshot]);
 
   useEffect(() => {
     connect();
@@ -450,54 +489,10 @@ function AudienceCommandCenter({ snapshot, history, conn }: { snapshot: Realtime
   );
 }
 
-function ActiveVisitorsPanel() {
-  const [state, setState] = useState<VisitorState>({
+function ActiveVisitorsPanel({ state: providedState, spark, conn }: { state: VisitorState | null | undefined; spark: SparkPoint[]; conn: ConnStatus }) {
+  const state = providedState ?? {
     total: 0, active: 0, pages: [], timestamp: Date.now(),
-  });
-  const [spark, setSpark] = useState<SparkPoint[]>([]);
-  const [conn, setConn] = useState<ConnStatus>("connecting");
-  const esRef = useRef<EventSource | null>(null);
-  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const connect = useCallback(() => {
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
-    setConn("connecting");
-
-    const es = new EventSource(`${BASE}/api/visitors/stream`);
-    esRef.current = es;
-
-    es.onopen = () => setConn("connected");
-
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data) as VisitorState;
-        setState(data);
-        const label = new Date(data.timestamp).toLocaleTimeString("en-NG", {
-          hour: "2-digit", minute: "2-digit", second: "2-digit",
-        });
-        setSpark(prev => {
-          const next = [...prev, { t: label, v: data.active }];
-          return next.length > MAX_SPARK ? next.slice(next.length - MAX_SPARK) : next;
-        });
-        setConn("connected");
-      } catch { /* ignore parse errors */ }
-    };
-
-    es.onerror = () => {
-      setConn("disconnected");
-      es.close();
-      esRef.current = null;
-      reconnectRef.current = setTimeout(connect, 5_000);
-    };
-  }, []);
-
-  useEffect(() => {
-    connect();
-    return () => {
-      esRef.current?.close();
-      if (reconnectRef.current) clearTimeout(reconnectRef.current);
-    };
-  }, [connect]);
+  };
 
   const connColor = conn === "connected" ? "text-emerald-400" : conn === "connecting" ? "text-amber-400" : "text-red-400";
   const connDot   = conn === "connected" ? "bg-emerald-400 animate-pulse" : conn === "connecting" ? "bg-amber-400 animate-pulse" : "bg-red-500";
@@ -666,8 +661,11 @@ function ActiveVisitorsPanel() {
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
-function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLivestreamStatus> }) {
-  const realtime = useRealtimeDashboard();
+function OverviewSection({ liveStatus, adminAuth }: { liveStatus: ReturnType<typeof useLivestreamStatus>; adminAuth: AdminAuth }) {
+  const realtime = useRealtimeDashboard(adminAuth.adminToken, adminAuth.logout);
+  const visitorSpark = realtime.history
+    .map(point => ({ t: point.t, v: point.visitors }))
+    .slice(-MAX_SPARK);
   const { data, isLoading } = useQuery<BroadcastStatus>({
     queryKey: ["broadcast-status"],
     queryFn: () => fetch(`${BASE}/api/broadcast/status`).then(r => r.json()),
@@ -680,7 +678,9 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
     <div className="space-y-5">
       <SectionHeader title="Overview" description="Real-time platform activity, audience engagement, and broadcast operations" />
 
-      <AudienceCommandCenter snapshot={realtime.snapshot} history={realtime.history} conn={realtime.conn} />
+      <AdminLoginGate role="livestream" auth={adminAuth} title="Realtime Dashboard">
+        <AudienceCommandCenter snapshot={realtime.snapshot} history={realtime.history} conn={realtime.conn} />
+      </AdminLoginGate>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
@@ -696,7 +696,9 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
         ))}
       </div>
 
-      <ActiveVisitorsPanel />
+      <AdminLoginGate role="livestream" auth={adminAuth} compact title="Realtime Visitors">
+        <ActiveVisitorsPanel state={realtime.snapshot?.visitors} spark={visitorSpark} conn={realtime.conn} />
+      </AdminLoginGate>
 
       {isLoading ? <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" /> : data && (
         <Card>
@@ -1969,34 +1971,39 @@ function TestimonyCard({ t, onApprove, onUnapprove, onDelete, isPending }: { t: 
   );
 }
 
-function TestimoniesSection() {
+function TestimoniesSection({ auth }: { auth: AdminAuth }) {
   const qc = useQueryClient();
-  const token = safeLocalGet("jctm_token") ?? "";
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
 
   const { data, isLoading, refetch } = useQuery<{ testimonies: TestimonyItem[] }>({
     queryKey: ["admin-testimonies"],
-    queryFn: () => fetch(`${BASE}/api/testimonies?all=true&limit=50`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/testimonies?all=true&limit=50`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return { testimonies: await readApiJson<TestimonyItem[]>(res, "Unable to load testimonies") };
+    },
+    enabled: !!auth.adminToken,
     staleTime: 0,
   });
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
-      const res = await fetch(`${BASE}/api/testimonies/${id}/approve`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ approved }) });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const res = await fetch(`${BASE}/api/testimonies/${id}/approve`, { method: "PATCH", headers: { "Content-Type": "application/json", ...authHeader }, body: JSON.stringify({ approved }) });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Failed to update testimony");
     },
     onSuccess: (_, { approved }) => { toast.success(approved ? "Approved" : "Unapproved"); qc.invalidateQueries({ queryKey: ["admin-testimonies"] }); },
-    onError: () => toast.error("Action failed"),
+    onError: (error) => toast.error(formatAdminError(error)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${BASE}/api/testimonies/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const res = await fetch(`${BASE}/api/testimonies/${id}`, { method: "DELETE", headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Failed to delete testimony");
     },
     onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["admin-testimonies"] }); },
-    onError: () => toast.error("Delete failed"),
+    onError: (error) => toast.error(formatAdminError(error, "Delete failed")),
   });
 
   const testimonies = data?.testimonies ?? [];
@@ -2006,52 +2013,60 @@ function TestimoniesSection() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <SectionHeader title="Testimonies" description={isLoading ? "Loading…" : `${pending.length} pending · ${approved.length} published`} />
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-muted border border-border hover:bg-muted/80 transition-colors text-muted-foreground"><RefreshCw className="w-3 h-3" /> Refresh</button>
-      </div>
+      <AdminLoginGate role="sermon" auth={auth} title="Testimony Moderation">
+        <div className="flex items-center justify-between">
+          <SectionHeader title="Testimonies" description={isLoading ? "Loading…" : `${pending.length} pending · ${approved.length} published`} />
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-muted border border-border hover:bg-muted/80 transition-colors text-muted-foreground"><RefreshCw className="w-3 h-3" /> Refresh</button>
+        </div>
 
-      {isLoading ? (
-        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />)}</div>
-      ) : (
-        <>
-          {pending.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> Pending Review ({pending.length})</p>
-              {pending.map(t => <TestimonyCard key={t.id} t={t} onApprove={() => approveMutation.mutate({ id: t.id, approved: true })} onDelete={() => deleteMutation.mutate(t.id)} isPending={isPending} />)}
-            </div>
-          )}
-          {approved.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> Published ({approved.length})</p>
-              {approved.map(t => <TestimonyCard key={t.id} t={t} onUnapprove={() => approveMutation.mutate({ id: t.id, approved: false })} onDelete={() => deleteMutation.mutate(t.id)} isPending={isPending} />)}
-            </div>
-          )}
-          {testimonies.length === 0 && <div className="text-center py-12 text-muted-foreground"><MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-30" /><p className="text-sm">No testimonies yet</p></div>}
-        </>
-      )}
+        {isLoading ? (
+          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />)}</div>
+        ) : (
+          <>
+            {pending.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-amber-500 uppercase tracking-wide flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> Pending Review ({pending.length})</p>
+                {pending.map(t => <TestimonyCard key={t.id} t={t} onApprove={() => approveMutation.mutate({ id: t.id, approved: true })} onDelete={() => deleteMutation.mutate(t.id)} isPending={isPending} />)}
+              </div>
+            )}
+            {approved.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5" /> Published ({approved.length})</p>
+                {approved.map(t => <TestimonyCard key={t.id} t={t} onUnapprove={() => approveMutation.mutate({ id: t.id, approved: false })} onDelete={() => deleteMutation.mutate(t.id)} isPending={isPending} />)}
+              </div>
+            )}
+            {testimonies.length === 0 && <div className="text-center py-12 text-muted-foreground"><MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-30" /><p className="text-sm">No testimonies yet</p></div>}
+          </>
+        )}
+      </AdminLoginGate>
     </div>
   );
 }
 
 // ─── Platform ─────────────────────────────────────────────────────────────────
 
-function PlatformSection() {
-  const token = safeLocalGet("jctm_token") ?? "";
+function PlatformSection({ auth }: { auth: AdminAuth }) {
   const [blogTopic, setBlogTopic] = useState("holiness");
   const [generating, setGenerating] = useState(false);
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
 
   const { data: metrics, isLoading } = useQuery<PlatformMetrics>({
     queryKey: ["platform-metrics"],
-    queryFn: () => fetch(`${BASE}/api/admin/metrics`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/metrics`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<PlatformMetrics>(res, "Unable to load platform metrics");
+    },
+    enabled: !!auth.adminToken,
     staleTime: 60_000,
   });
 
   const generateBlog = async () => {
     setGenerating(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/blog/generate`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ topic: blogTopic }) });
+      const res = await fetch(`${BASE}/api/admin/blog/generate`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeader }, body: JSON.stringify({ topic: blogTopic }) });
       const data = await res.json();
+      if (res.status === 401) auth.logout();
       res.ok ? toast.success(`"${data.post?.title ?? "Article"}" generated!`) : toast.error(data.error ?? "Generation failed");
     } catch { toast.error("Network error"); } finally { setGenerating(false); }
   };
@@ -2062,39 +2077,41 @@ function PlatformSection() {
     <div className="space-y-5">
       <SectionHeader title="Platform Analytics" description="Live platform health and AI content generation" />
 
-      {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />)}</div>
-      ) : metrics ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Members",       value: metrics.platform?.members ?? 0,       icon: <Users className="w-4 h-4" /> },
-            { label: "Sermons",       value: metrics.platform?.sermons ?? 0,       icon: <BookOpen className="w-4 h-4" /> },
-            { label: "Conversations", value: metrics.platform?.conversations ?? 0, icon: <MessageSquare className="w-4 h-4" /> },
-            { label: "Testimonies",   value: metrics.platform?.testimonies ?? 0,   icon: <CheckCircle className="w-4 h-4" /> },
-            { label: "Blog Posts",    value: metrics.platform?.blogs ?? 0,         icon: <FileText className="w-4 h-4" /> },
-            { label: "AI Feedback",   value: metrics.ai?.totalFeedback ?? 0,       icon: <Activity className="w-4 h-4" /> },
-            { label: "Avg Rating",    value: metrics.ai?.averageRating ? `${metrics.ai.averageRating}/5` : "—", icon: <CheckCircle className="w-4 h-4" /> },
-            { label: "Avg Latency",   value: metrics.ai?.averageLatencyMs ? `${metrics.ai.averageLatencyMs}ms` : "—", icon: <Zap className="w-4 h-4" /> },
-          ].map(m => <MetricCard key={m.label} {...m} />)}
-        </div>
-      ) : null}
-
-      <Card>
-        <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-violet-400" /> AI Blog Generator</h3>
-        <p className="text-xs text-muted-foreground mb-4">Generate a theologically rich article using AI, grounded in JCTM doctrine.</p>
-        <div className="flex gap-3 flex-wrap items-end">
-          <div className="flex-1 min-w-[180px]">
-            <label className="text-xs text-muted-foreground mb-1 block">Topic</label>
-            <select value={blogTopic} onChange={e => setBlogTopic(e.target.value)} className="w-full text-sm rounded-xl border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20">
-              {BLOG_TOPICS.map(t => <option key={t} value={t}>{t.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}
-            </select>
+      <AdminLoginGate role="sermon" auth={auth} title="Platform Analytics">
+        {isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />)}</div>
+        ) : metrics ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Members",       value: metrics.platform?.members ?? 0,       icon: <Users className="w-4 h-4" /> },
+              { label: "Sermons",       value: metrics.platform?.sermons ?? 0,       icon: <BookOpen className="w-4 h-4" /> },
+              { label: "Conversations", value: metrics.platform?.conversations ?? 0, icon: <MessageSquare className="w-4 h-4" /> },
+              { label: "Testimonies",   value: metrics.platform?.testimonies ?? 0,   icon: <CheckCircle className="w-4 h-4" /> },
+              { label: "Blog Posts",    value: metrics.platform?.blogs ?? 0,         icon: <FileText className="w-4 h-4" /> },
+              { label: "AI Feedback",   value: metrics.ai?.totalFeedback ?? 0,       icon: <Activity className="w-4 h-4" /> },
+              { label: "Avg Rating",    value: metrics.ai?.averageRating ? `${metrics.ai.averageRating}/5` : "—", icon: <CheckCircle className="w-4 h-4" /> },
+              { label: "Avg Latency",   value: metrics.ai?.averageLatencyMs ? `${metrics.ai.averageLatencyMs}ms` : "—", icon: <Zap className="w-4 h-4" /> },
+            ].map(m => <MetricCard key={m.label} {...m} />)}
           </div>
-          <button onClick={generateBlog} disabled={generating} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors">
-            {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            {generating ? "Generating…" : "Generate Article"}
-          </button>
-        </div>
-      </Card>
+        ) : null}
+
+        <Card>
+          <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-violet-400" /> AI Blog Generator</h3>
+          <p className="text-xs text-muted-foreground mb-4">Generate a theologically rich article using AI, grounded in JCTM doctrine.</p>
+          <div className="flex gap-3 flex-wrap items-end">
+            <div className="flex-1 min-w-[180px]">
+              <label className="text-xs text-muted-foreground mb-1 block">Topic</label>
+              <select value={blogTopic} onChange={e => setBlogTopic(e.target.value)} className="w-full text-sm rounded-xl border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                {BLOG_TOPICS.map(t => <option key={t} value={t}>{t.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+              </select>
+            </div>
+            <button onClick={generateBlog} disabled={generating} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors">
+              {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {generating ? "Generating…" : "Generate Article"}
+            </button>
+          </div>
+        </Card>
+      </AdminLoginGate>
     </div>
   );
 }
@@ -2296,12 +2313,12 @@ export default function Admin() {
 
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>
-              {section === "overview"    && <OverviewSection liveStatus={liveStatus} />}
+              {section === "overview"    && <OverviewSection liveStatus={liveStatus} adminAuth={livestreamAuth} />}
               {section === "broadcast"   && <BroadcastSection liveStatus={liveStatus} auth={livestreamAuth} />}
               {section === "sermons"     && <SermonsSection auth={sermonAuth} />}
               {section === "gallery"     && <GallerySection auth={galleryAuth} />}
-              {section === "testimonies" && <TestimoniesSection />}
-              {section === "platform"    && <PlatformSection />}
+              {section === "testimonies" && <TestimoniesSection auth={sermonAuth} />}
+              {section === "platform"    && <PlatformSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
             </motion.div>
           </AnimatePresence>

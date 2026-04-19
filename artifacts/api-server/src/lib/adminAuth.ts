@@ -205,6 +205,8 @@ export function getAdminTokenFromRequest(req: Request): string | undefined {
   if (header) return header;
   const auth = req.header("authorization");
   if (auth?.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+  const queryToken = req.query.adminToken ?? req.query.token;
+  if (typeof queryToken === "string" && queryToken.trim()) return queryToken.trim();
   return undefined;
 }
 

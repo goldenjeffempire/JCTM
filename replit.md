@@ -162,6 +162,7 @@ Key behaviours:
 - New **Testimonies** tab: view all testimonies (pending/published), approve/unapprove, delete
 - New **Platform** tab: real-time analytics (members, sermons, conversations, blogs, AI stats), AI blog generator with topic selector
 - Backend: `PATCH /testimonies/:id/approve`, `DELETE /testimonies/:id` (admin-protected)
+- April 2026 admin hardening: dashboard realtime endpoints now require role-based admin tokens, Testimonies/Platform tabs use the sermon admin token instead of legacy member tokens, and the Overview tab reuses one protected realtime dashboard stream instead of opening a second visitor SSE connection.
 
 ### Push Notification Bell (Navbar)
 - `usePushNotifications` hook manages VAPID subscribe/unsubscribe lifecycle
