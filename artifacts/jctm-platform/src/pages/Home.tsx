@@ -311,7 +311,7 @@ function BroadcastStatusNotification({
                     <span className="relative inline-flex rounded-full h-full w-full bg-amber-300" />
                   </span>
                   <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 whitespace-nowrap">
-                    Service Soon
+                    Holy Spirit Sunday
                   </span>
                 </div>
                 <span className="rounded-full bg-white/12 px-2 py-1 text-[9px] font-black text-white tabular-nums border border-white/10">
@@ -320,10 +320,13 @@ function BroadcastStatusNotification({
               </div>
               <div>
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug">
-                  Sunday Service starts by 8:00 AM WAT
+                  Holy Spirit Sunday Service Begins Soon
                 </p>
                 <p className="text-white/55 text-[9px] sm:text-[10px] mt-0.5 font-medium">
-                  Pinned from 6:00 AM. Temple TV scan begins at service time.
+                  Join us live at 8:00 AM (WAT)
+                </p>
+                <p className="text-white/50 text-[9px] sm:text-[10px] mt-1 leading-snug font-medium">
+                  Prepare your heart and connect to the presence of God.
                 </p>
               </div>
               <div
@@ -331,7 +334,7 @@ function BroadcastStatusNotification({
                 style={{ background: "linear-gradient(90deg, rgba(245,158,11,0.95), rgba(239,68,68,0.82))" }}
               >
                 <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">
-                  {isUpcoming ? "Upcoming on Temple TV" : "Prepare to Watch"}
+                  Prepare to Watch
                 </span>
                 <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
               </div>
