@@ -711,8 +711,8 @@ function RebroadcastBanner() {
 // HERO — Cinematic Multi-Image Sanctuary: Immersive Full-Viewport
 // ═══════════════════════════════════════════════════════════════════════════
 const HERO_IMAGES = [
-  { key: "img1", src: "/founder/DSC3371.jpg", label: "Prophetic Word", tag: "Prophet", title: "Prophetic Declaration", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img2", src: "/founder/DSC3376.jpg", label: "Apostolic Voice", tag: "Ministry", title: "Apostolic Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img1", src: "/founder/DSC3371.webp", fallback: "/founder/DSC3371.jpg", label: "Prophetic Word", tag: "Prophet", title: "Prophetic Declaration", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img2", src: "/founder/DSC3376.webp", fallback: "/founder/DSC3376.jpg", label: "Apostolic Voice", tag: "Ministry", title: "Apostolic Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img3", src: "/founder/DSC1657.jpg", label: "Worship", tag: "Praise", title: "Corporate Worship", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach", title: "Crusade & Evangelism", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry", title: "The Preaching Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
@@ -826,7 +826,7 @@ function HeroSection() {
             >
               <div className="absolute -inset-6 rounded-[3rem] blur-3xl opacity-40" style={{ background: "radial-gradient(circle, rgba(56,189,248,0.5), rgba(0,51,102,0.4))" }} />
               <div className="relative rounded-[2.5rem] overflow-hidden border-2 border-white/20 shadow-2xl">
-                <img src={lightboxImg.src} alt={lightboxImg.title} className="w-full object-cover object-center max-h-[70vh]" loading="lazy" decoding="async" />
+                <img src={lightboxImg.src} alt={lightboxImg.title} className="w-full object-cover object-center max-h-[70vh]" loading="lazy" decoding="async" onError={(e) => { if ("fallback" in lightboxImg && lightboxImg.fallback) (e.target as HTMLImageElement).src = (lightboxImg as { fallback: string }).fallback; }} />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/90 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-7">
                   <p className="text-accent text-[10px] font-bold uppercase tracking-widest mb-1">Jesus Christ Temple Ministry</p>
@@ -1055,6 +1055,7 @@ function HeroSection() {
                     loading="eager"
                     decoding="async"
                     fetchPriority={i === 0 ? "high" : "auto"}
+                    onError={(e) => { if ("fallback" in img && img.fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }}
                   />
                 </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
@@ -1210,7 +1211,7 @@ function HeroSection() {
                   aria-label={`Go to slide ${i + 1}: ${img.label}`}
                 >
                   <div className={`relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 shadow-lg transition-all duration-300 ${isActive ? "border-accent shadow-accent/30 shadow-xl scale-105" : "border-white/80 group-hover:border-accent/60 group-hover:shadow-accent/20 group-hover:shadow-xl"}`}>
-                    <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async" />
+                    <img src={img.src} alt={img.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async" onError={(e) => { if ("fallback" in img && img.fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }} />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/70 via-transparent to-transparent" />
                     {isActive && (
                       <motion.div layoutId="activeGalleryIndicator" className="absolute inset-0 border-2 border-accent/50 rounded-2xl" />
@@ -1313,6 +1314,7 @@ function HeroSection() {
                     loading="eager"
                     decoding="async"
                     fetchPriority={i === 0 ? "high" : "auto"}
+                    onError={(e) => { if ("fallback" in img && img.fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }}
                   />
                 </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
@@ -1780,8 +1782,8 @@ function TestimoniesMarquee() {
 // PROPHET SECTION — Cinematic dual-photo editorial layout with interactive gallery
 // ═══════════════════════════════════════════════════════════════════════════
 const FOUNDER_PHOTOS = [
-  { key: "photo1", src: "/founder/DSC3371.jpg", label: "Portrait" },
-  { key: "photo2", src: "/founder/DSC3376.jpg", label: "Preaching" },
+  { key: "photo1", src: "/founder/DSC3371.webp", fallback: "/founder/DSC3371.jpg", label: "Portrait" },
+  { key: "photo2", src: "/founder/DSC3376.webp", fallback: "/founder/DSC3376.jpg", label: "Preaching" },
   { key: "photo3", src: "/founder/DSC1657.jpg", label: "Worship" },
   { key: "photo4", src: "/founder/DSC1671.jpg", label: "Crusade" },
   { key: "photo5", src: "/founder/DSC1743.jpg", label: "Ministry" },
@@ -1843,6 +1845,8 @@ function ProphetSection() {
                 initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 loading="lazy" decoding="async"
+                fetchPriority="low"
+                onError={(e) => { if ("fallback" in activePhoto && activePhoto.fallback) (e.target as HTMLImageElement).src = (activePhoto as { fallback: string }).fallback; }}
               />
             </AnimatePresence>
           </motion.div>
@@ -1859,15 +1863,22 @@ function ProphetSection() {
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ delay: 0.5 }}
           >
-            {FOUNDER_PHOTOS.map(({ key, src, label }, i) => (
+            {FOUNDER_PHOTOS.map((photo, i) => (
               <motion.button
-                key={key}
+                key={photo.key}
                 onClick={() => handleThumbClick(i)}
                 whileHover={{ scale: 1.08 } as never}
                 whileTap={{ scale: 0.95 } as never}
                 className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-lg ${activeIdx === i ? "border-accent shadow-accent/30" : "border-white/30 hover:border-white/60"}`}
               >
-                <img src={src} alt={label} className="w-full h-full object-cover object-top" loading="lazy" decoding="async" />
+                <img
+                  src={photo.src}
+                  alt={photo.label}
+                  className="w-full h-full object-cover object-top"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => { if ("fallback" in photo && photo.fallback) (e.target as HTMLImageElement).src = (photo as { fallback: string }).fallback; }}
+                />
                 <div className={`absolute inset-0 transition-opacity duration-300 ${activeIdx === i ? "opacity-0" : "opacity-40 bg-[#001830]"}`} />
                 {activeIdx === i && <div className="absolute top-1 right-1 h-2 w-2 bg-accent rounded-full animate-pulse" />}
               </motion.button>
@@ -4016,8 +4027,8 @@ export default function Home() {
   return (
     <Layout>
       <Helmet>
-        <link rel="preload" as="image" href="/founder/DSC3371.jpg" fetchpriority="high" />
-        <link rel="preload" as="image" href="/founder/DSC3376.jpg" fetchpriority="high" />
+        <link rel="preload" as="image" href="/founder/DSC3371.webp" type="image/webp" fetchpriority="high" />
+        <link rel="preload" as="image" href="/founder/DSC3376.webp" type="image/webp" fetchpriority="high" />
       </Helmet>
       <SEO
         title="Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary"
