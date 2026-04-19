@@ -20,7 +20,6 @@ import {
   HLS_CONFIG,
   DASH_CONFIG,
   detectNetworkQuality,
-  networkQualityToDefaultLevel,
   type StreamSource,
   type StreamSourceType,
 } from "@/lib/stream-config";
@@ -113,6 +112,7 @@ export function useStreamPlayer(opts: {
   const retryCountRef = useRef(0);
   const sourceIndexRef = useRef(0);
   const mountedRef = useRef(true);
+  const lastProgressAtRef = useRef(Date.now());
 
   const [state, setState] = useState<StreamPlayerState>({
     engine: "idle",
@@ -205,6 +205,18 @@ export function useStreamPlayer(opts: {
     }, 2000);
   }, [videoRef, isLive, updateState]);
 
+  const failoverToNextSource = useCallback(() => {
+    const nextIndex = sourceIndexRef.current + 1;
+    if (nextIndex < sources.length) {
+      sourceIndexRef.current = nextIndex;
+      retryCountRef.current = 0;
+      const nextSource = sources[nextIndex]!;
+      retryTimerRef.current = setTimeout(() => loadSource(nextSource), 250);
+      return true;
+    }
+    return false;
+  }, [sources]);
+
   // ── Load HLS Source ────────────────────────────────────────────────────────
 
   const loadHls = useCallback(async (url: string) => {
@@ -262,7 +274,9 @@ export function useStreamPlayer(opts: {
         },
       });
 
-      if (autoPlay) video.play().catch(() => {});
+      if (autoPlay) video.play().catch(() => {
+        updateState({ playerState: "paused" });
+      });
       startMetricsCollection(hls);
     });
 
@@ -301,6 +315,7 @@ export function useStreamPlayer(opts: {
         clearTimeout(stallTimerRef.current);
         stallTimerRef.current = null;
       }
+      lastProgressAtRef.current = Date.now();
     });
 
     return hls;
@@ -324,12 +339,22 @@ export function useStreamPlayer(opts: {
 
     dash.on("playbackPlaying", () => {
       if (!mountedRef.current) return;
+      lastProgressAtRef.current = Date.now();
       updateState({ engine: "dash", sourceType: "dash", playerState: "playing" });
     });
 
     dash.on("playbackError", (e: dashjs.PlaybackErrorEvent) => {
       if (!mountedRef.current) return;
       handleFatalError(`DASH error: ${JSON.stringify((e as { error?: unknown }).error ?? "")}`, null, null);
+    });
+
+    dash.on("bufferStalled", () => {
+      if (!mountedRef.current) return;
+      updateState({ playerState: "stalled" });
+    });
+
+    dash.on("fragmentLoadingCompleted", () => {
+      lastProgressAtRef.current = Date.now();
     });
 
     dash.on("qualityChangeRendered", (e: dashjs.QualityChangeRenderedEvent) => {
@@ -386,15 +411,7 @@ export function useStreamPlayer(opts: {
     });
 
     if (count > 5) {
-      // Try next source in the failover chain
-      const nextIndex = sourceIndexRef.current + 1;
-      if (nextIndex < sources.length) {
-        sourceIndexRef.current = nextIndex;
-        retryCountRef.current = 0;
-        const nextSource = sources[nextIndex]!;
-        const delay = 500;
-        retryTimerRef.current = setTimeout(() => loadSource(nextSource), delay);
-      }
+      failoverToNextSource();
       return;
     }
 
@@ -420,7 +437,7 @@ export function useStreamPlayer(opts: {
       const src = sources[sourceIndexRef.current];
       if (src && mountedRef.current) loadSource(src);
     }, delay);
-  }, [sources, updateState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [failoverToNextSource, sources, updateState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load Source (dispatcher) ───────────────────────────────────────────────
 
@@ -456,23 +473,38 @@ export function useStreamPlayer(opts: {
 
     const onPlaying = () => {
       retryCountRef.current = 0;
+      lastProgressAtRef.current = Date.now();
       updateState({ playerState: "playing", lastError: null });
     };
-    const onPause = () => updateState({ playerState: "paused" });
+    const onPause = () => {
+      if (!video.ended) updateState({ playerState: "paused" });
+    };
     const onWaiting = () => updateState({ playerState: "buffering" });
     const onStalled = () => {
       updateState({ playerState: "stalled" });
 
       // After 8 seconds of stall, force a seek to live edge or retry
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       stallTimerRef.current = setTimeout(() => {
         if (!mountedRef.current) return;
         if (isLive && hlsRef.current) {
           hlsRef.current.stopLoad();
           hlsRef.current.startLoad(-1); // seek to live edge
+        } else if (dashRef.current) {
+          const dashAny = dashRef.current as unknown as {
+            getSource?: () => string | null;
+            attachSource?: (source: string) => void;
+          };
+          const source = dashAny.getSource?.();
+          if (source) dashAny.attachSource?.(source);
         } else if (video) {
           const t = video.duration - 0.1;
           if (isFinite(t) && t > 0) video.currentTime = t;
           video.play().catch(() => {});
+        }
+        if (Date.now() - lastProgressAtRef.current > 18_000) {
+          handleFatalError("Stream stalled without receiving new media", hlsRef.current, { type: "networkError" });
+          return;
         }
         updateState({ playerState: "recovering" });
       }, 8000);
@@ -486,6 +518,7 @@ export function useStreamPlayer(opts: {
         clearTimeout(stallTimerRef.current);
         stallTimerRef.current = null;
       }
+      lastProgressAtRef.current = Date.now();
     };
 
     video.addEventListener("playing", onPlaying);
@@ -569,7 +602,12 @@ export function useStreamPlayer(opts: {
     }
     const video = videoRef.current;
     if (video && isLive) {
-      video.currentTime = video.duration;
+      const seekable = video.seekable;
+      if (seekable.length > 0) {
+        video.currentTime = Math.max(seekable.start(seekable.length - 1), seekable.end(seekable.length - 1) - 1);
+      } else if (Number.isFinite(video.duration) && video.duration > 0) {
+        video.currentTime = Math.max(0, video.duration - 1);
+      }
       video.play().catch(() => {});
     }
   }, [videoRef, isLive]);

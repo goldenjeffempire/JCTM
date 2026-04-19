@@ -167,22 +167,24 @@ router.get("/stream/sessions", requireAdminRole("livestream"), (_req: Request, r
 // In production, segments should be served from CDN (Cloudflare, Akamai, etc.)
 
 router.get("/stream/segments/*path", (req: Request, res: Response): void => {
-  const segPath = (req.params as Record<string, string>).path ?? "";
+  const rawPath = (req.params as Record<string, string | string[]>).path ?? "";
+  const segPath = Array.isArray(rawPath) ? rawPath.join("/") : rawPath;
 
-  if (!segPath || segPath.includes("..")) {
+  if (!segPath || segPath.includes("..") || path.isAbsolute(segPath)) {
     res.status(400).json({ error: "Invalid segment path" });
     return;
   }
 
   const segmentDir = streamPipeline.getSegmentDir();
   const filePath = path.join(segmentDir, segPath);
+  const resolved = path.resolve(filePath);
 
-  if (!fs.existsSync(filePath)) {
+  if (!resolved.startsWith(path.resolve(segmentDir)) || !fs.existsSync(resolved)) {
     res.status(404).json({ error: "Segment not found" });
     return;
   }
 
-  const ext = path.extname(filePath);
+  const ext = path.extname(resolved);
 
   const mimeTypes: Record<string, string> = {
     ".m3u8": "application/vnd.apple.mpegurl",
@@ -198,7 +200,8 @@ router.get("/stream/segments/*path", (req: Request, res: Response): void => {
   res.setHeader("Content-Type", contentType);
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Range");
-  res.setHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range");
+  res.setHeader("Access-Control-Expose-Headers", "Accept-Ranges, Content-Length, Content-Range");
+  res.setHeader("Accept-Ranges", "bytes");
 
   // HLS manifests: no-cache for live streams
   if (ext === ".m3u8" || ext === ".mpd") {
@@ -209,24 +212,30 @@ router.get("/stream/segments/*path", (req: Request, res: Response): void => {
   }
 
   // Range request support for DASH segments
-  const stat = fs.statSync(filePath);
+  const stat = fs.statSync(resolved);
   const { range } = req.headers;
 
   if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0]!, 10);
     const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end >= stat.size || start > end) {
+      res.status(416);
+      res.setHeader("Content-Range", `bytes */${stat.size}`);
+      res.end();
+      return;
+    }
     const chunkSize = end - start + 1;
 
     res.status(206);
     res.setHeader("Content-Range", `bytes ${start}-${end}/${stat.size}`);
     res.setHeader("Content-Length", chunkSize);
 
-    const readStream = fs.createReadStream(filePath, { start, end });
+    const readStream = fs.createReadStream(resolved, { start, end });
     readStream.pipe(res);
   } else {
     res.setHeader("Content-Length", stat.size);
-    fs.createReadStream(filePath).pipe(res);
+    fs.createReadStream(resolved).pipe(res);
   }
 });
 

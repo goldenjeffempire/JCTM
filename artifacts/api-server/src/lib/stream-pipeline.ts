@@ -50,7 +50,7 @@ export const QUALITY_LADDER: QualityLevel[] = [
     preset: "veryfast",
     profile: "baseline",
     level: "3.0",
-    segmentDuration: 2,
+    segmentDuration: 4,
   },
   {
     name: "360p",
@@ -65,7 +65,7 @@ export const QUALITY_LADDER: QualityLevel[] = [
     preset: "veryfast",
     profile: "main",
     level: "3.1",
-    segmentDuration: 2,
+    segmentDuration: 4,
   },
   {
     name: "480p",
@@ -80,7 +80,7 @@ export const QUALITY_LADDER: QualityLevel[] = [
     preset: "veryfast",
     profile: "main",
     level: "3.1",
-    segmentDuration: 2,
+    segmentDuration: 4,
   },
   {
     name: "720p",
@@ -95,7 +95,7 @@ export const QUALITY_LADDER: QualityLevel[] = [
     preset: "fast",
     profile: "high",
     level: "4.0",
-    segmentDuration: 2,
+    segmentDuration: 4,
   },
   {
     name: "1080p",
@@ -110,7 +110,7 @@ export const QUALITY_LADDER: QualityLevel[] = [
     preset: "fast",
     profile: "high",
     level: "4.1",
-    segmentDuration: 2,
+    segmentDuration: 4,
   },
   {
     name: "1080p60",
@@ -125,7 +125,7 @@ export const QUALITY_LADDER: QualityLevel[] = [
     preset: "medium",
     profile: "high",
     level: "4.2",
-    segmentDuration: 2,
+    segmentDuration: 4,
   },
   {
     name: "4k",
@@ -380,15 +380,8 @@ class StreamPipelineManager extends EventEmitter {
       filterParts.push(scaleFilter);
       maps.push(`-map [vout${i}]`, `-map 0:a?`);
 
-      const variantDir = path.join(outputDir, q.name);
+      const variantDir = path.join(outputDir, `stream_${q.name}`);
       fs.mkdirSync(variantDir, { recursive: true });
-
-      const hlsFlags = [
-        "delete_segments",
-        "independent_segments",
-        "append_list",
-        ...(lowLatency ? ["split_by_time"] : []),
-      ].join("+");
 
       outputArgs.push(
         `-c:v:${i}`, "libx264",
@@ -396,8 +389,8 @@ class StreamPipelineManager extends EventEmitter {
         `-maxrate:${i}`, q.maxBitrate,
         `-bufsize:${i}`, q.bufSize,
         `-r:${i}`, String(q.frameRate),
-        `-g:${i}`, String(q.frameRate * 2),
-        `-keyint_min:${i}`, String(q.frameRate),
+        `-g:${i}`, String(q.frameRate * q.segmentDuration),
+        `-keyint_min:${i}`, String(q.frameRate * q.segmentDuration),
         `-sc_threshold:${i}`, "0",
         `-profile:v:${i}`, q.profile,
         `-level:v:${i}`, q.level,
@@ -407,36 +400,49 @@ class StreamPipelineManager extends EventEmitter {
         `-ar:${i}`, "48000",
         `-ac:${i}`, "2",
       );
-
-      // Per-variant HLS output
-      outputArgs.push(
-        `-hls_time:${i}`, String(lowLatency ? Math.min(q.segmentDuration, 1) : q.segmentDuration),
-        `-hls_list_size:${i}`, lowLatency ? "6" : "10",
-        `-hls_flags:${i}`, hlsFlags,
-        `-hls_segment_type:${i}`, "fmp4",
-        `-hls_segment_filename:${i}`, path.join(variantDir, "segment%05d.m4s"),
-        `-hls_fmp4_init_filename:${i}`, "init.mp4",
-        ...(lowLatency ? [
-          `-hls_delete_threshold:${i}`, "3",
-          `-use_localtime:${i}`, "1",
-        ] : []),
-      );
     });
 
     cmd.complexFilter(filterParts.join(";"));
-    cmd.addOptions([...maps.flat()]);
+    cmd.addOptions(maps.flatMap(item => item.split(" ")));
     cmd.addOptions(outputArgs);
 
-    // Multi-variant HLS master playlist
-    cmd.addOption("-master_pl_name", "master.m3u8");
-    cmd.addOption("-f", "hls");
+    const varStreamMap = ladder.map((q, i) => `v:${i},a:${i},name:${q.name}`).join(" ");
+    const hlsFlags = [
+      "delete_segments",
+      "independent_segments",
+      "program_date_time",
+      "temp_file",
+    ].join("+");
 
-    if (lowLatency) {
-      cmd.addOption("-ldash", "1");
-    }
+    cmd
+      .output(path.join(outputDir, "stream_%v", "playlist.m3u8"))
+      .outputOptions([
+        "-f", "hls",
+        "-master_pl_name", "master.m3u8",
+        "-var_stream_map", varStreamMap,
+        "-hls_time", String(lowLatency ? 3 : 4),
+        "-hls_list_size", lowLatency ? "10" : "12",
+        "-hls_delete_threshold", "6",
+        "-hls_flags", hlsFlags,
+        "-hls_segment_type", "fmp4",
+        "-hls_fmp4_init_filename", "init.mp4",
+        "-hls_segment_filename", path.join(outputDir, "stream_%v", "segment%05d.m4s"),
+      ]);
 
-    // Output path (trailing variant playlist)
-    cmd.output(path.join(outputDir, "stream_%v", "playlist.m3u8"));
+    cmd
+      .output(path.join(outputDir, "manifest.mpd"))
+      .outputOptions([
+        "-f", "dash",
+        "-seg_duration", String(lowLatency ? 3 : 4),
+        "-window_size", "12",
+        "-extra_window_size", "6",
+        "-remove_at_exit", "0",
+        "-use_template", "1",
+        "-use_timeline", "1",
+        "-adaptation_sets", "id=0,streams=v id=1,streams=a",
+        "-init_seg_name", "dash_init_$RepresentationID$.mp4",
+        "-media_seg_name", "dash_chunk_$RepresentationID$_$Number%05d$.m4s",
+      ]);
 
     return cmd;
   }
@@ -450,15 +456,13 @@ class StreamPipelineManager extends EventEmitter {
       const bandwidth = parseInt(q.videoBitrate) + parseInt(q.audioBitrate);
       const maxBw = parseInt(q.maxBitrate);
       lines.push(
-        `#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth * 1000},AVERAGE-BANDWIDTH=${bandwidth * 900},` +
+        `#EXT-X-STREAM-INF:BANDWIDTH=${maxBw * 1000},AVERAGE-BANDWIDTH=${bandwidth * 1000},` +
         `RESOLUTION=${q.width}x${q.height},FRAME-RATE=${q.frameRate},CODECS="avc1.4D401F,mp4a.40.2",` +
-        `VIDEO-RANGE=SDR,CLOSED-CAPTIONS=NONE,` +
-        `BANDWIDTH=${maxBw * 1000}`,
-        buildCdnUrl(`${streamId}/${q.name}/playlist.m3u8`),
+        `VIDEO-RANGE=SDR,CLOSED-CAPTIONS=NONE`,
+        buildCdnUrl(`${streamId}/stream_${q.name}/playlist.m3u8`),
       );
     });
 
-    // Low-bandwidth audio-only rendition
     lines.push("", "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"English\",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE=\"en\"");
 
     fs.writeFileSync(path.join(outputDir, "master.m3u8"), lines.join("\n"), "utf-8");
@@ -638,19 +642,19 @@ export function getEncodingConfig() {
     ladder: QUALITY_LADDER,
     hlsConfig: {
       lowLatencyMode: true,
-      targetLatency: 2.0,
-      maxLatency: 4.0,
-      segmentDuration: 2,
-      listSize: 6,
-      partDuration: 0.2,
+      targetLatency: 6.0,
+      maxLatency: 15.0,
+      segmentDuration: 3,
+      listSize: 10,
+      partDuration: 1.0,
       version: 7,
       initSegment: "fmp4",
     },
     dashConfig: {
-      minBufferTime: 2,
-      suggestedPresentationDelay: 2,
-      segmentDuration: 2,
-      updatePeriod: 2,
+      minBufferTime: 4,
+      suggestedPresentationDelay: 8,
+      segmentDuration: 3,
+      updatePeriod: 3,
     },
     bufferConfig: {
       maxBackBuffer: 30,

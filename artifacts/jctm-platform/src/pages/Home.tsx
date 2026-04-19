@@ -19,6 +19,7 @@ import {
 } from "@workspace/api-client-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl, NetworkQualityBadge } from "@/components/DualStreamToggle";
+import { StreamPlayer } from "@/components/StreamPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -745,7 +746,7 @@ function HeroSection() {
   const [playerLoading, setPlayerLoading] = useState(true);
   const [playerError, setPlayerError] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
-  const liveIframeRef = useRef<HTMLIFrameElement>(null);
+  const liveIframeRef = useRef<HTMLDivElement>(null);
   const { quality: liveQuality, toggle: toggleLiveQuality } = useStreamQuality();
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -989,17 +990,23 @@ function HeroSection() {
                     </div>
                   </div>
                 )}
-                <iframe
+                <div
                   key={`live-${liveVideoId ?? LIVE_STREAM_VIDEO_ID}-${liveQuality}-${playerKey}`}
                   ref={liveIframeRef}
                   className="absolute inset-0 w-full h-full"
-                  src={buildYouTubeUrl(liveVideoId ?? LIVE_STREAM_VIDEO_ID, liveQuality, { autoplay: true, isLive: true })}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  title="Holy Spirit Sunday Service — Live"
-                  onLoad={() => { if (!playerError) setPlayerLoading(false); }}
-                />
+                >
+                  <StreamPlayer
+                    hlsManifestUrl={liveStatus.stream?.hlsManifestUrl ?? null}
+                    dashManifestUrl={liveStatus.stream?.dashManifestUrl ?? null}
+                    youtubeVideoId={liveVideoId ?? LIVE_STREAM_VIDEO_ID}
+                    isLive={true}
+                    title="Holy Spirit Sunday Service — Live"
+                    autoPlay={true}
+                    onLoad={() => { if (!playerError) setPlayerLoading(false); }}
+                    onError={() => { setPlayerError(true); setPlayerLoading(false); }}
+                    className="w-full h-full"
+                  />
+                </div>
               </div>
 
               <p className="text-center text-white/25 text-[10px] mt-3 uppercase tracking-widest">Click outside or press Esc to close</p>

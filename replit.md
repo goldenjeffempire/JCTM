@@ -550,6 +550,14 @@ Affected players: live broadcast overlay, rebroadcast widget overlay (HeroSectio
 ### Health Check Endpoint
 - **`GET /api/livestream/health`** (public, no auth): returns a real-time snapshot of the streaming pipeline — `status` (ok/degraded), `isLive`, `isUpcoming`, `videoId`, `rebroadcastActive`, `manualOverride`, `activeSseClients`, `activeViewers`, `youtubeApiReady`, `serverTime`. Used by monitoring and potential client-side failover logic.
 
+### Enterprise Streaming Stability Pass — April 19, 2026
+- Unified the homepage live overlay with the shared adaptive `StreamPlayer`, so live playback now uses the same HLS → DASH → YouTube failover path as the global broadcast indicator instead of a separate raw iframe path.
+- Tuned HLS.js and DASH.js for stability-first ABR: safer initial bandwidth estimates, less aggressive quality up-switching, larger live buffers, longer retry windows, and valid DASH live-catchup thresholds.
+- Improved player recovery for stalls, manifest/fragment errors, live-edge drift, and finite/infinite live seek ranges. Prolonged stalls now escalate into source failover instead of remaining stuck in a buffering state.
+- Hardened local segment delivery for generated HLS/DASH assets with safe path resolution, byte-range validation, exposed range headers, correct live manifest cache behavior, and cacheable media segments.
+- Reworked the backend ABR encoding setup to align variant directories, master playlists, segment durations, keyframe intervals, HLS fMP4 output, and DASH manifest generation for more predictable live playback.
+- Verified after restart: web app `/`, API `/api/healthz`, `/api/livestream/status`, `/api/stream/config`, and `/api/stream/quality-ladder` all returned HTTP 200 with both services running.
+
 ### CDN Pre-resolution (index.html)
 Three new dns-prefetch hints added to reduce initial buffering latency when the player opens:
 - `https://googlevideo.com` — YouTube's primary video delivery CDN

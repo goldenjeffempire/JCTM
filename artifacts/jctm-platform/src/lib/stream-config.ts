@@ -39,41 +39,41 @@ export const HLS_CONFIG = {
 
   // ── Low-Latency HLS (LL-HLS) ──────────────────────────────────────────────
   lowLatencyMode: true,
-  targetLatency: 3.0,           // 3s target live edge
-  liveSyncDurationCount: 3,
-  liveMaxLatencyDurationCount: 6,
+  targetLatency: 5.0,
+  liveSyncDurationCount: 4,
+  liveMaxLatencyDurationCount: 10,
   liveDurationInfinity: true,
 
   // ── Buffer Control ────────────────────────────────────────────────────────
-  maxBufferLength: 30,          // 30s max buffer
-  maxMaxBufferLength: 600,
-  maxBufferSize: 60 * 1000 * 1000, // 60 MB
-  maxBufferHole: 0.5,
+  maxBufferLength: 45,
+  maxMaxBufferLength: 180,
+  maxBufferSize: 90 * 1000 * 1000,
+  maxBufferHole: 0.8,
   highBufferWatchdogPeriod: 2,
-  nudgeOffset: 0.1,
-  nudgeMaxRetry: 3,
-  maxFragLookUpTolerance: 0.25,
+  nudgeOffset: 0.15,
+  nudgeMaxRetry: 5,
+  maxFragLookUpTolerance: 0.35,
 
   // ── ABR Bandwidth Estimation ──────────────────────────────────────────────
-  abrEwmaDefaultEstimate: 2_000_000, // 2 Mbps default estimate
-  abrEwmaFastLive: 3.0,
-  abrEwmaSlowLive: 9.0,
+  abrEwmaDefaultEstimate: 1_500_000,
+  abrEwmaFastLive: 4.0,
+  abrEwmaSlowLive: 12.0,
   abrEwmaFastVoD: 4.0,
   abrEwmaSlowVoD: 15.0,
-  abrBandWidthFactor: 0.95,
-  abrBandWidthUpFactor: 0.7,
+  abrBandWidthFactor: 0.85,
+  abrBandWidthUpFactor: 0.65,
   abrMaxWithRealBitrate: true,
 
   // ── Network Retry / Error Recovery ───────────────────────────────────────
-  manifestLoadingMaxRetry: 5,
+  manifestLoadingMaxRetry: 8,
   manifestLoadingRetryDelay: 1000,
-  manifestLoadingMaxRetryTimeout: 16000,
-  levelLoadingMaxRetry: 6,
+  manifestLoadingMaxRetryTimeout: 30000,
+  levelLoadingMaxRetry: 8,
   levelLoadingRetryDelay: 1000,
-  levelLoadingMaxRetryTimeout: 16000,
-  fragLoadingMaxRetry: 6,
-  fragLoadingRetryDelay: 1000,
-  fragLoadingMaxRetryTimeout: 16000,
+  levelLoadingMaxRetryTimeout: 30000,
+  fragLoadingMaxRetry: 8,
+  fragLoadingRetryDelay: 800,
+  fragLoadingMaxRetryTimeout: 30000,
 
   // ── Stall Recovery ────────────────────────────────────────────────────────
   stallDetected: undefined,
@@ -107,15 +107,15 @@ export const DASH_CONFIG = {
     liveCatchup: {
       enabled: true,
       mode: "liveCatchupModeDefault",
-      minDrift: 0.02,
-      maxDrift: 0,
-      playbackRate: { min: -0.5, max: 0.5 },
-      latencyThreshold: NaN,
-      playbackBufferMin: NaN,
+      minDrift: 0.15,
+      maxDrift: 8,
+      playbackRate: { min: -0.25, max: 0.25 },
+      latencyThreshold: 12,
+      playbackBufferMin: 4,
     },
     lowLatencyEnabled: true,
-    retryAttempts: { MPD: 3, XLinkExpansion: 3, InitializationSegment: 3, BitstreamSwitchingSegment: 3, IndexSegment: 3, MediaSegment: 3, BitrateSwitch: 3 },
-    retryIntervals: { MPD: 500, XLinkExpansion: 500, InitializationSegment: 1000, BitstreamSwitchingSegment: 1000, IndexSegment: 1000, MediaSegment: 1000, BitrateSwitch: 1000 },
+    retryAttempts: { MPD: 6, XLinkExpansion: 3, InitializationSegment: 5, BitstreamSwitchingSegment: 5, IndexSegment: 5, MediaSegment: 8, BitrateSwitch: 5 },
+    retryIntervals: { MPD: 1000, XLinkExpansion: 1000, InitializationSegment: 1000, BitstreamSwitchingSegment: 1000, IndexSegment: 1000, MediaSegment: 800, BitrateSwitch: 1000 },
   },
 };
 
