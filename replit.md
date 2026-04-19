@@ -501,3 +501,45 @@ Added `broadcast_started`, `broadcast_ended`, `rebroadcast_started`, `rebroadcas
 ### Code Quality
 - **`App.tsx` provider nesting** — fixed inconsistent indentation in `LanguageProvider` → `GeoProvider` → `QueryClientProvider` tree.
 - **Giving reference generator** — refactored from `Date.now() + Math.random().toString(36)` to `Date.now() + randomUUID()` for guaranteed uniqueness.
+
+---
+
+## YouTube Live Streaming Pipeline Optimization — April 2026
+
+### Adaptive Quality & Network-Aware Playback
+- **`buildYouTubeUrl` upgraded** (`DualStreamToggle.tsx`): now accepts an options object `{ autoplay, isLive, enableJsApi }`. Live streams omit the `vq` quality hint (YouTube's ABR engine handles adaptive bitrate internally); VOD streams pass `vq=small` or `vq=hd1080` as a preference hint.
+- **`enablejsapi=1`** added to all embed URLs by default, enabling postMessage-based error detection without requiring the YouTube IFrame API script.
+- **`fs=1`** (fullscreen enabled) added to all embed URLs.
+- **`useAdaptiveStreamQuality` hook** added: auto-detects network quality via `navigator.connection.effectiveType` on mount (slow-2g/2g → Low Data mode; 3g/4g → HD). Re-evaluates on `connection.change` events. Stored user preference in localStorage always takes precedence.
+
+### Live Player — Quality Toggle + Error Failover
+- **`DualStreamToggle` integrated** into the live player modal header in `Home.tsx`. Changing quality forces an iframe remount via `playerKey` state to immediately switch streams without stale buffering.
+- **`NetworkQualityBadge`** component added: compact dark-mode badge shown inside player overlays indicating current quality mode.
+- **YouTube postMessage error detection**: `window.addEventListener('message', ...)` listens for `onError` events from the YouTube iframe origin. On error, a full-screen "Stream Interrupted" overlay replaces the loading spinner with two recovery actions:
+  - **Retry Stream** — resets error state, increments `playerKey` (remounts iframe fresh)
+  - **Watch on YouTube** — opens the direct YouTube watch URL in a new tab as fallback
+- **`onStateChange` info=1 (Playing)**: clears both loading and error states when the stream confirms it started playing.
+
+### All Iframes Hardened (Home.tsx + SermonDetail.tsx)
+Every YouTube embed across the platform now has:
+- `referrerPolicy="strict-origin-when-cross-origin"` — correct privacy-enhanced referrer policy
+- `allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"` — full permission set
+- `enablejsapi=1` — postMessage error detection
+- `fs=1` — explicit fullscreen permission
+- `modestbranding=1` + `rel=0` — consistent branding suppression across all players
+- Quality-aware URLs via `buildYouTubeUrl()` with appropriate options
+
+Affected players: live broadcast overlay, rebroadcast widget overlay (HeroSection), rebroadcast banner overlay (RebroadcastBanner), sermon detail player (SermonDetail).
+
+### Viewer Count SSE Reconnect
+- **`useLiveViewerCount.ts`**: the viewer-presence SSE previously called `es.close()` on error and never reconnected. Now uses the same exponential-backoff reconnect pattern as `useLivestreamStatus` (1s → 2 → 4 → 8 → 16 → 30s cap). The 15-second REST polling fallback remains active as a secondary floor.
+- SSE is correctly torn down (close + timer clear) when `countThisViewer` becomes false (player closed), preventing ghost sessions.
+
+### Health Check Endpoint
+- **`GET /api/livestream/health`** (public, no auth): returns a real-time snapshot of the streaming pipeline — `status` (ok/degraded), `isLive`, `isUpcoming`, `videoId`, `rebroadcastActive`, `manualOverride`, `activeSseClients`, `activeViewers`, `youtubeApiReady`, `serverTime`. Used by monitoring and potential client-side failover logic.
+
+### CDN Pre-resolution (index.html)
+Three new dns-prefetch hints added to reduce initial buffering latency when the player opens:
+- `https://googlevideo.com` — YouTube's primary video delivery CDN
+- `https://r1---sn-h0jelnez.googlevideo.com` — a common YouTubeCDN edge node
+- `https://s.ytimg.com` — YouTube's static player asset CDN

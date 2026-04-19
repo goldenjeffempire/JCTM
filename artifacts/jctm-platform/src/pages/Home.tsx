@@ -18,6 +18,7 @@ import {
   useGetSermonStats, getGetSermonStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
+import { DualStreamToggle, useStreamQuality, buildYouTubeUrl, NetworkQualityBadge } from "@/components/DualStreamToggle";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -574,6 +575,7 @@ function RebroadcastBanner() {
     try { return sessionStorage.getItem("rebroadcast_dismissed") === "true"; } catch { return false; }
   });
   const [playerOpen, setPlayerOpen] = useState(false);
+  const { quality: bannerQuality } = useStreamQuality();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPlayerOpen(false); };
@@ -623,10 +625,12 @@ function RebroadcastBanner() {
               </div>
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video bg-black">
                 <iframe
-                  src={`https://www.youtube.com/embed/${data.videoId}?autoplay=1&rel=0`}
+                  key={`rb-banner-${data.videoId}`}
+                  src={buildYouTubeUrl(data.videoId, bannerQuality, { autoplay: true })}
                   title={data.title ?? "Rebroadcast"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   className="absolute inset-0 w-full h-full"
                 />
               </div>
@@ -739,6 +743,10 @@ function HeroSection() {
   const [livePlayerOpen, setLivePlayerOpen] = useState(false);
   const [rebroadcastWidgetOpen, setRebroadcastWidgetOpen] = useState(false);
   const [playerLoading, setPlayerLoading] = useState(true);
+  const [playerError, setPlayerError] = useState(false);
+  const [playerKey, setPlayerKey] = useState(0);
+  const liveIframeRef = useRef<HTMLIFrameElement>(null);
+  const { quality: liveQuality, toggle: toggleLiveQuality } = useStreamQuality();
   const [imgHovered, setImgHovered] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -765,7 +773,34 @@ function HeroSection() {
   ]);
 
   useEffect(() => {
-    if (livePlayerOpen) setPlayerLoading(true);
+    if (livePlayerOpen) { setPlayerLoading(true); setPlayerError(false); }
+  }, [livePlayerOpen, playerKey]);
+
+  // YouTube Player postMessage — detect stream errors and playing state
+  useEffect(() => {
+    if (!livePlayerOpen) return;
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.origin !== "https://www.youtube.com" && e.origin !== "https://www.youtube-nocookie.com") return;
+      try {
+        const data = JSON.parse(typeof e.data === "string" ? e.data : JSON.stringify(e.data)) as {
+          event?: string;
+          info?: number;
+        };
+        if (data.event === "onError") {
+          setPlayerError(true);
+          setPlayerLoading(false);
+        }
+        if (data.event === "onStateChange" && data.info === 1) {
+          // Playing — clear both loading and error states
+          setPlayerError(false);
+          setPlayerLoading(false);
+        }
+      } catch { /* ignore */ }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, [livePlayerOpen]);
 
   useEffect(() => {
@@ -878,15 +913,15 @@ function HeroSection() {
               <div className="absolute -inset-8 rounded-[3rem] blur-3xl opacity-30" style={{ background: "radial-gradient(circle, rgba(239,68,68,0.6), rgba(0,51,102,0.4))" }} />
 
               {/* Header bar */}
-              <div className="relative flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
+              <div className="relative flex items-center justify-between mb-3 px-1 gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="relative flex h-3 w-3 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
                   </span>
-                  <span className="text-white font-bold text-sm uppercase tracking-widest">Holy Spirit Sunday Service — Live</span>
+                  <span className="text-white font-bold text-sm uppercase tracking-widest">Live</span>
                   {liveTitle && (
-                    <span className="text-white/50 text-xs hidden sm:inline truncate max-w-xs">— {liveTitle}</span>
+                    <span className="text-white/50 text-xs hidden sm:inline truncate max-w-[180px]">— {liveTitle}</span>
                   )}
                   {liveViewerCount > 0 && (
                     <span className="hidden sm:flex items-center gap-1 text-white/50 text-xs">
@@ -895,11 +930,17 @@ function HeroSection() {
                       watching
                     </span>
                   )}
+                  <NetworkQualityBadge quality={liveQuality} />
                 </div>
                 <div className="flex items-center gap-2">
+                  <DualStreamToggle
+                    quality={liveQuality}
+                    onToggle={q => { toggleLiveQuality(q); setPlayerKey(k => k + 1); }}
+                    className="[&_span]:text-white/80 [&_button]:text-white/60 [&_button[class*='bg-background']]:bg-white/15 [&_button[class*='bg-background']]:text-white [&_.border-border]:border-white/20 [&_.bg-muted]:bg-white/10"
+                  />
                   <button
                     onClick={() => setLivePlayerOpen(false)}
-                    className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors"
+                    className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -908,7 +949,7 @@ function HeroSection() {
 
               {/* Embedded player */}
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black" style={{ paddingBottom: "56.25%" }}>
-                {playerLoading && (
+                {playerLoading && !playerError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 bg-black">
                     <span className="relative flex h-10 w-10">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-40" />
@@ -919,14 +960,45 @@ function HeroSection() {
                     <p className="text-white/40 text-xs uppercase tracking-widest font-medium">Loading stream…</p>
                   </div>
                 )}
+                {playerError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-black/95">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                      <Radio className="h-5 w-5 text-red-400" />
+                    </div>
+                    <div className="text-center px-6">
+                      <p className="text-white/80 text-sm font-semibold">Stream Interrupted</p>
+                      <p className="text-white/40 text-xs mt-1">Connection lost or stream unavailable</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { setPlayerError(false); setPlayerLoading(true); setPlayerKey(k => k + 1); }}
+                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-white" />
+                        Retry Stream
+                      </button>
+                      <a
+                        href={`https://www.youtube.com/watch?v=${liveVideoId ?? LIVE_STREAM_VIDEO_ID}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Watch on YouTube
+                      </a>
+                    </div>
+                  </div>
+                )}
                 <iframe
-                  key={liveVideoId ?? LIVE_STREAM_VIDEO_ID}
+                  key={`live-${liveVideoId ?? LIVE_STREAM_VIDEO_ID}-${liveQuality}-${playerKey}`}
+                  ref={liveIframeRef}
                   className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${liveVideoId ?? LIVE_STREAM_VIDEO_ID}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
-                  allow="autoplay; fullscreen; picture-in-picture"
+                  src={buildYouTubeUrl(liveVideoId ?? LIVE_STREAM_VIDEO_ID, liveQuality, { autoplay: true, isLive: true })}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   title="Holy Spirit Sunday Service — Live"
-                  onLoad={() => setPlayerLoading(false)}
+                  onLoad={() => { if (!playerError) setPlayerLoading(false); }}
                 />
               </div>
 
@@ -975,10 +1047,12 @@ function HeroSection() {
               </div>
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video bg-black">
                 <iframe
-                  src={`https://www.youtube.com/embed/${rebroadcastForWidget.videoId}?autoplay=1&rel=0`}
+                  key={`rb-widget-${rebroadcastForWidget.videoId}-${liveQuality}`}
+                  src={buildYouTubeUrl(rebroadcastForWidget.videoId, liveQuality, { autoplay: true })}
                   title={rebroadcastForWidget.title ?? "Rebroadcast"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   className="absolute inset-0 w-full h-full"
                 />
               </div>

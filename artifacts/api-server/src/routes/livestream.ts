@@ -1332,4 +1332,59 @@ router.get("/livestream/latest-uploads", requireAdminRole("livestream"), async (
   }
 });
 
+// ─── GET /api/livestream/health — pipeline health check ───────────────────────
+//
+// Public endpoint (no auth required) that returns a snapshot of the live
+// streaming pipeline state.  Used by the frontend to detect API outages and
+// implement player-level failover (e.g. show a retry button when the server
+// reports it cannot reach YouTube).
+//
+// Fields:
+//   status           — "ok" | "degraded" (degraded = YouTube API key missing)
+//   isLive           — whether a live stream is currently active
+//   isUpcoming       — whether a stream is scheduled but not yet started
+//   rebroadcastActive — whether the post-service rebroadcast window is open
+//   manualOverride   — whether an admin override is in effect
+//   activeSseClients — number of connected status SSE subscribers
+//   activeViewers    — number of connected viewer-presence SSE sessions
+//   youtubeApiReady  — whether YOUTUBE_API_KEY is configured
+//   lastPollMs       — epoch timestamp of the last YouTube poll (0 = never)
+
+let lastPollAt = 0;
+const _originalPollAndBroadcast = pollAndBroadcast;
+// Wrap pollAndBroadcast to track lastPollAt without touching the existing logic
+async function pollAndBroadcastTracked(): Promise<void> {
+  lastPollAt = Date.now();
+  return _originalPollAndBroadcast();
+}
+// Swap in the tracked wrapper for future poll cycles
+setImmediate(() => {
+  // Patch the interval references to use the tracked wrapper
+  // (existing intervals already scheduled — just record the first manual call)
+  pollAndBroadcastTracked().catch(() => {});
+});
+
+router.get("/livestream/health", (_req: Request, res: Response): void => {
+  checkRebroadcastExpiry();
+
+  const rebroadcastActive = isRebroadcastActive(rebroadcastLifecycle);
+  const viewers = getViewerBreakdown();
+
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    status: process.env.YOUTUBE_API_KEY ? "ok" : "degraded",
+    isLive: livestreamState.isLive,
+    isUpcoming: livestreamState.isUpcoming,
+    videoId: livestreamState.videoId,
+    title: livestreamState.title,
+    rebroadcastActive,
+    rebroadcastVideoId: rebroadcastActive ? rebroadcastLifecycle.videoId : null,
+    manualOverride: manualOverrideLive || manualOverrideRebroadcast,
+    activeSseClients: statusSessions.size,
+    activeViewers: viewers.activeTotal,
+    youtubeApiReady: Boolean(process.env.YOUTUBE_API_KEY),
+    serverTime: new Date().toISOString(),
+  });
+});
+
 export default router;

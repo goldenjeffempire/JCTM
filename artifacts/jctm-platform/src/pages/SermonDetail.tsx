@@ -417,10 +417,10 @@ export default function SermonDetail() {
                   <iframe
                     className="absolute inset-0 w-full h-full"
                     src={audioMode
-                      ? `https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`
+                      ? buildYouTubeUrl(sermon.videoId, quality, { autoplay: true })
                       : buildYouTubeUrl(sermon.videoId, quality)}
                     title={sermon.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
                     referrerPolicy="strict-origin-when-cross-origin"
                   />

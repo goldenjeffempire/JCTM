@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { safeSessionGet, safeSessionSet } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -35,6 +35,8 @@ export function useLiveViewerCount(countThisViewer = true, mode: ViewerMode = "l
   const [count, setCount] = useState(0);
   const sid = useRef(getPlayerSessionId()).current;
 
+  // ── REST polling baseline (15-second fallback) ────────────────────────────
+  // Always active — provides a reliable floor if the SSE connection is down.
   useEffect(() => {
     let cancelled = false;
 
@@ -58,10 +60,27 @@ export function useLiveViewerCount(countThisViewer = true, mode: ViewerMode = "l
     };
   }, [mode]);
 
-  useEffect(() => {
-    if (!countThisViewer) return;
+  // ── SSE viewer presence stream with exponential-backoff reconnect ──────────
+  // Matches the reconnect pattern in useLivestreamStatus.ts.
+  // Backoff: 1 s → 2 → 4 → 8 → 16 → 30 s (cap).
+  // The SSE is only opened when countThisViewer is true (player is open).
+  const esRef         = useRef<EventSource | null>(null);
+  const retryDelayRef = useRef(1_000);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectFnRef  = useRef<() => void>(() => {});
 
-    const es = new EventSource(`${BASE}/api/livestream/viewers/stream?sid=${encodeURIComponent(sid)}&mode=${mode}`);
+  const connect = useCallback(() => {
+    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+
+    const es = new EventSource(
+      `${BASE}/api/livestream/viewers/stream?sid=${encodeURIComponent(sid)}&mode=${mode}`,
+    );
+    esRef.current = es;
+
+    es.onopen = () => {
+      retryDelayRef.current = 1_000;
+    };
 
     es.onmessage = (event: MessageEvent) => {
       try {
@@ -76,10 +95,33 @@ export function useLiveViewerCount(countThisViewer = true, mode: ViewerMode = "l
 
     es.onerror = () => {
       es.close();
+      esRef.current = null;
+      const delay = retryDelayRef.current;
+      retryDelayRef.current = Math.min(delay * 2, 30_000);
+      retryTimerRef.current = setTimeout(() => connectFnRef.current(), delay);
     };
+  }, [sid, mode]);
 
-    return () => es.close();
-  }, [countThisViewer, sid, mode]);
+  connectFnRef.current = connect;
+
+  useEffect(() => {
+    if (!countThisViewer) {
+      if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
+      esRef.current?.close();
+      esRef.current = null;
+      retryDelayRef.current = 1_000;
+      return;
+    }
+
+    connect();
+
+    return () => {
+      if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
+      esRef.current?.close();
+      esRef.current = null;
+      retryDelayRef.current = 1_000;
+    };
+  }, [countThisViewer, connect]);
 
   return count;
 }

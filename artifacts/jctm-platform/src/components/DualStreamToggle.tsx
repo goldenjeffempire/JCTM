@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Wifi, WifiOff, Zap, Tv } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +55,23 @@ export function DualStreamToggle({ quality, onToggle, className = "" }: DualStre
   );
 }
 
+// ─── Network speed detection ──────────────────────────────────────────────────
+
+type NetworkConnection = {
+  effectiveType?: "slow-2g" | "2g" | "3g" | "4g";
+  saveData?: boolean;
+} & EventTarget;
+
+function detectNetworkQuality(): StreamQuality {
+  if (typeof navigator === "undefined") return "high";
+  const conn = (navigator as Navigator & { connection?: NetworkConnection }).connection;
+  if (!conn) return "high";
+  if (conn.saveData) return "low";
+  const et = conn.effectiveType;
+  if (et === "slow-2g" || et === "2g") return "low";
+  return "high";
+}
+
 // Hook for managing stream quality with localStorage persistence
 export function useStreamQuality() {
   const [quality, setQuality] = useState<StreamQuality>(() => {
@@ -70,16 +87,98 @@ export function useStreamQuality() {
   return { quality, toggle };
 }
 
-// YouTube embed URL builder that respects stream quality
-export function buildYouTubeUrl(videoId: string, quality: StreamQuality): string {
+// Hook that auto-detects network quality via navigator.connection on mount and
+// re-evaluates on connection change events.  An explicit user selection stored
+// in localStorage always takes precedence over the auto-detected value.
+export function useAdaptiveStreamQuality() {
+  const [quality, setQuality] = useState<StreamQuality>(() => {
+    const stored = safeLocalGet("jctm-stream-quality");
+    if (stored === "low" || stored === "high") return stored;
+    return detectNetworkQuality();
+  });
+
+  const toggle = useCallback((q: StreamQuality) => {
+    setQuality(q);
+    safeLocalSet("jctm-stream-quality", q);
+  }, []);
+
+  useEffect(() => {
+    const conn = (navigator as Navigator & { connection?: NetworkConnection }).connection;
+    if (!conn || typeof conn.addEventListener !== "function") return;
+
+    const onchange = () => {
+      const stored = safeLocalGet("jctm-stream-quality");
+      if (stored === "low" || stored === "high") return;
+      setQuality(detectNetworkQuality());
+    };
+
+    conn.addEventListener("change", onchange);
+    return () => conn.removeEventListener("change", onchange);
+  }, []);
+
+  return { quality, toggle };
+}
+
+// ─── YouTube embed URL builder ────────────────────────────────────────────────
+//
+// Options:
+//   autoplay    — start playback immediately (use for modal/overlay players).
+//   isLive      — when true, the vq quality hint is omitted.  YouTube's ABR
+//                 engine handles adaptive bitrate on live streams internally;
+//                 passing vq can interfere with the initial level selection.
+//   enableJsApi — enables the YouTube iframe Player API so the page can receive
+//                 postMessage events (onStateChange, onError) for error
+//                 detection, retry, and analytics.  Defaults to true.
+
+export interface YouTubeUrlOptions {
+  autoplay?: boolean;
+  isLive?: boolean;
+  enableJsApi?: boolean;
+}
+
+export function buildYouTubeUrl(
+  videoId: string,
+  quality: StreamQuality,
+  opts: YouTubeUrlOptions = {},
+): string {
+  const { autoplay = false, isLive = false, enableJsApi = true } = opts;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+
   const params = new URLSearchParams({
     rel: "0",
     modestbranding: "1",
-    autoplay: "0",
+    autoplay: autoplay ? "1" : "0",
     controls: "1",
-    ...(quality === "low" ? { vq: "small" } : { vq: "hd1080" }),
+    enablejsapi: enableJsApi ? "1" : "0",
+    fs: "1",
+    // Live streams: omit vq — YouTube's internal ABR selects quality.
+    // VOD: pass vq as a preference hint for the initial quality level.
+    ...(isLive ? {} : quality === "low" ? { vq: "small" } : { vq: "hd1080" }),
     ...(origin ? { origin } : {}),
   });
+
   return `https://www.youtube.com/embed/${videoId}?${params}`;
+}
+
+// Compact quality badge shown inside dark player overlays
+export function NetworkQualityBadge({ quality }: { quality: StreamQuality }) {
+  return quality === "low" ? (
+    <motion.span
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-amber-500/30"
+    >
+      <Zap className="w-2.5 h-2.5" />
+      Data Saver
+    </motion.span>
+  ) : (
+    <motion.span
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="inline-flex items-center gap-1 bg-sky-500/20 text-sky-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-sky-500/30"
+    >
+      <Wifi className="w-2.5 h-2.5" />
+      HD
+    </motion.span>
+  );
 }
