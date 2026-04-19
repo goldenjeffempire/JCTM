@@ -136,6 +136,34 @@ router.get("/push/growth", async (_req, res): Promise<void> => {
   }
 });
 
+// ─── GET /push/devices — active subscriber count by device type ───────────────
+
+router.get("/push/devices", async (_req, res): Promise<void> => {
+  try {
+    const result = await pool.query<{ device_type: string; count: string }>(`
+      SELECT
+        COALESCE(NULLIF(TRIM(device_type), ''), 'web') AS device_type,
+        COUNT(*)::text AS count
+      FROM push_subscriptions
+      WHERE is_active = true
+      GROUP BY 1
+      ORDER BY 2 DESC
+    `);
+
+    const total = result.rows.reduce((s, r) => s + parseInt(r.count, 10), 0);
+
+    const devices = result.rows.map(r => ({
+      type: r.device_type,
+      count: parseInt(r.count, 10),
+      pct: total > 0 ? Math.round((parseInt(r.count, 10) / total) * 100) : 0,
+    }));
+
+    res.json({ total, devices });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch device breakdown" });
+  }
+});
+
 // ─── POST /push/test ─────────────────────────────────────────────────────────
 
 router.post("/push/test", async (req, res): Promise<void> => {

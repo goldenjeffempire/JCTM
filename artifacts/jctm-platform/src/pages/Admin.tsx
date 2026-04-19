@@ -219,6 +219,49 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
 interface GrowthRow { date: string; new_subscribers: string; cumulative: string }
 
 interface ChartPoint { date: string; total: number; new: number }
+interface DeviceRow { type: string; count: number; pct: number }
+
+const DEVICE_META: Record<string, { label: string; color: string }> = {
+  web:     { label: "Desktop / Web", color: "hsl(var(--primary))" },
+  mobile:  { label: "Mobile",        color: "hsl(var(--accent))" },
+  android: { label: "Android",       color: "#4ade80" },
+  ios:     { label: "iOS",           color: "#f472b6" },
+};
+
+function DeviceBreakdown({ devices }: { devices: DeviceRow[] }) {
+  if (!devices.length) return null;
+
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-medium text-muted-foreground mb-3">Subscribers by Device</p>
+      <div className="space-y-2.5">
+        {devices.map(d => {
+          const meta = DEVICE_META[d.type] ?? { label: d.type.charAt(0).toUpperCase() + d.type.slice(1), color: "#94a3b8" };
+          return (
+            <div key={d.type}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: meta.color }} />
+                  <span className="text-xs font-medium">{meta.label}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{d.count.toLocaleString()}</span>
+                  <span>{d.pct}%</span>
+                </div>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${d.pct}%`, background: meta.color }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function SubscriberChart({ data, range }: { data: ChartPoint[]; range: number }) {
   const tickEvery = range <= 14 ? 1 : range <= 30 ? 4 : 8;
@@ -294,6 +337,12 @@ function PushNotificationsCard() {
   const { data: growthData, isLoading: growthLoading } = useQuery<{ growth: GrowthRow[] }>({
     queryKey: ["push-growth"],
     queryFn: () => fetch(`${BASE}/api/push/growth`).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
+  const { data: devicesData } = useQuery<{ total: number; devices: DeviceRow[] }>({
+    queryKey: ["push-devices"],
+    queryFn: () => fetch(`${BASE}/api/push/devices`).then(r => r.json()),
     refetchInterval: 60_000,
   });
 
@@ -384,6 +433,9 @@ function PushNotificationsCard() {
           <p className="text-xs text-muted-foreground mt-0.5">Sunday Auto-Alert</p>
         </div>
       </div>
+
+      {/* Device breakdown */}
+      <DeviceBreakdown devices={devicesData?.devices ?? []} />
 
       {/* Growth chart */}
       <div className="mb-5">
