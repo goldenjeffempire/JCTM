@@ -14,6 +14,8 @@ import { generateSermonTranscriptSummary } from "../lib/blog-generator.js";
 import { pool } from "@workspace/db";
 import OpenAI from "openai";
 import { logger } from "../lib/logger.js";
+import { getVisitorRealtimeSnapshot } from "./visitors.js";
+import { getLiveAudienceSnapshot } from "./livestream.js";
 
 const router: IRouter = Router();
 
@@ -24,6 +26,119 @@ const getOpenAI = () =>
         baseURL: "https://api.openai.com/v1",
       })
     : null;
+
+async function getAudienceEngagementSnapshot() {
+  const [
+    messages24h,
+    conversations24h,
+    prayers24h,
+    testimonies24h,
+    momentLikes24h,
+    momentComments24h,
+    momentShares,
+    broadcastEvents24h,
+    members24h,
+    pushSubscribers,
+  ] = await Promise.all([
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM messages WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM conversations WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM prayer_requests WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM testimonies WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM moment_likes WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM moment_comments WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COALESCE(SUM(share_count), 0)::text AS count FROM moment_engagements"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM broadcast_events WHERE fired_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM member_auth WHERE created_at >= NOW() - INTERVAL '24 hours'"),
+    pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM push_subscriptions WHERE is_active = true"),
+  ]);
+
+  const values = {
+    aiMessages24h: Number(messages24h.rows[0]?.count ?? 0),
+    conversations24h: Number(conversations24h.rows[0]?.count ?? 0),
+    prayerRequests24h: Number(prayers24h.rows[0]?.count ?? 0),
+    testimonies24h: Number(testimonies24h.rows[0]?.count ?? 0),
+    momentLikes24h: Number(momentLikes24h.rows[0]?.count ?? 0),
+    momentComments24h: Number(momentComments24h.rows[0]?.count ?? 0),
+    momentSharesTotal: Number(momentShares.rows[0]?.count ?? 0),
+    broadcastEvents24h: Number(broadcastEvents24h.rows[0]?.count ?? 0),
+    newMembers24h: Number(members24h.rows[0]?.count ?? 0),
+    pushSubscribers: Number(pushSubscribers.rows[0]?.count ?? 0),
+  };
+
+  return {
+    ...values,
+    interactions24h:
+      values.aiMessages24h +
+      values.prayerRequests24h +
+      values.testimonies24h +
+      values.momentLikes24h +
+      values.momentComments24h +
+      values.broadcastEvents24h +
+      values.newMembers24h,
+  };
+}
+
+async function getRealtimeDashboardSnapshot() {
+  const [visitors, engagement] = await Promise.all([
+    getVisitorRealtimeSnapshot(),
+    getAudienceEngagementSnapshot(),
+  ]);
+  const live = getLiveAudienceSnapshot();
+  const activeAudience = visitors.active + live.viewers;
+
+  return {
+    type: "dashboard_realtime",
+    live,
+    visitors,
+    engagement: {
+      ...engagement,
+      activeAudience,
+      engagementDensity: activeAudience > 0 ? Number((engagement.interactions24h / activeAudience).toFixed(2)) : 0,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+router.get("/admin/realtime", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await getRealtimeDashboardSnapshot());
+  } catch (err) {
+    logger.error({ err }, "Realtime dashboard snapshot failed");
+    res.status(500).json({ error: "Failed to fetch realtime dashboard" });
+  }
+});
+
+router.get("/admin/realtime/stream", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = async () => {
+    try {
+      res.write(`data: ${JSON.stringify(await getRealtimeDashboardSnapshot())}\n\n`);
+    } catch (err) {
+      logger.warn({ err }, "Realtime dashboard stream write failed");
+    }
+  };
+
+  await send();
+  const interval = setInterval(send, 5_000);
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(": heartbeat\n\n");
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 20_000);
+
+  req.on("close", () => {
+    clearInterval(interval);
+    clearInterval(heartbeat);
+  });
+});
 
 // ── GET /api/admin/metrics ────────────────────────────────────────────────────
 router.get(

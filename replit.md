@@ -306,6 +306,12 @@ All verified HTTP 200: `health`, `sermons`, `altar`, `devotion`, `prayer`, `test
 - Intended Google Cloud Storage bucket configuration is set to `jctm-uploads` (`PUBLIC_OBJECT_SEARCH_PATHS=/jctm-uploads/public`, `PRIVATE_OBJECT_DIR=/jctm-uploads/.private`). Bucket creation is blocked until billing is enabled on Google Cloud project `jctm-492511`, or an existing accessible bucket is provided.
 - Gallery uploads now default to database-backed local object storage (`OBJECT_STORAGE_DRIVER=database`). Uploaded image bytes and generated thumbnails are stored in the `local_objects` PostgreSQL table and served through the existing `/api/storage/objects/...` URLs, while gallery metadata remains in `gallery_images`.
 
+## Admin Real-Time Operations Dashboard
+
+- Dashboard overview now consumes `GET /api/admin/realtime` and `GET /api/admin/realtime/stream` for a unified operational snapshot.
+- The stream combines active website visitor sessions from `/api/visitors/*`, active live-player viewer sessions from `/api/livestream/viewers/*`, and 24-hour engagement counts from messages, prayers, testimonies, moments, broadcast events, members, and push subscribers.
+- Admin overview includes a real-time audience command panel with active audience, live viewers, active website visitors, 24-hour engagement, device presence, and a 5-second trend chart.
+
 ---
 
 ## SEO Architecture

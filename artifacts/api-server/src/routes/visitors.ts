@@ -90,6 +90,35 @@ function getPageBreakdown(): { page: string; count: number }[] {
     .slice(0, 10);
 }
 
+function getDeviceBreakdown(): { type: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const s of activeSessions.values()) {
+    const type = s.deviceType ?? "desktop";
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export async function getVisitorRealtimeSnapshot(): Promise<{
+  total: number;
+  active: number;
+  pages: { page: string; count: number }[];
+  devices: { type: string; count: number }[];
+  timestamp: number;
+}> {
+  pruneStale();
+  const total = await getTotalFromDb();
+  return {
+    total,
+    active: getActiveCount(),
+    pages: getPageBreakdown(),
+    devices: getDeviceBreakdown(),
+    timestamp: Date.now(),
+  };
+}
+
 function detectDevice(ua: string): "desktop" | "mobile" | "tablet" {
   const uaLower = ua.toLowerCase();
   if (/tablet|ipad/.test(uaLower)) return "tablet";

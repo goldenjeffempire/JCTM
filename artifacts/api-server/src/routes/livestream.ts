@@ -259,6 +259,40 @@ function buildViewerPayload(): string {
   return JSON.stringify({ type: "viewer_count", count: viewerSessions.size });
 }
 
+export function getLiveAudienceSnapshot(): {
+  viewers: number;
+  isLive: boolean;
+  isUpcoming: boolean;
+  title: string | null;
+  videoId: string | null;
+  startedAt: string | null;
+  scheduledStartTime: string | null;
+  rebroadcastActive: boolean;
+  rebroadcastMode: "scheduled" | "continuous" | null;
+} {
+  const status = JSON.parse(buildStatusPayload()) as {
+    isLive: boolean;
+    isUpcoming: boolean;
+    title: string | null;
+    videoId: string | null;
+    startedAt: string | null;
+    scheduledStartTime: string | null;
+    rebroadcast?: { available?: boolean; mode?: "scheduled" | "continuous" };
+  };
+
+  return {
+    viewers: viewerSessions.size,
+    isLive: status.isLive,
+    isUpcoming: status.isUpcoming,
+    title: status.title,
+    videoId: status.videoId,
+    startedAt: status.startedAt,
+    scheduledStartTime: status.scheduledStartTime,
+    rebroadcastActive: Boolean(status.rebroadcast?.available),
+    rebroadcastMode: status.rebroadcast?.available ? status.rebroadcast.mode ?? "scheduled" : null,
+  };
+}
+
 function broadcastViewerCount(): void {
   const payload = `data: ${buildViewerPayload()}\n\n`;
   for (const [sid, res] of viewerSessions) {

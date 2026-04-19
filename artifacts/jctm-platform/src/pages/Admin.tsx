@@ -183,6 +183,7 @@ interface VisitorState {
   total: number;
   active: number;
   pages: { page: string; count: number }[];
+  devices?: { type: string; count: number }[];
   timestamp: number;
 }
 
@@ -191,6 +192,251 @@ interface SparkPoint { t: string; v: number }
 type ConnStatus = "connecting" | "connected" | "disconnected";
 
 const MAX_SPARK = 30;
+
+interface RealtimeDashboardSnapshot {
+  type: "dashboard_realtime";
+  live: {
+    viewers: number;
+    isLive: boolean;
+    isUpcoming: boolean;
+    title: string | null;
+    videoId: string | null;
+    startedAt: string | null;
+    scheduledStartTime: string | null;
+    rebroadcastActive: boolean;
+    rebroadcastMode: "scheduled" | "continuous" | null;
+  };
+  visitors: VisitorState;
+  engagement: {
+    activeAudience: number;
+    interactions24h: number;
+    aiMessages24h: number;
+    conversations24h: number;
+    prayerRequests24h: number;
+    testimonies24h: number;
+    momentLikes24h: number;
+    momentComments24h: number;
+    momentSharesTotal: number;
+    broadcastEvents24h: number;
+    newMembers24h: number;
+    pushSubscribers: number;
+    engagementDensity: number;
+  };
+  generatedAt: string;
+}
+
+interface RealtimePoint {
+  t: string;
+  audience: number;
+  visitors: number;
+  liveViewers: number;
+}
+
+function useRealtimeDashboard() {
+  const [snapshot, setSnapshot] = useState<RealtimeDashboardSnapshot | null>(null);
+  const [history, setHistory] = useState<RealtimePoint[]>([]);
+  const [conn, setConn] = useState<ConnStatus>("connecting");
+  const esRef = useRef<EventSource | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const recordSnapshot = useCallback((data: RealtimeDashboardSnapshot) => {
+    setSnapshot(data);
+    setHistory(prev => {
+      const label = new Date(data.generatedAt).toLocaleTimeString("en-NG", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      const next = [
+        ...prev,
+        {
+          t: label,
+          audience: data.engagement.activeAudience,
+          visitors: data.visitors.active,
+          liveViewers: data.live.viewers,
+        },
+      ];
+      return next.length > 36 ? next.slice(next.length - 36) : next;
+    });
+  }, []);
+
+  const connect = useCallback(() => {
+    esRef.current?.close();
+    setConn("connecting");
+    const es = new EventSource(`${BASE}/api/admin/realtime/stream`);
+    esRef.current = es;
+
+    es.onopen = () => setConn("connected");
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as RealtimeDashboardSnapshot;
+        if (data.type === "dashboard_realtime") {
+          recordSnapshot(data);
+          setConn("connected");
+        }
+      } catch {
+      }
+    };
+    es.onerror = () => {
+      setConn("disconnected");
+      es.close();
+      esRef.current = null;
+      fetch(`${BASE}/api/admin/realtime`, { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null)
+        .then((data: RealtimeDashboardSnapshot | null) => {
+          if (data?.type === "dashboard_realtime") recordSnapshot(data);
+        })
+        .catch(() => null);
+      reconnectRef.current = setTimeout(connect, 5_000);
+    };
+  }, [recordSnapshot]);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      esRef.current?.close();
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    };
+  }, [connect]);
+
+  return { snapshot, history, conn };
+}
+
+function AudienceCommandCenter({ snapshot, history, conn }: { snapshot: RealtimeDashboardSnapshot | null; history: RealtimePoint[]; conn: ConnStatus }) {
+  const liveMode = snapshot?.live.isLive
+    ? "Live Service"
+    : snapshot?.live.rebroadcastActive
+      ? snapshot.live.rebroadcastMode === "continuous" ? "Temple TV" : "Rebroadcast"
+      : snapshot?.live.isUpcoming
+        ? "Upcoming"
+        : "Off Air";
+  const connColor = conn === "connected" ? "text-emerald-400" : conn === "connecting" ? "text-amber-400" : "text-red-400";
+  const connDot = conn === "connected" ? "bg-emerald-400 animate-pulse" : conn === "connecting" ? "bg-amber-400 animate-pulse" : "bg-red-500";
+  const engagementRows = snapshot ? [
+    { label: "AI messages", value: snapshot.engagement.aiMessages24h, icon: <MessageSquare className="w-3.5 h-3.5" /> },
+    { label: "Prayers", value: snapshot.engagement.prayerRequests24h, icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { label: "Moments", value: snapshot.engagement.momentLikes24h + snapshot.engagement.momentComments24h, icon: <Activity className="w-3.5 h-3.5" /> },
+    { label: "New members", value: snapshot.engagement.newMembers24h, icon: <Users className="w-3.5 h-3.5" /> },
+  ] : [];
+
+  return (
+    <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-border/70">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-primary font-bold">Operations Center</p>
+          <h3 className="font-bold text-lg mt-1">Real-time Audience Command Dashboard</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Live viewers, website visitors, and engagement signals refresh continuously.</p>
+        </div>
+        <div className={`flex items-center gap-2 text-xs font-semibold ${connColor}`}>
+          <span className={`w-2.5 h-2.5 rounded-full ${connDot}`} />
+          {conn === "connected" ? "Real-time stream active" : conn === "connecting" ? "Connecting to live stream" : "Using fallback polling"}
+        </div>
+      </div>
+
+      <div className="p-5 space-y-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: "Active Audience", value: snapshot?.engagement.activeAudience ?? 0, helper: "site + live player", icon: <Signal className="w-4 h-4" />, color: "text-emerald-400 border-emerald-500/25 bg-emerald-500/10" },
+            { label: "Live Viewers", value: snapshot?.live.viewers ?? 0, helper: liveMode, icon: <Radio className="w-4 h-4" />, color: snapshot?.live.isLive ? "text-red-400 border-red-500/25 bg-red-500/10" : "text-amber-400 border-amber-500/25 bg-amber-500/10" },
+            { label: "Website Visitors", value: snapshot?.visitors.active ?? 0, helper: `${(snapshot?.visitors.total ?? 0).toLocaleString()} all-time`, icon: <Globe className="w-4 h-4" />, color: "text-blue-400 border-blue-500/25 bg-blue-500/10" },
+            { label: "24h Engagement", value: snapshot?.engagement.interactions24h ?? 0, helper: `${snapshot?.engagement.engagementDensity ?? 0} per active`, icon: <TrendingUp className="w-4 h-4" />, color: "text-violet-400 border-violet-500/25 bg-violet-500/10" },
+          ].map(metric => (
+            <div key={metric.label} className={`rounded-2xl border p-4 ${metric.color}`}>
+              <div className="flex items-center gap-2 text-xs font-medium opacity-80">{metric.icon}{metric.label}</div>
+              <motion.p
+                key={`${metric.label}-${metric.value}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-3xl font-black mt-2 tabular-nums"
+              >
+                {metric.value.toLocaleString()}
+              </motion.p>
+              <p className="text-[11px] text-muted-foreground mt-1">{metric.helper}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-4">
+          <div className="rounded-2xl border border-border bg-background/60 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> Audience trend</p>
+              <p className="text-xs text-muted-foreground">5-second operational readings</p>
+            </div>
+            <div className="h-56">
+              {history.length > 1 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="audienceGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4ade80" stopOpacity={0.28} />
+                        <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="t" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} minTickGap={28} />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "0.75rem", fontSize: "12px", color: "hsl(var(--foreground))" }}
+                      formatter={(value: number, name: string) => [value, name === "audience" ? "Active audience" : name === "visitors" ? "Website visitors" : "Live viewers"]}
+                    />
+                    <Area type="monotone" dataKey="audience" stroke="#4ade80" strokeWidth={2.5} fill="url(#audienceGrad)" dot={false} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="visitors" stroke="#60a5fa" strokeWidth={1.8} dot={false} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="liveViewers" stroke="#f87171" strokeWidth={1.8} dot={false} isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full rounded-xl bg-muted/30 flex items-center justify-center text-xs text-muted-foreground">
+                  Collecting real-time readings…
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <p className="text-sm font-semibold flex items-center gap-2 mb-3"><Zap className="w-4 h-4 text-primary" /> Engagement mix</p>
+              <div className="space-y-2.5">
+                {engagementRows.map(row => (
+                  <div key={row.label} className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-muted-foreground flex items-center gap-2">{row.icon}{row.label}</span>
+                    <span className="text-sm font-bold tabular-nums">{row.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/60 p-4">
+              <p className="text-sm font-semibold flex items-center gap-2 mb-3"><Monitor className="w-4 h-4 text-primary" /> Device presence</p>
+              <div className="space-y-2">
+                {(snapshot?.visitors.devices ?? []).length > 0 ? snapshot?.visitors.devices?.map(device => {
+                  const total = Math.max(snapshot.visitors.active, 1);
+                  const pct = Math.round((device.count / total) * 100);
+                  const Icon = device.type === "mobile" ? Smartphone : device.type === "tablet" ? Tablet : Monitor;
+                  return (
+                    <div key={device.type}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="capitalize flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" />{device.type}</span>
+                        <span className="font-semibold">{device.count} · {pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                }) : <p className="text-xs text-muted-foreground">No active device data yet.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-border pt-3">
+          <span>Push subscribers: {(snapshot?.engagement.pushSubscribers ?? 0).toLocaleString()} · Moment shares: {(snapshot?.engagement.momentSharesTotal ?? 0).toLocaleString()}</span>
+          <span>Last updated {snapshot ? new Date(snapshot.generatedAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ActiveVisitorsPanel() {
   const [state, setState] = useState<VisitorState>({
@@ -409,6 +655,7 @@ function ActiveVisitorsPanel() {
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLivestreamStatus> }) {
+  const realtime = useRealtimeDashboard();
   const { data, isLoading } = useQuery<BroadcastStatus>({
     queryKey: ["broadcast-status"],
     queryFn: () => fetch(`${BASE}/api/broadcast/status`).then(r => r.json()),
@@ -416,27 +663,28 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
   });
 
   const isLive = liveStatus.isLive;
-  const hasRebroadcast = liveStatus.rebroadcast.available;
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Overview" description="Live platform status and automation engine" />
+      <SectionHeader title="Overview" description="Real-time platform activity, audience engagement, and broadcast operations" />
 
-      <ActiveVisitorsPanel />
+      <AudienceCommandCenter snapshot={realtime.snapshot} history={realtime.history} conn={realtime.conn} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { icon: <Radio className="w-4 h-4" />, label: "Live Stream", value: isLive ? "LIVE" : "Off Air", color: isLive ? "border-red-500/30 bg-red-500/5 text-red-400" : "" },
-          { icon: <Tv2 className="w-4 h-4" />, label: "Rebroadcast", value: hasRebroadcast ? "Active" : "Inactive", color: hasRebroadcast ? "border-amber-500/30 bg-amber-500/5 text-amber-400" : "" },
-          { icon: <Zap className="w-4 h-4" />, label: "Poll Rate", value: data?.automation.sundayServiceWindowActive ? "5s" : "30s", color: "border-blue-500/30 bg-blue-500/5 text-blue-400" },
-          { icon: <Activity className="w-4 h-4" />, label: "AI Curation", value: data?.automation.smartCurationEnabled ? "On" : "Off", color: data?.automation.smartCurationEnabled ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400" : "" },
+          { icon: <Eye className="w-4 h-4" />, label: "Live Viewers", value: realtime.snapshot?.live.viewers ?? 0, color: (realtime.snapshot?.live.viewers ?? 0) > 0 ? "border-red-500/30 bg-red-500/5 text-red-400" : "" },
+          { icon: <Users className="w-4 h-4" />, label: "Site Visitors", value: realtime.snapshot?.visitors.active ?? 0, color: (realtime.snapshot?.visitors.active ?? 0) > 0 ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400" : "" },
+          { icon: <Activity className="w-4 h-4" />, label: "24h Activity", value: realtime.snapshot?.engagement.interactions24h ?? 0, color: "border-blue-500/30 bg-blue-500/5 text-blue-400" },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.color || "border-border bg-card text-muted-foreground"}`}>
             <div className="flex items-center gap-2 mb-2 opacity-70">{s.icon}<span className="text-xs">{s.label}</span></div>
-            <p className="font-bold text-base text-foreground">{s.value}</p>
+            <p className="font-bold text-base text-foreground">{typeof s.value === "number" ? s.value.toLocaleString() : s.value}</p>
           </div>
         ))}
       </div>
+
+      <ActiveVisitorsPanel />
 
       {isLoading ? <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" /> : data && (
         <Card>
