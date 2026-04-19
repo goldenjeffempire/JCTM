@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
+import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
@@ -151,6 +152,8 @@ export default function About() {
               A ministry established by divine mandate, rooted in holiness, and committed to preparing souls for the kingdom of God.
             </p>
           </div>
+
+          <AdSlot slot={ADSENSE_SLOTS.aboutPage} minHeight={100} format="horizontal" className="mb-12" lazy={false} />
 
           {/* Our Story */}
           <div className="glass-panel rounded-2xl p-8 mb-10">

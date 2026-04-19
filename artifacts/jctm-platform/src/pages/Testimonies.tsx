@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -286,6 +287,8 @@ export default function Testimonies() {
             </Button>
           </div>
         </motion.div>
+
+        <AdSlot slot={ADSENSE_SLOTS.testimoniesPage} minHeight={100} format="horizontal" className="mb-8 max-w-4xl mx-auto" lazy={false} />
 
         {submitted && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}

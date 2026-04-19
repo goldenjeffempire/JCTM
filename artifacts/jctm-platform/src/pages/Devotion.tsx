@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { Layout } from "@/components/layout/Layout";
+import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -1135,6 +1136,8 @@ export default function Devotion() {
                 </div>
               </motion.div>
             )}
+
+          <AdSlot slot={ADSENSE_SLOTS.devotionPage} minHeight={100} format="horizontal" className="mt-6" />
         </div>
       </div>
     </Layout>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
+import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -1050,6 +1051,8 @@ export default function Events() {
             </motion.div>
           )}
         </div>
+
+        <AdSlot slot={ADSENSE_SLOTS.eventsPage} minHeight={100} format="horizontal" className="mb-12" />
 
         {/* ─── Upcoming Events ──────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">

@@ -7,6 +7,7 @@ import {
   Send, MessageSquarePlus, Clock,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
+import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -772,6 +773,8 @@ export default function Prayer() {
 
         {/* Divider */}
         <div className="border-t border-border/30 mx-auto max-w-3xl" />
+
+        <AdSlot slot={ADSENSE_SLOTS.prayerPage} minHeight={100} format="horizontal" className="mx-auto max-w-3xl my-8" />
 
         {/* Community Prayer Wall */}
         <PrayerWall />
