@@ -449,6 +449,11 @@ async function pollAndBroadcast(): Promise<void> {
         startedAt: livestreamState.isLive ? livestreamState.startedAt : new Date().toISOString(),
         scheduledStartTime: null,
       };
+
+      // Send push notification to all subscribers on live→online transition
+      if (!wasLive) {
+        dispatchPushNotification(buildLiveServiceNotification(ytStatus.title ?? "Sunday Service")).catch(() => {});
+      }
     } else if (ytStatus.isUpcoming) {
       newState = {
         isLive: false,
@@ -491,6 +496,9 @@ async function pollAndBroadcast(): Promise<void> {
               startedAt,
               expiresAt,
             };
+
+            // Notify all subscribers that rebroadcast is starting
+            dispatchPushNotification(buildRebroadcastNotification(primary.title ?? "Sunday Service")).catch(() => {});
           } catch {
             // Fallback: use last known videoId or latest from DB
             let endedVideoId = livestreamState.videoId;
@@ -509,6 +517,11 @@ async function pollAndBroadcast(): Promise<void> {
               startedAt: new Date().toISOString(),
               expiresAt: new Date(Date.now() + REBROADCAST_DURATION_MS).toISOString(),
             };
+
+            // Notify subscribers of rebroadcast (fallback path)
+            if (endedTitle) {
+              dispatchPushNotification(buildRebroadcastNotification(endedTitle)).catch(() => {});
+            }
           }
         }
       } else {

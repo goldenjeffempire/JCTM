@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { GeoProvider } from "@/contexts/GeoContext";
 import { VoiceTempleBots } from "@/components/VoiceTempleBots";
 import { CookieConsent } from "@/components/ads/CookieConsent";
+import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -127,6 +128,7 @@ function App() {
             </WouterRouter>
             <VoiceTempleBots />
             <CookieConsent />
+            <PushNotificationPrompt />
           </ErrorBoundary>
           <Toaster
             position="top-center"
