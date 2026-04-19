@@ -36,6 +36,7 @@ const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").th
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const LIVE_STREAM_VIDEO_ID = "f7TOxaM2Mq4";
+const WAT_TIME_ZONE = "Africa/Lagos";
 
 const SCRIPTURES = [
   { verse: "\"The Bible Is Our Standard.\"", ref: "JCTM Core Mandate" },
@@ -90,9 +91,61 @@ function useTypewriter(words: string[], speed = 70, pauseMs = 2600) {
 }
 
 // ─── WAT helpers ───────────────────────────────────────────────────────────
+type WatParts = {
+  year: number;
+  month: number;
+  day: number;
+  weekday: string;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+function getWatParts(now = new Date()): WatParts {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: WAT_TIME_ZONE,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (type: string) => parts.find(part => part.type === type)?.value ?? "0";
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+    weekday: get("weekday"),
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+    second: Number(get("second")),
+  };
+}
+
 function getWatDate(now = new Date()) {
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utcMs + 3600000); // WAT = UTC+1
+  const parts = getWatParts(now);
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second));
+}
+
+function getSundayServiceWindow(now = new Date()) {
+  const wat = getWatParts(now);
+  const isSunday = wat.weekday === "Sun";
+  const totalMinutes = wat.hour * 60 + wat.minute;
+  const isCountdownWindow = isSunday && totalMinutes >= 360 && totalMinutes < 480;
+  const serviceStartUtcMs = Date.UTC(wat.year, wat.month - 1, wat.day, 7, 0, 0);
+  const diff = Math.max(0, serviceStartUtcMs - now.getTime());
+  return { isSunday, isCountdownWindow, diff, wat };
+}
+
+function formatCountdown(diff: number) {
+  return {
+    hours: Math.floor(diff / 3600000),
+    minutes: Math.floor((diff % 3600000) / 60000),
+    seconds: Math.floor((diff % 60000) / 1000),
+  };
 }
 
 // ─── Live Countdown (to next Sunday 8 AM WAT) ──────────────────────────────
@@ -168,12 +221,14 @@ function AnimatedCounter({ target, suffix = "", duration = 2000 }: { target: num
 // ─── Broadcast Status Notification ─────────────────────────────────────────
 function BroadcastStatusNotification({
   isLive,
+  isUpcoming,
   liveTitle,
   onJoin,
   rebroadcast,
   onWatchRebroadcast,
 }: {
   isLive: boolean;
+  isUpcoming: boolean;
   liveTitle: string | null;
   onJoin: () => void;
   rebroadcast: { videoId: string; title?: string | null } | null;
@@ -182,7 +237,7 @@ function BroadcastStatusNotification({
   const AUTO_DISMISS_MS = 12000;
   const [now, setNow] = useState(() => new Date());
   const [dismissed, setDismissed] = useState(false);
-  const prevPhase = useRef<"live" | "rebroadcast" | null>(null);
+  const prevPhase = useRef<"service-soon" | "live" | "rebroadcast" | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -190,7 +245,10 @@ function BroadcastStatusNotification({
     return () => clearInterval(t);
   }, []);
 
-  const phase: "live" | "rebroadcast" | null = (() => {
+  const serviceWindow = getSundayServiceWindow(now);
+  const countdown = formatCountdown(serviceWindow.diff);
+  const phase: "service-soon" | "live" | "rebroadcast" | null = (() => {
+    if (serviceWindow.isCountdownWindow && !isLive) return "service-soon";
     if (isLive) return "live";
     if (rebroadcast) return "rebroadcast";
     return null;
@@ -209,21 +267,81 @@ function BroadcastStatusNotification({
     };
   }, [phase]);
 
-  const target8AM = new Date(now);
-  target8AM.setHours(8, 0, 0, 0);
-  const msLeft = Math.max(0, target8AM.getTime() - now.getTime());
-  const cdHours = Math.floor(msLeft / 3600000);
-  const cdMins = Math.floor((msLeft % 3600000) / 60000);
-  const cdSecs = Math.floor((msLeft % 60000) / 1000);
-
   const pad = (n: number) => String(n).padStart(2, "0");
+  const openServiceSoon = () => {
+    if (isUpcoming) {
+      onJoin();
+      return;
+    }
+    window.open("https://www.youtube.com/templetvjctm", "_blank", "noopener,noreferrer");
+  };
 
   if (!phase || dismissed) return null;
 
   return (
     <div className="absolute top-[4.5rem] sm:top-20 md:top-24 right-3 sm:right-4 z-20 pointer-events-auto select-none">
       <AnimatePresence mode="wait">
-        {phase === "live" ? (
+        {phase === "service-soon" ? (
+          <motion.div
+            key="service-soon"
+            initial={{ opacity: 0, x: 40, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 40, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            className="relative"
+          >
+            <motion.div
+              animate={{ opacity: [0.35, 0.7, 0.35], scale: [1, 1.08, 1] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -inset-4 rounded-[2rem] blur-2xl"
+              style={{ background: "radial-gradient(circle, rgba(245,158,11,0.45), rgba(239,68,68,0.2))" }}
+            />
+            <button
+              onClick={openServiceSoon}
+              className="relative flex flex-col gap-2 w-[168px] sm:w-[196px] md:w-[224px] rounded-[1.35rem] sm:rounded-[1.6rem] px-3.5 sm:px-4 pt-3.5 sm:pt-4 pb-3 text-left cursor-pointer group"
+              style={{
+                background: "linear-gradient(145deg, rgba(24,12,0,0.94) 0%, rgba(92,38,0,0.95) 52%, rgba(120,20,20,0.92) 100%)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: "1px solid rgba(245,158,11,0.42)",
+                boxShadow: "0 0 0 1px rgba(245,158,11,0.18), 0 14px 42px rgba(180,83,9,0.32), inset 0 1px 0 rgba(255,255,255,0.08)",
+              }}
+              aria-label="Sunday service starts by 8:00 AM WAT"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-full w-full bg-amber-300" />
+                  </span>
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 whitespace-nowrap">
+                    Service Soon
+                  </span>
+                </div>
+                <span className="rounded-full bg-white/12 px-2 py-1 text-[9px] font-black text-white tabular-nums border border-white/10">
+                  {pad(countdown.hours)}:{pad(countdown.minutes)}:{pad(countdown.seconds)}
+                </span>
+              </div>
+              <div>
+                <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug">
+                  Sunday Service starts by 8:00 AM WAT
+                </p>
+                <p className="text-white/55 text-[9px] sm:text-[10px] mt-0.5 font-medium">
+                  Pinned from 6:00 AM. Temple TV scan begins at service time.
+                </p>
+              </div>
+              <div
+                className="mt-0.5 flex items-center justify-between rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-200 group-hover:opacity-90"
+                style={{ background: "linear-gradient(90deg, rgba(245,158,11,0.95), rgba(239,68,68,0.82))" }}
+              >
+                <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">
+                  {isUpcoming ? "Upcoming on Temple TV" : "Prepare to Watch"}
+                </span>
+                <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
+              </div>
+            </button>
+          </motion.div>
+        ) : phase === "live" ? (
           <motion.div
             key="live"
             initial={{ opacity: 0, x: 40, scale: 0.9 }}
@@ -263,7 +381,7 @@ function BroadcastStatusNotification({
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                 </span>
-                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Rebroadcast Now</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Live Now</span>
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
@@ -996,7 +1114,7 @@ function HeroSection() {
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
                     </span>
-                    {isLive ? "Rebroadcast Now — Join Service" : "Watch Rebroadcast"}
+                    {isLive ? "Live Now — Join Service" : "Watch Rebroadcast"}
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -1042,7 +1160,7 @@ function HeroSection() {
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                     </span>
-                    {isLive ? "Watch Rebroadcast Now" : "Watch Rebroadcast"}
+                    {isLive ? "Watch Live Now" : "Watch Rebroadcast"}
                   </RippleButton>
                 ) : (
                   <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
@@ -1123,7 +1241,7 @@ function HeroSection() {
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
                     </span>
                   </div>
-                  <span className={`text-[9px] font-semibold uppercase tracking-wider ${isLive ? "text-red-500" : "text-accent"}`}>{isLive ? "Rebroadcast Now" : "Rebroadcast"}</span>
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider ${isLive ? "text-red-500" : "text-accent"}`}>{isLive ? "Live Now" : "Rebroadcast"}</span>
                 </motion.button>
               ) : (
                 <motion.a
@@ -1225,6 +1343,7 @@ function HeroSection() {
       {/* ── BROADCAST STATUS NOTIFICATION ── */}
       <BroadcastStatusNotification
         isLive={isLive}
+        isUpcoming={isUpcoming}
         liveTitle={liveTitle}
         onJoin={() => setLivePlayerOpen(true)}
         rebroadcast={rebroadcastForWidget}

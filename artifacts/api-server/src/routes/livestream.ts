@@ -390,8 +390,9 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
 // ─── Sunday Service Window Detection ─────────────────────────────────────────
 //
 // JCTM is based in Warri, Nigeria — West Africa Time (WAT) = UTC+1.
-// Sunday service is at 08:00 WAT.  Poll every 5 seconds from 07:45–10:30 WAT
-// for near-instant live detection.  Outside this window the 30-second poll runs.
+// Sunday service is at 08:00 WAT. Poll every 5 seconds from 08:00–10:30 WAT
+// so the platform scans YouTube right at service time. Outside this window the
+// standard 30-second poll continues.
 
 function isSundayServiceWindow(): boolean {
   const now = new Date();
@@ -400,8 +401,8 @@ function isSundayServiceWindow(): boolean {
   const wat = new Date(watMs);
   const dayOfWeek = wat.getUTCDay(); // 0 = Sunday
   const totalMinutes = wat.getUTCHours() * 60 + wat.getUTCMinutes();
-  // 07:45 WAT → 465 min, 10:30 WAT → 630 min
-  return dayOfWeek === 0 && totalMinutes >= 465 && totalMinutes <= 630;
+  // 08:00 WAT → 480 min, 10:30 WAT → 630 min
+  return dayOfWeek === 0 && totalMinutes >= 480 && totalMinutes <= 630;
 }
 
 // ─── Background poll ──────────────────────────────────────────────────────────
@@ -536,8 +537,8 @@ setImmediate(() => { pollAndBroadcast().catch(() => {}); });
 const pollInterval = setInterval(() => { pollAndBroadcast().catch(() => {}); }, 30_000);
 pollInterval.unref();
 
-// Sunday service window: poll every 5 seconds (7:50 AM – 9:30 AM EST)
-// so the live banner appears within seconds of the stream going live.
+// Sunday service window: poll every 5 seconds from 8:00 AM WAT so the live
+// banner appears within seconds of the stream going live.
 const sundayPollInterval = setInterval(() => {
   if (isSundayServiceWindow()) {
     youtubeCheckCache = null; // Always bust cache in service window
