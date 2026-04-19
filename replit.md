@@ -379,6 +379,15 @@ Served at root level (not under `/api`) in `app.ts`:
 
 ## Recent Enhancements (April 2026)
 
+### YouTube Live Stream Stability Pass
+- Hardened livestream status clients with REST snapshot hydration, visibility-aware SSE reconnects, online/focus recovery, and jittered exponential backoff to avoid reconnect storms during real-world network instability.
+- Reduced live-player overhead by only counting viewer presence while the player is open and keeping the last good viewer count during transient network failures.
+- Updated YouTube embed generation with inline playback, Player API support, lower-distraction parameters, and adaptive quality defaults that respect Save-Data/slow network conditions.
+- Added iframe self-recovery in the unified live/rebroadcast player: stalled startup or YouTube player errors trigger limited automatic reloads and show a non-blocking “stabilizing stream connection” message.
+- Optimized short-form/intro video loading so hidden preloads only mount on fast non–data-saver connections, reducing background bandwidth and preventing competing YouTube players from degrading live playback.
+- Mobile live/rebroadcast banners now open the active YouTube video directly when a video ID is available, handing playback to the native YouTube app/player for more reliable mobile streaming.
+- The livestream REST status endpoint now throttles YouTube refreshes, skips unnecessary broadcasts when state is unchanged, and returns the current full status payload quickly for polling clients.
+
 ### Ministers Conference Flyer Sharing
 - Home page Ministers Conference 2026 section now uses the uploaded official flyer image from `attached_assets` via Vite asset import.
 - Added visitor-facing flyer actions: direct JPEG download, native mobile share/copy fallback, and quick links for WhatsApp, Facebook, X, Telegram, LinkedIn, and Instagram.

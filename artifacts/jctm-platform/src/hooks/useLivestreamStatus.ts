@@ -17,7 +17,7 @@
  *  • Falls back to last known state while reconnecting
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useSyncExternalStore } from "react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -78,68 +78,159 @@ type SSEEvent = { type: "status" } & Omit<LivestreamStatus, "rebroadcast" | "man
   manualOverride?: ManualOverrideState;
 };
 
-export function useLivestreamStatus(): LivestreamStatus {
-  const [status, setStatus] = useState<LivestreamStatus>(DEFAULT_STATUS);
+const MAX_RETRY_DELAY_MS = 30_000;
+const SNAPSHOT_TTL_MS = 8_000;
 
-  const esRef         = useRef<EventSource | null>(null);
-  const retryDelayRef = useRef(1_000);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const connectFnRef  = useRef<() => void>(() => {});
-  const sid           = useRef(`status-${crypto.randomUUID()}`).current;
+function normalizeStatus(data: Partial<SSEEvent>): LivestreamStatus {
+  return {
+    isLive:              data.isLive    ?? false,
+    isUpcoming:          data.isUpcoming ?? false,
+    title:               data.title     ?? null,
+    streamUrl:           data.streamUrl  ?? null,
+    videoId:             data.videoId    ?? null,
+    startedAt:           data.startedAt  ?? null,
+    scheduledStartTime:  data.scheduledStartTime ?? null,
+    rebroadcast:         data.rebroadcast ?? DEFAULT_REBROADCAST,
+    manualOverride:      data.manualOverride ?? DEFAULT_MANUAL_OVERRIDE,
+  };
+}
 
-  const connect = useCallback(() => {
-    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+function getRetryDelayWithJitter(delay: number): number {
+  return delay + Math.floor(Math.random() * Math.min(1_000, delay * 0.3));
+}
 
-    const es = new EventSource(
-      `${BASE}/api/livestream/stream?sid=${encodeURIComponent(sid)}`,
-    );
-    esRef.current = es;
+type Listener = () => void;
 
-    es.onopen = () => {
-      retryDelayRef.current = 1_000;
-    };
+let currentStatus = DEFAULT_STATUS;
+let es: EventSource | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryDelay = 1_000;
+let started = false;
+let lastSnapshotAt = 0;
+let snapshotPromise: Promise<void> | null = null;
+const listeners = new Set<Listener>();
+const sid = `status-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
 
-    es.onmessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data as string) as SSEEvent;
-        if (data.type === "status") {
-          setStatus({
-            isLive:              data.isLive    ?? false,
-            isUpcoming:          data.isUpcoming ?? false,
-            title:               data.title     ?? null,
-            streamUrl:           data.streamUrl  ?? null,
-            videoId:             data.videoId    ?? null,
-            startedAt:           data.startedAt  ?? null,
-            scheduledStartTime:  data.scheduledStartTime ?? null,
-            rebroadcast:         data.rebroadcast ?? DEFAULT_REBROADCAST,
-            manualOverride:      data.manualOverride ?? DEFAULT_MANUAL_OVERRIDE,
-          });
-        }
-      } catch {
-        // Malformed frame — ignore
+function emitStatus(next: LivestreamStatus) {
+  currentStatus = next;
+  listeners.forEach(listener => listener());
+}
+
+async function fetchSnapshot(signal?: AbortSignal) {
+  if (Date.now() - lastSnapshotAt < SNAPSHOT_TTL_MS) return;
+  if (snapshotPromise) return snapshotPromise;
+
+  snapshotPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE}/api/livestream/status`, {
+        cache: "no-store",
+        signal,
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) return;
+      const data = await res.json() as Partial<SSEEvent>;
+      lastSnapshotAt = Date.now();
+      emitStatus(normalizeStatus(data));
+    } catch {
+      undefined;
+    } finally {
+      snapshotPromise = null;
+    }
+  })();
+
+  return snapshotPromise;
+}
+
+function clearRetryTimer() {
+  if (!retryTimer) return;
+  clearTimeout(retryTimer);
+  retryTimer = null;
+}
+
+function closeStream() {
+  clearRetryTimer();
+  es?.close();
+  es = null;
+}
+
+function connect() {
+  if (!listeners.size) return;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+  closeStream();
+
+  es = new EventSource(`${BASE}/api/livestream/stream?sid=${encodeURIComponent(sid)}`);
+
+  es.onopen = () => {
+    retryDelay = 1_000;
+  };
+
+  es.onmessage = (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data as string) as SSEEvent;
+      if (data.type === "status") {
+        emitStatus(normalizeStatus(data));
       }
-    };
+    } catch {
+      undefined;
+    }
+  };
 
-    es.onerror = () => {
-      es.close();
-      esRef.current = null;
-      const delay = retryDelayRef.current;
-      retryDelayRef.current = Math.min(delay * 2, 30_000);
-      retryTimerRef.current = setTimeout(() => connectFnRef.current(), delay);
-    };
-  }, [sid]);
+  es.onerror = () => {
+    es?.close();
+    es = null;
+    const delay = retryDelay;
+    retryDelay = Math.min(delay * 2, MAX_RETRY_DELAY_MS);
+    retryTimer = setTimeout(connect, getRetryDelayWithJitter(delay));
+  };
+}
 
-  connectFnRef.current = connect;
+function reconnectNow() {
+  fetchSnapshot();
+  connect();
+}
 
-  useEffect(() => {
-    connect();
-    return () => {
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-      esRef.current?.close();
-      esRef.current = null;
-    };
-  }, [connect]);
+function handleVisibility() {
+  if (document.visibilityState === "visible") {
+    reconnectNow();
+  } else {
+    closeStream();
+  }
+}
 
-  return status;
+function startStore() {
+  if (started) return;
+  started = true;
+  fetchSnapshot();
+  connect();
+  document.addEventListener("visibilitychange", handleVisibility);
+  window.addEventListener("online", reconnectNow);
+  window.addEventListener("focus", reconnectNow);
+}
+
+function stopStore() {
+  if (!started || listeners.size) return;
+  started = false;
+  closeStream();
+  document.removeEventListener("visibilitychange", handleVisibility);
+  window.removeEventListener("online", reconnectNow);
+  window.removeEventListener("focus", reconnectNow);
+}
+
+function subscribe(listener: Listener) {
+  listeners.add(listener);
+  startStore();
+  return () => {
+    listeners.delete(listener);
+    stopStore();
+  };
+}
+
+function getSnapshot() {
+  return currentStatus;
+}
+
+export function useLivestreamStatus(): LivestreamStatus {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

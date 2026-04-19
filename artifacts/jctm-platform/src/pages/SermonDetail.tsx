@@ -415,6 +415,7 @@ export default function SermonDetail() {
               <div className="rounded-2xl overflow-hidden shadow-xl relative">
                 <div className="aspect-video relative bg-black">
                   <iframe
+                    key={`${sermon.videoId}-${quality}-${audioMode ? "audio" : "video"}`}
                     className="absolute inset-0 w-full h-full"
                     src={audioMode
                       ? buildYouTubeUrl(sermon.videoId, quality, { autoplay: true })
@@ -423,6 +424,7 @@ export default function SermonDetail() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
                     referrerPolicy="strict-origin-when-cross-origin"
+                    loading="eager"
                   />
                   {audioMode && (
                     <div className="absolute inset-0 bg-primary z-10 pointer-events-none flex flex-col items-center justify-center gap-6">

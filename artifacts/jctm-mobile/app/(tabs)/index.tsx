@@ -23,6 +23,8 @@ function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
   const status = data as {
     isLive?: boolean;
     title?: string | null;
+    videoId?: string | null;
+    streamUrl?: string | null;
     rebroadcast?: { available?: boolean; videoId?: string | null; title?: string | null; mode?: string };
   } | undefined;
 
@@ -34,6 +36,12 @@ function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
   const bannerText = isLive
     ? `🔴 ${status?.title ?? "Holy Spirit Sunday Service — Live"}`
     : `📺 ${status?.rebroadcast?.mode === "scheduled" ? "Rebroadcast" : "Temple TV"} — ${status?.rebroadcast?.title ?? "Now Playing"}`;
+  const liveUrl = status?.videoId
+    ? `https://www.youtube.com/watch?v=${status.videoId}`
+    : status?.streamUrl ?? `${BASE}/sermons`;
+  const rebroadcastUrl = status?.rebroadcast?.videoId
+    ? `https://www.youtube.com/watch?v=${status.rebroadcast.videoId}`
+    : `${BASE}/sermons`;
 
   return (
     <TouchableOpacity
@@ -41,7 +49,7 @@ function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
         styles.liveBanner,
         { backgroundColor: isLive ? "#E53E3E" : isRebroadcast && status?.rebroadcast?.mode === "scheduled" ? "#D97706" : "#4F46E5" },
       ]}
-      onPress={() => Linking.openURL(isLive ? `${BASE}/sermons` : `${BASE}/sermons`)}
+      onPress={() => Linking.openURL(isLive ? liveUrl : rebroadcastUrl)}
       activeOpacity={0.85}
     >
       <View style={[styles.liveDot, { backgroundColor: isLive ? "#fff" : "#fff" }]} />

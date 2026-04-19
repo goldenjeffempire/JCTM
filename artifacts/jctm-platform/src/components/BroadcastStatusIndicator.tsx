@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { LiveChat } from "@/components/LiveChat";
+import { buildYouTubeUrl } from "@/components/DualStreamToggle";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -29,17 +30,19 @@ function formatTimeRemaining(expiresAt: string): string {
 }
 
 function buildEmbedUrl(videoId: string, isLive: boolean): string {
-  const origin = typeof window !== "undefined" ? encodeURIComponent(window.location.origin) : "";
-  const base = `https://www.youtube.com/embed/${videoId}`;
-  const params = new URLSearchParams({
-    autoplay: "1",
-    rel: "0",
-    modestbranding: "1",
-    origin: typeof window !== "undefined" ? window.location.origin : "",
-    enablejsapi: "1",
-    ...(isLive ? { mute: "0" } : { loop: "0" }),
-  });
-  return `${base}?${params.toString()}&origin=${origin}`;
+  return buildYouTubeUrl(videoId, "high", { autoplay: true, isLive, enableJsApi: true });
+}
+
+function parseYouTubeMessage(data: unknown): { event?: string; info?: number | { playerState?: number } } | null {
+  if (typeof data === "object" && data !== null) {
+    return data as { event?: string; info?: number | { playerState?: number } };
+  }
+  if (typeof data !== "string") return null;
+  try {
+    return JSON.parse(data) as { event?: string; info?: number | { playerState?: number } };
+  } catch {
+    return null;
+  }
 }
 
 // ─── useRebroadcastQueue — fetch recent sermons as fallback playback queue ─────
@@ -86,8 +89,8 @@ function useYouTubeEndDetector(onEnded: () => void) {
     const handler = (event: MessageEvent) => {
       if (event.origin !== "https://www.youtube.com") return;
       try {
-        const data = JSON.parse(event.data as string) as { event?: string; info?: number };
-        if (data.event === "onStateChange" && data.info === 0) {
+        const data = parseYouTubeMessage(event.data) as { event?: string; info?: number } | null;
+        if (data?.event === "onStateChange" && data.info === 0) {
           onEndedRef.current();
         }
       } catch {
@@ -97,6 +100,58 @@ function useYouTubeEndDetector(onEnded: () => void) {
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, []);
+}
+
+function useYouTubePlayerRecovery(videoId: string, isLive: boolean) {
+  const [revision, setRevision] = useState(0);
+  const [recovering, setRecovering] = useState(false);
+  const attemptsRef = useRef(0);
+  const readyRef = useRef(false);
+
+  useEffect(() => {
+    attemptsRef.current = 0;
+    readyRef.current = false;
+    setRecovering(false);
+
+    const startupTimer = setTimeout(() => {
+      if (readyRef.current || attemptsRef.current >= 2) return;
+      attemptsRef.current += 1;
+      setRecovering(true);
+      setRevision(r => r + 1);
+    }, isLive ? 12_000 : 15_000);
+
+    return () => clearTimeout(startupTimer);
+  }, [videoId, isLive]);
+
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.origin !== "https://www.youtube.com") return;
+      const data = parseYouTubeMessage(event.data);
+      if (!data) return;
+      if (data.event === "onReady") {
+        readyRef.current = true;
+        setRecovering(false);
+      }
+      const playerState = typeof data.info === "number" ? data.info : data.info?.playerState;
+      if (data.event === "onStateChange" && (playerState === 1 || playerState === 3)) {
+        readyRef.current = true;
+        setRecovering(false);
+      }
+      if (data.event === "onError" && attemptsRef.current < 3) {
+        attemptsRef.current += 1;
+        setRecovering(true);
+        setTimeout(() => setRevision(r => r + 1), 1_000 * attemptsRef.current);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const handleLoad = useCallback(() => {
+    setTimeout(() => setRecovering(false), 800);
+  }, []);
+
+  return { revision, recovering, handleLoad };
 }
 
 // ─── Unified Player Modal ─────────────────────────────────────────────────────
@@ -163,6 +218,7 @@ function UnifiedPlayerModal({
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
   const embedSrc = buildEmbedUrl(currentVideoId, isLive);
+  const playerRecovery = useYouTubePlayerRecovery(currentVideoId, isLive);
 
   // Header accent colours
   const headerDot = isLive ? "bg-red-500" : rebroadcastMode === "continuous" ? "bg-indigo-400" : "bg-amber-500";
@@ -296,12 +352,14 @@ function UnifiedPlayerModal({
           >
             <AnimatePresence mode="wait">
               <motion.iframe
-                key={`${currentVideoId}-${isLive ? "live" : rebroadcastMode ?? "rb"}`}
+                key={`${currentVideoId}-${isLive ? "live" : rebroadcastMode ?? "rb"}-${playerRecovery.revision}`}
                 src={embedSrc}
                 title={currentTitle}
                 allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                 allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
+                loading="eager"
+                onLoad={playerRecovery.handleLoad}
                 className="w-full h-full absolute inset-0"
                 style={{ minHeight: 0, border: "none" }}
                 initial={{ opacity: 0 }}
@@ -310,6 +368,14 @@ function UnifiedPlayerModal({
                 transition={{ duration: 0.4 }}
               />
             </AnimatePresence>
+            {playerRecovery.recovering && (
+              <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none bg-gradient-to-t from-black/80 to-transparent p-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-md">
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                  Stabilizing stream connection…
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Chat pane (Live only) */}

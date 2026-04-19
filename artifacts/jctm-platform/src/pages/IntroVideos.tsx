@@ -351,10 +351,11 @@ function IntroCard({
   const buildSrc = (active: boolean, muted: boolean) =>
     `https://www.youtube.com/embed/${video.videoId}` +
     `?autoplay=${active ? 1 : 0}&mute=${muted ? 1 : 0}&loop=1&playlist=${video.videoId}` +
-    `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` +
+    `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&iv_load_policy=3` +
     `&origin=${encodeURIComponent(window.location.origin)}`;
 
-  const embedSrc = (isActive || isPreload) ? buildSrc(isActive, isActive ? muted : false) : null;
+  const shouldMountIframe = isActive || (isPreload && navigator.connection?.effectiveType === "4g" && !navigator.connection?.saveData);
+  const embedSrc = shouldMountIframe ? buildSrc(isActive, isActive ? muted : true) : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });
   const [liking, setLiking] = useState(false);
@@ -448,6 +449,7 @@ function IntroCard({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            loading={isActive ? "eager" : "lazy"}
             onLoad={handleLoad}
             style={{ opacity: isPreload && !isActive ? 0 : 1, pointerEvents: isActive ? "auto" : "none" }}
           />

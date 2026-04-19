@@ -23,6 +23,7 @@ const REBROADCAST_DURATION_MS = 4 * 24 * 60 * 60 * 1000; // 4 days (Sunday → T
 // Correct JCTM Temple TV channel ID (matches youtube-sync.ts & WebSub subscription)
 const JCTM_CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
 const CACHE_TTL_MS = 30_000;
+const STATUS_REST_REFRESH_MS = 15_000;
 
 // ─── Live State ───────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ let livestreamState: LivestreamState = {
   startedAt: null,
   scheduledStartTime: null,
 };
+let lastStatusRestRefreshAt = 0;
 
 // ─── Continuous Fallback State ────────────────────────────────────────────────
 //
@@ -343,6 +345,58 @@ function broadcastStatus(state: LivestreamState): void {
       statusSessions.delete(sid);
     }
   }
+}
+
+function didStatusChange(a: LivestreamState, b: LivestreamState): boolean {
+  return (
+    a.isLive !== b.isLive ||
+    a.isUpcoming !== b.isUpcoming ||
+    a.videoId !== b.videoId ||
+    a.title !== b.title ||
+    a.scheduledStartTime !== b.scheduledStartTime
+  );
+}
+
+function buildLivestreamStateFromYouTube(ytStatus: YouTubeCheckResult): LivestreamState | null {
+  if (ytStatus.isLive) {
+    return {
+      isLive: true,
+      isUpcoming: false,
+      title: ytStatus.title,
+      streamUrl: ytStatus.videoId
+        ? `https://www.youtube.com/watch?v=${ytStatus.videoId}`
+        : "https://www.youtube.com/templetvjctm",
+      videoId: ytStatus.videoId,
+      startedAt: livestreamState.isLive ? livestreamState.startedAt : new Date().toISOString(),
+      scheduledStartTime: null,
+    };
+  }
+
+  if (ytStatus.isUpcoming) {
+    return {
+      isLive: false,
+      isUpcoming: true,
+      title: ytStatus.title,
+      streamUrl: ytStatus.videoId ? `https://www.youtube.com/watch?v=${ytStatus.videoId}` : null,
+      videoId: ytStatus.videoId,
+      startedAt: null,
+      scheduledStartTime: ytStatus.scheduledStartTime,
+    };
+  }
+
+  if (process.env.YOUTUBE_API_KEY && (livestreamState.isLive || livestreamState.isUpcoming) && !livestreamState.startedAt?.includes("manual")) {
+    return {
+      isLive: false,
+      isUpcoming: false,
+      title: null,
+      streamUrl: null,
+      videoId: null,
+      startedAt: null,
+      scheduledStartTime: null,
+    };
+  }
+
+  return null;
 }
 
 async function initManualLivestreamOverrideFromDB(): Promise<void> {
@@ -945,47 +999,16 @@ router.get("/livestream/viewers", (_req: Request, res: Response): void => {
 // ─── GET /api/livestream/status — REST fallback ───────────────────────────────
 
 router.get("/livestream/status", async (_req, res): Promise<void> => {
-  const ytStatus = await checkYouTubeLive();
-
-  if (ytStatus.isLive) {
-    livestreamState = {
-      isLive: true,
-      isUpcoming: false,
-      title: ytStatus.title,
-      streamUrl: ytStatus.videoId
-        ? `https://www.youtube.com/watch?v=${ytStatus.videoId}`
-        : "https://www.youtube.com/templetvjctm",
-      videoId: ytStatus.videoId,
-      startedAt: livestreamState.isLive ? livestreamState.startedAt : new Date().toISOString(),
-      scheduledStartTime: null,
-    };
-  } else if (ytStatus.isUpcoming) {
-    livestreamState = {
-      isLive: false,
-      isUpcoming: true,
-      title: ytStatus.title,
-      streamUrl: ytStatus.videoId ? `https://www.youtube.com/watch?v=${ytStatus.videoId}` : null,
-      videoId: ytStatus.videoId,
-      startedAt: null,
-      scheduledStartTime: ytStatus.scheduledStartTime,
-    };
-  } else if (!process.env.YOUTUBE_API_KEY) {
-    // No API key — leave manual in-memory state untouched
-  } else {
-    if ((livestreamState.isLive || livestreamState.isUpcoming) && !livestreamState.startedAt?.includes("manual")) {
-      livestreamState = {
-        isLive: false,
-        isUpcoming: false,
-        title: null,
-        streamUrl: null,
-        videoId: null,
-        startedAt: null,
-        scheduledStartTime: null,
-      };
+  if (!manualOverrideLive && !manualOverrideRebroadcast && Date.now() - lastStatusRestRefreshAt > STATUS_REST_REFRESH_MS) {
+    lastStatusRestRefreshAt = Date.now();
+    const ytStatus = await checkYouTubeLive();
+    const nextState = buildLivestreamStateFromYouTube(ytStatus);
+    if (nextState && didStatusChange(livestreamState, nextState)) {
+      broadcastStatus(nextState);
+    } else if (nextState) {
+      livestreamState = nextState;
     }
   }
-
-  broadcastStatus(livestreamState);
 
   // Return the full SSE-equivalent payload so REST consumers (mobile, polling clients)
   // receive identical data to SSE subscribers — live status + rebroadcast + manual overrides.

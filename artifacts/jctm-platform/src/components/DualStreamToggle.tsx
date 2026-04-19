@@ -68,7 +68,7 @@ function detectNetworkQuality(): StreamQuality {
   if (!conn) return "high";
   if (conn.saveData) return "low";
   const et = conn.effectiveType;
-  if (et === "slow-2g" || et === "2g") return "low";
+  if (et === "slow-2g" || et === "2g" || et === "3g") return "low";
   return "high";
 }
 
@@ -151,10 +151,14 @@ export function buildYouTubeUrl(
     controls: "1",
     enablejsapi: enableJsApi ? "1" : "0",
     fs: "1",
+    playsinline: "1",
+    iv_load_policy: "3",
+    cc_load_policy: "0",
+    hl: "en",
     // Live streams: omit vq — YouTube's internal ABR selects quality.
     // VOD: pass vq as a preference hint for the initial quality level.
     ...(isLive ? {} : quality === "low" ? { vq: "small" } : { vq: "hd1080" }),
-    ...(origin ? { origin } : {}),
+    ...(origin ? { origin, widget_referrer: origin } : {}),
   });
 
   return `https://www.youtube.com/embed/${videoId}?${params}`;
