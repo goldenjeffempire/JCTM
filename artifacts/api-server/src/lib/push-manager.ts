@@ -127,8 +127,11 @@ export interface NotificationPayload {
   body: string;
   icon?: string;
   badge?: string;
+  image?: string;
   url?: string;
   tag?: string;
+  requireInteraction?: boolean;
+  actions?: Array<{ action: string; title: string; icon?: string }>;
   data?: Record<string, unknown>;
 }
 
@@ -165,6 +168,20 @@ export function buildServiceReminderNotification(minutesBefore: number): Notific
     url: "/",
     tag: "service-reminder",
     data: { type: "service_reminder", minutesBefore, timestamp: new Date().toISOString() },
+  };
+}
+
+export function buildUpcomingServiceNotification(): NotificationPayload {
+  return {
+    title: "Holy Spirit Sunday Service Begins Soon",
+    body: "Join us live at 8:00 AM (WAT). Prepare your heart and connect to the presence of God.",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    url: "/",
+    tag: "holy-spirit-sunday-service",
+    requireInteraction: true,
+    actions: [{ action: "open", title: "View Website" }],
+    data: { type: "upcoming_service", timestamp: new Date().toISOString() },
   };
 }
 

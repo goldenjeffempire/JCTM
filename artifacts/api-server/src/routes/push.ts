@@ -16,7 +16,9 @@ import {
   getSubscriberCount,
   dispatchPushNotification,
   buildLiveServiceNotification,
+  buildUpcomingServiceNotification,
 } from "../lib/push-manager.js";
+import { requireAdminRole } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 
@@ -108,6 +110,13 @@ router.post("/push/test", async (req, res): Promise<void> => {
 
   const result = await dispatchPushNotification(notification, req.log);
   res.json({ success: true, ...result });
+});
+
+router.post("/push/upcoming-service", requireAdminRole("livestream"), async (req, res): Promise<void> => {
+  const notification = buildUpcomingServiceNotification();
+  const result = await dispatchPushNotification(notification, req.log);
+  const subscribers = await getSubscriberCount();
+  res.json({ success: true, subscribers, ...result });
 });
 
 export default router;
