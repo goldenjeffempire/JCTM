@@ -119,4 +119,30 @@ router.post("/push/upcoming-service", requireAdminRole("livestream"), async (req
   res.json({ success: true, subscribers, ...result });
 });
 
+// ─── POST /push/broadcast — Admin: send a custom push to all subscribers ──────
+
+router.post("/push/broadcast", requireAdminRole("livestream"), async (req, res): Promise<void> => {
+  const { title, body } = req.body as { title?: string; body?: string };
+
+  if (!title || !body) {
+    res.status(400).json({ error: "title and body are required" });
+    return;
+  }
+
+  const notification = {
+    title: title.trim(),
+    body: body.trim(),
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: "/",
+    tag: "admin-broadcast",
+    requireInteraction: false,
+    data: { type: "admin_broadcast", timestamp: new Date().toISOString() },
+  };
+
+  const result = await dispatchPushNotification(notification, req.log);
+  const subscribers = await getSubscriberCount();
+  res.json({ success: true, subscribers, ...result });
+});
+
 export default router;

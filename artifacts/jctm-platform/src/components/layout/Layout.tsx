@@ -5,7 +5,6 @@ import { TempleBots } from "../TempleBots";
 import { BroadcastStatusIndicator } from "../BroadcastStatusIndicator";
 import { LiveBanner } from "../LiveBanner";
 import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
-import { UpcomingServicePopup } from "../UpcomingServicePopup";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,7 +23,6 @@ export function Layout({ children }: LayoutProps) {
       <LanguageSuggestionBanner />
       <BackToTop />
       <BroadcastStatusIndicator />
-      <UpcomingServicePopup />
     </div>
   );
 }

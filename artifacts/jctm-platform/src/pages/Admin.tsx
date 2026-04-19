@@ -7,7 +7,7 @@ import {
   ChevronRight, Eye, Users, MessageSquare, Check, Trash2,
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
   Power, Repeat2, LayoutDashboard, Image, FileText,
-  Shield, Menu, KeyRound, ImageOff,
+  Shield, Menu, KeyRound, ImageOff, Bell, Send,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -194,6 +194,8 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
         </Card>
       )}
 
+      <PushNotificationsCard />
+
       {data?.nextScheduled && (
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
           <Calendar className="w-8 h-8 text-primary shrink-0" />
@@ -205,6 +207,137 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Push Notifications Card ──────────────────────────────────────────────────
+
+function PushNotificationsCard() {
+  const auth = useAdminAuth("livestream");
+
+  const { data: stats, refetch } = useQuery<{ subscribers: number }>({
+    queryKey: ["push-stats"],
+    queryFn: () => fetch(`${BASE}/api/push/stats`).then(r => r.json()),
+    refetchInterval: 30_000,
+  });
+
+  const authHeader = auth.adminToken ? { Authorization: `Bearer ${auth.adminToken}` } : {};
+
+  const [customTitle, setCustomTitle] = useState("");
+  const [customBody, setCustomBody] = useState("");
+  const [sending, setSending] = useState<"service" | "custom" | null>(null);
+
+  const sendServiceAlert = async () => {
+    setSending("service");
+    try {
+      const res = await fetch(`${BASE}/api/push/upcoming-service`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Service alert sent to ${data.sent ?? data.subscribers ?? 0} subscribers`);
+        refetch();
+      } else {
+        toast.error(data.error ?? "Failed to send");
+      }
+    } catch {
+      toast.error("Network error — could not send alert");
+    } finally {
+      setSending(null);
+    }
+  };
+
+  const sendCustomBroadcast = async () => {
+    if (!customTitle.trim() || !customBody.trim()) {
+      toast.error("Title and message are required");
+      return;
+    }
+    setSending("custom");
+    try {
+      const res = await fetch(`${BASE}/api/push/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ title: customTitle.trim(), body: customBody.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Broadcast sent to ${data.sent ?? 0} subscribers`);
+        setCustomTitle("");
+        setCustomBody("");
+        refetch();
+      } else {
+        toast.error(data.error ?? "Failed to send");
+      }
+    } catch {
+      toast.error("Network error — could not send broadcast");
+    } finally {
+      setSending(null);
+    }
+  };
+
+  return (
+    <Card>
+      <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
+        <Bell className="w-4 h-4 text-primary" /> Push Notifications
+      </h3>
+
+      {/* Subscriber count */}
+      <div className="flex items-center gap-4 mb-5">
+        <div className="rounded-xl border border-border bg-muted/40 px-5 py-3 flex-1 text-center">
+          <p className="text-2xl font-bold text-primary">{stats?.subscribers ?? "—"}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Active Subscribers</p>
+        </div>
+        <div className="flex-1 rounded-xl border border-border bg-muted/40 px-5 py-3 text-center">
+          <p className="text-sm font-semibold text-primary">Auto</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Sent on Go-Live</p>
+        </div>
+        <div className="flex-1 rounded-xl border border-border bg-muted/40 px-5 py-3 text-center">
+          <p className="text-sm font-semibold text-primary">7:30 AM</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Sunday Reminder</p>
+        </div>
+      </div>
+
+      {/* Quick: send service alert */}
+      <div className="mb-4">
+        <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Holy Spirit Sunday Service)</p>
+        <button
+          onClick={sendServiceAlert}
+          disabled={sending !== null}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-50 cursor-pointer"
+        >
+          {sending === "service" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+          Send "Begins Soon" Alert Now
+        </button>
+      </div>
+
+      {/* Custom broadcast */}
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground font-medium">Custom Broadcast</p>
+        <input
+          type="text"
+          placeholder="Notification title…"
+          value={customTitle}
+          onChange={e => setCustomTitle(e.target.value)}
+          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
+        />
+        <textarea
+          placeholder="Notification message…"
+          value={customBody}
+          onChange={e => setCustomBody(e.target.value)}
+          rows={2}
+          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm outline-none focus:border-primary/50 resize-none placeholder:text-muted-foreground/50"
+        />
+        <button
+          onClick={sendCustomBroadcast}
+          disabled={sending !== null || !customTitle.trim() || !customBody.trim()}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
+        >
+          {sending === "custom" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          Broadcast to All Subscribers
+        </button>
+      </div>
+    </Card>
   );
 }
 
