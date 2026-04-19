@@ -333,8 +333,13 @@ Schema.org JSON-LD blocks embedded in `<head>`:
 
 ### Dynamic Sitemaps (`artifacts/api-server/src/routes/seo.ts`)
 Served at root level (not under `/api`) in `app.ts`:
-- **`GET /sitemap.xml`** — 25 static pages + all dynamic sermon URLs with image extensions
+- **`GET /sitemap.xml`** — static pages (including `/gallery`) + all dynamic sermon URLs with image extensions
 - **`GET /sitemap-sermons.xml`** — Sermon-specific sitemap for Googlebot-Video with VideoObject-compatible data
+- **`GET /sitemap-gallery.xml`** — Gallery image sitemap with up to 1,000 published gallery thumbnails/images attached to `/gallery`
+
+### Gallery SEO (`artifacts/jctm-platform/src/pages/Gallery.tsx`)
+- `/gallery` now emits ImageGallery/CollectionPage JSON-LD, ImageObject entries for visible published photos, gallery FAQ schema, strong Open Graph/Twitter metadata, Nigerian local SEO context, and accessible semantic `figure` cards.
+- `robots.txt` allows Google Image crawler access to `/gallery` and `/api/storage/`, and advertises the gallery image sitemap.
 
 ### `robots.txt` (`artifacts/jctm-platform/public/robots.txt`)
 - Points to both `sitemap.xml` and `sitemap-sermons.xml`

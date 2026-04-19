@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useListGalleryImages, useCreateGalleryImage, useDeleteGalleryImage, useUpdateGalleryImage } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
@@ -50,9 +50,21 @@ const CATEGORIES = [
 ];
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const SITE_URL = "https://jctm.org.ng";
+const GALLERY_PATH = "/gallery";
+const GALLERY_URL = `${SITE_URL}${GALLERY_PATH}`;
+const GALLERY_SEO_TITLE = "JCTM Photo Gallery — Services, Crusades & Ministry Moments";
+const GALLERY_SEO_DESCRIPTION = "Browse the official Jesus Christ Temple Ministry photo gallery with Sunday services, crusades, conferences, prayer nights, outreach moments, and visual testimonies from JCTM Warri, Nigeria.";
+const GALLERY_SEO_KEYWORDS = "JCTM photo gallery, Jesus Christ Temple Ministry gallery, JCTM photos, Temple TV pictures, JCTM Warri images, church photos Warri Nigeria, Sunday service photos, crusade photos Nigeria, Prophet Amos Evomobor ministry pictures, Correction Mandate gallery, ministry in pictures";
 
 function imageUrl(objectPath: string) {
   return `${BASE_URL}/api/storage${objectPath}`;
+}
+
+function absoluteImageUrl(objectPath?: string | null) {
+  if (!objectPath) return `${SITE_URL}/opengraph.jpg`;
+  if (/^https?:\/\//i.test(objectPath)) return objectPath;
+  return `${SITE_URL}/api/storage${objectPath}`;
 }
 
 function authHeaders(token: string): Record<string, string> {
@@ -62,6 +74,151 @@ function authHeaders(token: string): Record<string, string> {
 function categoryLabel(value: string) {
   return CATEGORIES.find(c => c.value === value)?.label
     ?? value.split(/[-_\s]+/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+
+function buildGalleryJsonLd(images: GalleryImg[], categories: string[]) {
+  const featuredImage = images[0];
+  const imageObjects = images.slice(0, 24).map((image, index) => {
+    const name = image.title || `${categoryLabel(image.category)} photo from Jesus Christ Temple Ministry`;
+    const description = image.description || image.altText || `A ${categoryLabel(image.category).toLowerCase()} moment from Jesus Christ Temple Ministry, Warri Nigeria.`;
+    return {
+      "@type": "ImageObject",
+      "@id": `${GALLERY_URL}#image-${image.id}`,
+      "contentUrl": absoluteImageUrl(image.objectPath),
+      "thumbnailUrl": absoluteImageUrl(image.thumbnailPath ?? image.objectPath),
+      "url": absoluteImageUrl(image.objectPath),
+      "name": name,
+      "caption": description,
+      "description": description,
+      "uploadDate": new Date(image.createdAt).toISOString(),
+      "datePublished": image.serviceDate || new Date(image.createdAt).toISOString().split("T")[0],
+      "inLanguage": "en-NG",
+      "representativeOfPage": index === 0,
+      "about": [
+        "Jesus Christ Temple Ministry",
+        "JCTM Warri",
+        categoryLabel(image.category),
+      ],
+      "creator": {
+        "@type": "Organization",
+        "name": "Jesus Christ Temple Ministry (JCTM)",
+        "url": SITE_URL,
+      },
+      "creditText": "Jesus Christ Temple Ministry (JCTM)",
+      "copyrightHolder": {
+        "@type": "Organization",
+        "name": "Jesus Christ Temple Ministry (JCTM)",
+      },
+      "contentLocation": {
+        "@type": "Place",
+        "name": "Jesus Christ Temple Ministry, Warri",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Warri",
+          "addressRegion": "Delta State",
+          "addressCountry": "NG",
+        },
+      },
+    };
+  });
+
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": ["CollectionPage", "ImageGallery"],
+      "@id": `${GALLERY_URL}#webpage`,
+      "url": GALLERY_URL,
+      "name": GALLERY_SEO_TITLE,
+      "headline": "JCTM Ministry in Pictures",
+      "description": GALLERY_SEO_DESCRIPTION,
+      "inLanguage": "en-NG",
+      "isPartOf": {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}#website`,
+        "name": "JCTM Digital Sanctuary",
+        "url": SITE_URL,
+      },
+      "publisher": {
+        "@type": "ReligiousOrganization",
+        "name": "Jesus Christ Temple Ministry (JCTM)",
+        "url": SITE_URL,
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${SITE_URL}/favicon.png`,
+        },
+      },
+      "primaryImageOfPage": featuredImage
+        ? {
+            "@type": "ImageObject",
+            "url": absoluteImageUrl(featuredImage.thumbnailPath ?? featuredImage.objectPath),
+            "caption": featuredImage.description || featuredImage.altText || featuredImage.title,
+          }
+        : {
+            "@type": "ImageObject",
+            "url": `${SITE_URL}/opengraph.jpg`,
+            "caption": "Jesus Christ Temple Ministry official gallery",
+          },
+      "about": [
+        "Jesus Christ Temple Ministry",
+        "Temple TV",
+        "JCTM Warri",
+        "Correction Mandate",
+        ...categories.slice(0, 12).map(categoryLabel),
+      ],
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE_URL },
+          { "@type": "ListItem", "position": 2, "name": "Gallery", "item": GALLERY_URL },
+        ],
+      },
+      "mainEntity": {
+        "@type": "ItemList",
+        "name": "JCTM photo gallery images",
+        "numberOfItems": imageObjects.length,
+        "itemListElement": imageObjects.map((image, index) => ({
+          "@type": "ListItem",
+          "position": index + 1,
+          "item": image,
+        })),
+      },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".gallery-seo-summary"],
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "@id": `${GALLERY_URL}#faq`,
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What can I find in the JCTM photo gallery?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The JCTM photo gallery features official ministry photos from Sunday services, crusades, conferences, prayer meetings, outreach events, and special moments at Jesus Christ Temple Ministry in Warri, Nigeria.",
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "Are new JCTM ministry photos added regularly?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Published gallery photos are updated by the ministry team and also feed the Ministry in Pictures slideshow on the JCTM Digital Sanctuary homepage.",
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "Can I search the JCTM gallery?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Visitors can search photos by title, description, service date, and category, including Sunday Service, Crusade, Conference, Outreach, Prayer Night, and Special Events.",
+          },
+        },
+      ],
+    },
+  ];
 }
 
 type GalleryImg = {
@@ -192,14 +349,27 @@ function GalleryCard({
   const { ref: containerRef, visible } = useInView();
 
   return (
-    <motion.div
+    <motion.figure
       ref={containerRef}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.4) }}
       className="relative group overflow-hidden rounded-xl bg-muted/30 cursor-pointer aspect-square"
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${image.title || categoryLabel(image.category)} photo`}
+      itemScope
+      itemType="https://schema.org/ImageObject"
     >
+      <meta itemProp="contentUrl" content={imageUrl(image.objectPath)} />
+      <meta itemProp="name" content={image.title || `${categoryLabel(image.category)} photo`} />
       {(!loaded || !visible) && !error && (
         <div className="absolute inset-0 animate-pulse bg-muted/50 rounded-xl" />
       )}
@@ -213,10 +383,13 @@ function GalleryCard({
           alt={image.altText ?? image.title}
           loading="lazy"
           decoding="async"
+          width={640}
+          height={640}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
           className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
+          itemProp="thumbnailUrl"
         />
       ) : null}
 
@@ -260,7 +433,10 @@ function GalleryCard({
           </button>
         </div>
       )}
-    </motion.div>
+      <figcaption className="sr-only" itemProp="caption">
+        {image.description || image.altText || `${image.title || "JCTM ministry photo"} from ${categoryLabel(image.category)}`}
+      </figcaption>
+    </motion.figure>
   );
 }
 
@@ -847,7 +1023,10 @@ export default function Gallery() {
   const { mutateAsync: deleteImage } = useDeleteGalleryImage({ request: adminRequest });
   const { mutateAsync: updateImage } = useUpdateGalleryImage({ request: adminRequest });
 
-  useEffect(() => { document.title = "Gallery | JCTM Digital Sanctuary"; }, []);
+  const galleryJsonLd = useMemo(() => buildGalleryJsonLd(images, categories), [images, categories]);
+  const socialImage = images[0]
+    ? absoluteImageUrl(images[0].thumbnailPath ?? images[0].objectPath)
+    : `${SITE_URL}/opengraph.jpg`;
 
   const loadCategories = useCallback(async () => {
     try {
@@ -910,13 +1089,15 @@ export default function Gallery() {
   return (
     <Layout>
       <SEO
-        title="Gallery — Jesus Christ Temple Ministry"
-        description="Browse photos from JCTM services, crusades, conferences, and special events. A visual testimony of God's faithfulness at Jesus Christ Temple Ministry, Warri Nigeria."
-        path="/gallery"
-        keywords="JCTM gallery, Jesus Christ Temple Ministry photos, church service photos, JCTM Warri images"
+        title={GALLERY_SEO_TITLE}
+        description={GALLERY_SEO_DESCRIPTION}
+        path={GALLERY_PATH}
+        image={socialImage}
+        keywords={GALLERY_SEO_KEYWORDS}
+        jsonLd={galleryJsonLd}
         breadcrumbs={[
-          { name: "Home", url: "https://jctm.org.ng/" },
-          { name: "Gallery", url: "https://jctm.org.ng/gallery" },
+          { name: "Home", url: `${SITE_URL}/` },
+          { name: "Gallery", url: GALLERY_URL },
         ]}
       />
 
@@ -928,10 +1109,23 @@ export default function Gallery() {
           className="mb-10"
         >
           <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
+            <div className="max-w-3xl">
               <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry in Pictures</span>
               <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3">Photo Gallery</h1>
-              <p className="text-muted-foreground text-lg max-w-xl">A visual testimony of God's faithfulness — captured moments from our services, crusades, and outreach.</p>
+              <p className="gallery-seo-summary text-muted-foreground text-lg max-w-2xl">Explore the official JCTM photo gallery: Sunday services, crusades, conferences, prayer nights, outreach, and special ministry moments from Jesus Christ Temple Ministry in Warri, Nigeria.</p>
+              <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl" aria-label="Gallery highlights">
+                {[
+                  ["Official", "JCTM archive"],
+                  [`${categories.length || CATEGORIES.length - 1}+`, "Photo categories"],
+                  ["Warri", "Delta State"],
+                  ["Temple TV", "Ministry media"],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-2xl border border-border/70 bg-card/60 px-4 py-3 shadow-sm">
+                    <p className="text-lg font-bold text-primary">{value}</p>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 mt-2">
@@ -1014,6 +1208,7 @@ export default function Gallery() {
             onChange={e => setSearch(e.target.value)}
             placeholder="Search photos by title, description, or date…"
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
+            aria-label="Search JCTM gallery photos"
           />
           {search && (
             <button
@@ -1032,6 +1227,7 @@ export default function Gallery() {
             <button
               key={cat.value}
               onClick={() => { setCategory(cat.value); setPage(0); }}
+              aria-pressed={category === cat.value}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ${
                 category === cat.value
                   ? "bg-accent text-white border-accent shadow-sm shadow-accent/20"
@@ -1069,7 +1265,7 @@ export default function Gallery() {
           </motion.div>
         ) : (
           <>
-            <div className={`grid ${gridClass} gap-3`}>
+            <section className={`grid ${gridClass} gap-3`} aria-label="JCTM ministry photo gallery">
               {images.map((img, i) => (
                 <GalleryCard
                   key={img.id}
@@ -1081,7 +1277,7 @@ export default function Gallery() {
                   onToggleFeatured={handleToggleFeatured}
                 />
               ))}
-            </div>
+            </section>
 
             {/* Prev / Next pagination */}
             {(page > 0 || images.length === LIMIT) && (

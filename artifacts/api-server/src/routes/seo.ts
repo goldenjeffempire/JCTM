@@ -6,7 +6,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, sermonsTable, blogPostsTable } from "@workspace/db";
+import { db, sermonsTable, blogPostsTable, galleryImagesTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -26,6 +26,7 @@ const STATIC_PAGES = [
   { path: "/devotion",          priority: "0.82", changefreq: "daily"   },
   { path: "/prayer",            priority: "0.80", changefreq: "weekly"  },
   { path: "/moments",           priority: "0.78", changefreq: "daily"   },
+  { path: "/gallery",           priority: "0.86", changefreq: "daily"   },
   { path: "/events",            priority: "0.78", changefreq: "weekly"  },
   { path: "/testimonies",       priority: "0.75", changefreq: "weekly"  },
   { path: "/give",              priority: "0.75", changefreq: "monthly" },
@@ -57,16 +58,15 @@ function buildUrlEntry({
   lastmod?: string;
   changefreq?: string;
   priority?: string;
-  image?: { url: string; title: string; caption?: string };
+  image?: { url: string; title: string; caption?: string } | { url: string; title: string; caption?: string }[];
 }): string {
-  const imageBlock = image
-    ? `
+  const images = Array.isArray(image) ? image : image ? [image] : [];
+  const imageBlock = images.map(item => `
     <image:image>
-      <image:loc>${xmlEscape(image.url)}</image:loc>
-      <image:title>${xmlEscape(image.title)}</image:title>
-      ${image.caption ? `<image:caption>${xmlEscape(image.caption)}</image:caption>` : ""}
-    </image:image>`
-    : "";
+      <image:loc>${xmlEscape(item.url)}</image:loc>
+      <image:title>${xmlEscape(item.title)}</image:title>
+      ${item.caption ? `<image:caption>${xmlEscape(item.caption)}</image:caption>` : ""}
+    </image:image>`).join("");
 
   return `  <url>
     <loc>${xmlEscape(loc)}</loc>
@@ -80,7 +80,7 @@ function buildUrlEntry({
 
 router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [sermons, blogPosts] = await Promise.all([
+    const [sermons, blogPosts, galleryImages] = await Promise.all([
       db
         .select({
           id: sermonsTable.id,
@@ -104,14 +104,40 @@ router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> =
         .where(eq(blogPostsTable.published, true))
         .orderBy(desc(blogPostsTable.publishedAt))
         .limit(200),
+      db
+        .select({
+          title: galleryImagesTable.title,
+          description: galleryImagesTable.description,
+          altText: galleryImagesTable.altText,
+          objectPath: galleryImagesTable.objectPath,
+          thumbnailPath: galleryImagesTable.thumbnailPath,
+          createdAt: galleryImagesTable.createdAt,
+        })
+        .from(galleryImagesTable)
+        .where(eq(galleryImagesTable.isPublished, true))
+        .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt))
+        .limit(1000),
     ]);
 
     const today = new Date().toISOString().split("T")[0];
 
-    const staticEntries = STATIC_PAGES.map(page =>
-      buildUrlEntry({
+    const gallerySitemapImages = galleryImages.map(image => {
+      const imagePath = image.thumbnailPath ?? image.objectPath;
+      const title = image.title || image.altText || "JCTM ministry photo";
+      return {
+        url: /^https?:\/\//i.test(imagePath) ? imagePath : `${BASE_URL}/api/storage${imagePath}`,
+        title,
+        caption: image.description ?? image.altText ?? `${title} — Jesus Christ Temple Ministry photo gallery`,
+      };
+    });
+
+    const staticEntries = STATIC_PAGES.map(page => {
+      const latestGalleryUpdate = galleryImages[0]?.createdAt
+        ? new Date(galleryImages[0].createdAt).toISOString().split("T")[0]
+        : today;
+      return buildUrlEntry({
         loc: `${BASE_URL}${page.path}`,
-        lastmod: today,
+        lastmod: page.path === "/gallery" ? latestGalleryUpdate : today,
         changefreq: page.changefreq,
         priority: page.priority,
         image:
@@ -127,9 +153,11 @@ router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> =
                 title: "Prophet Amos Evomobor — Founder and Senior Pastor of JCTM",
                 caption: "Prophet Amos Evomobor, founder of Jesus Christ Temple Ministry (JCTM)",
               }
+            : page.path === "/gallery"
+            ? gallerySitemapImages
             : undefined,
-      }),
-    );
+      });
+    });
 
     const blogEntries = blogPosts.map(post =>
       buildUrlEntry({
@@ -177,6 +205,61 @@ ${[...staticEntries, ...blogEntries, ...sermonEntries].join("\n\n")}
     res.setHeader("X-Robots-Tag", "noindex");
     res.status(200).send(sitemap);
   } catch (err) {
+    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`);
+  }
+});
+
+router.get("/sitemap-gallery.xml", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const galleryImages = await db
+      .select({
+        title: galleryImagesTable.title,
+        description: galleryImagesTable.description,
+        altText: galleryImagesTable.altText,
+        objectPath: galleryImagesTable.objectPath,
+        thumbnailPath: galleryImagesTable.thumbnailPath,
+        createdAt: galleryImagesTable.createdAt,
+      })
+      .from(galleryImagesTable)
+      .where(eq(galleryImagesTable.isPublished, true))
+      .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt))
+      .limit(1000);
+
+    const today = new Date().toISOString().split("T")[0];
+    const latestGalleryUpdate = galleryImages[0]?.createdAt
+      ? new Date(galleryImages[0].createdAt).toISOString().split("T")[0]
+      : today;
+
+    const images = galleryImages.map(image => {
+      const imagePath = image.thumbnailPath ?? image.objectPath;
+      const title = image.title || image.altText || "JCTM ministry photo";
+      return {
+        url: /^https?:\/\//i.test(imagePath) ? imagePath : `${BASE_URL}/api/storage${imagePath}`,
+        title,
+        caption: image.description ?? image.altText ?? `${title} — Jesus Christ Temple Ministry, Warri Nigeria`,
+      };
+    });
+
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+${buildUrlEntry({
+  loc: `${BASE_URL}/gallery`,
+  lastmod: latestGalleryUpdate,
+  changefreq: "daily",
+  priority: "0.86",
+  image: images,
+})}
+
+</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.setHeader("X-Robots-Tag", "noindex");
+    res.status(200).send(sitemap);
+  } catch {
     res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`);
   }
 });
