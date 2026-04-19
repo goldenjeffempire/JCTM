@@ -19,6 +19,7 @@ import {
   buildUpcomingServiceNotification,
 } from "../lib/push-manager.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
+import { pool } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -95,6 +96,44 @@ router.delete("/push/unsubscribe", async (req, res): Promise<void> => {
 router.get("/push/stats", async (_req, res): Promise<void> => {
   const count = await getSubscriberCount();
   res.json({ subscribers: count });
+});
+
+// ─── GET /push/growth — daily subscriber growth (last 60 days) ───────────────
+
+router.get("/push/growth", async (_req, res): Promise<void> => {
+  try {
+    const result = await pool.query<{ date: string; new_subscribers: string; cumulative: string }>(`
+      WITH daily AS (
+        SELECT
+          date_trunc('day', created_at)::date AS date,
+          COUNT(*) AS new_subscribers
+        FROM push_subscriptions
+        WHERE created_at >= now() - INTERVAL '60 days'
+        GROUP BY 1
+      ),
+      filled AS (
+        SELECT
+          gs::date AS date,
+          COALESCE(d.new_subscribers, 0) AS new_subscribers
+        FROM generate_series(
+          (now() - INTERVAL '59 days')::date,
+          now()::date,
+          INTERVAL '1 day'
+        ) AS gs
+        LEFT JOIN daily d ON d.date = gs::date
+      )
+      SELECT
+        to_char(date, 'Mon DD') AS date,
+        new_subscribers::text,
+        SUM(new_subscribers) OVER (ORDER BY date)::text AS cumulative
+      FROM filled
+      ORDER BY date
+    `);
+
+    res.json({ growth: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch growth data" });
+  }
 });
 
 // ─── POST /push/test ─────────────────────────────────────────────────────────

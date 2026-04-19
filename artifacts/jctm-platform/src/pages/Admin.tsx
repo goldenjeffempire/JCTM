@@ -14,6 +14,10 @@ import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  Bar, ComposedChart, ResponsiveContainer,
+} from "recharts";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -212,14 +216,97 @@ function OverviewSection({ liveStatus }: { liveStatus: ReturnType<typeof useLive
 
 // ─── Push Notifications Card ──────────────────────────────────────────────────
 
+interface GrowthRow { date: string; new_subscribers: string; cumulative: string }
+
+interface ChartPoint { date: string; total: number; new: number }
+
+function SubscriberChart({ data, range }: { data: ChartPoint[]; range: number }) {
+  const tickEvery = range <= 14 ? 1 : range <= 30 ? 4 : 8;
+  const visibleTicks = data
+    .map((d, i) => ({ label: d.date, i }))
+    .filter(({ i }) => i % tickEvery === 0 || i === data.length - 1)
+    .map(({ label }) => label);
+
+  return (
+    <div className="w-full h-40">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id="totalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+          <XAxis
+            dataKey="date"
+            ticks={visibleTicks}
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+            axisLine={false}
+            tickLine={false}
+            allowDecimals={false}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "0.75rem",
+              fontSize: "12px",
+              color: "hsl(var(--foreground))",
+            }}
+            formatter={(value: number, name: string) => [
+              value,
+              name === "total" ? "Total subscribers" : "New today",
+            ]}
+            labelStyle={{ color: "hsl(var(--muted-foreground))", marginBottom: 4 }}
+          />
+          <Bar dataKey="new" fill="hsl(var(--accent))" opacity={0.5} radius={[2, 2, 0, 0]} maxBarSize={10} />
+          <Area
+            type="monotone"
+            dataKey="total"
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
+            fill="url(#totalGrad)"
+            dot={false}
+            activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function PushNotificationsCard() {
   const auth = useAdminAuth("livestream");
+  const [range, setRange] = useState<14 | 30 | 60>(30);
 
   const { data: stats, refetch } = useQuery<{ subscribers: number }>({
     queryKey: ["push-stats"],
     queryFn: () => fetch(`${BASE}/api/push/stats`).then(r => r.json()),
     refetchInterval: 30_000,
   });
+
+  const { data: growthData, isLoading: growthLoading } = useQuery<{ growth: GrowthRow[] }>({
+    queryKey: ["push-growth"],
+    queryFn: () => fetch(`${BASE}/api/push/growth`).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
+  const chartData = (growthData?.growth ?? [])
+    .slice(-range)
+    .map(r => ({
+      date: r.date,
+      total: parseInt(r.cumulative, 10),
+      new: parseInt(r.new_subscribers, 10),
+    }));
+
+  const maxTotal = Math.max(...chartData.map(d => d.total), 1);
+  const totalGain = chartData.reduce((s, d) => s + d.new, 0);
 
   const authHeader = auth.adminToken ? { Authorization: `Bearer ${auth.adminToken}` } : {};
 
@@ -282,20 +369,52 @@ function PushNotificationsCard() {
         <Bell className="w-4 h-4 text-primary" /> Push Notifications
       </h3>
 
-      {/* Subscriber count */}
-      <div className="flex items-center gap-4 mb-5">
-        <div className="rounded-xl border border-border bg-muted/40 px-5 py-3 flex-1 text-center">
+      {/* Subscriber count stats */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex-1 text-center">
           <p className="text-2xl font-bold text-primary">{stats?.subscribers ?? "—"}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Active Subscribers</p>
         </div>
-        <div className="flex-1 rounded-xl border border-border bg-muted/40 px-5 py-3 text-center">
-          <p className="text-sm font-semibold text-primary">Auto</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Sent on Go-Live</p>
+        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex-1 text-center">
+          <p className="text-lg font-bold text-emerald-400">+{totalGain}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Last {range} days</p>
         </div>
-        <div className="flex-1 rounded-xl border border-border bg-muted/40 px-5 py-3 text-center">
+        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 flex-1 text-center">
           <p className="text-sm font-semibold text-primary">7:30 AM</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Sunday Reminder</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Sunday Auto-Alert</p>
         </div>
+      </div>
+
+      {/* Growth chart */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-muted-foreground">Subscribers Over Time</p>
+          <div className="flex gap-1">
+            {([14, 30, 60] as const).map(r => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                  range === r
+                    ? "bg-primary/20 text-primary border border-primary/30"
+                    : "text-muted-foreground hover:text-primary border border-transparent"
+                }`}
+              >
+                {r}d
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {growthLoading ? (
+          <div className="h-36 rounded-xl bg-muted/40 animate-pulse" />
+        ) : chartData.length === 0 || maxTotal === 0 ? (
+          <div className="h-36 rounded-xl bg-muted/40 flex items-center justify-center">
+            <p className="text-xs text-muted-foreground">No subscriber data yet</p>
+          </div>
+        ) : (
+          <SubscriberChart data={chartData} range={range} />
+        )}
       </div>
 
       {/* Quick: send service alert */}
