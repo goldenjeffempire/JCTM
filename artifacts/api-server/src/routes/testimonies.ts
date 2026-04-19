@@ -7,6 +7,7 @@ import {
   SubmitTestimonyBody,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middleware/auth.js";
+import { verifyAdminToken, getAdminTokenFromRequest } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 
@@ -20,7 +21,13 @@ router.get("/testimonies", async (req, res): Promise<void> => {
 
   const { limit = 20, offset = 0 } = parsed.data;
   const category = req.query.category as string | undefined;
-  const all = req.query.all === "true"; // admin: include unapproved
+
+  // `all=true` returns unapproved testimonies — requires a valid admin JWT.
+  // Without one the flag is silently ignored so the public endpoint never
+  // leaks unmoderated content.
+  const rawAll = req.query.all === "true";
+  const isAdmin = rawAll && verifyAdminToken(getAdminTokenFromRequest(req)) !== null;
+  const all = isAdmin;
 
   const conditions = all ? [] : [eq(testimoniesTable.approved, true)];
   if (category) {

@@ -126,35 +126,35 @@ function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-      <GeoProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <ErrorBoundary>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-            <VoiceTempleBots />
-            <CookieConsent />
-            <PushNotificationPrompt />
-            <BroadcastEngagementSystem />
-            <VisitorHeartbeat />
-          </ErrorBoundary>
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              classNames: {
-                toast: "glass-panel border border-border font-sans text-primary",
-                title: "font-semibold text-primary",
-                description: "text-muted-foreground",
-                success: "border-accent/40",
-                error: "border-destructive/40",
-              },
-            }}
-            richColors
-          />
-        </TooltipProvider>
-      </QueryClientProvider>
-      </GeoProvider>
+        <GeoProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <ErrorBoundary>
+                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <Router />
+                </WouterRouter>
+                <VoiceTempleBots />
+                <CookieConsent />
+                <PushNotificationPrompt />
+                <BroadcastEngagementSystem />
+                <VisitorHeartbeat />
+              </ErrorBoundary>
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  classNames: {
+                    toast: "glass-panel border border-border font-sans text-primary",
+                    title: "font-semibold text-primary",
+                    description: "text-muted-foreground",
+                    success: "border-accent/40",
+                    error: "border-destructive/40",
+                  },
+                }}
+                richColors
+              />
+            </TooltipProvider>
+          </QueryClientProvider>
+        </GeoProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

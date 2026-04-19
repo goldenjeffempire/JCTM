@@ -9,20 +9,34 @@ import {
   VerifyDonationParams,
   VerifyDonationResponse,
 } from "@workspace/api-zod";
+import { verifyAdminToken, getAdminTokenFromRequest } from "../lib/adminAuth.js";
+import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
 function generateReference(): string {
-  return `JCTM-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  const uid = randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
+  return `JCTM-${Date.now()}-${uid}`;
 }
 
-router.get("/giving", async (_req, res): Promise<void> => {
+// Full donor log — admin-only to protect PII (names, emails, amounts).
+router.get("/giving", async (req, res): Promise<void> => {
+  if (!verifyAdminToken(getAdminTokenFromRequest(req))) {
+    res.status(401).json({ error: "Admin authentication required to view giving logs." });
+    return;
+  }
+
+  const limit  = Math.min(Math.max(Number(req.query.limit  ?? 50), 1), 200);
+  const offset = Math.max(Number(req.query.offset ?? 0), 0);
+
   const logs = await db
     .select()
     .from(givingLogsTable)
     .orderBy(desc(givingLogsTable.createdAt))
-    .limit(100);
+    .limit(limit)
+    .offset(offset);
 
+  res.setHeader("Cache-Control", "no-store");
   res.json(ListGivingLogsResponse.parse(logs));
 });
 

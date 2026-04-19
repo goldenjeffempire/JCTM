@@ -471,3 +471,33 @@ Added `broadcast_started`, `broadcast_ended`, `rebroadcast_started`, `rebroadcas
 - **Scripture Study** — Deep-dive biblical commentary
 - **Spiritual Insight** — Prophetic insight chatbot
 - **Voice Chat, Translation, Testimony Reflection, Devotion** — All using gpt-4o
+
+---
+
+## Comprehensive System Optimization — April 2026
+
+### Security Hardening
+- **`GET /api/giving`** (donor logs) now requires a valid admin JWT (`X-Admin-Token` header). The public-facing stats endpoint (`/api/giving/stats`) remains open. Prevents leaking donor names, emails, and amounts.
+- **`GET /api/testimonies?all=true`** now silently ignores `all=true` unless the request carries a valid admin JWT. Without auth, only approved testimonies are returned — prevents moderation bypass.
+- **Prayer input validation** (`POST /api/prayer/generate`): `need` field capped at 2000 characters, `name` at 80 characters, `category` validated against an allowlist of 11 values. Prevents unbounded OpenAI prompt injection.
+- **Reference collision fix** (`POST /api/giving`): replaced `Math.random().toString(36)` with `randomUUID()` — cryptographically unique, no collision risk under load.
+- **Members endpoint** (`GET /api/members`): added server-side max limit cap of 100 rows and bounds enforcement (offset ≥ 0) — prevents full-table dumps.
+
+### Reliability Improvements
+- **Blog error logging** — all catch blocks in `/api/blog`, `/api/blog/search`, `/api/blog/categories`, and `/api/blog/:slug` now call `logger.error()` with the full error object, making production failures immediately visible in structured logs.
+- **Altar simulation interval** — `setInterval` handle is exported as `altarSimInterval` and cleared in the shutdown sequence alongside `stopCron()`. Prevents the ghost-client simulation from running after `SIGTERM`.
+
+### Performance Improvements
+- **Blog list parallelism** — `GET /api/blog` and `GET /api/blog/search` now fire the paginated list query, the count query, and (for offset=0) the featured posts query via `Promise.all()`, halving round-trip time.
+- **Blog bounds validation** — `limit` clamped to 1–50, `offset` to ≥0 on all blog and search endpoints.
+- **DB performance indexes** added at startup (idempotent `CREATE INDEX IF NOT EXISTS`):
+  - `member_directory` — `first_name`, `last_name` ILIKE search
+  - `sermon_data` — `published_at DESC`, `video_id`, `is_live` partial
+  - `prayer_requests` — public-wall query (is_public = true, created_at DESC)
+  - `testimonies` — approved feed (approved = true, created_at DESC)
+  - `giving_logs` — `reference` lookup, `status` + `created_at` admin report
+  - `push_subscriptions` — active subscriber visitor_id lookup
+
+### Code Quality
+- **`App.tsx` provider nesting** — fixed inconsistent indentation in `LanguageProvider` → `GeoProvider` → `QueryClientProvider` tree.
+- **Giving reference generator** — refactored from `Date.now() + Math.random().toString(36)` to `Date.now() + randomUUID()` for guaranteed uniqueness.

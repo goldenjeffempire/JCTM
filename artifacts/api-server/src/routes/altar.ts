@@ -58,8 +58,9 @@ async function persistCount(): Promise<void> {
 // Load persisted count on startup
 loadPersistedCount();
 
-// Simulate realistic fluctuation every 8-12 seconds and persist
-setInterval(async () => {
+// Simulate realistic fluctuation every 9 seconds and persist.
+// The handle is exported so the shutdown sequence can cancel it cleanly.
+export const altarSimInterval = setInterval(async () => {
   const delta = Math.floor(Math.random() * 5) - 2;
   ghostClients = Math.max(0, Math.min(ghostClients + delta, 20));
   broadcast();

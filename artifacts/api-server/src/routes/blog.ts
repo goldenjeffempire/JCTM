@@ -8,6 +8,7 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, blogPostsTable, pool } from "@workspace/db";
+import { logger } from "../lib/logger.js";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -69,35 +70,37 @@ const postListSelect = {
 // ── GET /api/blog ─────────────────────────────────────────────────────────────
 router.get("/blog", async (req: Request, res: Response): Promise<void> => {
   try {
-    const limit = Math.min(Number(req.query.limit ?? 20), 50);
-    const offset = Number(req.query.offset ?? 0);
+    const limit  = Math.min(Math.max(Number(req.query.limit  ?? 20), 1), 50);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
     const conditions = buildPostConditions(req);
 
-    const posts = await db
-      .select(postListSelect)
-      .from(blogPostsTable)
-      .where(and(...conditions))
-      .orderBy(desc(blogPostsTable.featured), desc(blogPostsTable.publishedAt))
-      .limit(limit)
-      .offset(offset);
-
-    const [{ total }] = await db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(blogPostsTable)
-      .where(and(...conditions));
-
-    const featuredPosts = offset === 0
-      ? await db
-          .select(postListSelect)
-          .from(blogPostsTable)
-          .where(and(eq(blogPostsTable.published, true), eq(blogPostsTable.featured, true)))
-          .orderBy(desc(blogPostsTable.publishedAt))
-          .limit(4)
-      : [];
+    // Run the paginated list, count, and featured queries in parallel.
+    const [posts, [{ total }], featuredPosts] = await Promise.all([
+      db
+        .select(postListSelect)
+        .from(blogPostsTable)
+        .where(and(...conditions))
+        .orderBy(desc(blogPostsTable.featured), desc(blogPostsTable.publishedAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(blogPostsTable)
+        .where(and(...conditions)),
+      offset === 0
+        ? db
+            .select(postListSelect)
+            .from(blogPostsTable)
+            .where(and(eq(blogPostsTable.published, true), eq(blogPostsTable.featured, true)))
+            .orderBy(desc(blogPostsTable.publishedAt))
+            .limit(4)
+        : Promise.resolve([]),
+    ]);
 
     res.setHeader("Cache-Control", CACHE_HEADER);
     res.json({ posts, featuredPosts, total, limit, offset });
   } catch (err) {
+    logger.error({ err }, "Failed to fetch blog posts");
     res.status(500).json({ error: "Failed to fetch blog posts" });
   }
 });
@@ -138,7 +141,8 @@ router.get("/blog/categories", async (_req: Request, res: Response): Promise<voi
         .filter((row) => Boolean(row.tag))
         .map((row) => ({ tag: row.tag, count: Number(row.count) })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch blog categories");
     res.status(500).json({ error: "Failed to fetch blog categories" });
   }
 });
@@ -156,25 +160,28 @@ router.get("/blog/topics", async (_req: Request, res: Response): Promise<void> =
 
 router.get("/blog/search", async (req: Request, res: Response): Promise<void> => {
   try {
-    const limit = Math.min(Number(req.query.limit ?? 20), 50);
-    const offset = Number(req.query.offset ?? 0);
+    const limit  = Math.min(Math.max(Number(req.query.limit  ?? 20), 1), 50);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
     const conditions = buildPostConditions(req);
-    const posts = await db
-      .select(postListSelect)
-      .from(blogPostsTable)
-      .where(and(...conditions))
-      .orderBy(desc(blogPostsTable.featured), desc(blogPostsTable.publishedAt))
-      .limit(limit)
-      .offset(offset);
 
-    const [{ total }] = await db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(blogPostsTable)
-      .where(and(...conditions));
+    const [posts, [{ total }]] = await Promise.all([
+      db
+        .select(postListSelect)
+        .from(blogPostsTable)
+        .where(and(...conditions))
+        .orderBy(desc(blogPostsTable.featured), desc(blogPostsTable.publishedAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(blogPostsTable)
+        .where(and(...conditions)),
+    ]);
 
     res.setHeader("Cache-Control", CACHE_HEADER);
     res.json({ posts, total, limit, offset, query: req.query.q ?? "" });
-  } catch {
+  } catch (err) {
+    logger.error({ err }, "Failed to search blog posts");
     res.status(500).json({ error: "Failed to search blog posts" });
   }
 });
@@ -223,6 +230,7 @@ router.get("/blog/:slug", async (req: Request, res: Response): Promise<void> => 
     res.setHeader("Cache-Control", CACHE_HEADER);
     res.json({ post, relatedPosts, breadcrumbSchema });
   } catch (err) {
+    logger.error({ err, slug: req.params.slug }, "Failed to fetch blog post");
     res.status(500).json({ error: "Failed to fetch blog post" });
   }
 });

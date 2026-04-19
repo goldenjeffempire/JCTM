@@ -29,19 +29,36 @@ Guidelines:
 - Format as flowing paragraphs, not bullet points
 - Do NOT include labels like "Opening" or "Section 1" — just the prayer itself`;
 
-router.post("/prayer/generate", async (req: Request, res: Response): Promise<void> => {
-  const { need, category, name } = req.body as { need?: string; category?: string; name?: string };
+const PRAYER_NEED_MAX_LEN  = 2000;
+const PRAYER_NAME_MAX_LEN  = 80;
+const ALLOWED_CATEGORIES   = new Set(["general","healing","provision","protection","family","ministry","salvation","deliverance","guidance","thanksgiving","other"]);
 
-  if (!need || !need.trim()) {
+router.post("/prayer/generate", async (req: Request, res: Response): Promise<void> => {
+  const raw = req.body as { need?: unknown; category?: unknown; name?: unknown };
+
+  const need     = typeof raw.need     === "string" ? raw.need.trim()     : "";
+  const name     = typeof raw.name     === "string" ? raw.name.trim().slice(0, PRAYER_NAME_MAX_LEN) : "";
+  const category = typeof raw.category === "string" && ALLOWED_CATEGORIES.has(raw.category.toLowerCase())
+    ? raw.category.toLowerCase()
+    : "General";
+
+  if (!need) {
     res.status(400).json({ error: "Please describe your prayer need." });
     return;
   }
 
+  if (need.length > PRAYER_NEED_MAX_LEN) {
+    res.status(400).json({ error: `Prayer need must be ${PRAYER_NEED_MAX_LEN} characters or less.` });
+    return;
+  }
+
+  const safePrayerNeed = need.slice(0, PRAYER_NEED_MAX_LEN);
+
   const userPrompt = `Generate a personalized, scriptural prayer for the following need:
 
-Prayer Category: ${category || "General"}
+Prayer Category: ${category}
 ${name ? `Person's Name: ${name}` : ""}
-Prayer Need: ${need.trim()}
+Prayer Need: ${safePrayerNeed}
 
 Create a heartfelt, biblically grounded prayer that directly addresses this specific situation. Include relevant scriptures woven into the prayer naturally.`;
 

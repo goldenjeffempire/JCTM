@@ -9,6 +9,8 @@ import {
 
 const router: IRouter = Router();
 
+const MEMBERS_MAX_LIMIT = 100;
+
 router.get("/members", async (req, res): Promise<void> => {
   const parsed = ListMembersQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -16,7 +18,13 @@ router.get("/members", async (req, res): Promise<void> => {
     return;
   }
 
-  const { limit = 20, offset = 0, search } = parsed.data;
+  const rawLimit  = parsed.data.limit  ?? 20;
+  const rawOffset = parsed.data.offset ?? 0;
+  const search    = parsed.data.search;
+
+  // Enforce safe bounds
+  const limit  = Math.min(Math.max(rawLimit, 1), MEMBERS_MAX_LIMIT);
+  const offset = Math.max(rawOffset, 0);
 
   const conditions = search
     ? [

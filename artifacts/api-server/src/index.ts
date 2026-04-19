@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startCron, setWebSubCallbackUrl, stopCron } from "./lib/cron.js";
+import { altarSimInterval } from "./routes/altar.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { initSentry } from "./lib/sentry.js";
@@ -332,6 +333,59 @@ async function runStartupMigrations() {
       )
     `);
 
+    // ── Performance indexes ──────────────────────────────────────────────────
+    // Members — search by name/department
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS member_directory_first_name_idx
+      ON member_directory (lower(first_name) text_pattern_ops)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS member_directory_last_name_idx
+      ON member_directory (lower(last_name) text_pattern_ops)
+    `);
+    // Sermon — common sort/filter
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS sermon_data_published_at_idx
+      ON sermon_data (published_at DESC)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS sermon_data_video_id_idx
+      ON sermon_data (video_id)
+      WHERE video_id IS NOT NULL
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS sermon_data_is_live_idx
+      ON sermon_data (is_live)
+      WHERE is_live = true
+    `);
+    // Prayer requests — public wall query
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS prayer_requests_public_idx
+      ON prayer_requests (created_at DESC)
+      WHERE is_public = true
+    `);
+    // Testimonies — approved feed
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS testimonies_approved_idx
+      ON testimonies (created_at DESC)
+      WHERE approved = true
+    `);
+    // Giving logs — reference lookups and admin reports
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS giving_logs_reference_idx
+      ON giving_logs (reference)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS giving_logs_status_idx
+      ON giving_logs (status, created_at DESC)
+    `);
+    // Push subscriptions — active subscriber lookups
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS push_subscriptions_visitor_idx
+      ON push_subscriptions (visitor_id)
+      WHERE is_active = true
+    `);
+
     logger.info("Startup migrations complete");
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
@@ -436,6 +490,7 @@ function shutdown(signal: string) {
   isShuttingDown = true;
   logger.info({ signal }, "Graceful shutdown initiated");
   stopCron();
+  clearInterval(altarSimInterval);
 
   server.close(async () => {
     try {
