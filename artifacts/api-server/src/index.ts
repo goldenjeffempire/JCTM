@@ -283,6 +283,26 @@ async function runStartupMigrations() {
       ON push_subscriptions (is_active) WHERE is_active = true
     `);
 
+    // ── Broadcast Event History ───────────────────────────────────────────────
+    // One row per broadcast sent (live start, rebroadcast start) — used for
+    // re-engagement: visitors who missed a live event see a notification on revisit.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS broadcast_events (
+        id serial PRIMARY KEY,
+        type text NOT NULL,
+        title text,
+        video_id text,
+        message text NOT NULL,
+        url text NOT NULL DEFAULT '/sermons',
+        push_sent integer NOT NULL DEFAULT 0,
+        fired_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS broadcast_events_fired_at_idx
+      ON broadcast_events (fired_at DESC)
+    `);
+
     // ── Ministers Conference Registrations ───────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS conference_registrations (

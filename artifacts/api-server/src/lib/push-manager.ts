@@ -138,24 +138,28 @@ export interface NotificationPayload {
 export function buildLiveServiceNotification(title: string): NotificationPayload {
   return {
     title: "🔴 Holy Spirit Sunday Service — Live",
-    body: title ?? "Now Streaming Live",
+    body: title ? `${title} — Join now and experience the presence of God.` : "Now Streaming Live — Join us now",
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
-    url: "/",
+    url: "/sermons",
     tag: "live-service",
-    data: { type: "live_service", timestamp: new Date().toISOString() },
+    requireInteraction: true,
+    actions: [{ action: "watch", title: "Watch Live" }],
+    data: { type: "live_service", broadcastType: "live", timestamp: new Date().toISOString() },
   };
 }
 
 export function buildRebroadcastNotification(sermonTitle: string): NotificationPayload {
   return {
     title: "📺 Temple TV — Rebroadcast",
-    body: `Now playing: "${sermonTitle}" — Watch now on Temple TV`,
+    body: sermonTitle ? `Now replaying: "${sermonTitle}" — Watch on Temple TV` : "Service rebroadcast is now live",
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
-    url: "/",
+    url: "/sermons",
     tag: "rebroadcast",
-    data: { type: "rebroadcast", timestamp: new Date().toISOString() },
+    requireInteraction: false,
+    actions: [{ action: "watch", title: "Watch Now" }],
+    data: { type: "rebroadcast", broadcastType: "rebroadcast", timestamp: new Date().toISOString() },
   };
 }
 

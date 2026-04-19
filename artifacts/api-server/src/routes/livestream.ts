@@ -5,7 +5,7 @@ import {
   UpdateLivestreamStatusBody,
   UpdateLivestreamStatusResponse,
 } from "@workspace/api-zod";
-import { db, sermonsTable } from "@workspace/db";
+import { db, sermonsTable, pool } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { buildSmartRebroadcastQueue } from "../lib/broadcast-engine.js";
 import {
@@ -480,7 +480,17 @@ async function pollAndBroadcast(): Promise<void> {
 
       // Send push notification to all subscribers on live→online transition
       if (!wasLive) {
-        dispatchPushNotification(buildLiveServiceNotification(ytStatus.title ?? "Sunday Service")).catch(() => {});
+        const liveTitle = ytStatus.title ?? "Sunday Service";
+        dispatchPushNotification(buildLiveServiceNotification(liveTitle))
+          .then(result => {
+            pool.query(
+              `INSERT INTO broadcast_events (type, title, video_id, message, url, push_sent)
+               VALUES ($1, $2, $3, $4, '/sermons', $5)`,
+              ["live_start", liveTitle, ytStatus.videoId ?? null,
+               `Holy Spirit Sunday Service — Now Streaming Live`, result.sent]
+            ).catch(() => {});
+          })
+          .catch(() => {});
       }
     } else if (ytStatus.isUpcoming) {
       newState = {
@@ -547,7 +557,17 @@ async function pollAndBroadcast(): Promise<void> {
             };
 
             // Notify all subscribers that rebroadcast of today's service is starting
-            dispatchPushNotification(buildRebroadcastNotification(primaryTitle ?? "Sunday Service")).catch(() => {});
+            const rbTitle = primaryTitle ?? "Sunday Service";
+            dispatchPushNotification(buildRebroadcastNotification(rbTitle))
+              .then(result => {
+                pool.query(
+                  `INSERT INTO broadcast_events (type, title, video_id, message, url, push_sent)
+                   VALUES ($1, $2, $3, $4, '/sermons', $5)`,
+                  ["rebroadcast_start", rbTitle, primaryVideoId ?? null,
+                   `Now Replaying: ${rbTitle}`, result.sent]
+                ).catch(() => {});
+              })
+              .catch(() => {});
           } catch {
             // Fallback: replay the just-ended video directly, or use latest from DB
             let fallbackVideoId = justEndedVideoId;

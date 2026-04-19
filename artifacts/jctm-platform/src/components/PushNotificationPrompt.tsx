@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, X } from "lucide-react";
 import { toast } from "sonner";
+import { getOrCreateVisitorId } from "@/lib/visitorId";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const STORAGE_KEY = "jctm_push_prompt_dismissed";
@@ -62,10 +63,13 @@ export function PushNotificationPrompt() {
         endpoint: string;
         keys: { p256dh: string; auth: string };
       };
+
+      const visitorId = getOrCreateVisitorId();
+
       await fetch(`${BASE}/api/push/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscription: subJson, deviceType: "web" }),
+        body: JSON.stringify({ subscription: subJson, deviceType: "web", visitorId }),
       });
 
       toast.success("You'll be notified when JCTM goes live!");
@@ -97,7 +101,6 @@ export function PushNotificationPrompt() {
               borderColor: "rgba(56, 189, 248, 0.25)",
             }}
           >
-            {/* Bell icon */}
             <div
               className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{ background: "rgba(239, 68, 68, 0.18)", border: "1px solid rgba(239,68,68,0.4)" }}
@@ -105,7 +108,6 @@ export function PushNotificationPrompt() {
               <Bell className="h-4 w-4 text-red-400" />
             </div>
 
-            {/* Text */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white leading-snug">
                 Get notified when we go live
@@ -136,7 +138,6 @@ export function PushNotificationPrompt() {
               </div>
             </div>
 
-            {/* Close */}
             <button
               onClick={dismiss}
               aria-label="Dismiss"

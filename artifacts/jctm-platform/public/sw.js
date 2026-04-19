@@ -175,21 +175,40 @@ self.addEventListener("push", (event) => {
     tag: payload.tag ?? "jctm-notification",
     renotify: true,
     requireInteraction: payload.requireInteraction ?? false,
-    data: { url: payload.url ?? "/" },
+    data: { url: payload.url ?? "/sermons", broadcastType: payload.data?.broadcastType ?? null },
     actions: payload.actions ?? [],
     vibrate: [200, 100, 200],
   };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title ?? "JCTM Temple TV", options)
+    Promise.all([
+      // Show OS-level push notification
+      self.registration.showNotification(payload.title ?? "JCTM Temple TV", options),
+      // Relay payload to all open page clients so in-app toast fires instantly
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: "BROADCAST_PUSH",
+            payload: {
+              title: payload.title ?? "JCTM Temple TV",
+              body: payload.body ?? "",
+              url: payload.url ?? "/sermons",
+              broadcastType: payload.data?.broadcastType ?? null,
+              tag: payload.tag ?? null,
+            },
+          });
+        });
+      }),
+    ])
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url ?? "/";
+  const targetUrl = event.notification.data?.url ?? "/sermons";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // Focus and navigate the first existing window, or open a new one
       const existing = clients.find((c) => c.url.includes(self.location.origin));
       if (existing) {
         existing.focus();

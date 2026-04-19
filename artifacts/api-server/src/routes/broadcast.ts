@@ -13,6 +13,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { buildSmartRebroadcastQueue, getBroadcastStats } from "../lib/broadcast-engine.js";
 import { db, sermonsTable } from "@workspace/db";
 import { desc, sql } from "drizzle-orm";
+import { pool } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -160,6 +161,78 @@ router.get("/broadcast/metrics", async (_req: Request, res: Response): Promise<v
     });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch broadcast metrics" });
+  }
+});
+
+// ─── GET /api/broadcast/history/latest ───────────────────────────────────────
+// Returns the most recent broadcast event (live start or rebroadcast start).
+// Used by the frontend re-engagement system: on revisit, if the visitor hasn't
+// seen this broadcast yet, show a non-intrusive in-app notification.
+
+router.get("/broadcast/history/latest", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query<{
+      id: number;
+      type: string;
+      title: string | null;
+      video_id: string | null;
+      message: string;
+      url: string;
+      push_sent: number;
+      fired_at: string;
+    }>(`
+      SELECT id, type, title, video_id, message, url, push_sent, fired_at
+      FROM broadcast_events
+      ORDER BY fired_at DESC
+      LIMIT 1
+    `);
+
+    if (!result.rows.length) {
+      res.json(null);
+      return;
+    }
+
+    const row = result.rows[0]!;
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      videoId: row.video_id,
+      message: row.message,
+      url: row.url,
+      firedAt: row.fired_at,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch broadcast history" });
+  }
+});
+
+// ─── GET /api/broadcast/history ───────────────────────────────────────────────
+// Last 20 broadcast events — for admin dashboard visibility
+
+router.get("/broadcast/history", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(`
+      SELECT id, type, title, video_id, message, url, push_sent, fired_at
+      FROM broadcast_events
+      ORDER BY fired_at DESC
+      LIMIT 20
+    `);
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json(result.rows.map(r => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      videoId: r.video_id,
+      message: r.message,
+      url: r.url,
+      pushSent: r.push_sent,
+      firedAt: r.fired_at,
+    })));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch broadcast history" });
   }
 });
 
