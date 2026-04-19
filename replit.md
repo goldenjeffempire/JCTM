@@ -387,6 +387,8 @@ Served at root level (not under `/api`) in `app.ts`:
 - Optimized short-form/intro video loading so hidden preloads only mount on fast non–data-saver connections, reducing background bandwidth and preventing competing YouTube players from degrading live playback.
 - Mobile live/rebroadcast banners now open the active YouTube video directly when a video ID is available, handing playback to the native YouTube app/player for more reliable mobile streaming.
 - The livestream REST status endpoint now throttles YouTube refreshes, skips unnecessary broadcasts when state is unchanged, and returns the current full status payload quickly for polling clients.
+- Added stale-deployment recovery for dynamic import failures: clients that still hold an old app shell now unregister the service worker, clear JCTM caches, and reload once with a cache-busting URL instead of staying on a broken lazy-loaded route.
+- Production static serving now sends `sw.js` with no-store headers and raises/skips rate limiting for safe real-time/public read endpoints so SSE reconnects and live-status refreshes do not block normal visitors.
 
 ### Ministers Conference Flyer Sharing
 - Home page Ministers Conference 2026 section now uses the uploaded official flyer image from `attached_assets` via Vite asset import.

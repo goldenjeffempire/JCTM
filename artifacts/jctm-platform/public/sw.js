@@ -10,12 +10,11 @@
  * Push Notifications: Supported for live service alerts
  */
 
-const CACHE_VERSION = "jctm-v2";
+const CACHE_VERSION = "jctm-v3";
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const API_CACHE     = `${CACHE_VERSION}-api`;
 
 const PRECACHE_URLS = [
-  "/",
   "/manifest.json",
   "/favicon.svg",
   "/icon-192.png",
@@ -141,19 +140,21 @@ async function staleWhileRevalidate(request, cacheName) {
 async function navigationStrategy(request) {
   try {
     const response = await fetch(request, { signal: AbortSignal.timeout(8000) });
-    if (response.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, response.clone());
-    }
     return response;
   } catch {
-    const cached = await caches.match(request) ?? await caches.match("/");
+    const cached = await caches.match(request);
     if (cached) return cached;
     return new Response("<html><body><h1>You are offline</h1><p>Please check your connection and try again.</p></body></html>", {
       headers: { "Content-Type": "text/html" },
     });
   }
 }
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 // ─── Push Notifications ───────────────────────────────────────────────────────
 

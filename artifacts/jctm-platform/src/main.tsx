@@ -4,6 +4,7 @@ import { Component, type ReactNode } from "react";
 import App from "./App";
 import "./index.css";
 import { reportClientError } from "./lib/clientErrorReporting";
+import { isChunkLoadError, recoverFromChunkLoadError } from "./lib/chunkRecovery";
 
 class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -18,6 +19,7 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("Root-level error:", error, info);
     reportClientError(error, { source: "root-error-boundary", componentStack: info.componentStack });
+    recoverFromChunkLoadError(error);
   }
 
   render() {
@@ -52,10 +54,16 @@ createRoot(document.getElementById("root")!).render(
 );
 
 window.addEventListener("error", (event) => {
+  if (isChunkLoadError(event.error ?? event.message)) {
+    recoverFromChunkLoadError(event.error ?? event.message);
+  }
   reportClientError(event.error ?? event.message, { source: "window-error" });
 });
 
 window.addEventListener("unhandledrejection", (event) => {
+  if (isChunkLoadError(event.reason)) {
+    recoverFromChunkLoadError(event.reason);
+  }
   reportClientError(event.reason, { source: "unhandled-rejection" });
 });
 
@@ -66,12 +74,13 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker
       .register(`${base}sw.js`, { scope: base })
       .then((reg) => {
+        reg.update();
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           if (!newWorker) return;
           newWorker.addEventListener("statechange", () => {
             if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              console.info("[SW] New version available — will activate on next reload");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
             }
           });
         });

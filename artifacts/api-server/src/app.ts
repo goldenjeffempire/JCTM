@@ -92,11 +92,24 @@ app.use(
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 900,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
-  skip: (req) => req.method === "OPTIONS",
+  skip: (req) => {
+    if (req.method === "OPTIONS") return true;
+    if (req.headers.accept?.includes("text/event-stream")) return true;
+    if (req.method !== "GET") return false;
+    return [
+      "/api/livestream/status",
+      "/api/livestream/viewers",
+      "/api/visitors/stream",
+      "/api/admin/realtime/stream",
+      "/api/sermons/stream",
+      "/api/gallery/stream",
+      "/api/geo",
+    ].some(pathname => req.path.startsWith(pathname));
+  },
 });
 
 const aiLimiter = rateLimit({
@@ -168,8 +181,10 @@ if (process.env.NODE_ENV === "production") {
       lastModified: true,
       index: false,
       setHeaders(res, filePath) {
-        if (filePath.endsWith(".html")) {
+        if (filePath.endsWith(".html") || filePath.endsWith("sw.js")) {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
         } else if (/\.(png|jpe?g|webp|avif|svg|ico|gif)$/i.test(filePath)) {
           res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
           res.setHeader("Vary", "Accept-Encoding");

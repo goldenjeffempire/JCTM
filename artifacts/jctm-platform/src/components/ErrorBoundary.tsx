@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { reportClientError } from "@/lib/clientErrorReporting";
+import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 
 interface Props {
   children: ReactNode;
@@ -26,6 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("JCTM ErrorBoundary caught:", error, info);
     reportClientError(error, { source: "app-error-boundary", componentStack: info.componentStack });
+    recoverFromChunkLoadError(error);
   }
 
   render() {
@@ -46,7 +48,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 Something Went Wrong
               </h1>
               <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-                We encountered an unexpected error. Our team has been notified. Please try refreshing the page.
+                {isChunkLoadError(this.state.error)
+                  ? "A fresh version of the site is available. We are refreshing the page now."
+                  : "We encountered an unexpected error. Our team has been notified. Please try refreshing the page."}
               </p>
               <p className="text-accent italic text-sm mb-8">
                 "And we know that all things work together for good to those who love God." — Romans 8:28
