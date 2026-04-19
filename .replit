@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "postgresql-16"]
+modules = ["nodejs-20", "web", "bash"]
 
   [[artifacts]]
   id = "artifacts/jctm-platform"
@@ -66,7 +66,7 @@ expertMode = true
 timeoutMs = 180000
 
   [nix]
-  channel = "stable-25_05"
+channel = "stable-25_05"
 
 [userenv]
 
