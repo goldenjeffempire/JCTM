@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Tv2, Radio, PlayCircle, Clock, X, MessageSquare, Wifi } from "lucide-react";
+import { Tv2, Radio, PlayCircle, Clock, X, MessageSquare, Wifi, Users } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
+import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { LiveChat } from "@/components/LiveChat";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -111,6 +112,7 @@ interface UnifiedPlayerModalProps {
   rebroadcastTitle: string | null;
   rebroadcastExpiresAt: string | null;
   rebroadcastMode?: "scheduled" | "continuous";
+  viewerCount: number;
   onClose: () => void;
 }
 
@@ -122,6 +124,7 @@ function UnifiedPlayerModal({
   rebroadcastTitle,
   rebroadcastExpiresAt,
   rebroadcastMode,
+  viewerCount,
   onClose,
 }: UnifiedPlayerModalProps) {
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
@@ -217,6 +220,13 @@ function UnifiedPlayerModal({
                 {modeLabel}
               </div>
             </div>
+            {isLive && (
+              <div className="hidden sm:flex items-center gap-1.5 mr-2 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/70">
+                <Users className="h-3.5 w-3.5" />
+                <span className="tabular-nums">{viewerCount}</span>
+                <span className="hidden lg:inline">watching</span>
+              </div>
+            )}
             {/* Queue navigation — rebroadcast + continuous modes */}
             {!isLive && rebroadcastQueue.length > 1 && (
               <div className="flex items-center gap-1 mr-2">
@@ -257,6 +267,9 @@ function UnifiedPlayerModal({
               }`}
             >
               <Tv2 className="w-4 h-4" /> Watch
+              {viewerCount > 0 && mobileTab !== "video" && (
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] tabular-nums">{viewerCount}</span>
+              )}
             </button>
             <button
               onClick={() => setMobileTab("chat")}
@@ -265,6 +278,9 @@ function UnifiedPlayerModal({
               }`}
             >
               <MessageSquare className="w-4 h-4" /> Live Chat
+              {viewerCount > 0 && mobileTab !== "chat" && (
+                <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[10px] tabular-nums">{viewerCount}</span>
+              )}
             </button>
           </div>
         )}
@@ -305,7 +321,7 @@ function UnifiedPlayerModal({
                 "md:flex md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0",
               ].join(" ")}
             >
-              <LiveChat isLive={true} embedded={true} />
+              <LiveChat isLive={true} embedded={true} externalViewerCount={viewerCount} />
             </div>
           )}
         </div>
@@ -322,6 +338,7 @@ export function BroadcastStatusIndicator() {
   const [dismissed, setDismissed] = useState(false);
   const [timeDisplay, setTimeDisplay] = useState("");
   const prevRef = useRef({ isLive: false, mode: undefined as string | undefined });
+  const viewerCount = useLiveViewerCount(showPlayer && status.isLive);
 
   const { rebroadcast } = status;
   const isContinuous = rebroadcast.available && rebroadcast.mode === "continuous";
@@ -438,6 +455,7 @@ export function BroadcastStatusIndicator() {
               rebroadcastTitle={rebroadcast.title}
               rebroadcastExpiresAt={rebroadcast.expiresAt}
               rebroadcastMode={rebroadcast.mode}
+              viewerCount={viewerCount}
               onClose={() => setShowPlayer(false)}
             />
           )}
@@ -474,6 +492,12 @@ export function BroadcastStatusIndicator() {
                 <span className="text-white text-[11px] sm:text-xs font-bold tracking-widest uppercase leading-none whitespace-nowrap">
                   🔴 Holy Spirit Sunday Service — Live
                 </span>
+                {viewerCount > 0 && (
+                  <span className="hidden sm:flex items-center gap-1 text-white/70 text-[10px] font-semibold">
+                    <Users className="h-3 w-3" />
+                    <span className="tabular-nums">{viewerCount}</span>
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setShowPlayer(true)}
@@ -609,6 +633,7 @@ export function BroadcastStatusIndicator() {
             rebroadcastTitle={rebroadcast.title}
             rebroadcastExpiresAt={rebroadcast.expiresAt}
             rebroadcastMode={rebroadcast.mode}
+            viewerCount={viewerCount}
             onClose={() => setShowPlayer(false)}
           />
         )}

@@ -22,6 +22,7 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
+import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
@@ -737,6 +738,7 @@ function HeroSection() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+  const liveViewerCount = useLiveViewerCount(livePlayerOpen && isLive);
 
   const { data: rebroadcastData } = useGetRebroadcastStatus({
     query: { queryKey: getGetRebroadcastStatusQueryKey(), refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000 },
@@ -901,6 +903,13 @@ function HeroSection() {
                   <span className="text-white font-bold text-sm uppercase tracking-widest">Holy Spirit Sunday Service — Live</span>
                   {liveTitle && (
                     <span className="text-white/50 text-xs hidden sm:inline truncate max-w-xs">— {liveTitle}</span>
+                  )}
+                  {liveViewerCount > 0 && (
+                    <span className="hidden sm:flex items-center gap-1 text-white/50 text-xs">
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="tabular-nums">{liveViewerCount}</span>
+                      watching
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">

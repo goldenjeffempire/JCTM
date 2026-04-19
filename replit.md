@@ -100,6 +100,7 @@ Three independent admin roles, each with its own passphrase, HMAC-signed JWT, an
 - Live-service and Temple TV hero actions now open the embedded in-site player modal instead of redirecting viewers to YouTube.
 - A global in-app upcoming-service pop-up now invites visitors to the Holy Spirit Sunday Service and links them back to the website; a protected push endpoint can send the same alert to active browser push subscribers.
 - Backend livestream scanning now runs an accelerated YouTube live check every 5 seconds during the Sunday 8:00 AM–10:30 AM WAT service window, alongside the standard polling fallback.
+- Livestream player presence now has its own real-time SSE channel (`GET /api/livestream/viewers/stream`) with a REST snapshot (`GET /api/livestream/viewers`), so active player viewer counts update live in the web player header and embedded chat independently of chat-only connections.
 
 ### YouTube Sync — Fully Automated, Near-Real-Time Pipeline
 

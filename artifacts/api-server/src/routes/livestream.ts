@@ -188,6 +188,7 @@ setImmediate(() => {
 // ─── SSE status broadcaster ───────────────────────────────────────────────────
 
 const statusSessions = new Map<string, Response>();
+const viewerSessions = new Map<string, Response>();
 
 function sseWrite(res: Response, payload: string): void {
   res.write(payload);
@@ -249,6 +250,21 @@ function broadcastStatus(state: LivestreamState): void {
   }
 }
 
+function buildViewerPayload(): string {
+  return JSON.stringify({ type: "viewer_count", count: viewerSessions.size });
+}
+
+function broadcastViewerCount(): void {
+  const payload = `data: ${buildViewerPayload()}\n\n`;
+  for (const [sid, res] of viewerSessions) {
+    try {
+      sseWrite(res, payload);
+    } catch {
+      viewerSessions.delete(sid);
+    }
+  }
+}
+
 // Keepalive heartbeat
 const statusHeartbeat = setInterval(() => {
   for (const [sid, res] of statusSessions) {
@@ -256,6 +272,13 @@ const statusHeartbeat = setInterval(() => {
       sseWrite(res, ": keepalive\n\n");
     } catch {
       statusSessions.delete(sid);
+    }
+  }
+  for (const [sid, res] of viewerSessions) {
+    try {
+      sseWrite(res, ": keepalive\n\n");
+    } catch {
+      viewerSessions.delete(sid);
     }
   }
 }, 25_000);
@@ -589,6 +612,41 @@ router.get("/livestream/stream", (req: Request, res: Response): void => {
       statusSessions.delete(sid);
     }
   });
+});
+
+// ─── GET /api/livestream/viewers/stream — live player presence ────────────────
+
+router.get("/livestream/viewers/stream", (req: Request, res: Response): void => {
+  const sid = typeof req.query.sid === "string" && req.query.sid.length > 0
+    ? req.query.sid.slice(0, 64)
+    : `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const existing = viewerSessions.get(sid);
+  if (existing) {
+    try { existing.end(); } catch { /* already gone */ }
+    viewerSessions.delete(sid);
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  viewerSessions.set(sid, res);
+  broadcastViewerCount();
+
+  req.on("close", () => {
+    if (viewerSessions.get(sid) === res) {
+      viewerSessions.delete(sid);
+      broadcastViewerCount();
+    }
+  });
+});
+
+router.get("/livestream/viewers", (_req: Request, res: Response): void => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ count: viewerSessions.size });
 });
 
 // ─── GET /api/livestream/status — REST fallback ───────────────────────────────

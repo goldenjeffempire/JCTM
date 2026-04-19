@@ -91,9 +91,10 @@ function formatTime(ts: number): string {
 interface LiveChatProps {
   isLive?: boolean;
   embedded?: boolean;
+  externalViewerCount?: number;
 }
 
-export function LiveChat({ isLive = false, embedded = false }: LiveChatProps) {
+export function LiveChat({ isLive = false, embedded = false, externalViewerCount }: LiveChatProps) {
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [isOpen, setIsOpen]           = useState(embedded);
@@ -119,6 +120,7 @@ export function LiveChat({ isLive = false, embedded = false }: LiveChatProps) {
   const [prayerSubmitting, setPrayerSubmitting] = useState(false);
   const [prayerSubmitted, setPrayerSubmitted]   = useState(false);
   const [prayerError, setPrayerError]           = useState("");
+  const displayedViewerCount = externalViewerCount ?? viewerCount;
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const esRef             = useRef<EventSource | null>(null);
@@ -715,7 +717,7 @@ export function LiveChat({ isLive = false, embedded = false }: LiveChatProps) {
           {renderConnStatus(true)}
           <div className="flex items-center gap-1 ml-auto text-xs text-white/60">
             <Users className="w-3.5 h-3.5 shrink-0" />
-            <span className="tabular-nums">{viewerCount}</span>
+            <span className="tabular-nums">{displayedViewerCount}</span>
           </div>
         </div>
 
@@ -751,9 +753,9 @@ export function LiveChat({ isLive = false, embedded = false }: LiveChatProps) {
           >
             <MessageSquare className="w-5 h-5 shrink-0" />
             <span className="text-sm font-semibold leading-none">Live Chat</span>
-            {viewerCount > 0 && (
+            {displayedViewerCount > 0 && (
               <Badge className="bg-red-500 text-white text-[10px] h-4 px-1.5 leading-none shrink-0">
-                {viewerCount}
+                {displayedViewerCount}
               </Badge>
             )}
           </motion.button>
@@ -802,7 +804,7 @@ export function LiveChat({ isLive = false, embedded = false }: LiveChatProps) {
                 {renderConnStatus(false)}
                 <div className="flex items-center gap-1 ml-auto text-xs text-muted-foreground">
                   <Users className="w-3.5 h-3.5 shrink-0" />
-                  <span className="tabular-nums">{viewerCount}</span>
+                  <span className="tabular-nums">{displayedViewerCount}</span>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
