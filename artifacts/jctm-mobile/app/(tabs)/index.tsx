@@ -17,6 +17,24 @@ import { useColors } from "@/hooks/useColors";
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
 
+async function openVideo(videoId?: string | null, fallbackUrl?: string | null) {
+  if (videoId) {
+    const appUrl = `youtube://watch?v=${videoId}`;
+    const webUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    try {
+      if (await Linking.canOpenURL(appUrl)) {
+        await Linking.openURL(appUrl);
+        return;
+      }
+    } catch {
+      undefined;
+    }
+    await Linking.openURL(webUrl);
+    return;
+  }
+  await Linking.openURL(fallbackUrl || `${BASE}/sermons`);
+}
+
 function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
   const { data } = useGetLivestreamStatus({ query: { refetchInterval: 30_000, staleTime: 15_000 } });
   // The status endpoint now returns the full SSE-equivalent payload including rebroadcast data
@@ -49,7 +67,7 @@ function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
         styles.liveBanner,
         { backgroundColor: isLive ? "#E53E3E" : isRebroadcast && status?.rebroadcast?.mode === "scheduled" ? "#D97706" : "#4F46E5" },
       ]}
-      onPress={() => Linking.openURL(isLive ? liveUrl : rebroadcastUrl)}
+      onPress={() => openVideo(isLive ? status?.videoId : status?.rebroadcast?.videoId, isLive ? liveUrl : rebroadcastUrl)}
       activeOpacity={0.85}
     >
       <View style={[styles.liveDot, { backgroundColor: isLive ? "#fff" : "#fff" }]} />
@@ -90,7 +108,7 @@ function FeaturedCard({ colors }: { colors: ReturnType<typeof useColors> }) {
   return (
     <View style={[styles.featuredCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>FEATURED SERMON</Text>
-      <TouchableOpacity onPress={() => Linking.openURL(url)} activeOpacity={0.85}>
+      <TouchableOpacity onPress={() => openVideo(sermon.youtubeVideoId, url)} activeOpacity={0.85}>
         <Image source={{ uri: thumb }} style={styles.featuredThumb} resizeMode="cover" />
         <View style={styles.playOverlay}>
           <View style={styles.playBtn}>

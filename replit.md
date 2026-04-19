@@ -558,6 +558,13 @@ Affected players: live broadcast overlay, rebroadcast widget overlay (HeroSectio
 - Reworked the backend ABR encoding setup to align variant directories, master playlists, segment durations, keyframe intervals, HLS fMP4 output, and DASH manifest generation for more predictable live playback.
 - Verified after restart: web app `/`, API `/api/healthz`, `/api/livestream/status`, `/api/stream/config`, and `/api/stream/quality-ladder` all returned HTTP 200 with both services running.
 
+### Follow-up Streaming Reliability Pass — April 19, 2026
+- Routed homepage rebroadcast overlays and Sermon Hub live/rebroadcast banners through the shared adaptive `StreamPlayer` instead of raw YouTube iframes, preserving HLS → DASH → YouTube fallback wherever stream manifests are available.
+- Updated the floating broadcast indicator so rebroadcast/continuous playback can also consume active HLS/DASH manifests, not only the live state.
+- Added preferred low-data HLS start-level selection and promoted browser `waiting` events into the same stall-recovery path as `stalled`, so prolonged buffering triggers live-edge recovery or source failover.
+- Improved mobile playback handoff for the Expo app: live, rebroadcast, and sermon taps now try the native YouTube app first and fall back to the browser URL.
+- Re-verified changed web modules through Vite and confirmed `/api/healthz`, `/api/livestream/status`, and `/api/stream/health` return HTTP 200 after workflow restart.
+
 ### CDN Pre-resolution (index.html)
 Three new dns-prefetch hints added to reduce initial buffering latency when the player opens:
 - `https://googlevideo.com` — YouTube's primary video delivery CDN

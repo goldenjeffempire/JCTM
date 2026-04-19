@@ -625,13 +625,15 @@ function RebroadcastBanner() {
                 </button>
               </div>
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video bg-black">
-                <iframe
-                  key={`rb-banner-${data.videoId}`}
-                  src={buildYouTubeUrl(data.videoId, bannerQuality, { autoplay: true })}
+                <StreamPlayer
+                  key={`rb-banner-${data.videoId}-${bannerQuality}`}
+                  hlsManifestUrl={liveStatus.stream?.hlsManifestUrl ?? null}
+                  dashManifestUrl={liveStatus.stream?.dashManifestUrl ?? null}
+                  youtubeVideoId={data.videoId}
+                  isLive={false}
                   title={data.title ?? "Rebroadcast"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
+                  autoPlay={true}
+                  preferredQuality={bannerQuality}
                   className="absolute inset-0 w-full h-full"
                 />
               </div>
@@ -1053,13 +1055,15 @@ function HeroSection() {
                 </button>
               </div>
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video bg-black">
-                <iframe
+                <StreamPlayer
                   key={`rb-widget-${rebroadcastForWidget.videoId}-${liveQuality}`}
-                  src={buildYouTubeUrl(rebroadcastForWidget.videoId, liveQuality, { autoplay: true })}
+                  hlsManifestUrl={liveStatus.stream?.hlsManifestUrl ?? null}
+                  dashManifestUrl={liveStatus.stream?.dashManifestUrl ?? null}
+                  youtubeVideoId={rebroadcastForWidget.videoId}
+                  isLive={false}
                   title={rebroadcastForWidget.title ?? "Rebroadcast"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
+                  autoPlay={true}
+                  preferredQuality={liveQuality}
                   className="absolute inset-0 w-full h-full"
                 />
               </div>

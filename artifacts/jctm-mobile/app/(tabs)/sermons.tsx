@@ -17,6 +17,24 @@ import { useColors } from "@/hooks/useColors";
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
 
+async function openVideo(videoId?: string | null, fallbackUrl?: string | null) {
+  if (videoId) {
+    const appUrl = `youtube://watch?v=${videoId}`;
+    const webUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    try {
+      if (await Linking.canOpenURL(appUrl)) {
+        await Linking.openURL(appUrl);
+        return;
+      }
+    } catch {
+      undefined;
+    }
+    await Linking.openURL(webUrl);
+    return;
+  }
+  await Linking.openURL(fallbackUrl || `${BASE}/sermons`);
+}
+
 type Sermon = {
   id: number;
   title: string;
@@ -49,7 +67,7 @@ function SermonRow({ sermon, colors }: { sermon: Sermon; colors: ReturnType<type
   return (
     <TouchableOpacity
       style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}
-      onPress={() => Linking.openURL(url)}
+      onPress={() => openVideo(sermon.youtubeVideoId, url)}
       activeOpacity={0.8}
     >
       {thumb ? (
@@ -107,7 +125,8 @@ export default function SermonsScreen() {
   const liveStatus = liveData as {
     isLive?: boolean;
     title?: string | null;
-    rebroadcast?: { available?: boolean; title?: string | null; mode?: string };
+    videoId?: string | null;
+    rebroadcast?: { available?: boolean; videoId?: string | null; title?: string | null; mode?: string };
   } | undefined;
   const isLive = liveStatus?.isLive ?? false;
   const isRebroadcast = !isLive && (liveStatus?.rebroadcast?.available ?? false);
@@ -147,7 +166,7 @@ export default function SermonsScreen() {
       {/* Live / Rebroadcast banner */}
       {(isLive || isRebroadcast) && (
         <TouchableOpacity
-          onPress={() => Linking.openURL(`${BASE}/sermons`)}
+          onPress={() => openVideo(isLive ? liveStatus?.videoId : liveStatus?.rebroadcast?.videoId, `${BASE}/sermons`)}
           activeOpacity={0.85}
           style={{
             marginHorizontal: 16,

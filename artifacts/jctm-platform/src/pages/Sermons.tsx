@@ -16,6 +16,7 @@ import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggl
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
+import { StreamPlayer } from "@/components/StreamPlayer";
 
 const CATEGORIES = [
   { id: "all", label: "All Sermons", emoji: "📖" },
@@ -385,12 +386,13 @@ export default function Sermons() {
                 </div>
                 {livePlaying && liveVideoId && (
                   <div className="w-full aspect-video">
-                    <iframe
+                    <StreamPlayer
                       className="w-full h-full"
-                      src={`https://www.youtube.com/embed/${liveVideoId}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
-                      allow="autoplay; fullscreen; encrypted-media"
-                      allowFullScreen
-                      referrerPolicy="strict-origin-when-cross-origin"
+                      hlsManifestUrl={liveStatus.stream.hlsManifestUrl}
+                      dashManifestUrl={liveStatus.stream.dashManifestUrl}
+                      youtubeVideoId={liveVideoId}
+                      isLive={true}
+                      autoPlay={true}
                       title={liveTitle ?? "Holy Spirit Sunday Service — Live"}
                     />
                   </div>
@@ -436,12 +438,13 @@ export default function Sermons() {
                 </div>
                 {playingId === rebroadcastVideoId && (
                   <div className="w-full aspect-video">
-                    <iframe
+                    <StreamPlayer
                       className="w-full h-full"
-                      src={`https://www.youtube.com/embed/${rebroadcastVideoId}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
-                      allow="autoplay; fullscreen; encrypted-media"
-                      allowFullScreen
-                      referrerPolicy="strict-origin-when-cross-origin"
+                      hlsManifestUrl={liveStatus.stream.hlsManifestUrl}
+                      dashManifestUrl={liveStatus.stream.dashManifestUrl}
+                      youtubeVideoId={rebroadcastVideoId}
+                      isLive={false}
+                      autoPlay={true}
                       title={rebroadcastTitle ?? "Service Rebroadcast — JCTM"}
                     />
                   </div>

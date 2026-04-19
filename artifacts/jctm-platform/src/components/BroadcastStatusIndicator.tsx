@@ -167,9 +167,8 @@ function UnifiedPlayerModal({
     ? (liveTitle ?? "Holy Spirit Sunday Service — Live")
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
-  // For live streams: prefer HLS/DASH from the active pipeline; for rebroadcast use YouTube embed
-  const activeHls = isLive ? (liveHlsManifestUrl ?? rebroadcastQueue[queueIndex]?.hlsManifestUrl ?? null) : null;
-  const activeDash = isLive ? (liveDashManifestUrl ?? rebroadcastQueue[queueIndex]?.dashManifestUrl ?? null) : null;
+  const activeHls = liveHlsManifestUrl ?? rebroadcastQueue[queueIndex]?.hlsManifestUrl ?? null;
+  const activeDash = liveDashManifestUrl ?? rebroadcastQueue[queueIndex]?.dashManifestUrl ?? null;
 
   // Header accent colours
   const headerDot = isLive ? "bg-red-500" : rebroadcastMode === "continuous" ? "bg-indigo-400" : "bg-amber-500";

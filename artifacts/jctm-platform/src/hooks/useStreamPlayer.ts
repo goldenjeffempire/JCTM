@@ -91,6 +91,25 @@ function levelToName(height: number): string {
   return `${height}p`;
 }
 
+function getPreferredStartLevel(
+  levels: { height?: number; bitrate?: number }[],
+  preferredQuality?: string,
+): number {
+  if (!preferredQuality || preferredQuality === "auto" || preferredQuality === "high") return -1;
+  const targetHeight = preferredQuality === "low" ? 360 : Number.parseInt(preferredQuality, 10);
+  if (!Number.isFinite(targetHeight) || targetHeight <= 0) return -1;
+  let selected = -1;
+  let selectedHeight = 0;
+  levels.forEach((level, index) => {
+    const height = level.height ?? 0;
+    if (height > selectedHeight && height <= targetHeight) {
+      selected = index;
+      selectedHeight = height;
+    }
+  });
+  return selected;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useStreamPlayer(opts: {
@@ -261,6 +280,11 @@ export function useStreamPlayer(opts: {
         height: l.height ?? 0,
         bitrate: l.bitrate ?? 0,
       }));
+      const preferredLevel = getPreferredStartLevel(data.levels, preferredQuality);
+      if (preferredLevel >= 0) {
+        hls.currentLevel = preferredLevel;
+        hls.loadLevel = preferredLevel;
+      }
 
       updateState({
         engine: "hls",
@@ -479,11 +503,9 @@ export function useStreamPlayer(opts: {
     const onPause = () => {
       if (!video.ended) updateState({ playerState: "paused" });
     };
-    const onWaiting = () => updateState({ playerState: "buffering" });
-    const onStalled = () => {
+    const scheduleStallRecovery = () => {
       updateState({ playerState: "stalled" });
 
-      // After 8 seconds of stall, force a seek to live edge or retry
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       stallTimerRef.current = setTimeout(() => {
         if (!mountedRef.current) return;
@@ -509,6 +531,11 @@ export function useStreamPlayer(opts: {
         updateState({ playerState: "recovering" });
       }, 8000);
     };
+    const onWaiting = () => scheduleStallRecovery();
+    const onStalled = () => scheduleStallRecovery();
+    const onTimeUpdate = () => {
+      lastProgressAtRef.current = Date.now();
+    };
     const onError = () => {
       const err = video.error;
       handleFatalError(`Video element error: code ${err?.code} — ${err?.message}`, null, null);
@@ -527,6 +554,7 @@ export function useStreamPlayer(opts: {
     video.addEventListener("stalled", onStalled);
     video.addEventListener("error", onError);
     video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("timeupdate", onTimeUpdate);
 
     return () => {
       video.removeEventListener("playing", onPlaying);
@@ -535,6 +563,7 @@ export function useStreamPlayer(opts: {
       video.removeEventListener("stalled", onStalled);
       video.removeEventListener("error", onError);
       video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("timeupdate", onTimeUpdate);
     };
   }, [videoRef, isLive, handleFatalError, updateState]);
 
