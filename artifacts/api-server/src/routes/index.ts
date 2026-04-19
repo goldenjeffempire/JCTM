@@ -29,6 +29,7 @@ import broadcastRouter from "./broadcast";
 import pushRouter from "./push";
 import conferenceRegistrationRouter from "./conferenceRegistration";
 import clientErrorsRouter from "./clientErrors";
+import streamRouter from "./stream";
 
 const router: IRouter = Router();
 
@@ -64,6 +65,7 @@ router.use(broadcastRouter);
 router.use(pushRouter);
 router.use(conferenceRegistrationRouter);
 router.use(clientErrorsRouter);
+router.use(streamRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

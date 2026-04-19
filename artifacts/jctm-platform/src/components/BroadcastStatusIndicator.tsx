@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { LiveChat } from "@/components/LiveChat";
-import { buildYouTubeUrl } from "@/components/DualStreamToggle";
+import { StreamPlayer } from "@/components/StreamPlayer";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -13,6 +13,8 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 interface QueueItem {
   videoId: string;
   title: string;
+  hlsManifestUrl?: string | null;
+  dashManifestUrl?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -27,10 +29,6 @@ function formatTimeRemaining(expiresAt: string): string {
   const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
-}
-
-function buildEmbedUrl(videoId: string, isLive: boolean): string {
-  return buildYouTubeUrl(videoId, "high", { autoplay: true, isLive, enableJsApi: true });
 }
 
 function parseYouTubeMessage(data: unknown): { event?: string; info?: number | { playerState?: number } } | null {
@@ -102,58 +100,6 @@ function useYouTubeEndDetector(onEnded: () => void) {
   }, []);
 }
 
-function useYouTubePlayerRecovery(videoId: string, isLive: boolean) {
-  const [revision, setRevision] = useState(0);
-  const [recovering, setRecovering] = useState(false);
-  const attemptsRef = useRef(0);
-  const readyRef = useRef(false);
-
-  useEffect(() => {
-    attemptsRef.current = 0;
-    readyRef.current = false;
-    setRecovering(false);
-
-    const startupTimer = setTimeout(() => {
-      if (readyRef.current || attemptsRef.current >= 2) return;
-      attemptsRef.current += 1;
-      setRecovering(true);
-      setRevision(r => r + 1);
-    }, isLive ? 12_000 : 15_000);
-
-    return () => clearTimeout(startupTimer);
-  }, [videoId, isLive]);
-
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      if (event.origin !== "https://www.youtube.com") return;
-      const data = parseYouTubeMessage(event.data);
-      if (!data) return;
-      if (data.event === "onReady") {
-        readyRef.current = true;
-        setRecovering(false);
-      }
-      const playerState = typeof data.info === "number" ? data.info : data.info?.playerState;
-      if (data.event === "onStateChange" && (playerState === 1 || playerState === 3)) {
-        readyRef.current = true;
-        setRecovering(false);
-      }
-      if (data.event === "onError" && attemptsRef.current < 3) {
-        attemptsRef.current += 1;
-        setRecovering(true);
-        setTimeout(() => setRevision(r => r + 1), 1_000 * attemptsRef.current);
-      }
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
-
-  const handleLoad = useCallback(() => {
-    setTimeout(() => setRecovering(false), 800);
-  }, []);
-
-  return { revision, recovering, handleLoad };
-}
-
 // ─── Unified Player Modal ─────────────────────────────────────────────────────
 //
 // Single modal that morphs between Live, Scheduled Rebroadcast, and
@@ -163,6 +109,8 @@ interface UnifiedPlayerModalProps {
   isLive: boolean;
   liveVideoId: string | null;
   liveTitle: string | null;
+  liveHlsManifestUrl?: string | null;
+  liveDashManifestUrl?: string | null;
   rebroadcastVideoId: string | null;
   rebroadcastTitle: string | null;
   rebroadcastExpiresAt: string | null;
@@ -175,6 +123,8 @@ function UnifiedPlayerModal({
   isLive,
   liveVideoId,
   liveTitle,
+  liveHlsManifestUrl,
+  liveDashManifestUrl,
   rebroadcastVideoId,
   rebroadcastTitle,
   rebroadcastExpiresAt,
@@ -217,8 +167,9 @@ function UnifiedPlayerModal({
     ? (liveTitle ?? "Holy Spirit Sunday Service — Live")
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
-  const embedSrc = buildEmbedUrl(currentVideoId, isLive);
-  const playerRecovery = useYouTubePlayerRecovery(currentVideoId, isLive);
+  // For live streams: prefer HLS/DASH from the active pipeline; for rebroadcast use YouTube embed
+  const activeHls = isLive ? (liveHlsManifestUrl ?? rebroadcastQueue[queueIndex]?.hlsManifestUrl ?? null) : null;
+  const activeDash = isLive ? (liveDashManifestUrl ?? rebroadcastQueue[queueIndex]?.dashManifestUrl ?? null) : null;
 
   // Header accent colours
   const headerDot = isLive ? "bg-red-500" : rebroadcastMode === "continuous" ? "bg-indigo-400" : "bg-amber-500";
@@ -341,7 +292,7 @@ function UnifiedPlayerModal({
           </div>
         )}
 
-        {/* ── Main Content — iframe morphs seamlessly ──────────────────────── */}
+        {/* ── Main Content — enterprise ABR player ─────────────────────────── */}
         <div className="flex flex-1 min-h-0 overflow-hidden bg-[#0d0d0d]">
           <div
             className={[
@@ -351,31 +302,25 @@ function UnifiedPlayerModal({
             ].join(" ")}
           >
             <AnimatePresence mode="wait">
-              <motion.iframe
-                key={`${currentVideoId}-${isLive ? "live" : rebroadcastMode ?? "rb"}-${playerRecovery.revision}`}
-                src={embedSrc}
-                title={currentTitle}
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-                loading="eager"
-                onLoad={playerRecovery.handleLoad}
-                className="w-full h-full absolute inset-0"
-                style={{ minHeight: 0, border: "none" }}
+              <motion.div
+                key={`${currentVideoId}-${isLive ? "live" : rebroadcastMode ?? "rb"}`}
+                className="absolute inset-0"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
-              />
+                transition={{ duration: 0.35 }}
+              >
+                <StreamPlayer
+                  hlsManifestUrl={activeHls}
+                  dashManifestUrl={activeDash}
+                  youtubeVideoId={currentVideoId}
+                  isLive={isLive}
+                  title={currentTitle}
+                  autoPlay={true}
+                  className="w-full h-full"
+                />
+              </motion.div>
             </AnimatePresence>
-            {playerRecovery.recovering && (
-              <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none bg-gradient-to-t from-black/80 to-transparent p-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-md">
-                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                  Stabilizing stream connection…
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Chat pane (Live only) */}
@@ -441,6 +386,8 @@ export function BroadcastStatusIndicator() {
 
   const liveVideoId = status.videoId;
   const rebroadcastVideoId = rebroadcast.videoId;
+  const liveHlsManifestUrl = status.stream?.hlsManifestUrl ?? null;
+  const liveDashManifestUrl = status.stream?.dashManifestUrl ?? null;
 
   // ── IDLE: library is empty or not yet loaded ──────────────────────────────
   if (!isActive) {
@@ -517,6 +464,8 @@ export function BroadcastStatusIndicator() {
               isLive={status.isLive}
               liveVideoId={liveVideoId}
               liveTitle={status.title}
+              liveHlsManifestUrl={liveHlsManifestUrl}
+              liveDashManifestUrl={liveDashManifestUrl}
               rebroadcastVideoId={rebroadcastVideoId}
               rebroadcastTitle={rebroadcast.title}
               rebroadcastExpiresAt={rebroadcast.expiresAt}
@@ -695,6 +644,8 @@ export function BroadcastStatusIndicator() {
             isLive={status.isLive}
             liveVideoId={liveVideoId}
             liveTitle={status.title}
+            liveHlsManifestUrl={liveHlsManifestUrl}
+            liveDashManifestUrl={liveDashManifestUrl}
             rebroadcastVideoId={rebroadcastVideoId}
             rebroadcastTitle={rebroadcast.title}
             rebroadcastExpiresAt={rebroadcast.expiresAt}

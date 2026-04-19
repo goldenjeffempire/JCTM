@@ -14,6 +14,7 @@ import {
   buildRebroadcastNotification,
 } from "../lib/push-manager.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
+import { streamPipeline } from "../lib/stream-pipeline.js";
 
 const router: IRouter = Router();
 
@@ -326,11 +327,23 @@ function buildStatusPayload(): string {
     rb = { available: false, videoId: null, title: null, thumbnailUrl: null, startedAt: null, expiresAt: null };
   }
 
+  // Include HLS/DASH manifest URLs from the active stream pipeline session (if any)
+  const activeVideoId = livestreamState.videoId ?? rb.videoId ?? null;
+  const streamUrls = activeVideoId ? streamPipeline.getManifestUrls(activeVideoId) : { hls: null, dash: null, youtube: null };
+  const liveSession = streamPipeline.getActiveSessions().find(s => s.health.isActive);
+
   return JSON.stringify({
     type: "status",
     ...livestreamState,
     rebroadcast: rb,
     manualOverride: { live: manualOverrideLive, rebroadcast: manualOverrideRebroadcast },
+    stream: {
+      hlsManifestUrl: liveSession?.hlsManifestUrl ?? streamUrls.hls ?? null,
+      dashManifestUrl: liveSession?.dashManifestUrl ?? streamUrls.dash ?? null,
+      hasActivePipeline: Boolean(liveSession),
+      cdnConfigured: Boolean(process.env.STREAM_CDN_BASE_URL),
+      rtmpIngestUrl: process.env.STREAM_RTMP_INGEST_URL ?? null,
+    },
   });
 }
 

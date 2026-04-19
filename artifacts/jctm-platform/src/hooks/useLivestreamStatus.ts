@@ -38,6 +38,14 @@ export interface ManualOverrideState {
   rebroadcast: boolean;
 }
 
+export interface StreamPipelineState {
+  hlsManifestUrl: string | null;
+  dashManifestUrl: string | null;
+  hasActivePipeline: boolean;
+  cdnConfigured: boolean;
+  rtmpIngestUrl: string | null;
+}
+
 export interface LivestreamStatus {
   isLive: boolean;
   isUpcoming: boolean;
@@ -48,6 +56,7 @@ export interface LivestreamStatus {
   scheduledStartTime: string | null;
   rebroadcast: RebroadcastState;
   manualOverride: ManualOverrideState;
+  stream: StreamPipelineState;
 }
 
 const DEFAULT_REBROADCAST: RebroadcastState = {
@@ -61,6 +70,14 @@ const DEFAULT_REBROADCAST: RebroadcastState = {
 
 const DEFAULT_MANUAL_OVERRIDE: ManualOverrideState = { live: false, rebroadcast: false };
 
+const DEFAULT_STREAM: StreamPipelineState = {
+  hlsManifestUrl: null,
+  dashManifestUrl: null,
+  hasActivePipeline: false,
+  cdnConfigured: false,
+  rtmpIngestUrl: null,
+};
+
 const DEFAULT_STATUS: LivestreamStatus = {
   isLive: false,
   isUpcoming: false,
@@ -71,11 +88,13 @@ const DEFAULT_STATUS: LivestreamStatus = {
   scheduledStartTime: null,
   rebroadcast: DEFAULT_REBROADCAST,
   manualOverride: DEFAULT_MANUAL_OVERRIDE,
+  stream: DEFAULT_STREAM,
 };
 
-type SSEEvent = { type: "status" } & Omit<LivestreamStatus, "rebroadcast" | "manualOverride"> & {
+type SSEEvent = { type: "status" } & Omit<LivestreamStatus, "rebroadcast" | "manualOverride" | "stream"> & {
   rebroadcast?: RebroadcastState;
   manualOverride?: ManualOverrideState;
+  stream?: StreamPipelineState;
 };
 
 const MAX_RETRY_DELAY_MS = 30_000;
@@ -92,6 +111,7 @@ function normalizeStatus(data: Partial<SSEEvent>): LivestreamStatus {
     scheduledStartTime:  data.scheduledStartTime ?? null,
     rebroadcast:         data.rebroadcast ?? DEFAULT_REBROADCAST,
     manualOverride:      data.manualOverride ?? DEFAULT_MANUAL_OVERRIDE,
+    stream:              data.stream ?? DEFAULT_STREAM,
   };
 }
 
