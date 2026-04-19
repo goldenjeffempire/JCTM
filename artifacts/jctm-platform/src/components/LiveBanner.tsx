@@ -20,7 +20,7 @@ function formatTimeRemaining(expiresAt: string): string {
 // ─── Main Banner ──────────────────────────────────────────────────────────────
 //
 // Three states the banner can be in:
-//   1. 🔴 LIVE SERVICE       — full-width red alert, re-shows on every new live event
+//   1. 🔴 LIVE       — full-width red alert, re-shows on every new live event
 //   2. 📺 REBROADCAST        — amber banner, re-shows when a post-service window opens
 //   3. 📺 NOW PLAYING        — subtle indigo banner for continuous/always-on mode
 //                              dismissed by default; only re-shows on live/scheduled events
@@ -61,7 +61,7 @@ export function LiveBanner() {
   // Nothing active
   if (!status.isLive && !rebroadcast.available) return null;
 
-  // ── 🔴 LIVE SERVICE ────────────────────────────────────────────────────────
+  // ── 🔴 LIVE ────────────────────────────────────────────────────────────────
   if (status.isLive) {
     if (liveOrScheduledDismissed) return null;
     return (
@@ -76,11 +76,11 @@ export function LiveBanner() {
         >
           <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse shrink-0">
             <Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="font-bold text-xs sm:text-sm tracking-wide">🔴 LIVE SERVICE</span>
+            <span className="font-bold text-xs sm:text-sm tracking-wide">🔴 Now Streaming Live</span>
           </div>
           <div className="h-4 w-px bg-destructive-foreground/30 hidden sm:block shrink-0" />
           <span className="text-xs sm:text-sm font-medium hidden sm:block truncate max-w-xs md:max-w-sm lg:max-w-md">
-            {status.title || "JCTM Sunday Service"}
+            {status.title || "Holy Spirit Sunday Service — Live"}
           </span>
           <span className="ml-auto sm:ml-2 bg-white/20 text-white text-[10px] font-bold px-2.5 py-1 sm:px-3 rounded-full shrink-0 select-none">
             See indicator →

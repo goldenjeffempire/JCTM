@@ -1019,14 +1019,14 @@ export default function Events() {
                   <span className="text-xs font-bold text-red-600 uppercase tracking-widest">YouTube Live</span>
                   <span className="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse" />
                 </div>
-                <h3 className="font-serif font-bold text-primary">Join Live Service</h3>
-                <p className="text-sm text-muted-foreground">Watch and participate in our live broadcasts directly on this website</p>
+                <h3 className="font-serif font-bold text-primary">Holy Spirit Sunday Service — Live</h3>
+                <p className="text-sm text-muted-foreground">Now Streaming Live directly on this website</p>
               </div>
             </div>
             <div className="flex gap-3">
               <Button onClick={() => setShowLive(!showLive)} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50 rounded-full gap-2">
                 <Youtube className="h-4 w-4" />
-                {showLive ? "Hide" : "Watch Live"}
+                {showLive ? "Hide" : "Live Now"}
               </Button>
               <a href="https://www.youtube.com/@JesusChristTempleMinistry" target="_blank" rel="noopener noreferrer">
                 <Button className="bg-red-600 text-white hover:bg-red-700 rounded-full gap-2">
@@ -1041,7 +1041,7 @@ export default function Events() {
                 <iframe
                   src={`https://www.youtube.com/embed?listType=playlist&list=${YOUTUBE_LIVE_ID}&index=0&autoplay=0&origin=${encodeURIComponent(window.location.origin)}`}
                   className="w-full h-full"
-                  title="JCTM Live Stream"
+                  title="Holy Spirit Sunday Service — Live"
                   allowFullScreen
                   referrerPolicy="strict-origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

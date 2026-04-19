@@ -137,8 +137,8 @@ export interface NotificationPayload {
 
 export function buildLiveServiceNotification(title: string): NotificationPayload {
   return {
-    title: "🔴 JCTM is LIVE NOW",
-    body: title ?? "Sunday Service is live! Join thousands worshipping worldwide.",
+    title: "🔴 Holy Spirit Sunday Service — Live",
+    body: title ?? "Now Streaming Live",
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
     url: "/",
@@ -161,8 +161,8 @@ export function buildRebroadcastNotification(sermonTitle: string): NotificationP
 
 export function buildServiceReminderNotification(minutesBefore: number): NotificationPayload {
   return {
-    title: "⏰ Sunday Service Starting Soon",
-    body: `The live service begins in ${minutesBefore} minutes. Prepare your heart and join us!`,
+    title: "⏰ Holy Spirit Sunday Service — Live",
+    body: `Live Broadcast in Progress begins in ${minutesBefore} minutes. Prepare your heart and join us!`,
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
     url: "/",

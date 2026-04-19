@@ -61,7 +61,7 @@ function usePushNotifications() {
         body: JSON.stringify({ subscription: subJson, deviceType: "web" }),
       });
       setSubscribed(true);
-      toast.success("Live service alerts enabled!");
+      toast.success("Holy Spirit Sunday Service — Live alerts enabled!");
     } catch (err) {
       toast.error("Failed to enable notifications");
     } finally {
@@ -302,8 +302,8 @@ export function Navbar() {
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
               disabled={pushLoading}
-              aria-label={subscribed ? "Unsubscribe from live alerts" : "Subscribe to live service alerts"}
-              title={subscribed ? "Click to disable live alerts" : "Get notified when JCTM goes live"}
+              aria-label={subscribed ? "Unsubscribe from Holy Spirit Sunday Service — Live alerts" : "Subscribe to Holy Spirit Sunday Service — Live alerts"}
+              title={subscribed ? "Click to disable live alerts" : "Get notified when the Holy Spirit Sunday Service is live"}
               className="flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-300 cursor-pointer disabled:opacity-50"
               style={{
                 background: subscribed

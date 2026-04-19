@@ -156,7 +156,7 @@ function UnifiedPlayerModal({
     : rebroadcastQueue[queueIndex]?.videoId ?? rebroadcastVideoId ?? "f7TOxaM2Mq4";
 
   const currentTitle = isLive
-    ? (liveTitle ?? "Live Service — Jesus Christ Temple Ministry")
+    ? (liveTitle ?? "Holy Spirit Sunday Service — Live")
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
   const embedSrc = buildEmbedUrl(currentVideoId, isLive);
@@ -392,7 +392,7 @@ export function BroadcastStatusIndicator() {
           exit={{ opacity: 0, x: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => setDismissed(false)}
-          aria-label={status.isLive ? "Rejoin live service" : "Reopen player"}
+          aria-label={status.isLive ? "Rejoin Holy Spirit Sunday Service — Live" : "Reopen player"}
           className={[
             "fixed top-[4.5rem] right-0 z-[200]",
             "flex items-center gap-1.5 pl-3 pr-2 py-2",
@@ -465,21 +465,21 @@ export function BroadcastStatusIndicator() {
               <button
                 onClick={() => setShowPlayer(true)}
                 className="flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer touch-manipulation"
-                aria-label="Watch live service"
+                aria-label="Watch Holy Spirit Sunday Service — Live"
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-70" />
                   <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                 </span>
                 <span className="text-white text-[11px] sm:text-xs font-bold tracking-widest uppercase leading-none whitespace-nowrap">
-                  🔴 Live Service
+                  🔴 Holy Spirit Sunday Service — Live
                 </span>
               </button>
               <button
                 onClick={() => setShowPlayer(true)}
                 className="bg-white text-red-600 text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-2 hover:bg-red-50 active:scale-95 transition-all touch-manipulation whitespace-nowrap leading-none"
               >
-                Join
+                Live Now
               </button>
               <button
                 onClick={() => setDismissed(true)}

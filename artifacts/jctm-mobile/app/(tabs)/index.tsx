@@ -33,7 +33,7 @@ function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
     >
       <View style={styles.liveDot} />
       <Text style={styles.liveBannerText}>
-        {status.isLive ? "🔴 LIVE NOW — Temple TV" : "📡 REBROADCAST — Temple TV"}
+        {status.isLive ? "🔴 Holy Spirit Sunday Service — Live" : "📡 REBROADCAST — Temple TV"}
       </Text>
       <Text style={styles.liveBannerSub}>Watch →</Text>
     </TouchableOpacity>

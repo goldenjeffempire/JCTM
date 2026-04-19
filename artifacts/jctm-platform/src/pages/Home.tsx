@@ -380,11 +380,11 @@ function BroadcastStatusNotification({
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                 </span>
-                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Live Now</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-red-400 whitespace-nowrap">Now Streaming Live</span>
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
-                  {liveTitle ?? "Temple TV — Live Service"}
+                  {liveTitle ?? "Holy Spirit Sunday Service — Live"}
                 </p>
                 <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
@@ -392,7 +392,7 @@ function BroadcastStatusNotification({
                 className="mt-0.5 flex items-center justify-between rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-200 group-hover:opacity-90"
                 style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.9), rgba(220,38,38,0.8))" }}
               >
-                <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">Join Service</span>
+                <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">You Are Watching Live</span>
                 <motion.div animate={{ x: [0, 3, 0] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}>
                   <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                 </motion.div>
@@ -898,7 +898,7 @@ function HeroSection() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
                   </span>
-                  <span className="text-white font-bold text-sm uppercase tracking-widest">Live Service</span>
+                  <span className="text-white font-bold text-sm uppercase tracking-widest">Holy Spirit Sunday Service — Live</span>
                   {liveTitle && (
                     <span className="text-white/50 text-xs hidden sm:inline truncate max-w-xs">— {liveTitle}</span>
                   )}
@@ -932,7 +932,7 @@ function HeroSection() {
                   src={`https://www.youtube.com/embed/${liveVideoId ?? LIVE_STREAM_VIDEO_ID}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
-                  title="JCTM Live Service"
+                  title="Holy Spirit Sunday Service — Live"
                   onLoad={() => setPlayerLoading(false)}
                 />
               </div>
@@ -1113,7 +1113,7 @@ function HeroSection() {
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
                     </span>
-                    {isLive ? "Live Now — Join Service" : "Watch Rebroadcast"}
+                    {isLive ? "Now Streaming Live" : "Watch Rebroadcast"}
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -1159,7 +1159,7 @@ function HeroSection() {
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                     </span>
-                    {isLive ? "Watch Live Now" : "Watch Rebroadcast"}
+                    {isLive ? "Live Broadcast in Progress" : "Watch Rebroadcast"}
                   </RippleButton>
                 ) : (
                   <RippleButton
@@ -2827,7 +2827,7 @@ function SundayServiceCard() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                   </span>
-                  <span className="text-white font-bold text-sm">Live Service — Jesus Christ Temple Ministry</span>
+                  <span className="text-white font-bold text-sm">Holy Spirit Sunday Service — Live</span>
                 </div>
                 <button
                   onClick={() => setShowEmbed(false)}
@@ -2840,7 +2840,7 @@ function SundayServiceCard() {
                 <iframe
                   key={videoId}
                   src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
-                  title="JCTM Live Service"
+                  title="Holy Spirit Sunday Service — Live"
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
                   referrerPolicy="strict-origin-when-cross-origin"
@@ -3005,7 +3005,7 @@ function SundayServiceCard() {
                         transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                         className="bg-amber-500/15 rounded-2xl p-3.5 border border-amber-400/25 text-center"
                       >
-                        <p className="text-amber-300 text-[11px] uppercase tracking-widest font-bold">⏳ Preparing for Live Service</p>
+                        <p className="text-amber-300 text-[11px] uppercase tracking-widest font-bold">⏳ Holy Spirit Sunday Service — Live</p>
                         <p className="text-white/45 text-[9px] mt-1">Stream will begin shortly — stay tuned</p>
                       </motion.div>
                     </motion.div>
@@ -3022,8 +3022,8 @@ function SundayServiceCard() {
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                         className="bg-red-500/20 rounded-2xl p-3.5 border border-red-400/30 text-center"
                       >
-                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">📡 Live Now</p>
-                        <p className="text-white/45 text-[9px] mt-1">Stream is active on Temple TV</p>
+                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">📡 Live Broadcast in Progress</p>
+                        <p className="text-white/45 text-[9px] mt-1">Holy Spirit Sunday Service — Live</p>
                       </motion.div>
                     </motion.div>
                   )}
@@ -3048,7 +3048,7 @@ function SundayServiceCard() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                         <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                       </span>
-                      Join Live Service
+                      You Are Watching Live
                     </button>
                   </motion.div>
                 )}

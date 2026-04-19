@@ -325,7 +325,7 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
         const result: YouTubeCheckResult = {
           isLive: true,
           isUpcoming: false,
-          title: first.snippet?.title ?? "Live Now on Temple TV",
+          title: first.snippet?.title ?? "Holy Spirit Sunday Service — Live",
           videoId: first.id?.videoId ?? null,
           scheduledStartTime: null,
         };

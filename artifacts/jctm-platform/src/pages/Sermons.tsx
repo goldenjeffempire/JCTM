@@ -380,14 +380,14 @@ export default function Sermons() {
                   </span>
                   <Radio className="h-4 w-4 text-red-500" />
                   <span className="text-sm font-semibold text-red-600 truncate">
-                    Rebroadcast Now — Join Service{liveTitle ? `: ${liveTitle}` : ""}
+                    Now Streaming Live{liveTitle ? `: ${liveTitle}` : " — Holy Spirit Sunday Service — Live"}
                   </span>
                   <Button
                     size="sm"
                     onClick={() => { setLivePlaying(p => !p); setPlayingId(null); }}
                     className={`ml-auto shrink-0 rounded-full text-xs gap-1 ${livePlaying ? "bg-gray-500 hover:bg-gray-600" : "bg-red-500 hover:bg-red-600"} text-white`}
                   >
-                    {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Join Live</>}
+                    {livePlaying ? <><X className="h-3 w-3" /> Close</> : <><Radio className="h-3 w-3" /> Live Now</>}
                   </Button>
                 </div>
                 {livePlaying && (
@@ -402,7 +402,7 @@ export default function Sermons() {
                       allow="autoplay; fullscreen"
                       allowFullScreen
                       referrerPolicy="strict-origin-when-cross-origin"
-                      title={liveTitle ?? "JCTM Live Service"}
+                      title={liveTitle ?? "Holy Spirit Sunday Service — Live"}
                     />
                   </div>
                 )}
