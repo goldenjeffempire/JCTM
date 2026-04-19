@@ -97,6 +97,7 @@ Three independent admin roles, each with its own passphrase, HMAC-signed JWT, an
 ### Sunday 8:00 AM WAT Service Hero Notification
 - Homepage hero now shows a pinned “Service Soon” notification every Sunday from 6:00 AM to 8:00 AM WAT with a live countdown badge to 8:00 AM.
 - The notification is separate from live/rebroadcast states: it disappears at 8:00 AM WAT unless YouTube live detection reports an active service, at which point the hero switches to the live-service prompt.
+- Live-service and Temple TV hero actions now open the embedded in-site player modal instead of redirecting viewers to YouTube.
 - Backend livestream scanning now runs an accelerated YouTube live check every 5 seconds during the Sunday 8:00 AM–10:30 AM WAT service window, alongside the standard polling fallback.
 
 ### YouTube Sync — Fully Automated, Near-Real-Time Pipeline

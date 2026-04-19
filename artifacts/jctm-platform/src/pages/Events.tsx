@@ -1020,7 +1020,7 @@ export default function Events() {
                   <span className="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse" />
                 </div>
                 <h3 className="font-serif font-bold text-primary">Join Live Service</h3>
-                <p className="text-sm text-muted-foreground">Watch and participate in our live broadcasts on YouTube</p>
+                <p className="text-sm text-muted-foreground">Watch and participate in our live broadcasts directly on this website</p>
               </div>
             </div>
             <div className="flex gap-3">

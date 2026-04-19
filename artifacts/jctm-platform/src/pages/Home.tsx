@@ -269,11 +269,7 @@ function BroadcastStatusNotification({
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const openServiceSoon = () => {
-    if (isUpcoming) {
-      onJoin();
-      return;
-    }
-    window.open("https://www.youtube.com/templetvjctm", "_blank", "noopener,noreferrer");
+    onJoin();
   };
 
   if (!phase || dismissed) return null;
@@ -1163,11 +1159,12 @@ function HeroSection() {
                     {isLive ? "Watch Live Now" : "Watch Rebroadcast"}
                   </RippleButton>
                 ) : (
-                  <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
-                    <RippleButton className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary bg-white/65 hover:bg-white/90 border border-primary/10 backdrop-blur-md transition-all duration-300 shadow-md hover:-translate-y-1 min-h-[44px]">
-                      <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch on Temple TV
-                    </RippleButton>
-                  </a>
+                  <RippleButton
+                    onClick={() => setLivePlayerOpen(true)}
+                    className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary bg-white/65 hover:bg-white/90 border border-primary/10 backdrop-blur-md transition-all duration-300 shadow-md hover:-translate-y-1 min-h-[44px]"
+                  >
+                    <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch Temple TV Here
+                  </RippleButton>
                 )}
               </MagneticButton>
             </motion.div>
@@ -1244,20 +1241,21 @@ function HeroSection() {
                   <span className={`text-[9px] font-semibold uppercase tracking-wider ${isLive ? "text-red-500" : "text-accent"}`}>{isLive ? "Live Now" : "Rebroadcast"}</span>
                 </motion.button>
               ) : (
-                <motion.a
-                  href="https://www.youtube.com/templetvjctm"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <motion.button
+                  type="button"
+                  onClick={() => setLivePlayerOpen(true)}
                   whileHover={{ scale: 1.06, y: -4 } as never}
+                  whileTap={{ scale: 0.95 } as never}
                   initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.2 }}
                   className="group relative flex flex-col items-center gap-1.5"
+                  aria-label="Watch Temple TV inside the website"
                 >
                   <div className="relative w-14 h-[72px] md:w-16 md:h-20 rounded-2xl overflow-hidden border-2 border-white/80 shadow-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center transition-all duration-300 group-hover:border-red-400/70 group-hover:shadow-red-400/30 group-hover:shadow-xl">
                     <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 rounded-2xl bg-red-400/20" />
                     <Youtube className="h-6 w-6 text-white relative z-10" />
                   </div>
                   <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-wider group-hover:text-red-500 transition-colors">Temple TV</span>
-                </motion.a>
+                </motion.button>
               )}
               </div>
 
@@ -1951,11 +1949,11 @@ function ProphetSection() {
               </Link>
             </MagneticButton>
             <MagneticButton>
-              <a href="https://www.youtube.com/templetvjctm" target="_blank" rel="noopener noreferrer">
+              <Link href="/sermons">
                 <RippleButton className="group inline-flex items-center justify-center h-12 px-8 rounded-full text-sm font-semibold bg-white border border-primary/15 text-primary hover:bg-primary/5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 min-h-[44px]">
                   <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch Sermons
                 </RippleButton>
-              </a>
+              </Link>
             </MagneticButton>
           </motion.div>
         </motion.div>
@@ -2889,7 +2887,7 @@ function SundayServiceCard() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                         <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                       </span>
-                      Rebroadcast Now
+                      Live Now
                     </motion.span>
                   )}
                   {phase === "rebroadcast" && (
@@ -3021,7 +3019,7 @@ function SundayServiceCard() {
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                         className="bg-red-500/20 rounded-2xl p-3.5 border border-red-400/30 text-center"
                       >
-                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">📡 Rebroadcast Now</p>
+                        <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">📡 Live Now</p>
                         <p className="text-white/45 text-[9px] mt-1">Stream is active on Temple TV</p>
                       </motion.div>
                     </motion.div>
