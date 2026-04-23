@@ -1,5 +1,5 @@
-import { db, sermonsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { db, sermonsTable, pool } from "@workspace/db";
+import { eq, sql, desc } from "drizzle-orm";
 import type { Logger } from "pino";
 
 export const CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
@@ -557,6 +557,79 @@ export async function enrichVideoIds(
 
   log?.info({ enriched, requested: toEnrich.length }, "RSS video enrichment complete");
   return enriched;
+}
+
+// ─── Auto-feature latest video ────────────────────────────────────────────────
+
+/**
+ * Automatically promotes the most recently published video to the featured
+ * position so Today's Highlights and Latest Broadcast always reflect the
+ * newest upload without any manual intervention.
+ *
+ * Steps:
+ *  1. Find the single newest video by publishedAt.
+ *  2. Set is_featured = true and broadcast_ended_at = NOW() on it — this
+ *     gives it the highest priority in the /sermons/featured query.
+ *  3. Clear broadcast_ended_at from any other video that had it set recently
+ *     so there is no competition for the featured slot.
+ *  4. Insert a broadcast_events row only when the featured video has changed
+ *     since the last entry, keeping the Latest Broadcast banner current.
+ *
+ * Safe to call after every sync — idempotent if the newest video hasn't changed.
+ */
+export async function refreshFeaturedSermon(log?: Logger): Promise<void> {
+  try {
+    // 1. Find the newest video
+    const [newest] = await db
+      .select({
+        id:          sermonsTable.id,
+        videoId:     sermonsTable.videoId,
+        title:       sermonsTable.title,
+        publishedAt: sermonsTable.publishedAt,
+      })
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.publishedAt))
+      .limit(1);
+
+    if (!newest) return;
+
+    // 2. Promote the newest video — set featured + broadcast_ended_at
+    await db
+      .update(sermonsTable)
+      .set({
+        isFeatured:      true,
+        broadcastEndedAt: sql`NOW()`,
+      })
+      .where(eq(sermonsTable.videoId, newest.videoId));
+
+    // 3. Clear broadcast_ended_at from any other videos that had it set recently
+    await db
+      .update(sermonsTable)
+      .set({ broadcastEndedAt: sql`NULL` })
+      .where(
+        sql`${sermonsTable.videoId} != ${newest.videoId}
+          AND ${sermonsTable.broadcastEndedAt} IS NOT NULL
+          AND ${sermonsTable.broadcastEndedAt} > NOW() - INTERVAL '8 days'`,
+      );
+
+    // 4. Insert a broadcast_events row only when the featured video has changed
+    const { rows: [latest] } = await pool.query<{ video_id: string | null }>(
+      `SELECT video_id FROM broadcast_events ORDER BY fired_at DESC LIMIT 1`,
+    );
+
+    if (!latest || latest.video_id !== newest.videoId) {
+      await pool.query(
+        `INSERT INTO broadcast_events (type, title, video_id, message, url, push_sent)
+         VALUES ($1, $2, $3, $4, $5, 0)`,
+        ["live_start", newest.title, newest.videoId, "Latest Broadcast — Now Available", "/sermons"],
+      );
+      log?.info({ videoId: newest.videoId, title: newest.title }, "Featured sermon updated — broadcast event inserted");
+    } else {
+      log?.info({ videoId: newest.videoId }, "Featured sermon already current — no change needed");
+    }
+  } catch (err) {
+    log?.warn({ err }, "refreshFeaturedSermon failed (non-fatal)");
+  }
 }
 
 // ─── WebSub subscription ──────────────────────────────────────────────────────

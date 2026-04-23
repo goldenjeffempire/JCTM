@@ -1,4 +1,4 @@
-import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
+import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds, refreshFeaturedSermon } from "./youtube-sync.js";
 import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
@@ -239,6 +239,10 @@ async function runApiSync(apiKey: string, log: Logger): Promise<void> {
       type: "sync_complete",
       data: { synced: result.synced, featured: result.featured },
     });
+
+    // Auto-promote the newest video so Today's Highlights and Latest Broadcast
+    // always reflect the most recent upload without manual intervention.
+    await refreshFeaturedSermon(log);
   } catch (err) {
     if (err instanceof QuotaExceededError) {
       const pauseMs = msUntilUtcMidnight();
@@ -284,6 +288,8 @@ async function runFullSync(apiKey: string, log: Logger): Promise<void> {
       type: "sync_complete",
       data: { synced: result.synced, featured: result.featured, source: "full_sync" },
     });
+
+    await refreshFeaturedSermon(log);
   } catch (err) {
     if (err instanceof QuotaExceededError) {
       const pauseMs = msUntilUtcMidnight();
@@ -321,6 +327,11 @@ async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
       sseBroadcaster.broadcast({
         type: "sync_complete",
         data: { synced: result.inserted, source: "rss" },
+      });
+
+      // New video(s) detected — promote the newest to Today's Highlights & Latest Broadcast
+      refreshFeaturedSermon(log).catch(err => {
+        log.warn({ err }, "refreshFeaturedSermon after RSS sync failed (non-fatal)");
       });
 
       if (apiKey && result.insertedVideoIds.length > 0 &&
