@@ -1,4 +1,4 @@
-import { syncRecentIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
+import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds } from "./youtube-sync.js";
 import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
@@ -9,11 +9,13 @@ import { sql, eq } from "drizzle-orm";
 import type { Logger } from "pino";
 
 const API_INTERVAL_MS       = 30 * 60 * 1000;       // 30 minutes
+const FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;  // 24 hours — full channel harvest
 const WEBSUB_RENEWAL_MS     = 23 * 60 * 60 * 1000;  // 23 hours (before 24h lease expires)
 const METADATA_INTERVAL_MS  = 10 * 60 * 1000;       // 10 minutes
 const DAILY_MS              = 24 * 60 * 60 * 1000;  // 24 hours
 
 let apiCronHandle:       ReturnType<typeof setInterval> | null = null;
+let fullSyncCronHandle:  ReturnType<typeof setInterval> | null = null;
 let rssCronHandle:       ReturnType<typeof setInterval> | null = null;
 let websubCronHandle:    ReturnType<typeof setInterval> | null = null;
 let metadataCronHandle:  ReturnType<typeof setInterval> | null = null;
@@ -22,6 +24,7 @@ let apiStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
 let dailyDevotionHandle: ReturnType<typeof setInterval> | null = null;
+let lastFullSync: Date | null = null;
 
 let quotaPausedUntil: number | null = null;
 let openaiQuotaPausedUntil: number | null = null;
@@ -61,6 +64,8 @@ export function getCronState() {
       nextRSSSync:      lastRSSSync ? new Date(lastRSSSync.getTime() + RSS_INTERVAL_MS).toISOString() : null,
       lastAPISync:      lastAPISync?.toISOString() ?? null,
       nextAPISync:      lastAPISync ? new Date(lastAPISync.getTime() + API_INTERVAL_MS).toISOString() : null,
+      lastFullSync:     lastFullSync?.toISOString() ?? null,
+      nextFullSync:     lastFullSync ? new Date(lastFullSync.getTime() + FULL_SYNC_INTERVAL_MS).toISOString() : null,
     },
     websub: {
       lastRenewal: lastWebSubRenewal?.toISOString() ?? null,
@@ -77,6 +82,7 @@ export function getCronState() {
     running: {
       rss:      rssCronHandle !== null,
       api:      apiCronHandle !== null,
+      fullSync: fullSyncCronHandle !== null,
       websub:   websubCronHandle !== null,
       metadata: metadataCronHandle !== null,
       reminder: reminderCronHandle !== null,
@@ -254,6 +260,51 @@ async function runApiSync(apiKey: string, log: Logger): Promise<void> {
   }
 }
 
+// ─── Full channel sync (daily) ────────────────────────────────────────────────
+
+/**
+ * Runs a full incremental sync of the entire uploads playlist once per day.
+ * This ensures every video ever published on the channel is present in the DB,
+ * not just the 50 newest that the 30-minute recent sync covers.
+ */
+async function runFullSync(apiKey: string, log: Logger): Promise<void> {
+  if (quotaPausedUntil !== null && Date.now() < quotaPausedUntil) {
+    const resumesIn = Math.round((quotaPausedUntil - Date.now()) / 60000);
+    log.info({ resumesInMinutes: resumesIn }, "Full channel sync skipped — YouTube quota paused");
+    return;
+  }
+
+  try {
+    log.info("Starting daily full channel sync (all uploaded videos)");
+    const result = await syncIncremental(apiKey, log);
+    lastFullSync = new Date();
+    log.info(result, "Daily full channel sync complete");
+
+    sseBroadcaster.broadcast({
+      type: "sync_complete",
+      data: { synced: result.synced, featured: result.featured, source: "full_sync" },
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      const pauseMs = msUntilUtcMidnight();
+      quotaPausedUntil = Date.now() + pauseMs;
+      log.warn(
+        { resumesInHours: Math.round(pauseMs / 3600000) },
+        "YouTube API quota exceeded during full sync — pausing until UTC midnight",
+      );
+      lastSyncError = {
+        time:    new Date().toISOString(),
+        message: `YouTube quota exceeded — resumes at ${new Date(Date.now() + pauseMs).toUTCString()}`,
+        source:  "full_sync_cron",
+      };
+    } else {
+      const message = err instanceof Error ? err.message : String(err);
+      log.error({ err }, "Daily full channel sync failed");
+      lastSyncError = { time: new Date().toISOString(), message, source: "full_sync_cron" };
+    }
+  }
+}
+
 // ─── RSS sync ─────────────────────────────────────────────────────────────────
 
 async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
@@ -393,6 +444,17 @@ export function startCron(log: Logger, websubUrl?: string): void {
       apiCronHandle = setInterval(() => runApiSync(apiKey, log), API_INTERVAL_MS);
       if (apiCronHandle) apiCronHandle.unref();
     }, 35_000);
+
+    // ── Full channel sync — runs once every 24 hours ────────────────────────
+    // Ensures every video ever uploaded to the channel is in the DB, not just
+    // the 50 newest that the 30-minute recent sync covers.
+    // First run is delayed by 5 minutes to avoid competing with startup syncs.
+    log.info({ intervalMs: FULL_SYNC_INTERVAL_MS }, "Starting daily full channel sync cron (24h)");
+    setTimeout(() => {
+      runFullSync(apiKey, log);
+      fullSyncCronHandle = setInterval(() => runFullSync(apiKey, log), FULL_SYNC_INTERVAL_MS);
+      if (fullSyncCronHandle) fullSyncCronHandle.unref();
+    }, 5 * 60 * 1000);
   }
 
   // ── WebSub auto-renewal — every 23 hours ────────────────────────────────
@@ -432,16 +494,17 @@ export function startCron(log: Logger, websubUrl?: string): void {
     (midnightTimer as ReturnType<typeof setTimeout> & { unref(): void }).unref();
   }
 
-  log.info("Automation engine started: RSS | API | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation");
+  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation");
 }
 
 export function stopCron(): void {
-  [apiCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer]
     .forEach(h => h && clearTimeout(h));
   if (dailyDevotionHandle) clearInterval(dailyDevotionHandle);
   apiCronHandle = null;
+  fullSyncCronHandle = null;
   rssCronHandle = null;
   websubCronHandle = null;
   metadataCronHandle = null;
