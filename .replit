@@ -49,16 +49,16 @@ waitForPort = 8080
 name = "Web App"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=3000 pnpm --filter @workspace/jctm-platform run dev"
-waitForPort = 3000
-
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=5000 pnpm --filter @workspace/jctm-platform run dev"
+waitForPort = 5000
+
   [agent]
-  stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 
   [postMerge]
@@ -86,4 +86,13 @@ DEFAULT_OBJECT_STORAGE_BUCKET_ID = "jctm-uploads"
 PUBLIC_OBJECT_SEARCH_PATHS = "/jctm-uploads/public"
 PRIVATE_OBJECT_DIR = "/jctm-uploads/.private"
 OBJECT_STORAGE_DRIVER = "database"
+ALLOW_REPLIT_ORIGINS = "true"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
   
