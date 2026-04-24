@@ -226,9 +226,10 @@ function DevotionShareCard({
   dateLabel: string;
   cardRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const scripture = truncate(devotion.scripture, 190);
-  const propheticWord = truncate(devotion.propheticWord, 160);
-  const declaration = truncate(devotion.declaration, 150);
+  // Trim to fit without losing meaning — scripture is the hero so allow more
+  const scriptureText = truncate(devotion.scripture, 280);
+  const reflectionSnippet = truncate(devotion.reflection.replace(/\n+/g, " "), 200);
+  const declarationText = truncate(devotion.declaration, 220);
 
   const dayOfWeek = new Date().getDay();
   const theme = CARD_THEMES[dayOfWeek]!;
@@ -249,269 +250,273 @@ function DevotionShareCard({
         fontFamily: "Georgia, 'Times New Roman', serif",
       }}
     >
-      {/* Glow orb top-center */}
+      {/* Large atmospheric glow — top-centre */}
       <div style={{
         position: "absolute",
-        top: "-80px",
+        top: "-100px",
         left: "50%",
         transform: "translateX(-50%)",
-        width: "520px",
-        height: "340px",
+        width: "560px",
+        height: "400px",
         background: theme.glow1,
         pointerEvents: "none",
       }} />
-      {/* Glow orb bottom-right */}
+      {/* Secondary glow — bottom-left */}
       <div style={{
         position: "absolute",
-        bottom: "-60px",
-        right: "-60px",
-        width: "320px",
-        height: "320px",
+        bottom: "-80px",
+        left: "-60px",
+        width: "360px",
+        height: "360px",
         background: theme.glow2,
         pointerEvents: "none",
       }} />
-      {/* Subtle grid pattern overlay */}
+      {/* Very subtle dot-grid texture */}
       <div style={{
         position: "absolute",
         inset: 0,
-        backgroundImage: `linear-gradient(${theme.accentBorder} 1px, transparent 1px), linear-gradient(90deg, ${theme.accentBorder} 1px, transparent 1px)`,
-        backgroundSize: "54px 54px",
-        opacity: 0.15,
+        backgroundImage: `radial-gradient(circle, ${theme.accentBorder} 1px, transparent 1px)`,
+        backgroundSize: "28px 28px",
+        opacity: 0.18,
         pointerEvents: "none",
       }} />
 
       {/* Top accent bar */}
-      <div style={{ height: "3px", background: theme.topBar, flexShrink: 0 }} />
+      <div style={{ height: "4px", background: theme.topBar, flexShrink: 0 }} />
 
       {/* ── Content ── */}
       <div style={{
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        padding: "28px 36px 24px",
+        padding: "24px 38px 20px",
       }}>
 
-        {/* Header: brand + day label */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "22px" }}>
+        {/* ── Header row: brand + day badge ── */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "20px",
+          flexShrink: 0,
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {/* Logo circle with cross */}
             <div style={{
-              width: "36px", height: "36px",
+              width: "32px", height: "32px",
               borderRadius: "50%",
-              background: `linear-gradient(135deg, ${theme.accentPrimary}, ${theme.accentSecondary}22)`,
+              background: `linear-gradient(135deg, ${theme.accentPrimary}cc, ${theme.accentSecondary}33)`,
               border: `1.5px solid ${theme.accentBorder}`,
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
             }}>
-              <span style={{ color: "white", fontSize: "16px", fontFamily: "sans-serif", lineHeight: 1 }}>✝</span>
+              <span style={{ color: "white", fontSize: "14px", fontFamily: "sans-serif", lineHeight: 1 }}>✝</span>
             </div>
             <div>
               <div style={{
                 color: theme.accentPrimary,
-                fontSize: "11px", fontWeight: "700",
-                letterSpacing: "0.12em",
-                fontFamily: "sans-serif", textTransform: "uppercase",
+                fontSize: "10px",
+                fontWeight: "700",
+                letterSpacing: "0.14em",
+                fontFamily: "sans-serif",
+                textTransform: "uppercase",
               }}>
                 JCTM Daily Devotion
               </div>
-              <div style={{ color: "rgba(255,255,255,0.32)", fontSize: "9.5px", fontFamily: "sans-serif", marginTop: "2px", letterSpacing: "0.04em" }}>
+              <div style={{
+                color: "rgba(255,255,255,0.3)",
+                fontSize: "8.5px",
+                fontFamily: "sans-serif",
+                marginTop: "2px",
+                letterSpacing: "0.04em",
+              }}>
                 Jesus Christ Temple Ministry · Warri, Nigeria
               </div>
             </div>
           </div>
-          {/* Day badge */}
           <div style={{
             background: theme.accentMuted,
             border: `1px solid ${theme.accentBorder}`,
             borderRadius: "20px",
-            padding: "5px 13px",
+            padding: "4px 11px",
             color: theme.accentSecondary,
-            fontSize: "9.5px",
+            fontSize: "8.5px",
             fontFamily: "sans-serif",
             fontWeight: "600",
-            letterSpacing: "0.06em",
+            letterSpacing: "0.08em",
             whiteSpace: "nowrap",
           }}>
             {theme.label}
           </div>
         </div>
 
-        {/* Date */}
+        {/* ── Date line ── */}
         <div style={{
-          color: "rgba(255,255,255,0.28)",
-          fontSize: "10px",
+          color: "rgba(255,255,255,0.3)",
+          fontSize: "9px",
           fontFamily: "sans-serif",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.1em",
           textTransform: "uppercase",
-          marginBottom: "10px",
+          marginBottom: "12px",
+          flexShrink: 0,
         }}>
           {dateLabel}
         </div>
 
-        {/* Title */}
+        {/* ── Title — the hero ── */}
         <h2 style={{
           color: "white",
-          fontSize: "26px",
+          fontSize: "30px",
           fontWeight: "700",
-          lineHeight: "1.22",
-          marginBottom: "0",
+          lineHeight: "1.2",
+          margin: "0 0 14px 0",
           fontFamily: "Georgia, 'Times New Roman', serif",
-          letterSpacing: "-0.01em",
+          letterSpacing: "-0.02em",
+          flexShrink: 0,
         }}>
           {devotion.title}
         </h2>
 
-        {/* Accent divider */}
+        {/* ── Accent rule ── */}
         <div style={{
-          height: "1.5px",
-          background: `linear-gradient(90deg, ${theme.accentPrimary} 0%, ${theme.accentPrimary}22 70%, transparent 100%)`,
-          margin: "16px 0",
+          height: "2px",
+          background: `linear-gradient(90deg, ${theme.accentPrimary} 0%, ${theme.accentPrimary}44 60%, transparent 100%)`,
+          marginBottom: "18px",
           flexShrink: 0,
           borderRadius: "1px",
         }} />
 
-        {/* Scripture block */}
+        {/* ── Scripture — large, italic, prominent ── */}
         <div style={{
-          background: theme.scriptureCardBg,
-          border: `1px solid ${theme.scriptureCardBorder}`,
-          borderRadius: "16px",
-          padding: "16px 18px",
-          marginBottom: "14px",
+          borderLeft: `3px solid ${theme.scriptureLeft}`,
+          paddingLeft: "16px",
+          marginBottom: "16px",
           flexShrink: 0,
         }}>
           <div style={{
-            borderLeft: `3px solid ${theme.scriptureLeft}`,
-            paddingLeft: "13px",
-          }}>
-            <div style={{
-              color: theme.accentPrimary,
-              fontSize: "9px",
-              fontWeight: "700",
-              letterSpacing: "0.12em",
-              fontFamily: "sans-serif",
-              textTransform: "uppercase",
-              marginBottom: "7px",
-            }}>
-              📖 Scripture
-            </div>
-            <p style={{
-              color: "rgba(255,255,255,0.85)",
-              fontSize: "13.5px",
-              lineHeight: "1.65",
-              fontStyle: "italic",
-              margin: "0 0 9px 0",
-              fontFamily: "Georgia, 'Times New Roman', serif",
-            }}>
-              "{scripture}"
-            </p>
-            <p style={{
-              color: theme.accentPrimary,
-              fontSize: "10.5px",
-              fontWeight: "700",
-              margin: 0,
-              fontFamily: "sans-serif",
-              letterSpacing: "0.05em",
-            }}>
-              — {devotion.reference}
-            </p>
-          </div>
-        </div>
-
-        {/* Prophetic Word block */}
-        <div style={{
-          background: theme.propheticBg,
-          border: `1px solid ${theme.propheticBorder}`,
-          borderRadius: "16px",
-          padding: "14px 18px",
-          marginBottom: "14px",
-          flexShrink: 0,
-        }}>
-          <div style={{
-            color: theme.propheticLabel,
-            fontSize: "9px",
+            color: theme.accentPrimary,
+            fontSize: "8.5px",
             fontWeight: "700",
-            letterSpacing: "0.12em",
+            letterSpacing: "0.14em",
             fontFamily: "sans-serif",
             textTransform: "uppercase",
-            marginBottom: "7px",
+            marginBottom: "8px",
           }}>
-            ✦ Prophetic Word
+            📖 Scripture
           </div>
           <p style={{
-            color: theme.propheticColor,
-            fontSize: "12.5px",
-            lineHeight: "1.6",
+            color: "rgba(255,255,255,0.92)",
+            fontSize: "16px",
+            lineHeight: "1.68",
             fontStyle: "italic",
-            margin: "0 0 6px 0",
+            margin: "0 0 10px 0",
             fontFamily: "Georgia, 'Times New Roman', serif",
-            fontWeight: "500",
           }}>
-            "{propheticWord}"
+            "{scriptureText}"
           </p>
           <p style={{
-            color: "rgba(255,255,255,0.22)",
-            fontSize: "9px",
+            color: theme.accentPrimary,
+            fontSize: "11px",
+            fontWeight: "700",
             margin: 0,
             fontFamily: "sans-serif",
-            letterSpacing: "0.04em",
+            letterSpacing: "0.06em",
           }}>
-            — Prophet Amos Evomobor, JCTM
+            — {devotion.reference}
           </p>
         </div>
 
-        {/* Declaration block */}
+        {/* ── Thin separator ── */}
         <div style={{
-          background: theme.declarationBg,
-          border: `1px solid ${theme.declarationBorder}`,
-          borderRadius: "16px",
-          padding: "14px 18px",
+          height: "1px",
+          background: `linear-gradient(90deg, transparent, ${theme.accentBorder} 40%, ${theme.accentBorder} 60%, transparent)`,
+          marginBottom: "16px",
+          flexShrink: 0,
+        }} />
+
+        {/* ── Reflection snippet ── */}
+        <div style={{
           flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
+          marginBottom: "16px",
           minHeight: 0,
+          overflow: "hidden",
+        }}>
+          <div style={{
+            color: "rgba(255,255,255,0.38)",
+            fontSize: "8.5px",
+            fontWeight: "700",
+            letterSpacing: "0.14em",
+            fontFamily: "sans-serif",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}>
+            ✦ Reflection
+          </div>
+          <p style={{
+            color: "rgba(255,255,255,0.72)",
+            fontSize: "13.5px",
+            lineHeight: "1.7",
+            margin: 0,
+            fontFamily: "Georgia, 'Times New Roman', serif",
+          }}>
+            {reflectionSnippet}
+          </p>
+        </div>
+
+        {/* ── Declaration — bold call-to-action block ── */}
+        <div style={{
+          background: `linear-gradient(135deg, ${theme.declarationBg}, rgba(255,255,255,0.03))`,
+          border: `1px solid ${theme.declarationBorder}`,
+          borderRadius: "14px",
+          padding: "16px 20px",
+          marginBottom: "16px",
+          flexShrink: 0,
         }}>
           <div style={{
             color: theme.declarationLabel,
-            fontSize: "9px",
+            fontSize: "8.5px",
             fontWeight: "700",
-            letterSpacing: "0.12em",
+            letterSpacing: "0.14em",
             fontFamily: "sans-serif",
             textTransform: "uppercase",
-            marginBottom: "7px",
+            marginBottom: "8px",
           }}>
             📣 Today's Declaration
           </div>
           <p style={{
-            color: "rgba(255,255,255,0.9)",
-            fontSize: "13px",
+            color: "rgba(255,255,255,0.95)",
+            fontSize: "15px",
             lineHeight: "1.6",
             fontWeight: "600",
             margin: 0,
             fontFamily: "Georgia, 'Times New Roman', serif",
+            letterSpacing: "0.01em",
           }}>
-            "{declaration}"
+            "{declarationText}"
           </p>
         </div>
 
-        {/* Footer */}
+        {/* ── Footer ── */}
         <div style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginTop: "18px",
           flexShrink: 0,
-          paddingTop: "14px",
-          borderTop: `1px solid rgba(255,255,255,0.06)`,
+          paddingTop: "12px",
+          borderTop: `1px solid rgba(255,255,255,0.07)`,
         }}>
-          <div style={{ color: "rgba(255,255,255,0.2)", fontSize: "9.5px", fontFamily: "sans-serif", letterSpacing: "0.04em" }}>
+          <div style={{
+            color: "rgba(255,255,255,0.22)",
+            fontSize: "9px",
+            fontFamily: "sans-serif",
+            letterSpacing: "0.04em",
+          }}>
             Temple TV · jctm.org.ng
           </div>
           <div style={{
             color: theme.accentPrimary,
-            fontSize: "9.5px",
+            fontSize: "9px",
             fontFamily: "sans-serif",
-            opacity: 0.55,
+            opacity: 0.6,
             letterSpacing: "0.04em",
           }}>
             jctm.org.ng/devotion
@@ -520,7 +525,7 @@ function DevotionShareCard({
       </div>
 
       {/* Bottom accent bar */}
-      <div style={{ height: "3px", background: theme.bottomBar, flexShrink: 0 }} />
+      <div style={{ height: "4px", background: theme.bottomBar, flexShrink: 0 }} />
     </div>
   );
 }
