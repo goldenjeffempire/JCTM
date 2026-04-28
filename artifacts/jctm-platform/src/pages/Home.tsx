@@ -4112,8 +4112,8 @@ export default function Home() {
   return (
     <Layout>
       <Helmet>
-        <link rel="preload" as="image" href="/founder/DSC3371.webp" type="image/webp" fetchpriority="high" />
-        <link rel="preload" as="image" href="/founder/DSC3376.webp" type="image/webp" fetchpriority="high" />
+        <link rel="preload" as="image" href="/founder/DSC3371.webp" type="image/webp" fetchPriority="high" />
+        <link rel="preload" as="image" href="/founder/DSC3376.webp" type="image/webp" fetchPriority="high" />
       </Helmet>
       <SEO
         title="Jesus Christ Temple Ministry (JCTM) — Official Digital Sanctuary"

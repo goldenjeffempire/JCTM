@@ -438,8 +438,11 @@ export function startCron(log: Logger, websubUrl?: string): void {
 
   // ── RSS sync — always active, runs every 5 minutes ──────────────────────
   log.info({ intervalMs: RSS_INTERVAL_MS }, "Starting YouTube RSS sync (5-min, quota-free)");
-  runRSSSync(log, apiKey);
-  rssCronHandle = setInterval(() => runRSSSync(log, apiKey), RSS_INTERVAL_MS);
+  runRSSSync(log, apiKey).catch(err => log.warn({ err }, "RSS startup sync error"));
+  rssCronHandle = setInterval(
+    () => runRSSSync(log, apiKey).catch(err => log.warn({ err }, "RSS sync cron error")),
+    RSS_INTERVAL_MS,
+  );
   rssCronHandle.unref();
 
   // ── API sync — requires YOUTUBE_API_KEY ──────────────────────────────────
@@ -451,8 +454,11 @@ export function startCron(log: Logger, websubUrl?: string): void {
     // startup run (and any immediate enrichment) before the API cron fires —
     // this avoids double-consuming quota in the first seconds after boot.
     apiStartupTimer = setTimeout(() => {
-      runApiSync(apiKey, log);
-      apiCronHandle = setInterval(() => runApiSync(apiKey, log), API_INTERVAL_MS);
+      runApiSync(apiKey, log).catch(err => log.warn({ err }, "API startup sync error"));
+      apiCronHandle = setInterval(
+        () => runApiSync(apiKey, log).catch(err => log.warn({ err }, "API sync cron error")),
+        API_INTERVAL_MS,
+      );
       if (apiCronHandle) apiCronHandle.unref();
     }, 35_000);
 
@@ -462,29 +468,42 @@ export function startCron(log: Logger, websubUrl?: string): void {
     // First run is delayed by 5 minutes to avoid competing with startup syncs.
     log.info({ intervalMs: FULL_SYNC_INTERVAL_MS }, "Starting daily full channel sync cron (24h)");
     setTimeout(() => {
-      runFullSync(apiKey, log);
-      fullSyncCronHandle = setInterval(() => runFullSync(apiKey, log), FULL_SYNC_INTERVAL_MS);
+      runFullSync(apiKey, log).catch(err => log.warn({ err }, "Full sync startup error"));
+      fullSyncCronHandle = setInterval(
+        () => runFullSync(apiKey, log).catch(err => log.warn({ err }, "Full sync cron error")),
+        FULL_SYNC_INTERVAL_MS,
+      );
       if (fullSyncCronHandle) fullSyncCronHandle.unref();
     }, 5 * 60 * 1000);
   }
 
   // ── WebSub auto-renewal — every 23 hours ────────────────────────────────
   log.info("Starting WebSub auto-renewal cron (23h cycle)");
-  websubCronHandle = setInterval(() => renewWebSub(log), WEBSUB_RENEWAL_MS);
+  websubCronHandle = setInterval(
+    () => renewWebSub(log).catch(err => log.warn({ err }, "WebSub renewal cron error")),
+    WEBSUB_RENEWAL_MS,
+  );
   websubCronHandle.unref();
 
   // ── AI Metadata enrichment — every 10 minutes (batch of 5) ──────────────
   log.info("Starting AI metadata enrichment cron (10-min, 5 sermons/batch)");
   metadataStartupTimer = setTimeout(() => {
-    runMetadataEnrichment(log);
-    metadataCronHandle = setInterval(() => runMetadataEnrichment(log), METADATA_INTERVAL_MS);
+    runMetadataEnrichment(log).catch(err => log.warn({ err }, "Metadata enrichment startup error"));
+    metadataCronHandle = setInterval(
+      () => runMetadataEnrichment(log).catch(err => log.warn({ err }, "Metadata enrichment cron error")),
+      METADATA_INTERVAL_MS,
+    );
     if (metadataCronHandle) metadataCronHandle.unref();
   }, 45_000);
 
   // ── Per-minute checks: service reminder + daily devotion push ────────────
   reminderCronHandle = setInterval(() => {
-    checkAndSendServiceReminder(log);
-    checkAndSendDevotionNotification(log);
+    try {
+      checkAndSendServiceReminder(log);
+      checkAndSendDevotionNotification(log);
+    } catch (err) {
+      log.warn({ err }, "Service reminder/devotion check error");
+    }
   }, 60_000);
   reminderCronHandle.unref();
 
@@ -496,8 +515,11 @@ export function startCron(log: Logger, websubUrl?: string): void {
     "Midnight devotion pre-generation scheduled",
   );
   midnightTimer = setTimeout(() => {
-    preGenerateTomorrowsDevotion(log);
-    dailyDevotionHandle = setInterval(() => preGenerateTomorrowsDevotion(log), DAILY_MS);
+    preGenerateTomorrowsDevotion(log).catch(err => log.warn({ err }, "Midnight devotion generation error"));
+    dailyDevotionHandle = setInterval(
+      () => preGenerateTomorrowsDevotion(log).catch(err => log.warn({ err }, "Daily devotion cron error")),
+      DAILY_MS,
+    );
     dailyDevotionHandle.unref();
   }, msToMidnight);
   // Allow process to exit even if this timer is pending

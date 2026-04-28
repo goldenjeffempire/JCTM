@@ -1,0 +1,68 @@
+2026-04-28T08:46:38.406668619Z dist/public/assets/Prayer-BArNFfEp.js                                                       22.01 kB
+2026-04-28T08:46:38.406671329Z dist/public/assets/date-fns-9VseswTz.js                                                     22.37 kB
+2026-04-28T08:46:38.406673629Z dist/public/assets/IntroVideos-dyHbaHBU.js                                                  22.99 kB
+2026-04-28T08:46:38.406681259Z dist/public/assets/index.module-pVuKfmFu.js                                                 24.31 kB
+2026-04-28T08:46:38.406683309Z dist/public/assets/styling-utils-Qm4_4bAc.js                                                27.30 kB
+2026-04-28T08:46:38.406685419Z dist/public/assets/lucide-react-C_Pnjxsp.js                                                 27.51 kB
+2026-04-28T08:46:38.40670253Z dist/public/assets/Gallery-C8a3j6Z9.js                                                      32.23 kB
+2026-04-28T08:46:38.40670871Z dist/public/assets/notifications-DQDEJcFR.js                                                33.42 kB
+2026-04-28T08:46:38.40671212Z dist/public/assets/Events-Dl9q5UhQ.js                                                       34.39 kB
+2026-04-28T08:46:38.40671523Z dist/public/assets/TopicDetail-uzORRbWl.js                                                  37.07 kB
+2026-04-28T08:46:38.4067181Z dist/public/assets/tanstack-query-CeInk4kG.js                                               38.97 kB
+2026-04-28T08:46:38.406751671Z dist/public/assets/radix-ui-CyBd9TKc.js                                                     44.54 kB
+2026-04-28T08:46:38.406760631Z dist/public/assets/Devotion-Z7Um8oRf.js                                                     45.62 kB
+2026-04-28T08:46:38.406764281Z dist/public/assets/Crusade-D1ONFJK8.js                                                      50.81 kB
+2026-04-28T08:46:38.406767661Z dist/public/assets/ConferenceRegistration-Pav2Rv-F.js                                       52.40 kB
+2026-04-28T08:46:38.406770691Z dist/public/assets/MinistrySlideshow-1EKDH0wU.js                                            64.79 kB
+2026-04-28T08:46:38.406816812Z dist/public/assets/Admin-CMbu9lYH.js                                                        77.63 kB
+2026-04-28T08:46:38.406821422Z dist/public/assets/index-cI5-Qddl.js                                                       100.42 kB
+2026-04-28T08:46:38.406826692Z dist/public/assets/Layout-YhJbJfvN.js                                                      124.10 kB
+2026-04-28T08:46:38.406833432Z dist/public/assets/vision_bundle-5rKQB4cz.js                                               131.55 kB
+2026-04-28T08:46:38.406835552Z dist/public/assets/framer-motion-DE_JACcx.js                                               133.14 kB
+2026-04-28T08:46:38.406837812Z dist/public/assets/Home-YxmKiGGe.js                                                        189.79 kB
+2026-04-28T08:46:38.406885543Z dist/public/assets/react-core-ChxAltXm.js                                                  191.68 kB
+2026-04-28T08:46:38.406896203Z dist/public/assets/charts-bDvFefye.js                                                      413.59 kB
+2026-04-28T08:46:38.406933504Z dist/public/assets/three-core-B75t31X0.js                                                  725.67 kB
+2026-04-28T08:46:38.406938394Z dist/public/assets/dash.all.min-Wi5j2k_C.js                                                991.96 kB
+2026-04-28T08:46:38.406941844Z dist/public/assets/three-react-BwYH_p1g.js                                               1,772.01 kB
+2026-04-28T08:46:38.407707408Z ✓ built in 17.25s
+2026-04-28T08:46:39.023133859Z 
+2026-04-28T08:46:39.023168939Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-04-28T08:46:39.02317331Z > node ./build.mjs
+2026-04-28T08:46:39.023175879Z 
+2026-04-28T08:46:39.525409226Z 
+2026-04-28T08:46:39.525436647Z   dist/index.mjs                       2.2mb ⚠️
+2026-04-28T08:46:39.525442027Z   dist/pino-worker.mjs               153.4kb
+2026-04-28T08:46:39.525445817Z   dist/pino-file.mjs                 142.1kb
+2026-04-28T08:46:39.525449337Z   dist/pino-pretty.mjs               114.6kb
+2026-04-28T08:46:39.525452647Z   dist/thread-stream-worker.mjs        7.3kb
+2026-04-28T08:46:39.525466257Z   dist/index.mjs.map                   4.0mb
+2026-04-28T08:46:39.525470337Z   dist/pino-worker.mjs.map           256.9kb
+2026-04-28T08:46:39.525473778Z   dist/pino-file.mjs.map             229.0kb
+2026-04-28T08:46:39.525477298Z   dist/pino-pretty.mjs.map           203.9kb
+2026-04-28T08:46:39.525480618Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-28T08:46:39.525484078Z 
+2026-04-28T08:46:39.525488408Z ⚡ Done in 432ms
+2026-04-28T08:46:42.932273478Z ==> Uploading build...
+2026-04-28T08:47:23.218767772Z ==> Uploaded in 26.9s. Compression took 13.4s
+2026-04-28T08:47:23.445998377Z ==> Build successful 🎉
+2026-04-28T08:47:26.049976797Z ==> Deploying...
+2026-04-28T08:47:26.103076856Z ==> Setting WEB_CONCURRENCY=8 by default, based on available CPUs in the instance
+2026-04-28T08:48:17.36313136Z ==> Running 'node artifacts/api-server/dist/index.mjsnode artifacts/api-server/dist/index.mjs'
+2026-04-28T08:48:17.395925461Z node:internal/modules/cjs/loader:1459
+2026-04-28T08:48:17.395952832Z   throw err;
+2026-04-28T08:48:17.395957632Z   ^
+2026-04-28T08:48:17.395961302Z 
+2026-04-28T08:48:17.395966152Z Error: Cannot find module '/opt/render/project/src/artifacts/api-server/dist/index.mjsnode'
+2026-04-28T08:48:17.395971412Z     at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+2026-04-28T08:48:17.395973982Z     at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+2026-04-28T08:48:17.395976452Z     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+2026-04-28T08:48:17.395979832Z     at Module._load (node:internal/modules/cjs/loader:1242:25)
+2026-04-28T08:48:17.395982282Z     at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+2026-04-28T08:48:17.395985073Z     at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+2026-04-28T08:48:17.395987522Z     at node:internal/main/run_main_module:33:47 {
+2026-04-28T08:48:17.395993723Z   code: 'MODULE_NOT_FOUND',
+2026-04-28T08:48:17.395996923Z   requireStack: []
+2026-04-28T08:48:17.395999503Z }
+2026-04-28T08:48:17.396001843Z 
+2026-04-28T08:48:17.396004233Z Node.js v24.14.1

@@ -1,0 +1,50 @@
+2026-04-28T08:46:38.406885543Z dist/public/assets/react-core-ChxAltXm.js                                                  191.68 kB
+2026-04-28T08:46:38.406896203Z dist/public/assets/charts-bDvFefye.js                                                      413.59 kB
+2026-04-28T08:46:38.406933504Z dist/public/assets/three-core-B75t31X0.js                                                  725.67 kB
+2026-04-28T08:46:38.406938394Z dist/public/assets/dash.all.min-Wi5j2k_C.js                                                991.96 kB
+2026-04-28T08:46:38.406941844Z dist/public/assets/three-react-BwYH_p1g.js                                               1,772.01 kB
+2026-04-28T08:46:38.407707408Z ✓ built in 17.25s
+2026-04-28T08:46:39.023133859Z 
+2026-04-28T08:46:39.023168939Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-04-28T08:46:39.02317331Z > node ./build.mjs
+2026-04-28T08:46:39.023175879Z 
+2026-04-28T08:46:39.525409226Z 
+2026-04-28T08:46:39.525436647Z   dist/index.mjs                       2.2mb ⚠️
+2026-04-28T08:46:39.525442027Z   dist/pino-worker.mjs               153.4kb
+2026-04-28T08:46:39.525445817Z   dist/pino-file.mjs                 142.1kb
+2026-04-28T08:46:39.525449337Z   dist/pino-pretty.mjs               114.6kb
+2026-04-28T08:46:39.525452647Z   dist/thread-stream-worker.mjs        7.3kb
+2026-04-28T08:46:39.525466257Z   dist/index.mjs.map                   4.0mb
+2026-04-28T08:46:39.525470337Z   dist/pino-worker.mjs.map           256.9kb
+2026-04-28T08:46:39.525473778Z   dist/pino-file.mjs.map             229.0kb
+2026-04-28T08:46:39.525477298Z   dist/pino-pretty.mjs.map           203.9kb
+2026-04-28T08:46:39.525480618Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-28T08:46:39.525484078Z 
+2026-04-28T08:46:39.525488408Z ⚡ Done in 432ms
+2026-04-28T08:46:42.932273478Z ==> Uploading build...
+2026-04-28T08:47:23.218767772Z ==> Uploaded in 26.9s. Compression took 13.4s
+2026-04-28T08:47:23.445998377Z ==> Build successful 🎉
+2026-04-28T08:47:26.049976797Z ==> Deploying...
+2026-04-28T08:47:26.103076856Z ==> Setting WEB_CONCURRENCY=8 by default, based on available CPUs in the instance
+2026-04-28T08:48:17.36313136Z ==> Running 'node artifacts/api-server/dist/index.mjsnode artifacts/api-server/dist/index.mjs'
+2026-04-28T08:48:17.395925461Z node:internal/modules/cjs/loader:1459
+2026-04-28T08:48:17.395952832Z   throw err;
+2026-04-28T08:48:17.395957632Z   ^
+2026-04-28T08:48:17.395961302Z 
+2026-04-28T08:48:17.395966152Z Error: Cannot find module '/opt/render/project/src/artifacts/api-server/dist/index.mjsnode'
+2026-04-28T08:48:17.395971412Z     at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+2026-04-28T08:48:17.395973982Z     at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+2026-04-28T08:48:17.395976452Z     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+2026-04-28T08:48:17.395979832Z     at Module._load (node:internal/modules/cjs/loader:1242:25)
+2026-04-28T08:48:17.395982282Z     at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+2026-04-28T08:48:17.395985073Z     at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+2026-04-28T08:48:17.395987522Z     at node:internal/main/run_main_module:33:47 {
+2026-04-28T08:48:17.395993723Z   code: 'MODULE_NOT_FOUND',
+2026-04-28T08:48:17.395996923Z   requireStack: []
+2026-04-28T08:48:17.395999503Z }
+2026-04-28T08:48:17.396001843Z 
+2026-04-28T08:48:17.396004233Z Node.js v24.14.1
+2026-04-28T08:48:32.085100048Z ==> No open ports detected, continuing to scan...
+2026-04-28T08:48:32.172677871Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-04-28T08:48:33.756231935Z ==> Exited with status 1
+2026-04-28T08:48:33.758708409Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

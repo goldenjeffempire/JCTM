@@ -26,15 +26,20 @@ export function PushNotificationPrompt() {
     if (Notification.permission !== "default") return;
     if (safeSessionGet(STORAGE_KEY)) return;
 
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => {
         if (!sub) {
-          const timer = setTimeout(() => setVisible(true), 4000);
-          return () => clearTimeout(timer);
+          timerId = setTimeout(() => setVisible(true), 4000);
         }
       })
       .catch(() => {});
+
+    return () => {
+      if (timerId !== null) clearTimeout(timerId);
+    };
   }, []);
 
   const dismiss = () => {

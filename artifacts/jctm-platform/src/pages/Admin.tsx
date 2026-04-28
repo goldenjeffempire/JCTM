@@ -919,7 +919,7 @@ function PushNotificationsCard() {
   const maxTotal = Math.max(...chartData.map(d => d.total), 1);
   const totalGain = chartData.reduce((s, d) => s + d.new, 0);
 
-  const authHeader = auth.adminToken ? { Authorization: `Bearer ${auth.adminToken}` } : {};
+  const authHeader: Record<string, string> = auth.adminToken ? { Authorization: `Bearer ${auth.adminToken}` } : {};
 
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");

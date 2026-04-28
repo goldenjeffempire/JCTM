@@ -354,7 +354,8 @@ function IntroCard({
     `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&iv_load_policy=3` +
     `&origin=${encodeURIComponent(window.location.origin)}`;
 
-  const shouldMountIframe = isActive || (isPreload && navigator.connection?.effectiveType === "4g" && !navigator.connection?.saveData);
+  const nav = navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } };
+  const shouldMountIframe = isActive || (isPreload && nav.connection?.effectiveType === "4g" && !nav.connection?.saveData);
   const embedSrc = shouldMountIframe ? buildSrc(isActive, isActive ? muted : true) : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });

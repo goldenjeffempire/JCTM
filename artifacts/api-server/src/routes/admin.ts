@@ -236,9 +236,18 @@ router.post(
     }
 
     const { topicIndex, topic: requestedTopic } = req.body as { topicIndex?: number; topic?: string };
-    const topic =
+
+    if (
+      topicIndex !== undefined &&
+      (!Number.isInteger(topicIndex) || topicIndex < 0 || topicIndex >= BLOG_TOPICS.length)
+    ) {
+      res.status(400).json({ error: "Invalid topic index" });
+      return;
+    }
+
+    const topic: typeof BLOG_TOPICS[0] =
       typeof requestedTopic === "string" && requestedTopic.trim()
-        ? requestedTopic.trim()
+        ? { title: requestedTopic.trim(), category: "general", tags: [] }
         : topicIndex !== undefined
           ? BLOG_TOPICS[topicIndex]
           : BLOG_TOPICS[Math.floor(Math.random() * BLOG_TOPICS.length)];
@@ -297,6 +306,10 @@ router.post(
     }
 
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid sermon ID" });
+      return;
+    }
     const [sermon] = await db
       .select({ title: sermonsTable.title, description: sermonsTable.description })
       .from(sermonsTable)
@@ -360,6 +373,11 @@ router.patch(
   async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);
     const { role } = req.body as { role?: string };
+
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid member ID" });
+      return;
+    }
 
     if (!role || !["admin", "member", "moderator"].includes(role)) {
       res.status(400).json({ error: "Invalid role. Must be: admin, member, moderator" });
