@@ -4,8 +4,9 @@ import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
 import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification } from "./push-manager.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
-import { db, sermonsTable, devotionsTable } from "@workspace/db";
-import { sql, eq } from "drizzle-orm";
+import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl } from "./email-engine.js";
+import { db, sermonsTable, devotionsTable, devotionSubscribersTable } from "@workspace/db";
+import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
 
 const API_INTERVAL_MS       = 30 * 60 * 1000;       // 30 minutes
@@ -38,6 +39,7 @@ let lastAPISync: Date | null = null;
 let lastSyncError: { time: string; message: string; source: string } | null = null;
 let serviceReminderSentAt: number | null = null;
 let devotionNotificationSentDate: string | null = null; // ISO date string (YYYY-MM-DD)
+let devotionEmailBroadcastDate: string | null = null;   // ISO date string (YYYY-MM-DD)
 
 // ─── State exports (for health endpoint) ──────────────────────────────────────
 
@@ -207,6 +209,102 @@ function checkAndSendDevotionNotification(log: Logger): void {
     .catch(err => {
       log.warn({ err }, "Failed to query today's devotion for push notification (non-fatal)");
     });
+}
+
+// ─── Daily Devotion Email Broadcast ───────────────────────────────────────────
+// Sends today's devotion to all active subscribers between 6:00–6:14 AM WAT.
+// Runs at most once per UTC day (guarded by `devotionEmailBroadcastDate`).
+// Each successful send updates `last_sent_date` so a partial outage / restart
+// can resume mid-broadcast without duplicating emails to recipients already
+// served today.
+
+async function broadcastDailyDevotionEmail(log: Logger): Promise<void> {
+  const today = todayUTC();
+  if (devotionEmailBroadcastDate === today) return;
+
+  if (!isEmailConfigured()) {
+    devotionEmailBroadcastDate = today; // skip silently for the rest of today
+    log.info("Devotion email broadcast skipped — SMTP env vars not configured");
+    return;
+  }
+
+  // Mark immediately so concurrent ticks (or restarts during the broadcast
+  // window) don't fan out the whole list a second time. Per-row `last_sent_date`
+  // still protects individual subscribers below.
+  devotionEmailBroadcastDate = today;
+
+  try {
+    // Make sure today's devotion exists (normally pre-generated at midnight).
+    const { devotion } = await ensureDevotionForDate(today, log);
+
+    const subscribers = await db
+      .select()
+      .from(devotionSubscribersTable)
+      .where(
+        and(
+          eq(devotionSubscribersTable.isActive, true),
+          or(
+            isNull(devotionSubscribersTable.lastSentDate),
+            ne(devotionSubscribersTable.lastSentDate, today),
+          ),
+        ),
+      );
+
+    if (subscribers.length === 0) {
+      log.info({ date: today }, "Devotion email broadcast: no eligible subscribers");
+      return;
+    }
+
+    log.info(
+      { date: today, recipients: subscribers.length },
+      "Devotion email broadcast starting",
+    );
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const sub of subscribers) {
+      const unsubscribeUrl =
+        `${getPublicBaseUrl()}/api/devotion/unsubscribe?token=${encodeURIComponent(sub.unsubscribeToken)}`;
+      const ok = await sendDevotionEmail(sub.email, devotion, unsubscribeUrl, log);
+      if (ok) {
+        sent++;
+        await db
+          .update(devotionSubscribersTable)
+          .set({ lastSentDate: today })
+          .where(eq(devotionSubscribersTable.id, sub.id));
+      } else {
+        failed++;
+      }
+      // Light pacing to be polite to SMTP relays (especially Gmail) — 200ms
+      // gap = ~5 emails/sec, well under standard provider rate limits.
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    log.info(
+      { date: today, sent, failed, total: subscribers.length },
+      "Devotion email broadcast complete",
+    );
+  } catch (err) {
+    log.warn({ err, date: today }, "Devotion email broadcast failed");
+  }
+}
+
+function checkAndBroadcastDevotionEmail(log: Logger): void {
+  const now = new Date();
+  const watMs = now.getTime() + (60 * 60 * 1000); // WAT = UTC+1
+  const wat = new Date(watMs);
+
+  const hour   = wat.getUTCHours();
+  const minute = wat.getUTCMinutes();
+
+  // Window: 6:00–6:14 AM WAT — wide enough that a missed minute won't skip
+  // the entire day's broadcast. The per-day guard prevents repeats.
+  if (hour !== 6 || minute > 14) return;
+
+  broadcastDailyDevotionEmail(log).catch((err) =>
+    log.warn({ err }, "Devotion email broadcast cron error"),
+  );
 }
 
 // ─── API sync ─────────────────────────────────────────────────────────────────
@@ -498,11 +596,12 @@ export function startCron(log: Logger, websubUrl?: string): void {
     if (metadataCronHandle) metadataCronHandle.unref();
   }, 45_000);
 
-  // ── Per-minute checks: service reminder + daily devotion push ────────────
+  // ── Per-minute checks: service reminder + daily devotion push + email ───
   reminderCronHandle = setInterval(() => {
     try {
       checkAndSendServiceReminder(log);
       checkAndSendDevotionNotification(log);
+      checkAndBroadcastDevotionEmail(log);
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");
     }

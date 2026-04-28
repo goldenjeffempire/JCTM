@@ -358,5 +358,23 @@ export async function runMigrations(): Promise<void> {
     WHERE is_active = true
   `);
 
+  // ── Daily Devotion Email Subscribers ────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS devotion_subscribers (
+      id serial PRIMARY KEY,
+      email text NOT NULL UNIQUE,
+      unsubscribe_token text NOT NULL UNIQUE,
+      is_active boolean NOT NULL DEFAULT true,
+      subscribed_at timestamptz NOT NULL DEFAULT now(),
+      unsubscribed_at timestamptz,
+      last_sent_date text,
+      source_page text
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS devotion_subscribers_active_idx
+    ON devotion_subscribers (is_active) WHERE is_active = true
+  `);
+
   logger.info("All migrations complete");
 }

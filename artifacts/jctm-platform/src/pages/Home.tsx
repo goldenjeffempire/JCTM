@@ -23,6 +23,7 @@ import { StreamPlayer } from "@/components/StreamPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
+import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
 import { Helmet } from "react-helmet-async";
 import { SEO } from "@/components/SEO";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
@@ -3856,6 +3857,10 @@ function DailyDevotionSection() {
               <Link href="/prayer" className="text-primary underline">Generate a prayer</Link>
               <Link href="/sermons" className="text-primary underline">Watch today's sermon</Link>
               <DevotionShareButton devotion={devotion} />
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-border">
+              <DevotionEmailSubscribe source="home-daily-devotion" variant="compact" />
             </div>
           </article>
         )}

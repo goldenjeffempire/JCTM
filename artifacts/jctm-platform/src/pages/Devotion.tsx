@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
+import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
 import { format } from "date-fns";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -152,6 +153,10 @@ export default function Devotion() {
                 Reload
               </button>
             </div>
+
+            <section className="mt-8 pt-6 border-t border-border">
+              <DevotionEmailSubscribe source="devotion-page" />
+            </section>
           </div>
         )}
 
