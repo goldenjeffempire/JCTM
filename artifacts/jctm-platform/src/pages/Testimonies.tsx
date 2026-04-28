@@ -188,7 +188,9 @@ export default function Testimonies() {
 
   useEffect(() => { document.title = "Testimony Vault | JCTM Digital Sanctuary"; }, []);
 
-  const filtered = activeCategory ? (testimonies ?? []).filter(t => t.category === activeCategory) : (testimonies ?? []);
+  type TestimonyItem = { id: number; category?: string | null; title?: string | null; content: string; name: string; createdAt: string; likeCount: number };
+  const allTestimonies = ((testimonies as TestimonyItem[] | undefined) ?? []);
+  const filtered = activeCategory ? allTestimonies.filter((t: TestimonyItem) => t.category === activeCategory) : allTestimonies;
   const updateForm = (field: keyof FormData, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   const handleNext = () => {
@@ -424,7 +426,7 @@ export default function Testimonies() {
                   className="overflow-y-auto snap-y snap-mandatory"
                   style={{ height: "calc(100svh - 16rem)", maxHeight: 700 }}
                 >
-                  {filtered.map((testimony, i) => (
+                  {filtered.map((testimony: TestimonyItem, i: number) => (
                     <ReelCard
                       key={testimony.id}
                       testimony={testimony}
@@ -452,7 +454,7 @@ export default function Testimonies() {
                   All ({(testimonies ?? []).length})
                 </button>
                 {CATEGORIES.map(cat => {
-                  const catCount = (testimonies ?? []).filter(t => t.category === cat).length;
+                  const catCount = allTestimonies.filter((t: TestimonyItem) => t.category === cat).length;
                   if (catCount === 0) return null;
                   return (
                     <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
@@ -478,7 +480,7 @@ export default function Testimonies() {
                 </div>
               ) : (
                 <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
-                  {filtered.map((testimony, i) => {
+                  {filtered.map((testimony: TestimonyItem, i: number) => {
                     const cat = testimony.category ?? "Other";
                     const grad = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS["Other"];
                     return (

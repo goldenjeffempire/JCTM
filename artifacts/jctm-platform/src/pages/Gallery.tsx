@@ -1266,7 +1266,7 @@ export default function Gallery() {
         ) : (
           <>
             <section className={`grid ${gridClass} gap-3`} aria-label="JCTM ministry photo gallery">
-              {images.map((img, i) => (
+              {images.map((img: GalleryImg, i: number) => (
                 <GalleryCard
                   key={img.id}
                   image={img}

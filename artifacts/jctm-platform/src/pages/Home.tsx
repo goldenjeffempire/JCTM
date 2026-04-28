@@ -3358,7 +3358,7 @@ function EventsSection() {
               </motion.div>
 
               {/* ── Dynamic DB events (only those with a flyer image) ── */}
-              {events && events.filter(e => !!e.imageUrl).slice(0, 5).map((event) => {
+              {events && (events as Array<{ id: string | number; imageUrl?: string | null; startDate: string; title?: string; location?: string | null; description?: string | null; eventType?: string | null }>).filter((e) => !!e.imageUrl).slice(0, 5).map((event) => {
                 const date = new Date(event.startDate);
                 return (
                   <motion.div key={event.id} variants={fadeUp}>

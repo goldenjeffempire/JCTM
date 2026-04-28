@@ -100,7 +100,7 @@ export default function Members() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {(members ?? []).map((member, i) => (
+            {((members as Array<{ id: number; firstName: string; lastName: string; role: string; avatarUrl?: string | null; department?: string | null; bio?: string | null }> | undefined) ?? []).map((member, i: number) => (
               <motion.div
                 key={member.id}
                 initial={{ opacity: 0, scale: 0.95 }}

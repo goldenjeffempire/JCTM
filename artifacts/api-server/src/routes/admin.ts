@@ -347,6 +347,76 @@ router.post(
   },
 );
 
+// ── POST /api/admin/sermons/:videoId/pin ─────────────────────────────────────
+// Manually pin a sermon as the featured / Latest Broadcast. The pin overrides
+// the daily YouTube auto-promotion of the most recently published video, so
+// admins can spotlight the right service when YouTube uploads land out of
+// order or when there are duplicate uploads of the same broadcast.
+router.post(
+  "/admin/sermons/:videoId/pin",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const { videoId } = req.params;
+    if (!videoId || typeof videoId !== "string" || videoId.length > 32) {
+      res.status(400).json({ error: "Invalid videoId" });
+      return;
+    }
+    try {
+      const result = await pool.query<{ id: number; video_id: string; title: string; pinned_at: Date }>(
+        `UPDATE sermon_data
+            SET pinned_at = NOW(),
+                is_featured = TRUE,
+                broadcast_ended_at = NOW()
+          WHERE video_id = $1
+          RETURNING id, video_id, title, pinned_at`,
+        [videoId],
+      );
+      if (result.rowCount === 0) {
+        res.status(404).json({ error: "Sermon not found for that videoId" });
+        return;
+      }
+      // Clear pins on every other sermon so only one is pinned at a time.
+      await pool.query(
+        `UPDATE sermon_data SET pinned_at = NULL WHERE video_id <> $1 AND pinned_at IS NOT NULL`,
+        [videoId],
+      );
+      logger.info({ videoId, sermonId: result.rows[0].id }, "Sermon pinned by admin");
+      res.json({ success: true, pinned: result.rows[0] });
+    } catch (err) {
+      logger.error({ err, videoId }, "Pin sermon failed");
+      res.status(500).json({ error: "Pin failed" });
+    }
+  },
+);
+
+// ── POST /api/admin/sermons/:videoId/unpin ───────────────────────────────────
+router.post(
+  "/admin/sermons/:videoId/unpin",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const { videoId } = req.params;
+    if (!videoId || typeof videoId !== "string" || videoId.length > 32) {
+      res.status(400).json({ error: "Invalid videoId" });
+      return;
+    }
+    try {
+      const result = await pool.query(
+        `UPDATE sermon_data SET pinned_at = NULL WHERE video_id = $1 RETURNING id, video_id`,
+        [videoId],
+      );
+      if (result.rowCount === 0) {
+        res.status(404).json({ error: "Sermon not found for that videoId" });
+        return;
+      }
+      logger.info({ videoId }, "Sermon unpinned by admin");
+      res.json({ success: true });
+    } catch (err) {
+      logger.error({ err, videoId }, "Unpin sermon failed");
+      res.status(500).json({ error: "Unpin failed" });
+    }
+  },
+);
+
 // ── GET /api/admin/members ────────────────────────────────────────────────────
 router.get(
   "/admin/members",

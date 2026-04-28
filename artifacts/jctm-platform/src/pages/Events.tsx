@@ -896,8 +896,9 @@ export default function Events() {
 
   useEffect(() => { document.title = "Events | JCTM Digital Sanctuary"; }, []);
 
-  const upcoming = (events ?? []).filter(e => !isPast(new Date(e.startDate)));
-  const past = (events ?? []).filter(e => isPast(new Date(e.startDate)));
+  const allEvents = ((events as EventItem[] | undefined) ?? []);
+  const upcoming = allEvents.filter((e: EventItem) => !isPast(new Date(e.startDate)));
+  const past = allEvents.filter((e: EventItem) => isPast(new Date(e.startDate)));
 
   return (
     <Layout>
@@ -1072,8 +1073,8 @@ export default function Events() {
           ))}
 
           {/* API-driven upcoming events */}
-          {!isLoading && upcoming.map((event, i) => (
-            <EventCard key={event.id} event={event as EventItem} index={STATIC_UPCOMING_EVENTS.length + i} />
+          {!isLoading && upcoming.map((event: EventItem, i: number) => (
+            <EventCard key={event.id} event={event} index={STATIC_UPCOMING_EVENTS.length + i} />
           ))}
 
           {/* Loading skeletons for API events */}
@@ -1094,8 +1095,8 @@ export default function Events() {
           <>
             <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">Past Events</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {past.slice(0, 6).map((event, i) => (
-                <EventCard key={event.id} event={event as EventItem} index={i} />
+              {past.slice(0, 6).map((event: EventItem, i: number) => (
+                <EventCard key={event.id} event={event} index={i} />
               ))}
             </div>
           </>
