@@ -1,0 +1,86 @@
+You are deploying from a Blueprint for goldenjeffempire/JCTM
+Blueprint Name
+A unique name for your Blueprint.
+JCTM
+Branch
+The repository branch with the render.yaml file.
+Branch
+main
+
+Blueprint Path
+The path to the Blueprint file in your repo (e.g., infra/render.yaml). Defaults to render.yaml at the root of your repository.
+render.yaml
+Review Blueprint configurations from goldenjeffempire/JCTM.
+All future updates to your Blueprint file will be synced automatically, which may change your costs.
+A Blueprint file was found, but there was an issue.
+
+services[0].headers
+headers only supported for static web services
+services[0].scaling
+maxInstances must be greater than minInstances
+services[0].scaling
+At least one of targetCPUPercent or targetMemoryPercent must be an integer between 1 and 90
+
+services:
+  - type: web
+    name: jctm-platform
+    runtime: node
+    region: oregon
+    plan: standard
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: BASE_PATH
+        value: /
+      - key: LOG_LEVEL
+        value: info
+      - key: NODE_OPTIONS
+        value: "--enable-source-maps"
+      - key: DATABASE_URL
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: ADMIN_TOKEN_SECRET
+        sync: false
+      - key: ADMIN_PASSPHRASE_GALLERY
+        sync: false
+      - key: ADMIN_PASSPHRASE_SERMON
+        sync: false
+      - key: ADMIN_PASSPHRASE_LIVESTREAM
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:info@jctm.org.ng
+      - key: REDIS_URL
+        sync: false
+    buildCommand: "npm install -g pnpm@10 && pnpm install --frozen-lockfile && NODE_ENV=production PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build && NODE_ENV=production pnpm --filter @workspace/api-server run build && node artifacts/api-server/dist/migrate.mjs"
+    preDeployCommand: "node artifacts/api-server/dist/migrate.mjs"
+    startCommand: "node artifacts/api-server/dist/index.mjs"
+    healthCheckPath: /api/health
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: "public, max-age=31536000, immutable"
+      - path: /
+        name: Cache-Control
+        value: "no-cache, no-store, must-revalidate"
+      - path: "/*.html"
+        name: Cache-Control
+        value: "no-cache, no-store, must-revalidate"
+      - path: /api/*
+        name: Cache-Control
+        value: "no-store"
