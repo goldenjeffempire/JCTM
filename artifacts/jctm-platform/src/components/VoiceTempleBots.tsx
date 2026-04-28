@@ -208,18 +208,17 @@ export function VoiceTempleBots() {
         )}
       </AnimatePresence>
 
-      {/* Voice TempleBots trigger — part of the collapsible stack */}
+      {/* Voice TempleBots trigger — primary, always visible at the bottom */}
       <AnimatePresence>
-        {!isOpen && contactsExpanded && (
+        {!isOpen && (
           <motion.button
-            initial={{ opacity: 0, scale: 0, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0, y: 16 }}
-            transition={{ delay: 0.0 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.94 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center"
             style={{
               background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
               boxShadow: "0 8px 32px rgba(124,58,237,0.45), 0 0 0 3px rgba(124,58,237,0.12)",
@@ -227,7 +226,7 @@ export function VoiceTempleBots() {
             aria-label="Open Voice TempleBots"
             title="TempleBots Voice"
           >
-            <Mic className="h-5 w-5 text-white" />
+            <Mic className="h-6 w-6 text-white" />
             {isPlaying && (
               <motion.span
                 animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
@@ -239,7 +238,8 @@ export function VoiceTempleBots() {
         )}
       </AnimatePresence>
 
-      {/* Master toggle FAB — collapses/expands the entire contact stack */}
+      {/* Master toggle FAB — sits directly above the TempleBots mic.
+          Controls the WhatsApp / Phone / Zoom contact stack. */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -254,10 +254,10 @@ export function VoiceTempleBots() {
             aria-label={
               contactsExpanded
                 ? "Hide contact options"
-                : "Show contact options (Voice TempleBots, WhatsApp, phone, Zoom)"
+                : "Show contact options (WhatsApp, phone, Zoom)"
             }
             title={contactsExpanded ? "Hide contacts" : "Contact us"}
-            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center"
+            className="fixed bottom-24 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
             style={{
               background: contactsExpanded
                 ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)"
@@ -301,7 +301,7 @@ export function VoiceTempleBots() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.6, y: 6 }}
             transition={{ type: "spring", stiffness: 380, damping: 22 }}
-            className="fixed bottom-[68px] right-[8px] z-[51]"
+            className="fixed bottom-[136px] right-[8px] z-[51]"
           >
             <Link href="/sermons">
               <motion.span
