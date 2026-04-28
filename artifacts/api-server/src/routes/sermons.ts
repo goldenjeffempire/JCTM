@@ -313,16 +313,23 @@ router.get("/sermons/shorts", async (_req, res): Promise<void> => {
 // GET /sermons/featured  — latest / featured sermon
 // ──────────────────────────────────────────────────────
 router.get("/sermons/featured", async (req, res): Promise<void> => {
-  // Priority ordering:
-  //  1. Videos whose broadcast ended within the last 7 days (most recent broadcast first)
-  //     — this surfaces the just-concluded live service immediately in Today's Highlight
-  //     and Latest Broadcast sections
-  //  2. Featured (is_featured = true) sermons by publishedAt
-  //  3. Any sermon by publishedAt
+  // Priority ordering (highest priority first):
+  //  1. Manually pinned video (pinned_at within the last 30 days, most recent pin first)
+  //     — admin-set pin survives the daily YouTube auto-sync.
+  //  2. Videos whose broadcast ended within the last 8 days (most recent broadcast first)
+  //     — surfaces the just-concluded live service in Today's Highlight & Latest Broadcast.
+  //  3. Featured (is_featured = true) sermons by publishedAt
+  //  4. Any sermon by publishedAt
   const [sermon] = await db
     .select()
     .from(sermonsTable)
     .orderBy(
+      sql`CASE
+        WHEN ${sermonsTable.pinnedAt} IS NOT NULL
+          AND ${sermonsTable.pinnedAt} > NOW() - INTERVAL '30 days'
+        THEN 0 ELSE 1
+      END ASC`,
+      sql`${sermonsTable.pinnedAt} DESC NULLS LAST`,
       sql`CASE
         WHEN ${sermonsTable.broadcastEndedAt} IS NOT NULL
           AND ${sermonsTable.broadcastEndedAt} > NOW() - INTERVAL '8 days'

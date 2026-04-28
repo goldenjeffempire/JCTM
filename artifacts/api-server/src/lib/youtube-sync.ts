@@ -579,6 +579,24 @@ export async function enrichVideoIds(
  */
 export async function refreshFeaturedSermon(log?: Logger): Promise<void> {
   try {
+    // 0. Honor manual pins — if any video has been pinned within the last 30 days,
+    //    skip auto-promotion entirely so the admin's choice is respected.
+    const [pinned] = await db
+      .select({
+        videoId:  sermonsTable.videoId,
+        title:    sermonsTable.title,
+        pinnedAt: sermonsTable.pinnedAt,
+      })
+      .from(sermonsTable)
+      .where(sql`${sermonsTable.pinnedAt} IS NOT NULL AND ${sermonsTable.pinnedAt} > NOW() - INTERVAL '30 days'`)
+      .orderBy(desc(sermonsTable.pinnedAt))
+      .limit(1);
+
+    if (pinned) {
+      log?.info({ videoId: pinned.videoId, title: pinned.title, pinnedAt: pinned.pinnedAt }, "Featured sermon pinned by admin — skipping auto-promotion");
+      return;
+    }
+
     // 1. Find the newest video
     const [newest] = await db
       .select({

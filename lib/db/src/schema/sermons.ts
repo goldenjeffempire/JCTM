@@ -14,6 +14,13 @@ export const sermonsTable = pgTable("sermon_data", {
   isFeatured: boolean("is_featured").notNull().default(false),
   isLive: boolean("is_live").notNull().default(false),
   broadcastEndedAt: timestamp("broadcast_ended_at", { withTimezone: true }),
+  /**
+   * When set, this video is manually pinned as the featured / Latest Broadcast.
+   * Manual pins survive the daily YouTube auto-sync — `refreshFeaturedSermon`
+   * skips its auto-promotion logic if any video has `pinned_at` within the
+   * last 30 days. Set to NOW() to pin, NULL to unpin.
+   */
+  pinnedAt: timestamp("pinned_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
