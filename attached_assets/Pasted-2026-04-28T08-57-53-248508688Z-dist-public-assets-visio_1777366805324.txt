@@ -1,0 +1,50 @@
+2026-04-28T08:57:53.248508688Z dist/public/assets/vision_bundle-5rKQB4cz.js                                               131.55 kB
+2026-04-28T08:57:53.248513638Z dist/public/assets/framer-motion-DE_JACcx.js                                               133.14 kB
+2026-04-28T08:57:53.248558919Z dist/public/assets/Home-BCtPi-5d.js                                                        189.79 kB
+2026-04-28T08:57:53.248563399Z dist/public/assets/react-core-ChxAltXm.js                                                  191.68 kB
+2026-04-28T08:57:53.24863525Z dist/public/assets/charts-bDvFefye.js                                                      413.59 kB
+2026-04-28T08:57:53.24864025Z dist/public/assets/three-core-B75t31X0.js                                                  725.67 kB
+2026-04-28T08:57:53.24864768Z dist/public/assets/dash.all.min-Wi5j2k_C.js                                                991.96 kB
+2026-04-28T08:57:53.24865429Z dist/public/assets/three-react-BwYH_p1g.js                                               1,772.01 kB
+2026-04-28T08:57:53.249672693Z ✓ built in 29.45s
+2026-04-28T08:57:54.489779132Z 
+2026-04-28T08:57:54.489815413Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-04-28T08:57:54.489822123Z > node ./build.mjs
+2026-04-28T08:57:54.489827183Z 
+2026-04-28T08:57:54.890624574Z 
+2026-04-28T08:57:54.890657195Z   dist/index.mjs                       2.2mb ⚠️
+2026-04-28T08:57:54.890664405Z   dist/pino-worker.mjs               153.4kb
+2026-04-28T08:57:54.890686065Z   dist/pino-file.mjs                 142.1kb
+2026-04-28T08:57:54.890689385Z   dist/pino-pretty.mjs               114.6kb
+2026-04-28T08:57:54.890692435Z   dist/thread-stream-worker.mjs        7.3kb
+2026-04-28T08:57:54.890695415Z   dist/index.mjs.map                   4.0mb
+2026-04-28T08:57:54.890698435Z   dist/pino-worker.mjs.map           256.9kb
+2026-04-28T08:57:54.890701475Z   dist/pino-file.mjs.map             229.0kb
+2026-04-28T08:57:54.890704505Z   dist/pino-pretty.mjs.map           203.9kb
+2026-04-28T08:57:54.890707495Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-04-28T08:57:54.890710305Z 
+2026-04-28T08:57:54.890714125Z ⚡ Done in 280ms
+2026-04-28T08:57:57.66458648Z ==> Uploading build...
+2026-04-28T08:58:42.152805472Z ==> Uploaded in 24.7s. Compression took 19.7s
+2026-04-28T08:58:42.507211019Z ==> Build successful 🎉
+2026-04-28T08:58:44.525562931Z ==> Deploying...
+2026-04-28T08:58:44.62800862Z ==> Setting WEB_CONCURRENCY=8 by default, based on available CPUs in the instance
+2026-04-28T08:59:36.327331013Z ==> Running 'node artifacts/api-server/dist/index.mjsnode artifacts/api-server/dist/index.mjs'
+2026-04-28T08:59:36.361020861Z node:internal/modules/cjs/loader:1210
+2026-04-28T08:59:36.361046393Z   throw err;
+2026-04-28T08:59:36.361050193Z   ^
+2026-04-28T08:59:36.361053203Z 
+2026-04-28T08:59:36.361056513Z Error: Cannot find module '/opt/render/project/src/artifacts/api-server/dist/index.mjsnode'
+2026-04-28T08:59:36.361060254Z     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2026-04-28T08:59:36.361063954Z     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2026-04-28T08:59:36.361067074Z     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-04-28T08:59:36.361070194Z     at node:internal/main/run_main_module:28:49 {
+2026-04-28T08:59:36.361073955Z   code: 'MODULE_NOT_FOUND',
+2026-04-28T08:59:36.361077215Z   requireStack: []
+2026-04-28T08:59:36.361079845Z }
+2026-04-28T08:59:36.361082455Z 
+2026-04-28T08:59:36.361085175Z Node.js v20.20.2
+2026-04-28T08:59:50.851356437Z ==> No open ports detected, continuing to scan...
+2026-04-28T08:59:50.94848114Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-04-28T08:59:52.910256551Z ==> Exited with status 1
+2026-04-28T08:59:52.914853619Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

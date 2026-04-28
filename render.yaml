@@ -95,6 +95,11 @@ services:
       NODE_ENV=production PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build &&
       NODE_ENV=production pnpm --filter @workspace/api-server run build
 
+    # ── Pre-deploy ───────────────────────────────────────────────────────────
+    # Runs schema migrations before any new instance starts serving traffic.
+    # Exits 1 and aborts the deploy on hard database errors.
+    preDeployCommand: node artifacts/api-server/dist/migrate.mjs
+
     # ── Start ────────────────────────────────────────────────────────────────
     # Express serves /api/* (REST + SSE) and the compiled SPA (catch-all).
     # Source-map support comes from NODE_OPTIONS above.
