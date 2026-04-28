@@ -1,140 +1,70 @@
 services:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JCTM Platform — Express API + React SPA (single web service)
-  # Docs: https://render.com/docs/infrastructure-as-code
-  # ─────────────────────────────────────────────────────────────────────────────
   - type: web
     name: jctm-platform
     runtime: node
     region: oregon
     plan: standard
 
-    # ── Node version ────────────────────────────────────────────────────────
-    # Render respects .nvmrc (repo root) and the NODE_VERSION env var.
-    # Both are set to Node 20 LTS to ensure consistent build & runtime versions.
     envVars:
       - key: NODE_VERSION
         value: "20"
-
       - key: NODE_ENV
         value: production
-
       - key: BASE_PATH
         value: /
-
       - key: LOG_LEVEL
         value: info
-
-      # Enable readable stack traces for production error logs without any
-      # runtime flag — set via NODE_OPTIONS so it applies to every child process.
       - key: NODE_OPTIONS
         value: "--enable-source-maps"
-
-      # Render injects PORT=10000 automatically — do NOT override.
-
-      # ── Secrets (set in the Render dashboard) ───────────────────────────────
-      # Neon PostgreSQL connection string (required)
       - key: DATABASE_URL
         sync: false
-
-      # YouTube Data API v3 — sermon auto-sync
       - key: YOUTUBE_API_KEY
         sync: false
-
-      # Paystack secret key — donation / giving portal (NGN)
       - key: PAYSTACK_SECRET_KEY
         sync: false
-
-      # OpenAI API key — TempleBots, Sermon Assistant, devotions
       - key: OPENAI_API_KEY
         sync: false
-
-      # 64-char random hex secret for session cookie signing
-      # Generate: openssl rand -hex 32
       - key: SESSION_SECRET
         sync: false
-
-      # JWT signing secret for admin tokens (independent of SESSION_SECRET)
-      # Generate: openssl rand -hex 32
       - key: ADMIN_TOKEN_SECRET
         sync: false
-
-      # Admin role passphrases (plaintext or pre-hashed scrypt value).
-      # At least one per role is required; dev defaults are disabled in production.
       - key: ADMIN_PASSPHRASE_GALLERY
         sync: false
       - key: ADMIN_PASSPHRASE_SERMON
         sync: false
       - key: ADMIN_PASSPHRASE_LIVESTREAM
         sync: false
-
-      # Web Push VAPID keys — generate with: npx web-push generate-vapid-keys
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY
         sync: false
-
-      # Web Push sender identity (format: mailto:admin@example.com)
       - key: VAPID_SUBJECT
         value: mailto:info@jctm.org.ng
-
-      # Optional: Redis connection string for SSE pub/sub fan-out and rate-limit
-      # store. Leave unset if not using Redis — the server degrades gracefully.
       - key: REDIS_URL
         sync: false
 
-    # ── Build ────────────────────────────────────────────────────────────────
-    # Steps:
-    #   1. Install pnpm 10 globally
-    #   2. Install all workspace dependencies (frozen lockfile = reproducible build)
-    #   3. Build React/Vite SPA  → artifacts/jctm-platform/dist/public/
-    #   4. Compile Express API   → artifacts/api-server/dist/index.mjs
-    buildCommand: >-
-      npm install -g pnpm@10 &&
-      pnpm install --frozen-lockfile &&
-      NODE_ENV=production PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build &&
-      NODE_ENV=production pnpm --filter @workspace/api-server run build
+    buildCommand: "npm install -g pnpm@10 && pnpm install --frozen-lockfile && NODE_ENV=production PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build && NODE_ENV=production pnpm --filter @workspace/api-server run build && node artifacts/api-server/dist/migrate.mjs"
 
-    # ── Pre-deploy ───────────────────────────────────────────────────────────
-    # Runs schema migrations before any new instance starts serving traffic.
-    # Exits 1 and aborts the deploy on hard database errors.
-    preDeployCommand: node artifacts/api-server/dist/migrate.mjs
+    preDeployCommand: "node artifacts/api-server/dist/migrate.mjs"
 
-    # ── Start ────────────────────────────────────────────────────────────────
-    # Express serves /api/* (REST + SSE) and the compiled SPA (catch-all).
-    # Source-map support comes from NODE_OPTIONS above.
-    startCommand: node artifacts/api-server/dist/index.mjs
+    startCommand: "node artifacts/api-server/dist/index.mjs"
 
-    # ── Health check ─────────────────────────────────────────────────────────
-    # Probes PostgreSQL on every Render health ping.
-    # Returns 200 OK when the DB is reachable, 503 when degraded/down.
     healthCheckPath: /api/health
 
-    # ── Scaling ──────────────────────────────────────────────────────────────
-    # Altar counter and SSE streams are in-process memory.
-    # Keep at 1 instance until Redis pub/sub fan-out is implemented.
     scaling:
       minInstances: 1
       maxInstances: 1
 
-    # ── Static asset caching headers ─────────────────────────────────────────
-    # The Express server also sets these headers at runtime; the Render CDN layer
-    # applies them at the edge before the request reaches the origin.
     headers:
-      # Vite content-hashed bundles — safe to cache for 1 year
       - path: /assets/*
         name: Cache-Control
         value: "public, max-age=31536000, immutable"
-
-      # HTML shell — must always revalidate so new deploys take effect immediately
       - path: /
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
       - path: "/*.html"
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
-
-      # API responses must never be cached by the CDN
       - path: /api/*
         name: Cache-Control
         value: "no-store"
