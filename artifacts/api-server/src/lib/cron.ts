@@ -376,6 +376,8 @@ async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
         "RSS feed returned 404 — likely IP-range restriction by YouTube; backing off for 30 min",
       );
     } else {
+      const { recordDbError } = await import("./neon-quota-monitor.js");
+      recordDbError(err);
       log.warn({ err }, "RSS sync failed (non-fatal)");
     }
   }

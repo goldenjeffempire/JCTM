@@ -9,6 +9,7 @@ import { initVapidKeys } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
 import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
 import { runMigrations } from "./lib/migrations.js";
+import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
 import { pool } from "@workspace/db";
 import OpenAI from "openai";
 
@@ -71,6 +72,9 @@ const server = app.listen(port, async (err) => {
 
   // Start the 30-minute YouTube sync cron
   startCron(logger);
+
+  // Start Neon DB quota health watcher (1-min ping cycle)
+  startNeonQuotaMonitor(logger);
 
   // Resolve public base URL for WebSub callback
   const replitDomain = process.env.REPLIT_DEV_DOMAIN;

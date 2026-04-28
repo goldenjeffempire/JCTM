@@ -3,6 +3,8 @@ import { pool } from "@workspace/db";
 import { getCronState } from "../lib/cron.js";
 import { getSubscriberCount } from "../lib/push-manager.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
+import { getNeonQuotaStatus } from "../lib/neon-quota-monitor.js";
+import { requireAdminRole } from "../lib/adminAuth.js";
 import net from "node:net";
 
 const router: IRouter = Router();
@@ -77,11 +79,15 @@ async function healthHandler(_req: Request, res: Response) {
 
   const cronState = getCronState();
   const sseClients = sseBroadcaster.size();
+  const neonQuota = getNeonQuotaStatus();
   const vapidConfigured = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
   const youtubeApiConfigured = !!process.env.YOUTUBE_API_KEY;
   const aiConfigured = !!process.env.OPENAI_API_KEY;
 
-  const allOk = db.ok && (redis === null || redis.ok);
+  const allOk =
+    db.ok &&
+    (redis === null || redis.ok) &&
+    neonQuota.status !== "quota-exceeded";
 
   const payload = {
     status: allOk ? "ok" : "degraded",
@@ -93,6 +99,17 @@ async function healthHandler(_req: Request, res: Response) {
         status: db.ok ? "ok" : "error",
         latencyMs: db.latencyMs,
         ...(db.error && process.env.NODE_ENV !== "production" ? { error: db.error } : {}),
+        neonQuota: {
+          status: neonQuota.status,
+          since: neonQuota.since,
+          lastCheckAt: neonQuota.lastCheckAt,
+          lastRecoveryAt: neonQuota.lastRecoveryAt,
+          consecutiveQuotaErrors: neonQuota.consecutiveQuotaErrors,
+          ...(neonQuota.lastErrorMessage &&
+          process.env.NODE_ENV !== "production"
+            ? { lastErrorMessage: neonQuota.lastErrorMessage }
+            : {}),
+        },
       },
       ...(redis !== null ? {
         redis: {
@@ -150,5 +167,31 @@ async function healthHandler(_req: Request, res: Response) {
 
 router.get("/healthz", healthHandler);
 router.get("/health", healthHandler);
+
+// ─── Neon DB quota: dedicated admin endpoint ──────────────────────────────────
+// Visible only to authenticated admins (any role). Returns the latest watcher
+// state plus a short, human-readable summary suitable for an admin dashboard.
+router.get(
+  "/admin/neon-quota",
+  requireAdminRole(["gallery", "sermon", "livestream"]),
+  (_req: Request, res: Response) => {
+    const q = getNeonQuotaStatus();
+    let summary: string;
+    if (q.status === "quota-exceeded") {
+      const sinceDisplay = q.since ? new Date(q.since).toUTCString() : "unknown time";
+      summary =
+        `Neon database is currently rejecting queries (compute quota exceeded since ${sinceDisplay}). ` +
+        `Upgrade the Neon plan or wait for the quota reset, then refresh this page.`;
+    } else if (q.status === "healthy") {
+      summary = "Neon database is responding normally.";
+    } else {
+      summary = "Neon quota status not yet known — first probe pending.";
+    }
+    res.json({
+      ...q,
+      summary,
+    });
+  },
+);
 
 export default router;
