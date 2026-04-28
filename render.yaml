@@ -8,59 +8,115 @@ services:
     region: oregon
     plan: standard
 
+    # ── Runtime ────────────────────────────────
+    # Pin to Node 20 LTS — matches the development environment.
+    # pnpm is installed by the build command below.
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+
+      - key: NODE_ENV
+        value: production
+
+      - key: BASE_PATH
+        value: /
+
+      - key: LOG_LEVEL
+        value: info
+
+      # Render injects PORT=10000 automatically for web services — do not override.
+
+      # Redis — connection string injected automatically from the jctm-redis service
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: jctm-redis
+          property: connectionString
+
+      # ── Secrets: set these in the Render dashboard ──────────────────────────
+      # Neon PostgreSQL connection string (required)
+      - key: DATABASE_URL
+        sync: false
+
+      # YouTube Data API v3 — sermon auto-sync every 30 minutes
+      - key: YOUTUBE_API_KEY
+        sync: false
+
+      # Paystack secret key — donation / giving portal (NGN)
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+
+      # OpenAI API key — TempleBots, Sermon Assistant, devotions
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # 64-char random hex secret for session cookie signing
+      # Generate: openssl rand -hex 32
+      - key: SESSION_SECRET
+        sync: false
+
+      # Admin JWT signing secret — independent of SESSION_SECRET so rotating
+      # one does not invalidate the other.
+      # Generate: openssl rand -hex 32
+      - key: ADMIN_TOKEN_SECRET
+        sync: false
+
+      # Admin role passphrases — plaintext (ADMIN_PASSPHRASE_*) or pre-hashed
+      # scrypt value (ADMIN_PASSPHRASE_HASH_*). At least one form per role is
+      # required; dev defaults are intentionally disabled in production.
+      - key: ADMIN_PASSPHRASE_GALLERY
+        sync: false
+      - key: ADMIN_PASSPHRASE_SERMON
+        sync: false
+      - key: ADMIN_PASSPHRASE_LIVESTREAM
+        sync: false
+
+      # Web Push VAPID keys — generate with: npx web-push generate-vapid-keys
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+
+      # Web Push sender identity (format: mailto:admin@example.com)
+      - key: VAPID_SUBJECT
+        value: mailto:info@jctm.org.ng
+
     # ── Build ──────────────────────────────────
-    # 1. Pin pnpm, install all workspace dependencies
+    # 1. Install pnpm and all workspace dependencies
     # 2. Build the React/Vite SPA  → artifacts/jctm-platform/dist/public
     # 3. Compile the Express API   → artifacts/api-server/dist/index.mjs
-    #    NODE_ENV=production skips dev sourcemaps (saves ~3 MB from dist)
-    buildCommand: >
+    buildCommand: >-
       npm install -g pnpm@10 &&
-      pnpm install --no-frozen-lockfile &&
-      PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build &&
+      pnpm install --frozen-lockfile &&
+      NODE_ENV=production PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build &&
       NODE_ENV=production pnpm --filter @workspace/api-server run build
 
     # ── Start ──────────────────────────────────
-    # Express serves both /api/* (REST) and the compiled SPA (SPA fallback).
-    startCommand: node artifacts/api-server/dist/index.mjs
+    # Express serves /api/* (REST) and the compiled SPA (catch-all fallback).
+    # --enable-source-maps gives readable stack traces in production error logs.
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
 
     # ── Health check ───────────────────────────
     # Probes PostgreSQL on every Render health ping.
-    # Returns 200 OK when healthy, 503 when the DB is unreachable.
+    # Returns 200 OK when the DB is reachable, 503 otherwise.
     healthCheckPath: /api/health
 
     # ── Scaling ────────────────────────────────
-    # Altar counter + SSE streams live in process memory.
-    # Keep at 1 instance until Redis pub/sub fan-out is added.
+    # Altar counter + SSE streams are in-process memory.
+    # Keep at 1 instance until Redis pub/sub fan-out is implemented.
     scaling:
       minInstances: 1
       maxInstances: 1
 
     # ── Static asset caching headers ───────────
+    # The Express app already sets granular Cache-Control headers for each asset
+    # type in production. These Render-level headers apply as an additional layer
+    # for the CDN edge cache only.
     headers:
-      # Vite content-hashed JS/CSS bundles — safe to cache for 1 year
+      # Vite content-hashed bundles — safe to cache at the edge for 1 year
       - path: /assets/*
         name: Cache-Control
         value: "public, max-age=31536000, immutable"
-
-      # Public media files
-      - path: "/*.jpeg"
-        name: Cache-Control
-        value: "public, max-age=604800, stale-while-revalidate=86400"
-      - path: "/*.jpg"
-        name: Cache-Control
-        value: "public, max-age=604800, stale-while-revalidate=86400"
-      - path: "/*.png"
-        name: Cache-Control
-        value: "public, max-age=604800, stale-while-revalidate=86400"
-      - path: "/*.webp"
-        name: Cache-Control
-        value: "public, max-age=604800, stale-while-revalidate=86400"
-      - path: "/*.svg"
-        name: Cache-Control
-        value: "public, max-age=604800, stale-while-revalidate=86400"
-      - path: "/*.ico"
-        name: Cache-Control
-        value: "public, max-age=86400"
 
       # HTML shell — must always revalidate so deploys take effect immediately
       - path: /
@@ -70,82 +126,10 @@ services:
         name: Cache-Control
         value: "no-cache, no-store, must-revalidate"
 
-      # API responses must never be cached by CDN or browser
+      # API responses must never be cached by the CDN or browser
       - path: /api/*
         name: Cache-Control
         value: "no-store"
-
-    # ── Environment variables ───────────────────
-    envVars:
-      - key: NODE_ENV
-        value: production
-
-      - key: BASE_PATH
-        value: /
-
-      # Render injects PORT=10000 automatically for web services
-      - key: PORT
-        value: 10000
-
-      - key: LOG_LEVEL
-        value: info
-
-      # Redis — injected automatically from the jctm-redis service
-      # App runs fine without Redis (graceful degradation)
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: jctm-redis
-          property: connectionString
-
-      # ── Secrets: set these in the Render dashboard ──────────────────────
-      # Neon PostgreSQL connection string (required)
-      - key: DATABASE_URL
-        sync: false
-
-      # YouTube Data API v3 — sermon auto-sync every 30 minutes
-      - key: YOUTUBE_API_KEY
-        sync: false
-
-      # Paystack secret key — donation / giving portal
-      - key: PAYSTACK_SECRET_KEY
-        sync: false
-
-      # OpenAI API key — TempleBots, Sermon Assistant, devotions
-      - key: OPENAI_API_KEY
-        sync: false
-
-      # 64-char random secret for session cookie signing
-      # Generate with: openssl rand -hex 32
-      - key: SESSION_SECRET
-        sync: false
-
-      # Admin token signing secret (independent of SESSION_SECRET so rotations
-      # don't invalidate admin sessions). Generate with: openssl rand -hex 32
-      - key: ADMIN_TOKEN_SECRET
-        sync: false
-
-      # Admin role passphrases — set these in the Render dashboard.
-      # Use plaintext (ADMIN_PASSPHRASE_*) or a pre-hashed scrypt value
-      # (ADMIN_PASSPHRASE_HASH_*). At least one form per role must be set;
-      # dev defaults (jctm-*-2026) are intentionally disabled in production.
-      - key: ADMIN_PASSPHRASE_GALLERY
-        sync: false
-      - key: ADMIN_PASSPHRASE_SERMON
-        sync: false
-      - key: ADMIN_PASSPHRASE_LIVESTREAM
-        sync: false
-
-      # Web Push VAPID keys — generate with: npx web-push generate-vapid-keys
-      # VAPID_PUBLIC_KEY must also be served at GET /api/push/vapid-key
-      - key: VAPID_PUBLIC_KEY
-        sync: false
-      - key: VAPID_PRIVATE_KEY
-        sync: false
-
-      # Web Push contact email (format: mailto:admin@jctm.org.ng)
-      - key: VAPID_SUBJECT
-        value: mailto:info@jctm.org.ng
 
   # ─────────────────────────────────────────────
   # Redis — SSE pub/sub fan-out + rate-limit store
