@@ -1,70 +1,109 @@
 services:
+  #####################################################################
+  # JCTM PLATFORM — MAIN WEB SERVICE
+  #####################################################################
   - type: web
     name: jctm-platform
     runtime: node
     region: oregon
     plan: standard
 
+    autoDeploy: true
+
     envVars:
+      # ---------------------------------------------------------------
+      # NODE CONFIG
+      # ---------------------------------------------------------------
       - key: NODE_VERSION
         value: "20"
+
       - key: NODE_ENV
         value: production
+
       - key: BASE_PATH
         value: /
+
       - key: LOG_LEVEL
         value: info
+
       - key: NODE_OPTIONS
         value: "--enable-source-maps"
+
+      # ---------------------------------------------------------------
+      # APPLICATION SECRETS (SET IN RENDER DASHBOARD)
+      # ---------------------------------------------------------------
       - key: DATABASE_URL
         sync: false
-      - key: YOUTUBE_API_KEY
-        sync: false
-      - key: PAYSTACK_SECRET_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: SESSION_SECRET
-        sync: false
-      - key: ADMIN_TOKEN_SECRET
-        sync: false
-      - key: ADMIN_PASSPHRASE_GALLERY
-        sync: false
-      - key: ADMIN_PASSPHRASE_SERMON
-        sync: false
-      - key: ADMIN_PASSPHRASE_LIVESTREAM
-        sync: false
-      - key: VAPID_PUBLIC_KEY
-        sync: false
-      - key: VAPID_PRIVATE_KEY
-        sync: false
-      - key: VAPID_SUBJECT
-        value: mailto:info@jctm.org.ng
+
       - key: REDIS_URL
         sync: false
 
-    buildCommand: "npm install -g pnpm@10 && pnpm install --frozen-lockfile && NODE_ENV=production PORT=3000 BASE_PATH=/ pnpm --filter @workspace/jctm-platform run build && NODE_ENV=production pnpm --filter @workspace/api-server run build && node artifacts/api-server/dist/migrate.mjs"
+      - key: OPENAI_API_KEY
+        sync: false
 
-    preDeployCommand: "node artifacts/api-server/dist/migrate.mjs"
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
 
-    startCommand: "node artifacts/api-server/dist/index.mjs"
+      - key: YOUTUBE_API_KEY
+        sync: false
 
+      - key: SESSION_SECRET
+        sync: false
+
+      - key: ADMIN_TOKEN_SECRET
+        sync: false
+
+      - key: ADMIN_PASSPHRASE_GALLERY
+        sync: false
+
+      - key: ADMIN_PASSPHRASE_SERMON
+        sync: false
+
+      - key: ADMIN_PASSPHRASE_LIVESTREAM
+        sync: false
+
+      # ---------------------------------------------------------------
+      # PUSH NOTIFICATIONS
+      # ---------------------------------------------------------------
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+
+      - key: VAPID_SUBJECT
+        value: mailto:info@jctm.org.ng
+
+    ###################################################################
+    # BUILD PIPELINE
+    ###################################################################
+    buildCommand: >
+      npm install -g pnpm@10 &&
+      pnpm install --frozen-lockfile &&
+      NODE_ENV=production pnpm --filter @workspace/jctm-platform run build &&
+      NODE_ENV=production pnpm --filter @workspace/api-server run build
+
+    ###################################################################
+    # DATABASE MIGRATIONS
+    ###################################################################
+    preDeployCommand: >
+      node artifacts/api-server/dist/migrate.mjs
+
+    ###################################################################
+    # START SERVER
+    ###################################################################
+    startCommand: >
+      node artifacts/api-server/dist/index.mjs
+
+    ###################################################################
+    # HEALTH CHECK
+    ###################################################################
     healthCheckPath: /api/health
 
+    ###################################################################
+    # AUTOSCALING (VALID CONFIG)
+    ###################################################################
     scaling:
       minInstances: 1
-      maxInstances: 1
-
-    headers:
-      - path: /assets/*
-        name: Cache-Control
-        value: "public, max-age=31536000, immutable"
-      - path: /
-        name: Cache-Control
-        value: "no-cache, no-store, must-revalidate"
-      - path: "/*.html"
-        name: Cache-Control
-        value: "no-cache, no-store, must-revalidate"
-      - path: /api/*
-        name: Cache-Control
-        value: "no-store"
+      maxInstances: 2
+      targetCPUPercent: 60
