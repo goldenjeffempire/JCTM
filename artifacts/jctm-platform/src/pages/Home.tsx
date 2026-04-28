@@ -3729,110 +3729,28 @@ interface Devotion {
 
 function DevotionShareButton({ devotion }: { devotion: Devotion }) {
   const [copied, setCopied] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
 
-  const shareText = `📖 Today's Word from JCTM — "${devotion.title}"\n\n"${devotion.scripture}" — ${devotion.reference}\n\n🔥 Prophetic Word: ${devotion.propheticWord}\n\n📣 Declaration: "${devotion.declaration}"\n\nJesus Christ Temple Ministry · jctm.org.ng`;
-
+  const shareText = `Today's Word from JCTM — "${devotion.title}"\n\n"${devotion.scripture}" — ${devotion.reference}\n\nProphetic Word: ${devotion.propheticWord}\n\nDeclaration: "${devotion.declaration}"\n\nJesus Christ Temple Ministry · jctm.org.ng`;
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "https://jctm.org.ng";
 
-  const handleNativeShare = async () => {
+  const handleShare = async () => {
     if (navigator.share) {
       try {
         await navigator.share({ title: devotion.title, text: shareText, url: shareUrl });
+        return;
       } catch { /* user cancelled */ }
-      return;
     }
-    setShareOpen(o => !o);
-  };
-
-  const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
-    } catch { /* fallback */ }
-    setShareOpen(false);
+    } catch { /* noop */ }
   };
 
-  const encodedText = encodeURIComponent(shareText);
-  const encodedUrl  = encodeURIComponent(shareUrl);
-
-  const channels = [
-    {
-      label: "WhatsApp",
-      icon: "💬",
-      href: `https://wa.me/?text=${encodedText}`,
-      color: "bg-green-500/10 border-green-400/20 hover:bg-green-500/20 text-green-700 dark:text-green-400",
-    },
-    {
-      label: "X / Twitter",
-      icon: "𝕏",
-      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`📖 "${devotion.title}" — ${devotion.reference}\n\n${devotion.declaration}\n\nFrom @JCTMWarri`)}&url=${encodedUrl}`,
-      color: "bg-sky-500/10 border-sky-400/20 hover:bg-sky-500/20 text-sky-700 dark:text-sky-400",
-    },
-    {
-      label: "Facebook",
-      icon: "📘",
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodeURIComponent(shareText.slice(0, 300))}`,
-      color: "bg-blue-500/10 border-blue-400/20 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400",
-    },
-    {
-      label: "Telegram",
-      icon: "✈️",
-      href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
-      color: "bg-cyan-500/10 border-cyan-400/20 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400",
-    },
-  ];
-
   return (
-    <div className="relative">
-      <button
-        onClick={handleNativeShare}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/3 transition-all"
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-        Share Devotion
-      </button>
-
-      <AnimatePresence>
-        {shareOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="absolute bottom-full mb-2 right-0 z-50 glass-panel border border-border rounded-2xl shadow-xl p-3 w-52"
-            >
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold px-1 mb-2">Share via</p>
-              <div className="space-y-1">
-                {channels.map(ch => (
-                  <a
-                    key={ch.label}
-                    href={ch.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShareOpen(false)}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${ch.color}`}
-                  >
-                    <span className="text-sm">{ch.icon}</span>
-                    {ch.label}
-                  </a>
-                ))}
-                <button
-                  onClick={copyToClipboard}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border hover:bg-muted/60 text-xs font-semibold text-foreground transition-colors"
-                >
-                  <span className="text-sm">{copied ? "✅" : "📋"}</span>
-                  {copied ? "Copied!" : "Copy Text"}
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
+    <button onClick={handleShare} className="text-primary underline text-sm">
+      {copied ? "Copied to clipboard" : "Share devotion"}
+    </button>
   );
 }
 
@@ -3841,7 +3759,6 @@ function DailyDevotionSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-10% 0px" });
 
   useEffect(() => {
     let cancelled = false;
@@ -3864,160 +3781,84 @@ function DailyDevotionSection() {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   return (
-    <section ref={ref} className="py-20 relative overflow-hidden bg-background">
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(56,189,248,0.05) 0%, transparent 70%)" }}
-      />
-      <div className="container mx-auto px-4 max-w-4xl relative">
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate={inView ? "show" : "hidden"}
-          className="text-center mb-10"
-        >
-          <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border mb-5" style={{ background: "rgba(56,189,248,0.07)", borderColor: "rgba(56,189,248,0.22)", color: "hsl(var(--accent))" }}>
-            <Sparkles className="h-3 w-3" /> Daily Devotion · {today}
-          </motion.span>
-          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-serif font-bold text-primary mb-3">
+    <section ref={ref} className="py-16 bg-background">
+      <div className="container mx-auto px-4 max-w-2xl">
+        <header className="mb-8">
+          <p className="text-sm text-muted-foreground mb-1">Daily Devotion · {today}</p>
+          <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary">
             Today's Word for You
-          </motion.h2>
-          <motion.p variants={fadeUp} className="text-muted-foreground max-w-md mx-auto">
-            A fresh devotion with prophetic insight — generated every morning, rooted in sound doctrine.
-          </motion.p>
-        </motion.div>
+          </h2>
+        </header>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ delay: 0.2, type: "spring", stiffness: 70 }}
-        >
-          {loading && (
-            <div className="glass-panel rounded-3xl p-8 space-y-4 animate-pulse">
-              <div className="h-5 w-48 bg-muted rounded-full" />
-              <div className="h-8 w-3/4 bg-muted rounded-xl" />
-              <div className="space-y-2 mt-4">
-                {[95, 80, 70, 88, 60].map((w, i) => (
-                  <div key={i} className="h-4 bg-muted rounded-full" style={{ width: `${w}%` }} />
+        {loading && (
+          <p className="text-muted-foreground text-sm">Loading today's devotion…</p>
+        )}
+
+        {error && !loading && (
+          <p className="text-muted-foreground text-sm italic">
+            "Thy word is a lamp unto my feet, and a light unto my path." — Psalm 119:105
+          </p>
+        )}
+
+        {devotion && !loading && (
+          <article className="space-y-6 text-foreground">
+            <h3 className="text-xl md:text-2xl font-serif font-bold text-primary">
+              {devotion.title}
+            </h3>
+
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Scripture
+              </p>
+              <p className="leading-relaxed">"{devotion.scripture}"</p>
+              <p className="mt-1 text-sm text-muted-foreground">— {devotion.reference}</p>
+            </section>
+
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Reflection
+              </p>
+              <div className="space-y-3">
+                {devotion.reflection.split(/\n+/).filter(Boolean).map((para, i) => (
+                  <p key={i} className="leading-relaxed">{para}</p>
                 ))}
               </div>
-            </div>
-          )}
+            </section>
 
-          {error && !loading && (
-            <div className="glass-panel rounded-3xl p-8 text-center">
-              <BookOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">
-                "Thy word is a lamp unto my feet, and a light unto my path." — Psalm 119:105
+            {devotion.propheticWord && (
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Prophetic Word
+                </p>
+                <p className="leading-relaxed">{devotion.propheticWord}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  — Through Prophet Amos Evomobor · JCTM
+                </p>
+              </section>
+            )}
+
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Prayer Focus
               </p>
+              <p className="leading-relaxed">{devotion.prayerFocus}</p>
+            </section>
+
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Declaration
+              </p>
+              <p className="leading-relaxed font-medium">"{devotion.declaration}"</p>
+            </section>
+
+            <div className="pt-4 border-t border-border flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <Link href="/devotion" className="text-primary underline">Read full devotion</Link>
+              <Link href="/prayer" className="text-primary underline">Generate a prayer</Link>
+              <Link href="/sermons" className="text-primary underline">Watch today's sermon</Link>
+              <DevotionShareButton devotion={devotion} />
             </div>
-          )}
-
-          {devotion && !loading && (
-            <div className="glass-panel rounded-3xl overflow-hidden">
-              {/* Header */}
-              <div
-                className="px-8 py-6 flex items-center justify-between gap-4 border-b"
-                style={{
-                  background: "linear-gradient(135deg, rgba(0,51,102,0.04) 0%, rgba(56,189,248,0.04) 100%)",
-                  borderColor: "hsl(var(--border))",
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(56,189,248,0.1)" }}>
-                    <BookOpen className="h-5 w-5 text-accent" />
-                  </div>
-                  <div>
-                    <p className="font-serif font-bold text-primary text-lg leading-tight">{devotion.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Jesus Christ Temple Ministry · Digital Sanctuary</p>
-                  </div>
-                </div>
-                <DevotionShareButton devotion={devotion} />
-              </div>
-
-              <div className="p-8 space-y-6">
-                {/* Scripture */}
-                <div
-                  className="rounded-2xl p-5"
-                  style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.05), rgba(56,189,248,0.05))" }}
-                >
-                  <p className="text-primary font-serif italic text-lg leading-relaxed">
-                    "{devotion.scripture}"
-                  </p>
-                  <p className="text-accent text-sm font-semibold mt-2">— {devotion.reference}</p>
-                </div>
-
-                {/* Reflection */}
-                <div className="prose prose-sm max-w-none text-foreground/80 leading-relaxed space-y-3">
-                  {devotion.reflection.split("\n\n").map((para, i) => (
-                    <p key={i}>{para}</p>
-                  ))}
-                </div>
-
-                {/* Prophetic Word */}
-                {devotion.propheticWord && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="relative rounded-2xl p-5 overflow-hidden border"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(212,160,23,0.08), rgba(239,120,0,0.06))",
-                      borderColor: "rgba(212,160,23,0.25)",
-                    }}
-                  >
-                    <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl" style={{ background: "linear-gradient(90deg, rgba(212,160,23,0.6), rgba(239,120,0,0.4), rgba(212,160,23,0.6))" }} />
-                    <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "#D4A017" }}>
-                      <Flame className="h-3.5 w-3.5" /> Prophetic Word for Today
-                    </p>
-                    <p className="text-primary font-serif leading-relaxed text-[15px] italic">
-                      "{devotion.propheticWord}"
-                    </p>
-                    <p className="text-xs mt-3 font-semibold" style={{ color: "rgba(212,160,23,0.7)" }}>
-                      — Through Prophet Amos Evomobor · JCTM
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* Prayer Focus + Declaration */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="rounded-2xl border p-4" style={{ borderColor: "hsl(var(--border))", background: "rgba(56,189,248,0.03)" }}>
-                    <p className="text-xs font-bold text-accent uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Heart className="h-3 w-3" /> Prayer Focus
-                    </p>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{devotion.prayerFocus}</p>
-                  </div>
-                  <div className="rounded-2xl border p-4" style={{ borderColor: "hsl(var(--border))", background: "rgba(0,51,102,0.03)" }}>
-                    <p className="text-xs font-bold text-primary uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Zap className="h-3 w-3" /> Today's Declaration
-                    </p>
-                    <p className="text-sm text-foreground/80 leading-relaxed italic">"{devotion.declaration}"</p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-border/40">
-                  <Link href="/prayer" className="flex-1">
-                    <Button
-                      size="sm"
-                      className="w-full h-10 rounded-xl font-semibold"
-                      style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))", color: "white", border: "none" }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 mr-2" />
-                      Generate Personal Prayer
-                    </Button>
-                  </Link>
-                  <Link href="/sermons" className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full h-10 rounded-xl font-semibold">
-                      <Play className="h-3.5 w-3.5 mr-2" />
-                      Watch Today's Sermon
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-        </motion.div>
+          </article>
+        )}
       </div>
     </section>
   );

@@ -42,6 +42,7 @@ The project is structured as a pnpm monorepo with distinct packages for frontend
 -   **AI Features:**
     -   **JCTM Local AI Engine:** A custom, low-latency inference system for 18 specific JCTM intent types, using TF-IDF keyword scoring and confidence-gated routing.
     -   **OpenAI Integration (gpt-4o):** Used for daily devotions, prayer ministry, TempleBots (for complex queries), Sermon Assistant (RAG over JCTM sermons), Scripture Study, Spiritual Insight, Voice Chat, Translation, and Testimony Reflection.
+    -   **Daily Devotion (plain text):** The Devotion page (`/devotion`) and the Home page's daily devotion section render as plain text only — no gradient cards, icons, image-share artwork, or animations. Visual-share generation (`html-to-image` / `toPng`) and per-day card themes have been removed. The fallback pool in `devotion-engine.ts` carries 40 hand-written devotions (40-day rotation) used whenever the AI generator (GPT-4o) is unavailable, ensuring users always receive a fresh daily entry.
 -   **Security:** Implements Helmet for HTTP security headers, rate limiting, Gzip compression, scrypt password hashing, production-configured CORS, and 1MB JSON body limits.
 -   **Performance:** Utilizes code splitting, lazy loading, TanStack Query for optimized data fetching, Vite asset optimization, and production-specific build configurations.
 -   **Monetization:** Integrated AdSense with Google Consent Mode v2 for compliant, consent-gated ad rendering and specific placements across various pages.
