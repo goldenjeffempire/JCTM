@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  MessageCircle, X, Send, Bot, Facebook, Youtube, Mail, Phone,
-  Bell, Search, ChevronRight, Sparkles, Heart, ExternalLink,
+  MessageCircle, X, Send, Facebook, Youtube, Mail, Phone,
+  Bell, ChevronRight, Sparkles, Heart, ExternalLink,
 } from "lucide-react";
 import { SiZoom } from "react-icons/si";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -94,11 +94,8 @@ export function TempleBots() {
   const [notification, setNotification] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const [searchVal, setSearchVal] = useState("");
   const [whisper, setWhisper] = useState<{ section: string; message: string; cta: string } | null>(null);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>(QUICK_LINKS.slice(0, 5));
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -122,11 +119,6 @@ export function TempleBots() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    if (searchExpanded && searchInputRef.current) {
-      setTimeout(() => searchInputRef.current?.focus(), 150);
-    }
-  }, [searchExpanded]);
 
   useEffect(() => {
     setMessages([{ id: "1", role: "bot", content: getContextualGreeting(location) }]);
@@ -223,21 +215,22 @@ export function TempleBots() {
     setNotification(null);
     setShowToast(false);
     setWhisper(null);
-    setSearchExpanded(false);
-    setSearchVal("");
     if (initialMessage) {
       setTimeout(() => setInput(initialMessage), 300);
     }
   }, []);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchVal.trim()) return;
-    const q = searchVal.trim();
-    setSearchVal("");
-    handleOpen(q);
-    setTimeout(() => sendMessage(q), 500);
-  };
+  // Allow the chat to be opened from outside (e.g. the contact stack FAB).
+  // Other components dispatch a `jctm:open-templebots` window event with an
+  // optional `{ detail: { message: string } }` to seed the input.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ message?: string } | undefined>).detail;
+      handleOpen(detail?.message);
+    };
+    window.addEventListener("jctm:open-templebots", onOpen);
+    return () => window.removeEventListener("jctm:open-templebots", onOpen);
+  }, [handleOpen]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
@@ -439,93 +432,11 @@ export function TempleBots() {
         )}
       </AnimatePresence>
 
-      {/* Floating widget */}
-      <AnimatePresence>
-        {!isOpen && (
-          <LayoutGroup>
-            <div className="fixed bottom-6 right-6 z-50 flex items-center justify-end">
-              {/* Search pill */}
-              <AnimatePresence>
-                {scrolledPastHero && searchExpanded && (
-                  <motion.form
-                    layout key="search-form"
-                    initial={{ opacity: 0, width: 0, x: 20 }} animate={{ opacity: 1, width: "auto", x: 0 }} exit={{ opacity: 0, width: 0, x: 20 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 28 }}
-                    onSubmit={handleSearchSubmit}
-                    className="flex items-center mr-3 overflow-hidden"
-                  >
-                    <div className="flex items-center bg-white/95 backdrop-blur-xl border border-border/50 rounded-full shadow-2xl pl-4 pr-2 py-2 gap-2"
-                      style={{ boxShadow: "0 8px 32px rgba(0,51,102,0.15), 0 0 0 1px rgba(56,189,248,0.15)" }}
-                    >
-                      <Search className="h-4 w-4 text-accent shrink-0" />
-                      <input
-                        ref={searchInputRef}
-                        value={searchVal}
-                        onChange={e => setSearchVal(e.target.value)}
-                        placeholder="Ask the Digital Sanctuary..."
-                        className="text-sm text-primary placeholder:text-muted-foreground/60 bg-transparent outline-none w-52"
-                      />
-                      <button type="submit" className="h-8 w-8 rounded-full bg-accent hover:bg-accent/90 flex items-center justify-center shrink-0 transition-colors" aria-label="Ask">
-                        <ChevronRight className="h-4 w-4 text-white" />
-                      </button>
-                    </div>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-
-              {/* Ask pill */}
-              <AnimatePresence>
-                {scrolledPastHero && !searchExpanded && (
-                  <motion.button
-                    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-                    onClick={() => setSearchExpanded(true)}
-                    className="mr-3 flex items-center gap-2 bg-white/90 backdrop-blur-xl border border-border/50 rounded-full px-4 py-2.5 shadow-lg text-sm text-primary/70 hover:text-primary hover:border-accent/30 transition-all duration-200"
-                    style={{ boxShadow: "0 4px 20px rgba(0,51,102,0.1)" }}
-                  >
-                    <Search className="h-3.5 w-3.5 text-accent" />
-                    Ask TempleBots...
-                  </motion.button>
-                )}
-              </AnimatePresence>
-
-              {/* Circle button */}
-              <motion.div layout className="relative">
-                {notification && (
-                  <>
-                    <motion.div animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} className="absolute inset-0 rounded-full bg-accent" />
-                    <motion.div animate={{ scale: [1, 1.35, 1], opacity: [0.4, 0, 0.4] }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.3 }} className="absolute inset-0 rounded-full bg-accent" />
-                  </>
-                )}
-                {whisper && !notification && (
-                  <motion.div
-                    animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
-                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
-                    className="absolute inset-0 rounded-full"
-                    style={{ background: "rgba(56,189,248,0.4)" }}
-                  />
-                )}
-                <Button
-                  onClick={() => {
-                    if (searchExpanded) { setSearchExpanded(false); return; }
-                    handleOpen();
-                  }}
-                  size="icon"
-                  className="relative h-14 w-14 rounded-full bg-accent hover:bg-accent/90 shadow-xl shadow-accent/30 p-0 overflow-hidden transition-all hover:scale-105"
-                  aria-label="Open TempleBots chat"
-                >
-                  <img src="/jctm-logo-sm.jpeg" alt="TempleBots" className="h-14 w-14 rounded-full object-cover" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                  <Bot className="h-6 w-6 text-white hidden absolute" />
-                </Button>
-                {(notification || whisper) && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                    <span className="text-white text-[8px] font-bold">1</span>
-                  </motion.div>
-                )}
-              </motion.div>
-            </div>
-          </LayoutGroup>
-        )}
-      </AnimatePresence>
+      {/* Floating launcher removed — the contact stack FAB in
+          VoiceTempleBots now opens this chat via a `jctm:open-templebots`
+          window event. Smart notifications and predictive whispers above
+          continue to surface as standalone toasts that open the chat on
+          tap. */}
 
       {/* Full chat panel */}
       <AnimatePresence>

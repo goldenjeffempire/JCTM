@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Volume2, VolumeX, X, Phone, ChevronUp, MessageCircle } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X, Phone, ChevronUp, MessageCircle, Bot } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { SiZoom } from "react-icons/si";
 import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
@@ -139,8 +139,8 @@ export function VoiceTempleBots() {
             initial={{ opacity: 0, x: 24, scale: 0.6 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 24, scale: 0.6 }}
-            transition={{ delay: 0.18, type: "spring", stiffness: 360, damping: 26 }}
-            className="fixed bottom-72 right-6 z-50 flex items-center gap-3 pointer-events-none"
+            transition={{ delay: 0.23, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-[22rem] right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
             <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
               Zoom Meeting
@@ -172,8 +172,8 @@ export function VoiceTempleBots() {
             initial={{ opacity: 0, x: 24, scale: 0.6 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 24, scale: 0.6 }}
-            transition={{ delay: 0.13, type: "spring", stiffness: 360, damping: 26 }}
-            className="fixed bottom-56 right-6 z-50 flex items-center gap-3 pointer-events-none"
+            transition={{ delay: 0.18, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-72 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
             <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
               Call Us
@@ -203,8 +203,8 @@ export function VoiceTempleBots() {
             initial={{ opacity: 0, x: 24, scale: 0.6 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 24, scale: 0.6 }}
-            transition={{ delay: 0.08, type: "spring", stiffness: 360, damping: 26 }}
-            className="fixed bottom-40 right-6 z-50 flex items-center gap-3 pointer-events-none"
+            transition={{ delay: 0.13, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-56 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
             <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
               WhatsApp
@@ -236,8 +236,8 @@ export function VoiceTempleBots() {
             initial={{ opacity: 0, x: 24, scale: 0.6 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 24, scale: 0.6 }}
-            transition={{ delay: 0.03, type: "spring", stiffness: 360, damping: 26 }}
-            className="fixed bottom-24 right-6 z-50 flex items-center gap-3 pointer-events-none"
+            transition={{ delay: 0.08, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-40 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
             <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
               Voice Assistant
@@ -267,6 +267,43 @@ export function VoiceTempleBots() {
         )}
       </AnimatePresence>
 
+      {/* ───────────── TempleBots Chat — text chat with the AI companion.
+          Lives at the bottom of the stack (closest to the master FAB) so the
+          two AI tools (Chat + Voice) sit next to each other. Tapping it
+          dispatches a window event that the standalone <TempleBots /> in
+          Layout.tsx listens for, opening its full chat panel. ───────────── */}
+      <AnimatePresence>
+        {!isOpen && contactsExpanded && (
+          <motion.div
+            initial={{ opacity: 0, x: 24, scale: 0.6 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 24, scale: 0.6 }}
+            transition={{ delay: 0.03, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-24 right-6 z-50 flex items-center gap-3 pointer-events-none"
+          >
+            <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
+              Chat with TempleBot
+            </span>
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("jctm:open-templebots"));
+              }}
+              className="pointer-events-auto relative h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)",
+                boxShadow: "0 8px 32px rgba(14,165,233,0.45), 0 0 0 3px rgba(14,165,233,0.12)",
+              }}
+              aria-label="Chat with TempleBot AI"
+              title="Chat with TempleBot"
+            >
+              <Bot className="h-5 w-5 text-white" />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ───────────── Master toggle FAB ─────────────
           The single always-visible FAB. Sits where the TempleBots icon used
           to live and reveals the entire contact stack (Voice Assistant,
@@ -285,7 +322,7 @@ export function VoiceTempleBots() {
             aria-label={
               contactsExpanded
                 ? "Close contact menu"
-                : "Open contact menu (Voice Assistant, WhatsApp, phone, Zoom)"
+                : "Open contact menu (Chat with TempleBot, Voice Assistant, WhatsApp, phone, Zoom)"
             }
             title={contactsExpanded ? "Close" : "Contact us"}
             className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center"
