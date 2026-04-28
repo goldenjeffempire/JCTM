@@ -392,13 +392,7 @@ async function runStartupMigrations() {
   }
 }
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const rawPort = process.env["PORT"] ?? "8080";
 
 const port = Number(rawPort);
 
@@ -408,7 +402,11 @@ if (Number.isNaN(port) || port <= 0) {
 
 await initSentry();
 await runStartupMigrations();
-await seedMinistryBlogLibrary();
+try {
+  await seedMinistryBlogLibrary();
+} catch (err) {
+  logger.warn({ err }, "Blog library seeding failed — continuing startup");
+}
 
 const server = app.listen(port, async (err) => {
   if (err) {
