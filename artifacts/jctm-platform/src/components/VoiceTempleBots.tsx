@@ -1,10 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Volume2, VolumeX, X, Phone } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X, Phone, ChevronUp, MessageCircle } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { SiZoom } from "react-icons/si";
 import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
+
+const CONTACTS_OPEN_KEY = "jctm:contactsExpanded";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const WORKLET_PATH = `${BASE}/audio-playback-worklet.js`;
@@ -22,6 +24,30 @@ export function VoiceTempleBots() {
   const [isMuted, setIsMuted] = useState(false);
   const [statusMsg, setStatusMsg] = useState("Tap the mic to speak with TempleBots Voice");
   const [error, setError] = useState<string | null>(null);
+
+  // Collapsed by default; remembered across visits via localStorage
+  const [contactsExpanded, setContactsExpanded] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CONTACTS_OPEN_KEY);
+      if (saved === "1") setContactsExpanded(true);
+    } catch {
+      /* localStorage unavailable — keep default */
+    }
+  }, []);
+
+  const toggleContacts = useCallback(() => {
+    setContactsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(CONTACTS_OPEN_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   const voiceStream = useVoiceStream({
     workletPath: WORKLET_PATH,
@@ -102,16 +128,17 @@ export function VoiceTempleBots() {
 
   return (
     <>
-      {/* Zoom meeting button — above the phone button */}
+      {/* Zoom meeting button — top of the contact stack */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && contactsExpanded && (
           <motion.a
             href="https://zoom.us/j/4092099631"
             target="_blank"
             rel="noopener noreferrer"
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
+            initial={{ opacity: 0, scale: 0, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0, y: 16 }}
+            transition={{ delay: 0.12 }}
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.94 }}
             className="fixed bottom-72 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
@@ -129,12 +156,13 @@ export function VoiceTempleBots() {
 
       {/* Phone call button */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && contactsExpanded && (
           <motion.a
             href="tel:07082009777"
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
+            initial={{ opacity: 0, scale: 0, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0, y: 16 }}
+            transition={{ delay: 0.08 }}
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.94 }}
             className="fixed bottom-56 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
@@ -152,14 +180,15 @@ export function VoiceTempleBots() {
 
       {/* WhatsApp channel button */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && contactsExpanded && (
           <motion.a
             href="https://whatsapp.com/channel/0029Vb8HxkvEQIaf1Z86gX0x"
             target="_blank"
             rel="noopener noreferrer"
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
+            initial={{ opacity: 0, scale: 0, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0, y: 16 }}
+            transition={{ delay: 0.04 }}
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.94 }}
             className="fixed bottom-40 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
@@ -175,13 +204,13 @@ export function VoiceTempleBots() {
         )}
       </AnimatePresence>
 
-      {/* Floating trigger button */}
+      {/* Voice TempleBots trigger button */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && contactsExpanded && (
           <motion.button
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
+            initial={{ opacity: 0, scale: 0, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0, y: 16 }}
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.94 }}
             onClick={() => setIsOpen(true)}
@@ -199,6 +228,58 @@ export function VoiceTempleBots() {
                 animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 className="absolute inset-0 rounded-full bg-violet-500"
+              />
+            )}
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Master toggle FAB — collapses/expands the contact stack */}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            onClick={toggleContacts}
+            aria-expanded={contactsExpanded}
+            aria-controls="jctm-contact-stack"
+            aria-label={
+              contactsExpanded
+                ? "Hide contact options"
+                : "Show contact options (WhatsApp, phone, Zoom, Voice TempleBots)"
+            }
+            title={contactsExpanded ? "Hide contacts" : "Contact us"}
+            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center"
+            style={{
+              background: contactsExpanded
+                ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)"
+                : "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+              boxShadow: contactsExpanded
+                ? "0 8px 32px rgba(31,41,55,0.45), 0 0 0 3px rgba(31,41,55,0.15)"
+                : "0 8px 32px rgba(124,58,237,0.45), 0 0 0 3px rgba(124,58,237,0.12)",
+            }}
+          >
+            <motion.span
+              animate={{ rotate: contactsExpanded ? 180 : 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 22 }}
+              className="flex items-center justify-center"
+            >
+              {contactsExpanded ? (
+                <ChevronUp className="h-6 w-6 text-white" />
+              ) : (
+                <MessageCircle className="h-6 w-6 text-white" />
+              )}
+            </motion.span>
+
+            {/* Subtle pulsing dot when collapsed, hinting there's more */}
+            {!contactsExpanded && (
+              <motion.span
+                animate={{ scale: [1, 1.4, 1], opacity: [0.7, 0, 0.7] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
+                className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-white/70"
               />
             )}
           </motion.button>
