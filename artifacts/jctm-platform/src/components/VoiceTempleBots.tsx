@@ -5,6 +5,8 @@ import { FaWhatsapp } from "react-icons/fa";
 import { SiZoom } from "react-icons/si";
 import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
 import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
+import { Link } from "wouter";
+import { useLivestreamStatus } from "../hooks/useLivestreamStatus";
 
 const CONTACTS_OPEN_KEY = "jctm:contactsExpanded";
 
@@ -125,6 +127,8 @@ export function VoiceTempleBots() {
   }, [recorder]);
 
   const isPlaying = voiceStream.playbackState === "playing";
+  const liveStatus = useLivestreamStatus();
+  const isLive = liveStatus.isLive;
 
   return (
     <>
@@ -275,8 +279,9 @@ export function VoiceTempleBots() {
               )}
             </motion.span>
 
-            {/* Subtle pulsing dot when collapsed, hinting there's more */}
-            {!contactsExpanded && (
+            {/* Subtle pulsing dot when collapsed, hinting there's more.
+                Hidden when a live stream is active — the LIVE badge takes over. */}
+            {!contactsExpanded && !isLive && (
               <motion.span
                 animate={{ scale: [1, 1.4, 1], opacity: [0.7, 0, 0.7] }}
                 transition={{ duration: 1.8, repeat: Infinity }}
@@ -284,6 +289,46 @@ export function VoiceTempleBots() {
               />
             )}
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* LIVE badge — attaches to the toggle whenever a service is broadcasting.
+          Sits over the toggle's top-right corner; tapping it opens the sermon hub. */}
+      <AnimatePresence>
+        {!isOpen && isLive && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.6, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.6, y: 6 }}
+            transition={{ type: "spring", stiffness: 380, damping: 22 }}
+            className="fixed bottom-[68px] right-[8px] z-[51]"
+          >
+            <Link href="/sermons">
+              <motion.span
+                role="link"
+                tabIndex={0}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.94 }}
+                className="relative flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold tracking-wide shadow-lg ring-2 ring-white cursor-pointer select-none"
+                aria-label={
+                  liveStatus.title
+                    ? `Live now: ${liveStatus.title}. Tap to watch.`
+                    : "Live broadcast in progress. Tap to watch."
+                }
+                title={liveStatus.title ? `Live now: ${liveStatus.title}` : "Live now — tap to watch"}
+              >
+                <span className="relative flex h-1.5 w-1.5">
+                  <motion.span
+                    animate={{ scale: [1, 2.4], opacity: [0.7, 0] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }}
+                    className="absolute inline-flex h-full w-full rounded-full bg-white"
+                  />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+                </span>
+                LIVE
+              </motion.span>
+            </Link>
+          </motion.div>
         )}
       </AnimatePresence>
 
