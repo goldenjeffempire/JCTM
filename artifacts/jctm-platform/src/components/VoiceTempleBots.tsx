@@ -132,114 +132,145 @@ export function VoiceTempleBots() {
 
   return (
     <>
-      {/* Zoom meeting button — top of the contact stack */}
+      {/* ───────────── Zoom meeting — top of the contact stack ───────────── */}
       <AnimatePresence>
         {!isOpen && contactsExpanded && (
-          <motion.a
-            href="https://zoom.us/j/4092099631"
-            target="_blank"
-            rel="noopener noreferrer"
-            initial={{ opacity: 0, scale: 0, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0, y: 16 }}
-            transition={{ delay: 0.12 }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.94 }}
-            className="fixed bottom-72 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #2D8CFF 0%, #1a6fd4 100%)",
-              boxShadow: "0 8px 32px rgba(45,140,255,0.45), 0 0 0 3px rgba(45,140,255,0.12)",
-            }}
-            aria-label="Join Zoom Meeting — ID: 4092099631"
-            title="Join Zoom Meeting — ID: 4092099631"
+          <motion.div
+            initial={{ opacity: 0, x: 24, scale: 0.6 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 24, scale: 0.6 }}
+            transition={{ delay: 0.18, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-72 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
-            <SiZoom className="h-6 w-6 text-white" />
-          </motion.a>
+            <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
+              Zoom Meeting
+            </span>
+            <motion.a
+              href="https://zoom.us/j/4092099631"
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              className="pointer-events-auto h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #2D8CFF 0%, #1a6fd4 100%)",
+                boxShadow: "0 8px 32px rgba(45,140,255,0.45), 0 0 0 3px rgba(45,140,255,0.12)",
+              }}
+              aria-label="Join Zoom Meeting — ID: 4092099631"
+              title="Join Zoom Meeting — ID: 4092099631"
+            >
+              <SiZoom className="h-6 w-6 text-white" />
+            </motion.a>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Phone call button */}
+      {/* ───────────── Phone call ───────────── */}
       <AnimatePresence>
         {!isOpen && contactsExpanded && (
-          <motion.a
-            href="tel:07082009777"
-            initial={{ opacity: 0, scale: 0, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0, y: 16 }}
-            transition={{ delay: 0.08 }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.94 }}
-            className="fixed bottom-56 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-              boxShadow: "0 8px 32px rgba(37,99,235,0.45), 0 0 0 3px rgba(37,99,235,0.12)",
-            }}
-            aria-label="Call us on 07082009777"
-            title="Call 07082009777"
+          <motion.div
+            initial={{ opacity: 0, x: 24, scale: 0.6 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 24, scale: 0.6 }}
+            transition={{ delay: 0.13, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-56 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
-            <Phone className="h-5 w-5 text-white" />
-          </motion.a>
+            <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
+              Call Us
+            </span>
+            <motion.a
+              href="tel:07082009777"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              className="pointer-events-auto h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                boxShadow: "0 8px 32px rgba(37,99,235,0.45), 0 0 0 3px rgba(37,99,235,0.12)",
+              }}
+              aria-label="Call us on 07082009777"
+              title="Call 07082009777"
+            >
+              <Phone className="h-5 w-5 text-white" />
+            </motion.a>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* WhatsApp channel button */}
+      {/* ───────────── WhatsApp channel ───────────── */}
       <AnimatePresence>
         {!isOpen && contactsExpanded && (
-          <motion.a
-            href="https://whatsapp.com/channel/0029Vb8HxkvEQIaf1Z86gX0x"
-            target="_blank"
-            rel="noopener noreferrer"
-            initial={{ opacity: 0, scale: 0, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0, y: 16 }}
-            transition={{ delay: 0.04 }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.94 }}
-            className="fixed bottom-40 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
-              boxShadow: "0 8px 32px rgba(37,211,102,0.45), 0 0 0 3px rgba(37,211,102,0.12)",
-            }}
-            aria-label="Join our WhatsApp Channel"
-            title="WhatsApp Channel"
+          <motion.div
+            initial={{ opacity: 0, x: 24, scale: 0.6 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 24, scale: 0.6 }}
+            transition={{ delay: 0.08, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-40 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
-            <FaWhatsapp className="h-5 w-5 text-white" style={{ fontSize: "1.25rem" }} />
-          </motion.a>
+            <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
+              WhatsApp
+            </span>
+            <motion.a
+              href="https://whatsapp.com/channel/0029Vb8HxkvEQIaf1Z86gX0x"
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              className="pointer-events-auto h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+                boxShadow: "0 8px 32px rgba(37,211,102,0.45), 0 0 0 3px rgba(37,211,102,0.12)",
+              }}
+              aria-label="Join our WhatsApp Channel"
+              title="WhatsApp Channel"
+            >
+              <FaWhatsapp className="h-5 w-5 text-white" style={{ fontSize: "1.25rem" }} />
+            </motion.a>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Voice TempleBots trigger — primary, always visible at the bottom */}
+      {/* ───────────── Voice TempleBots — part of the collapsible stack ───────────── */}
       <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.94 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-              boxShadow: "0 8px 32px rgba(124,58,237,0.45), 0 0 0 3px rgba(124,58,237,0.12)",
-            }}
-            aria-label="Open Voice TempleBots"
-            title="TempleBots Voice"
+        {!isOpen && contactsExpanded && (
+          <motion.div
+            initial={{ opacity: 0, x: 24, scale: 0.6 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 24, scale: 0.6 }}
+            transition={{ delay: 0.03, type: "spring", stiffness: 360, damping: 26 }}
+            className="fixed bottom-24 right-6 z-50 flex items-center gap-3 pointer-events-none"
           >
-            <Mic className="h-6 w-6 text-white" />
-            {isPlaying && (
-              <motion.span
-                animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="absolute inset-0 rounded-full bg-violet-500"
-              />
-            )}
-          </motion.button>
+            <span className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-sm text-xs font-semibold text-slate-800 shadow-lg ring-1 ring-black/5 select-none whitespace-nowrap">
+              Voice Assistant
+            </span>
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setIsOpen(true)}
+              className="pointer-events-auto relative h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                boxShadow: "0 8px 32px rgba(124,58,237,0.45), 0 0 0 3px rgba(124,58,237,0.12)",
+              }}
+              aria-label="Open Voice TempleBots"
+              title="TempleBots Voice"
+            >
+              <Mic className="h-5 w-5 text-white" />
+              {isPlaying && (
+                <motion.span
+                  animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="absolute inset-0 rounded-full bg-violet-500"
+                />
+              )}
+            </motion.button>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Master toggle FAB — sits directly above the TempleBots mic.
-          Controls the WhatsApp / Phone / Zoom contact stack. */}
+      {/* ───────────── Master toggle FAB ─────────────
+          The single always-visible FAB. Sits where the TempleBots icon used
+          to live and reveals the entire contact stack (Voice Assistant,
+          WhatsApp, Phone, Zoom) when tapped. */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -253,27 +284,30 @@ export function VoiceTempleBots() {
             aria-controls="jctm-contact-stack"
             aria-label={
               contactsExpanded
-                ? "Hide contact options"
-                : "Show contact options (WhatsApp, phone, Zoom)"
+                ? "Close contact menu"
+                : "Open contact menu (Voice Assistant, WhatsApp, phone, Zoom)"
             }
-            title={contactsExpanded ? "Hide contacts" : "Contact us"}
-            className="fixed bottom-24 right-6 z-50 h-12 w-12 rounded-full shadow-2xl flex items-center justify-center"
+            title={contactsExpanded ? "Close" : "Contact us"}
+            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center"
             style={{
               background: contactsExpanded
-                ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)"
+                ? "linear-gradient(135deg, #1f2937 0%, #0f172a 100%)"
                 : "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
               boxShadow: contactsExpanded
-                ? "0 8px 32px rgba(31,41,55,0.45), 0 0 0 3px rgba(31,41,55,0.15)"
-                : "0 8px 32px rgba(124,58,237,0.45), 0 0 0 3px rgba(124,58,237,0.12)",
+                ? "0 10px 40px rgba(15,23,42,0.55), 0 0 0 3px rgba(15,23,42,0.18)"
+                : "0 10px 40px rgba(124,58,237,0.5), 0 0 0 3px rgba(124,58,237,0.14)",
             }}
           >
             <motion.span
-              animate={{ rotate: contactsExpanded ? 180 : 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 22 }}
+              key={contactsExpanded ? "close" : "open"}
+              initial={{ rotate: contactsExpanded ? -90 : 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: contactsExpanded ? 90 : -90, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 340, damping: 22 }}
               className="flex items-center justify-center"
             >
               {contactsExpanded ? (
-                <ChevronUp className="h-6 w-6 text-white" />
+                <X className="h-6 w-6 text-white" strokeWidth={2.5} />
               ) : (
                 <MessageCircle className="h-6 w-6 text-white" />
               )}
@@ -301,7 +335,7 @@ export function VoiceTempleBots() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.6, y: 6 }}
             transition={{ type: "spring", stiffness: 380, damping: 22 }}
-            className="fixed bottom-[136px] right-[8px] z-[51]"
+            className="fixed bottom-[68px] right-[8px] z-[51]"
           >
             <Link href="/sermons">
               <motion.span
