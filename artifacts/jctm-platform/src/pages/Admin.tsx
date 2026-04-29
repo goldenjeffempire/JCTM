@@ -1246,6 +1246,7 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
   const [validating, setValidating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [showUploads, setShowUploads] = useState(false);
+  const [sendAlertOnGoLive, setSendAlertOnGoLive] = useState(true);
   const validateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
@@ -1307,6 +1308,30 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
       }
       toast.success("🔴 Stream is now LIVE");
       qc.invalidateQueries({ queryKey: ["livestream-status"] });
+
+      // Auto-fire the Crusade LIVE alert if opted in
+      if (sendAlertOnGoLive) {
+        fetch(`${BASE}/api/admin/warri-crusade/live-alert`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeader },
+        })
+          .then(r => r.json())
+          .then((data: { success?: boolean; skipped?: boolean; reason?: string; total?: number; web?: { sent: number }; expo?: { sent: number } }) => {
+            if (data.skipped) {
+              // Campaign ended or cooldown — skip silently (no toast needed)
+              return;
+            }
+            if (data.success) {
+              toast.success(
+                `🔔 LIVE alert sent to ${data.total?.toLocaleString() ?? 0} subscribers`,
+                { description: `Web: ${data.web?.sent ?? 0} · Mobile: ${data.expo?.sent ?? 0}`, duration: 5000 },
+              );
+            }
+          })
+          .catch(() => {
+            // Non-fatal — stream is live even if the alert fails
+          });
+      }
     } finally { setBusy(null); }
   };
 
@@ -1580,6 +1605,27 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
                 </button>
               )}
             </div>
+
+            {/* Auto LIVE alert toggle */}
+            <label className="flex items-center gap-2.5 mt-3 cursor-pointer group w-fit select-none">
+              <div
+                onClick={() => setSendAlertOnGoLive(v => !v)}
+                className={`relative w-8 h-4.5 rounded-full transition-colors duration-200 border ${
+                  sendAlertOnGoLive
+                    ? "bg-red-500/20 border-red-500/40"
+                    : "bg-muted border-border"
+                }`}
+                role="switch"
+                aria-checked={sendAlertOnGoLive}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full shadow transition-all duration-200 ${
+                  sendAlertOnGoLive ? "translate-x-3.5 bg-red-500" : "translate-x-0 bg-muted-foreground/50"
+                }`} />
+              </div>
+              <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
+                Auto-send <span className="font-semibold text-red-400">🔴 LIVE alert</span> to all subscribers when going live
+              </span>
+            </label>
 
             <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
               "Go Live ✓" requires a validated live video. "Force Live" overrides validation — use when YouTube API quota is exhausted.
