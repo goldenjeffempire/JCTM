@@ -6,6 +6,7 @@ import { BroadcastStatusIndicator } from "../BroadcastStatusIndicator";
 import { LiveBanner } from "../LiveBanner";
 import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
 import { EventStickyBar } from "../event-promo/EventStickyBar";
+import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
 
 interface LayoutProps {
@@ -18,6 +19,7 @@ export function Layout({ children }: LayoutProps) {
       <EventStickyBar />
       <LiveBanner />
       <Navbar />
+      <EventBanner />
       <main className="flex-1 w-full">
         {children}
       </main>

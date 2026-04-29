@@ -10,9 +10,10 @@
  * pre-event window AND the live window, then disappear silently afterward.
  */
 
+import { useState } from "react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
-import { Calendar, MapPin, Radio, ArrowRight, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Calendar, MapPin, Radio, ArrowRight, Clock, X } from "lucide-react";
 import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
 
 interface Props {
@@ -21,9 +22,14 @@ interface Props {
 
 export function EventBanner({ className = "" }: Props) {
   const { promotion } = useActiveEventPromotion();
+  // Per-session-view dismissal: state-only, no storage. Resets on every page
+  // refresh so the banner always reappears, exactly as designed.
+  const [dismissed, setDismissed] = useState(false);
+
   if (!promotion) return null;
   if (!promotion.showBanner) return null;
   if (promotion.livePhase === "ended") return null;
+  if (dismissed) return null;
 
   const isLive = promotion.livePhase === "live";
   const c = promotion.countdown;
@@ -41,24 +47,35 @@ export function EventBanner({ className = "" }: Props) {
   });
 
   return (
-    <section className={`relative w-full ${className}`} data-testid="event-banner">
-      <div className="container mx-auto px-4 pt-6 sm:pt-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 90, damping: 20 }}
-          className={
-            "relative overflow-hidden rounded-3xl border shadow-2xl " +
-            (isLive
-              ? "border-red-500/40 ring-1 ring-red-500/40"
-              : "border-yellow-400/30")
-          }
-          style={{
-            background: isLive
-              ? "linear-gradient(135deg,#3a0606 0%,#7a0c0c 55%,#3a0606 100%)"
-              : "linear-gradient(135deg,#0a1a4a 0%,#1a3a8a 55%,#0a1a4a 100%)",
-          }}
-        >
+    <AnimatePresence>
+      <section className={`relative w-full ${className}`} data-testid="event-banner">
+        <div className="container mx-auto px-4 pt-6 sm:pt-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10, height: 0, marginTop: 0, paddingTop: 0 }}
+            transition={{ type: "spring", stiffness: 90, damping: 20 }}
+            className={
+              "relative overflow-hidden rounded-3xl border shadow-2xl " +
+              (isLive
+                ? "border-red-500/40 ring-1 ring-red-500/40"
+                : "border-yellow-400/30")
+            }
+            style={{
+              background: isLive
+                ? "linear-gradient(135deg,#3a0606 0%,#7a0c0c 55%,#3a0606 100%)"
+                : "linear-gradient(135deg,#0a1a4a 0%,#1a3a8a 55%,#0a1a4a 100%)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              aria-label="Dismiss event banner"
+              className="absolute top-3 right-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-white/70 backdrop-blur transition-colors hover:bg-black/50 hover:text-white sm:top-4 sm:right-4"
+              data-testid="event-banner-close"
+            >
+              <X className="h-4 w-4" />
+            </button>
           {/* Decorative glow */}
           <div
             aria-hidden
@@ -188,9 +205,10 @@ export function EventBanner({ className = "" }: Props) {
               />
             </div>
           </div>
-        </motion.div>
-      </div>
-    </section>
+          </motion.div>
+        </div>
+      </section>
+    </AnimatePresence>
   );
 }
 
