@@ -523,5 +523,24 @@ export async function runMigrations(): Promise<void> {
     ON video_event_counts_monthly (month DESC)
   `);
 
+  // Audit trail of every manual pin / unpin of a sermon as homepage hero.
+  // Surfaced in the admin "Recent Hero Changes" feed so admins can see who
+  // promoted what and when.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sermon_pin_audit (
+      id           bigserial PRIMARY KEY,
+      video_id     text NOT NULL,
+      action       text NOT NULL CHECK (action IN ('pin','unpin')),
+      title        text,
+      actor_role   text NOT NULL,
+      actor_ip     text,
+      created_at   timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS sermon_pin_audit_created_idx
+    ON sermon_pin_audit (created_at DESC)
+  `);
+
   logger.info("All migrations complete");
 }

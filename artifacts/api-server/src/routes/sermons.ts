@@ -730,6 +730,28 @@ router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> =>
 // video implicitly demotes the previously pinned one because the ORDER BY
 // uses MAX(pinned_at).
 // ──────────────────────────────────────────────────────
+async function recordPinAudit(opts: {
+  videoId:    string;
+  action:     "pin" | "unpin";
+  title:      string | null;
+  actorRole:  string;
+  actorIp:    string | null;
+}): Promise<void> {
+  try {
+    await db.execute(sql`
+      INSERT INTO sermon_pin_audit (video_id, action, title, actor_role, actor_ip)
+      VALUES (${opts.videoId}, ${opts.action}, ${opts.title}, ${opts.actorRole}, ${opts.actorIp});
+    `);
+  } catch {
+    /* audit failure must not block the pin action itself */
+  }
+}
+
+function actorRoleFromReq(req: import("express").Request): string {
+  const token = verifyAdminToken(getAdminTokenFromRequest(req));
+  return token?.role ?? "unknown";
+}
+
 router.post("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res): Promise<void> => {
   const { videoId } = req.params;
   if (!videoId || !/^[-_A-Za-z0-9]{6,32}$/.test(videoId)) {
@@ -748,6 +770,13 @@ router.post("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res
       res.status(404).json({ error: "Sermon not found in library", videoId });
       return;
     }
+    await recordPinAudit({
+      videoId,
+      action:    "pin",
+      title:     (rows[0]?.title as string) ?? null,
+      actorRole: actorRoleFromReq(req),
+      actorIp:   req.ip ?? null,
+    });
     req.log.info({ videoId }, "Sermon pinned as featured");
     res.json({ ok: true, pinned: rows[0] });
   } catch (err) {
@@ -763,11 +792,24 @@ router.delete("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, r
     return;
   }
   try {
+    const lookup = await db.execute(sql`
+      SELECT title FROM sermon_data WHERE video_id = ${videoId} LIMIT 1;
+    `);
+    const lookupRows = (lookup.rows ?? lookup) as Array<Record<string, unknown>>;
+    const title = (lookupRows[0]?.title as string) ?? null;
+
     await db.execute(sql`
       UPDATE sermon_data
       SET pinned_at = NULL, updated_at = NOW()
       WHERE video_id = ${videoId};
     `);
+    await recordPinAudit({
+      videoId,
+      action:    "unpin",
+      title,
+      actorRole: actorRoleFromReq(req),
+      actorIp:   req.ip ?? null,
+    });
     req.log.info({ videoId }, "Sermon unpinned");
     res.json({ ok: true, videoId });
   } catch (err) {
@@ -775,6 +817,27 @@ router.delete("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, r
     res.status(500).json({ error: "Failed to unpin sermon" });
   }
 });
+
+// GET /sermons/pin-audit  — last 25 hero changes (sermon or livestream admin)
+router.get(
+  "/sermons/pin-audit",
+  requireAdminRole(["sermon", "livestream"]),
+  async (req, res): Promise<void> => {
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "25"), 10) || 25, 1), 100);
+    try {
+      const result = await db.execute(sql`
+        SELECT id, video_id, action, title, actor_role, created_at
+        FROM sermon_pin_audit
+        ORDER BY created_at DESC
+        LIMIT ${limit};
+      `);
+      res.json({ entries: result.rows ?? result });
+    } catch (err) {
+      req.log.warn({ err }, "Failed to load pin audit log");
+      res.json({ entries: [] });
+    }
+  },
+);
 
 // ──────────────────────────────────────────────────────
 // POST /sermons  — incremental sync (sermon-admin only)
