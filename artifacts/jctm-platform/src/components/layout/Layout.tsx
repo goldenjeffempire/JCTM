@@ -8,6 +8,7 @@ import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
 import { EventStickyBar } from "../event-promo/EventStickyBar";
 import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
+import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
 import { AdsBanner } from "../AdsBanner";
 
 interface LayoutProps {
@@ -31,6 +32,7 @@ export function Layout({ children }: LayoutProps) {
       <BackToTop />
       <BroadcastStatusIndicator />
       <EventLiveToast />
+      <GlobalEventAdBanner />
     </div>
   );
 }

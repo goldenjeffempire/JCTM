@@ -35,6 +35,7 @@ The project is structured as a pnpm monorepo with distinct packages for frontend
     -   `EventBanner` — hero-grade card mounted on `Home` between `HeroSection` and the AdSlot. Royal-blue when upcoming, red glow + pulsing chip when live.
     -   `EventPopupModal` — session-aware (sessionStorage) + 24h cooldown (localStorage) modal mounted on `Home`. Shows independent popups for the upcoming and live phases.
     -   `EventLiveToast` — sonner toast fired exactly once when the client crosses the LIVE boundary (covers users on the site at the moment of transition; web-push covers users with the tab closed).
+    -   `GlobalEventAdBanner` — top-center floating ad-style overlay mounted globally at `Layout` root. Renders on every page (load, refresh, and every route navigation), shows the Warri Crusade artwork, title, subtitle, location, live countdown, and a CTA linking to `/crusade`. The `×` close button hides it for the current tab/session only via `sessionStorage["warri_banner_hidden"]`, so it re-initializes on hard refresh and on any new tab/session. Animates in with a fade + slide-down (framer-motion) and is fully reusable for future events through the `EVENT_CONFIG` constant. Replaces the previous inline `CrusadeInviteSection` block on the Home page.
 
 **UI/UX and Design Patterns:**
 
