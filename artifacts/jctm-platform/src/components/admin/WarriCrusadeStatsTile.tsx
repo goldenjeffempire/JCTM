@@ -59,6 +59,7 @@ function fmtHour(iso: string): string {
 export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
   const [now, setNow] = useState(Date.now());
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [liveAlertConfirmOpen, setLiveAlertConfirmOpen] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -78,6 +79,51 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
     refetchInterval: 30_000,
     staleTime: 10_000,
     enabled: !!adminToken,
+  });
+
+  const liveAlertMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/warri-crusade/live-alert`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(body?.reason ?? body?.error ?? `HTTP ${res.status}`) as Error & {
+          status?: number; payload?: { reason?: string; lastFiredAt?: string };
+        };
+        err.status = res.status;
+        err.payload = body;
+        throw err;
+      }
+      return body as {
+        success: true;
+        web: { sent: number; failed: number; deactivated: number };
+        expo: { sent: number; failed: number };
+        total: number;
+      };
+    },
+    onSuccess: (result) => {
+      toast.success(
+        `🔴 LIVE alert sent to ${result.total.toLocaleString()} devices`,
+        {
+          description: `Web push: ${result.web.sent} sent · Mobile: ${result.expo.sent} sent`,
+          duration: 6000,
+        },
+      );
+      setLiveAlertConfirmOpen(false);
+      qc.invalidateQueries({ queryKey: ["admin-warri-crusade-stats"] });
+      qc.invalidateQueries({ queryKey: ["expo-stats"] });
+    },
+    onError: (err: Error & { status?: number; payload?: { reason?: string; lastFiredAt?: string } }) => {
+      if (err.status === 429) {
+        toast.warning("Cooldown active", {
+          description: err.payload?.reason ?? "A live alert was just sent. Wait 2 minutes before retrying.",
+        });
+      } else {
+        toast.error("Live alert failed", { description: err.message });
+      }
+    },
   });
 
   const broadcastMutation = useMutation({
@@ -197,21 +243,41 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {campaign.active && (
-            <button
-              onClick={() => setConfirmOpen(true)}
-              disabled={broadcastMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-zinc-950 text-xs font-bold transition shadow-lg shadow-red-900/40 disabled:opacity-50"
-              title="Send a Warri Crusade broadcast right now"
-              data-testid="warri-crusade-broadcast-now"
-            >
-              {broadcastMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Zap className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden sm:inline">Send broadcast now</span>
-              <span className="sm:hidden">Send</span>
-            </button>
+            <>
+              {/* 🔴 Crusade LIVE Now button */}
+              <button
+                onClick={() => setLiveAlertConfirmOpen(true)}
+                disabled={liveAlertMutation.isPending || broadcastMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition shadow-lg shadow-red-900/50 disabled:opacity-50 border border-red-400/30"
+                title="Send a LIVE NOW alert to all web + mobile subscribers"
+                data-testid="warri-crusade-live-alert"
+              >
+                {liveAlertMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                )}
+                <span className="hidden sm:inline">🔴 LIVE Alert</span>
+                <span className="sm:hidden">LIVE</span>
+              </button>
+
+              {/* Hourly rotating broadcast button */}
+              <button
+                onClick={() => setConfirmOpen(true)}
+                disabled={broadcastMutation.isPending || liveAlertMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-zinc-950 text-xs font-bold transition shadow-lg shadow-red-900/40 disabled:opacity-50"
+                title="Send a Warri Crusade broadcast right now"
+                data-testid="warri-crusade-broadcast-now"
+              >
+                {broadcastMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Zap className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Send broadcast now</span>
+                <span className="sm:hidden">Send</span>
+              </button>
+            </>
           )}
           <button
             onClick={() => refetch()}
@@ -299,6 +365,93 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
                         <Send className="h-4 w-4" />
                         Send broadcast
                       </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── LIVE Alert confirm modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {liveAlertConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !liveAlertMutation.isPending && setLiveAlertConfirmOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-2xl bg-zinc-950 border border-red-500/40 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-red-950 via-red-900/60 to-red-950 p-5 border-b border-red-500/20">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-900/60">
+                      <span className="text-xl">🔴</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-base">Send LIVE Alert?</h3>
+                      <p className="text-xs text-red-200/80 mt-0.5">Fires immediately to ALL channels</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => !liveAlertMutation.isPending && setLiveAlertConfirmOpen(false)}
+                    disabled={liveAlertMutation.isPending}
+                    className="text-white/50 hover:text-white p-1 rounded disabled:opacity-30"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-xs text-red-100/90 space-y-2">
+                  <p>This will instantly fire a <strong className="text-red-200">"Crusade is NOW LIVE!"</strong> alert to:</p>
+                  <ul className="space-y-1 ml-2">
+                    <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-400" /> All web push subscribers (browser)</li>
+                    <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-400" /> All mobile app devices (Expo)</li>
+                    <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-400" /> In-app toast on every open tab</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg bg-black/40 border border-white/10 p-3 space-y-1.5">
+                  <div className="text-[10px] uppercase font-semibold tracking-wide text-white/50">Notification preview</div>
+                  <div className="font-semibold text-white text-sm">🔴 Warri Crusade 2026 is LIVE NOW!</div>
+                  <div className="text-xs text-white/70">The Warri City Crusade has just started — join us for miracles, healing, and the move of God!</div>
+                </div>
+
+                <div className="text-[11px] text-white/50 flex items-start gap-1.5">
+                  <Clock className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span>2-minute cooldown prevents accidental double-fires. Use this button the moment the crusade stream goes live.</span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => setLiveAlertConfirmOpen(false)}
+                    disabled={liveAlertMutation.isPending}
+                    className="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => liveAlertMutation.mutate()}
+                    disabled={liveAlertMutation.isPending}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition shadow-lg shadow-red-900/50 disabled:opacity-60"
+                    data-testid="warri-crusade-live-alert-confirm"
+                  >
+                    {liveAlertMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                    ) : (
+                      <>🔴 Send LIVE Alert</>
                     )}
                   </button>
                 </div>

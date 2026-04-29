@@ -859,6 +859,88 @@ export async function broadcastWarriCrusadeManual(
   };
 }
 
+/**
+ * "Crusade is NOW LIVE" dual-channel alert — admin triggered only.
+ * Sends a specific LIVE message (not the rotating one) to both web push
+ * subscribers and all active Expo mobile devices simultaneously.
+ * Uses a 2-minute cooldown to prevent accidental double-fires.
+ */
+export async function broadcastWarriCrusadeLiveAlert(
+  log: Logger,
+  triggeredBy: string,
+  cooldownMinutes = 2,
+): Promise<
+  | { skipped: true; reason: string; lastFiredAt: string }
+  | { skipped: false; web: { sent: number; failed: number; deactivated: number }; expo: { sent: number; failed: number }; total: number }
+> {
+  const now = Date.now();
+  if (now >= WARRI_CRUSADE_END_MS) {
+    return { skipped: true, reason: "Campaign has ended", lastFiredAt: new Date(WARRI_CRUSADE_END_MS).toISOString() };
+  }
+
+  // Cooldown guard — look for a recent [live-alert] tag in broadcast_events
+  const cooldownAgo = new Date(now - cooldownMinutes * 60_000).toISOString();
+  const recent = await pool.query<{ fired_at: string }>(
+    `SELECT fired_at::text FROM broadcast_events
+      WHERE type = 'warri_crusade_promo'
+        AND message LIKE $1
+        AND fired_at >= $2
+      ORDER BY fired_at DESC LIMIT 1`,
+    [`%[live-alert%`, cooldownAgo],
+  );
+  if (recent.rowCount && recent.rowCount > 0) {
+    return {
+      skipped: true,
+      reason: `A live alert was already sent within the last ${cooldownMinutes} minutes`,
+      lastFiredAt: recent.rows[0].fired_at,
+    };
+  }
+
+  const LIVE_TITLE = "🔴 Warri Crusade 2026 is LIVE NOW!";
+  const LIVE_BODY = "The Warri City Crusade has just started — join us for miracles, healing, and the move of God!";
+
+  // Persist to broadcast_events (drives in-app SSE toast on connected browsers)
+  const liveMessage = `${LIVE_BODY} [live-alert:${new Date(now).toISOString()}:${triggeredBy}]`;
+  await pool.query(
+    `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+    ["warri_crusade_promo", LIVE_TITLE, liveMessage, WARRI_CRUSADE_URL],
+  );
+
+  log.info({ triggeredBy }, "Warri Crusade LIVE alert — dispatching web push + Expo mobile");
+
+  // ── Web push (VAPID / service worker) ────────────────────────────────────────
+  const webNotif: NotificationPayload = {
+    title: LIVE_TITLE,
+    body: LIVE_BODY,
+    icon: "/icons/icon-512x512.png",
+    badge: "/icons/badge-72x72.png",
+    url: WARRI_CRUSADE_URL,
+    tag: "warri-crusade-live",
+    requireInteraction: true,
+    data: { type: "warri_crusade_live", timestamp: new Date(now).toISOString() },
+  };
+  const webResult = await dispatchPushNotification(webNotif, log, "warri_crusade_promo");
+
+  // ── Expo mobile push ─────────────────────────────────────────────────────────
+  const expoResult = await dispatchExpoPush(LIVE_TITLE, LIVE_BODY, {
+    url: WARRI_CRUSADE_URL,
+    type: "warri_crusade_live",
+    timestamp: new Date(now).toISOString(),
+  }, log);
+
+  log.info(
+    { triggeredBy, web: webResult, expo: expoResult },
+    "Warri Crusade LIVE alert dispatched (web + expo)",
+  );
+
+  return {
+    skipped: false,
+    web: { sent: webResult.sent, failed: webResult.failed, deactivated: webResult.deactivated },
+    expo: expoResult,
+    total: webResult.sent + expoResult.sent,
+  };
+}
+
 async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
   const now = Date.now();
   if (now >= WARRI_CRUSADE_END_MS) return; // event finished — nothing to do

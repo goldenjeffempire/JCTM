@@ -16,7 +16,7 @@ import { logger } from "../lib/logger.js";
 import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
-import { broadcastWarriCrusadeManual } from "../lib/cron.js";
+import { broadcastWarriCrusadeManual, broadcastWarriCrusadeLiveAlert } from "../lib/cron.js";
 import { dispatchPushNotification, type NotificationPayload } from "../lib/push-manager.js";
 import webpush from "web-push";
 
@@ -913,6 +913,30 @@ router.post(
       res.status(500).json({ error: "Failed to dispatch broadcast" });
     }
   }
+);
+
+// ── POST /api/admin/warri-crusade/live-alert ──────────────────────────────────
+// Fires a dedicated "Crusade is LIVE NOW" dual-channel alert:
+//   - Web push (VAPID) with requireInteraction: true
+//   - Expo mobile push to all registered app devices
+// Uses a 2-minute cooldown to prevent accidental double-fires.
+router.post(
+  "/admin/warri-crusade/live-alert",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const triggeredBy = `admin:${req.ip ?? "unknown"}`;
+      const result = await broadcastWarriCrusadeLiveAlert(req.log, triggeredBy, 2);
+      if (result.skipped) {
+        res.status(429).json({ success: false, ...result });
+        return;
+      }
+      res.json({ success: true, ...result });
+    } catch (err) {
+      req.log.error({ err }, "Warri Crusade live alert failed");
+      res.status(500).json({ error: "Failed to dispatch live alert" });
+    }
+  },
 );
 
 // ── GET /api/admin/warri-crusade/stats ────────────────────────────────────────
