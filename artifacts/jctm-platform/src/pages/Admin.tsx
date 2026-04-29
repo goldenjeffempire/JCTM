@@ -2644,6 +2644,8 @@ function PlatformSection({ auth }: { auth: AdminAuth }) {
           </div>
         ) : null}
 
+        <TopVideosPanel auth={auth} />
+
         <Card>
           <h3 className="text-sm font-semibold flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-violet-400" /> AI Blog Generator</h3>
           <p className="text-xs text-muted-foreground mb-4">Generate a theologically rich article using AI, grounded in JCTM doctrine.</p>
@@ -2662,6 +2664,206 @@ function PlatformSection({ auth }: { auth: AdminAuth }) {
         </Card>
       </AdminLoginGate>
     </div>
+  );
+}
+
+// ─── Top Videos (monetized YouTube embed analytics) ───────────────────────────
+
+interface TopVideoRow {
+  video_id:      string;
+  impressions:   string | number | null;
+  plays:         string | number | null;
+  pauses:        string | number | null;
+  q25:           string | number | null;
+  q50:           string | number | null;
+  q75:           string | number | null;
+  completes:     string | number | null;
+  last_seen:     string | null;
+  title:         string | null;
+  thumbnail_url: string | null;
+  published_at:  string | null;
+}
+
+interface TopVideoPageRow {
+  page:        string;
+  impressions: string | number | null;
+  plays:       string | number | null;
+}
+
+interface TopVideosPayload {
+  items:  TopVideoRow[];
+  totals: { impressions: number; plays: number; completes: number };
+  pages:  TopVideoPageRow[];
+}
+
+function num(v: string | number | null | undefined): number {
+  if (v === null || v === undefined) return 0;
+  return typeof v === "number" ? v : parseInt(v, 10) || 0;
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}k`;
+  return n.toLocaleString();
+}
+
+function formatPct(num: number, den: number): string {
+  if (den <= 0) return "—";
+  return `${((num / den) * 100).toFixed(1)}%`;
+}
+
+function TopVideosPanel({ auth }: { auth: AdminAuth }) {
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+
+  const { data, isLoading, isFetching, refetch } = useQuery<TopVideosPayload>({
+    queryKey: ["video-events-top"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/video-events/top?limit=25`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<TopVideosPayload>(res, "Unable to load video analytics");
+    },
+    enabled: !!auth.adminToken,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const items   = data?.items ?? [];
+  const totals  = data?.totals ?? { impressions: 0, plays: 0, completes: 0 };
+  const pages   = data?.pages ?? [];
+  const overallPlayRate     = totals.impressions > 0 ? (totals.plays / totals.impressions) * 100 : 0;
+  const overallCompleteRate = totals.plays       > 0 ? (totals.completes / totals.plays) * 100   : 0;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <PlayCircle className="w-4 h-4 text-red-500" />
+            Top Monetized Videos
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Real watch-time signals from every <code className="px-1 py-0.5 rounded bg-muted text-[10px]">YouTubeEmbed</code> on the site.
+          </p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
+        >
+          {isFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <MetricCard label="Impressions" value={formatCount(totals.impressions)} icon={<Eye className="w-4 h-4" />} />
+        <MetricCard label="Plays"       value={formatCount(totals.plays)}       icon={<PlayCircle className="w-4 h-4" />} />
+        <MetricCard label="Play Rate"   value={overallPlayRate ? `${overallPlayRate.toFixed(1)}%` : "—"} icon={<TrendingUp className="w-4 h-4" />} />
+        <MetricCard label="Completes"   value={`${formatCount(totals.completes)} (${overallCompleteRate ? overallCompleteRate.toFixed(0) + "%" : "—"})`} icon={<CheckCircle className="w-4 h-4" />} />
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          No video plays recorded yet. Browse the public site (Home, Sermons, Crusade, Conference, Events, Moments) and the analytics will populate here within a minute.
+        </div>
+      ) : (
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-xs">
+            <thead className="text-muted-foreground">
+              <tr className="text-left">
+                <th className="px-2 py-2 font-medium">#</th>
+                <th className="px-2 py-2 font-medium">Video</th>
+                <th className="px-2 py-2 font-medium text-right">Impr.</th>
+                <th className="px-2 py-2 font-medium text-right">Plays</th>
+                <th className="px-2 py-2 font-medium text-right">Play %</th>
+                <th className="px-2 py-2 font-medium text-right">25%</th>
+                <th className="px-2 py-2 font-medium text-right">50%</th>
+                <th className="px-2 py-2 font-medium text-right">75%</th>
+                <th className="px-2 py-2 font-medium text-right">Done</th>
+                <th className="px-2 py-2 font-medium text-right">Done %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row, i) => {
+                const impr = num(row.impressions);
+                const plays = num(row.plays);
+                const completes = num(row.completes);
+                const thumb = row.thumbnail_url ?? `https://i.ytimg.com/vi/${row.video_id}/mqdefault.jpg`;
+                return (
+                  <tr key={row.video_id} className="border-t border-border/60 hover:bg-muted/30 transition-colors">
+                    <td className="px-2 py-2 text-muted-foreground tabular-nums">{i + 1}</td>
+                    <td className="px-2 py-2">
+                      <a
+                        href={`https://www.youtube.com/watch?v=${row.video_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 group"
+                      >
+                        <img
+                          src={thumb}
+                          alt=""
+                          loading="lazy"
+                          className="w-14 h-8 rounded object-cover bg-muted shrink-0"
+                          onError={e => {
+                            (e.target as HTMLImageElement).src = `https://i.ytimg.com/vi/${row.video_id}/default.jpg`;
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium line-clamp-1 group-hover:text-primary transition-colors">
+                            {row.title ?? row.video_id}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{row.video_id}</div>
+                        </div>
+                      </a>
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">{formatCount(impr)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums font-medium">{formatCount(plays)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{formatPct(plays, impr)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{formatCount(num(row.q25))}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{formatCount(num(row.q50))}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{formatCount(num(row.q75))}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{formatCount(completes)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-emerald-600 font-medium">{formatPct(completes, plays)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {pages.length > 0 && (
+        <div className="mt-5 pt-4 border-t border-border">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <Globe className="w-3 h-3" /> Plays by Page
+          </h4>
+          <div className="space-y-1.5">
+            {pages.map(p => {
+              const plays = num(p.plays);
+              const impr  = num(p.impressions);
+              const max   = pages.reduce((acc, r) => Math.max(acc, num(r.plays)), 1);
+              const pct   = max > 0 ? (plays / max) * 100 : 0;
+              return (
+                <div key={p.page} className="flex items-center gap-3 text-xs">
+                  <span className="w-44 truncate font-medium">{labelPage(p.page)}</span>
+                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-16 text-right tabular-nums font-medium">{formatCount(plays)}</span>
+                  <span className="w-20 text-right tabular-nums text-muted-foreground">{formatPct(plays, impr)} CTR</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

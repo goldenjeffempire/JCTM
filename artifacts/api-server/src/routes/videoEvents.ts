@@ -14,6 +14,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { requireAdminRole } from "../lib/adminAuth.js";
 
 const router: IRouter = Router();
 
@@ -129,22 +130,69 @@ router.post("/video-events", ingestLimiter, async (req: Request, res: Response):
   res.status(202).json({ ok: true, accepted: stored });
 });
 
-router.get("/video-events/top", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const rows = await db.execute(sql`
-      SELECT video_id, SUM(impressions)::bigint AS impressions,
-             SUM(plays)::bigint AS plays,
-             SUM(completes)::bigint AS completes
-      FROM video_event_counts
-      GROUP BY video_id
-      ORDER BY plays DESC
-      LIMIT 25;
-    `);
-    res.json({ items: rows.rows ?? rows });
-  } catch (err) {
-    (_req as Request).log?.warn?.({ err }, "video-events/top query failed");
-    res.json({ items: [] });
-  }
-});
+// Admin-only — exposes per-video aggregate analytics for the dashboard.
+router.get(
+  "/video-events/top",
+  requireAdminRole(["sermon", "livestream"]),
+  async (req: Request, res: Response): Promise<void> => {
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "25"), 10) || 25, 1), 100);
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          v.video_id,
+          SUM(v.impressions)::bigint AS impressions,
+          SUM(v.plays)::bigint       AS plays,
+          SUM(v.pauses)::bigint      AS pauses,
+          SUM(v.q25)::bigint         AS q25,
+          SUM(v.q50)::bigint         AS q50,
+          SUM(v.q75)::bigint         AS q75,
+          SUM(v.completes)::bigint   AS completes,
+          MAX(v.updated_at)          AS last_seen,
+          MAX(s.title)               AS title,
+          MAX(s.thumbnail_url)       AS thumbnail_url,
+          MAX(s.published_at)        AS published_at
+        FROM video_event_counts v
+        LEFT JOIN sermon_data s ON s.video_id = v.video_id
+        GROUP BY v.video_id
+        ORDER BY plays DESC NULLS LAST, impressions DESC NULLS LAST
+        LIMIT ${limit};
+      `);
+
+      const totals = await db.execute(sql`
+        SELECT
+          SUM(impressions)::bigint AS impressions,
+          SUM(plays)::bigint       AS plays,
+          SUM(completes)::bigint   AS completes
+        FROM video_event_counts;
+      `);
+
+      const pages = await db.execute(sql`
+        SELECT
+          page,
+          SUM(impressions)::bigint AS impressions,
+          SUM(plays)::bigint       AS plays
+        FROM video_event_counts
+        GROUP BY page
+        ORDER BY plays DESC NULLS LAST
+        LIMIT 10;
+      `);
+
+      const totalsRow = (totals.rows ?? totals)[0] as Record<string, unknown> | undefined;
+
+      res.json({
+        items: rows.rows ?? rows,
+        totals: {
+          impressions: Number(totalsRow?.impressions ?? 0),
+          plays:       Number(totalsRow?.plays ?? 0),
+          completes:   Number(totalsRow?.completes ?? 0),
+        },
+        pages: pages.rows ?? pages,
+      });
+    } catch (err) {
+      req.log?.warn?.({ err }, "video-events/top query failed");
+      res.json({ items: [], totals: { impressions: 0, plays: 0, completes: 0 }, pages: [] });
+    }
+  },
+);
 
 export default router;
