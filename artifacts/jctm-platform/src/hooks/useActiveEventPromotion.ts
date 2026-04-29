@@ -14,6 +14,24 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+/**
+ * Admin-only client-side phase override. Lets a logged-in operator preview
+ * the entire live-mode UI on demand without changing the database or waiting
+ * for the real start_at timestamp. Controlled by `EventPromoPreviewToggle`.
+ *
+ * Values: "upcoming" | "live" | "ended" | null (no override).
+ * Persisted in localStorage and broadcast via the `jctm:event-preview-changed`
+ * window event so this hook can re-derive instantly across all open tabs.
+ */
+export const PHASE_OVERRIDE_STORAGE_KEY = "jctm:event-phase-override";
+export const PHASE_OVERRIDE_EVENT = "jctm:event-preview-changed";
+
+function readOverride(): "upcoming" | "live" | "ended" | null {
+  if (typeof window === "undefined") return null;
+  const v = window.localStorage.getItem(PHASE_OVERRIDE_STORAGE_KEY);
+  return v === "upcoming" || v === "live" || v === "ended" ? v : null;
+}
+
 export interface EventPromotion {
   id: number;
   slug: string;
@@ -61,12 +79,31 @@ function derive(p: EventPromotion): DerivedPromotion {
   const now = Date.now();
   const start = new Date(p.startAt).getTime();
   const end = new Date(p.endAt).getTime();
-  const msToStart = Math.max(start - now, -1);
-  const msToEnd = Math.max(end - now, -1);
+  let msToStart = Math.max(start - now, -1);
+  let msToEnd = Math.max(end - now, -1);
   let livePhase: "upcoming" | "live" | "ended";
   if (now < start) livePhase = "upcoming";
   else if (now < end) livePhase = "live";
   else livePhase = "ended";
+
+  // Honor admin client-side override (used only by the Live Mode preview
+  // toggle). The override flips livePhase and synthesizes plausible
+  // ms-to-boundary values so every downstream surface (banner, sticky bar,
+  // popup, crusade section) shows its true live-state UI.
+  const override = readOverride();
+  if (override === "live") {
+    livePhase = "live";
+    msToStart = -1;
+    msToEnd = Math.max(msToEnd, 60 * 60_000); // pretend at least 1h remaining
+  } else if (override === "upcoming") {
+    livePhase = "upcoming";
+    msToStart = Math.max(msToStart, 24 * 60 * 60_000); // at least 1 day out
+    msToEnd = Math.max(msToEnd, 25 * 60 * 60_000);
+  } else if (override === "ended") {
+    livePhase = "ended";
+    msToStart = -1;
+    msToEnd = -1;
+  }
 
   // Countdown counts down to whichever boundary is most relevant
   const target = livePhase === "upcoming" ? msToStart : Math.max(msToEnd, 0);
@@ -107,6 +144,21 @@ export function useActiveEventPromotion(): {
     const id = window.setInterval(() => setTick(t => (t + 1) % 1_000_000), 1_000);
     return () => window.clearInterval(id);
   }, [data?.promotion]);
+
+  // React instantly when the admin flips the preview-mode override (same tab
+  // via custom event, other tabs via storage event).
+  useEffect(() => {
+    const bump = () => setTick(t => (t + 1) % 1_000_000);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === PHASE_OVERRIDE_STORAGE_KEY) bump();
+    };
+    window.addEventListener(PHASE_OVERRIDE_EVENT, bump);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(PHASE_OVERRIDE_EVENT, bump);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const derived = useMemo(() => {
     if (!data?.promotion) return null;

@@ -9,6 +9,7 @@ import { EventStickyBar } from "../event-promo/EventStickyBar";
 import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
 import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
+import { EventPromoPreviewToggle } from "../event-promo/EventPromoPreviewToggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ export function Layout({ children }: LayoutProps) {
       <BroadcastStatusIndicator />
       <EventLiveToast />
       <GlobalEventAdBanner />
+      <EventPromoPreviewToggle />
     </div>
   );
 }

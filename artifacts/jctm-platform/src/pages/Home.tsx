@@ -22,6 +22,7 @@ import { DualStreamToggle, useStreamQuality, buildYouTubeUrl, NetworkQualityBadg
 import { StreamPlayer } from "@/components/StreamPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
+import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
