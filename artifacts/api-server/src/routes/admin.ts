@@ -18,6 +18,7 @@ import { getLiveAudienceSnapshot } from "./livestream.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
 import { broadcastWarriCrusadeManual } from "../lib/cron.js";
 import { dispatchPushNotification, type NotificationPayload } from "../lib/push-manager.js";
+import webpush from "web-push";
 
 const router: IRouter = Router();
 const requireAnyRoleAdmin = requireAdminRole(["gallery", "sermon", "livestream"]);
@@ -565,6 +566,124 @@ router.post(
       res.status(500).json({ error: "Failed to dispatch broadcast" });
     }
   }
+);
+
+// ── POST /api/admin/broadcast/test — preview push to admin's own browser ─────
+// Sends the composed notification to a single endpoint (the admin's own
+// browser subscription) so they can preview the actual on-device appearance
+// before fanning out to all subscribers. NOT logged to broadcast_events or
+// push_dispatch_log — this is a preview, not an audited broadcast. Per-endpoint
+// 10-second cooldown to prevent rapid-fire notification spam at the admin's
+// own device.
+const recentTestLock = new Map<string, number>();
+const TEST_LOCK_MS = 10_000;
+
+router.post(
+  "/admin/broadcast/test",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as {
+      title?: string;
+      body?: string;
+      url?: string;
+      requireInteraction?: boolean;
+      endpoint?: string;
+    };
+    const title = (body.title ?? "").trim();
+    const message = (body.body ?? "").trim();
+    const url = (body.url ?? "").trim() || "/";
+    const requireInteraction = !!body.requireInteraction;
+    const endpoint = (body.endpoint ?? "").trim();
+
+    if (!title || title.length > 80) {
+      res.status(400).json({ error: "title is required (max 80 chars)" });
+      return;
+    }
+    if (!message || message.length > 240) {
+      res.status(400).json({ error: "body is required (max 240 chars)" });
+      return;
+    }
+    if (!endpoint || (!endpoint.startsWith("https://") && !endpoint.startsWith("http://"))) {
+      res.status(400).json({
+        error: "endpoint is required — enable notifications on this browser first",
+      });
+      return;
+    }
+
+    // Per-endpoint cooldown
+    const now = Date.now();
+    const lastFiredAt = recentTestLock.get(endpoint);
+    if (lastFiredAt && now - lastFiredAt < TEST_LOCK_MS) {
+      const remainingMs = TEST_LOCK_MS - (now - lastFiredAt);
+      res.status(429).json({
+        success: false,
+        error: "Cooldown active",
+        reason: `Please wait ${Math.ceil(remainingMs / 1000)}s before sending another test.`,
+        cooldownRemainingMs: remainingMs,
+      });
+      return;
+    }
+    for (const [k, t] of recentTestLock.entries()) {
+      if (now - t > TEST_LOCK_MS) recentTestLock.delete(k);
+    }
+    recentTestLock.set(endpoint, now);
+
+    // Resolve the subscription from DB
+    const { rows } = await pool.query<{ p256dh: string; auth: string }>(
+      `SELECT p256dh, auth FROM push_subscriptions
+        WHERE endpoint = $1 AND is_active = true
+        LIMIT 1`,
+      [endpoint],
+    );
+    if (rows.length === 0) {
+      res.status(404).json({
+        error: "Subscription not found — re-enable notifications on this browser",
+      });
+      return;
+    }
+
+    const sub = rows[0]!;
+    const payload: NotificationPayload = {
+      title: `[TEST] ${title}`.slice(0, 100),
+      body: message,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/badge-72x72.png",
+      url,
+      tag: "admin-broadcast-test",
+      requireInteraction,
+      data: {
+        type: "admin_broadcast_test",
+        broadcastType: "admin_broadcast_test",
+        timestamp: new Date(now).toISOString(),
+      },
+    };
+
+    try {
+      await webpush.sendNotification(
+        { endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        JSON.stringify(payload),
+        { TTL: 60 },
+      );
+      req.log.info({ endpointPrefix: endpoint.slice(0, 40), title }, "Admin test broadcast sent");
+      res.json({ success: true });
+    } catch (err: unknown) {
+      const status = (err as { statusCode?: number }).statusCode;
+      // Release the cooldown on failure so the admin can retry immediately
+      recentTestLock.delete(endpoint);
+      if (status === 410 || status === 404) {
+        await pool.query(
+          `UPDATE push_subscriptions SET is_active = false WHERE endpoint = $1`,
+          [endpoint],
+        );
+        res.status(410).json({
+          error: "Subscription expired — re-enable notifications on this browser",
+        });
+        return;
+      }
+      req.log.error({ err, status }, "Admin test broadcast failed");
+      res.status(502).json({ error: "Push service rejected the test notification" });
+    }
+  },
 );
 
 // ── Scheduled broadcasts ──────────────────────────────────────────────────────

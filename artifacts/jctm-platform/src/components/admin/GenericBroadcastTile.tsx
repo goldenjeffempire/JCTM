@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Megaphone, Send, Loader2, X, Bell, AlertCircle,
   Sparkles, Clock, CalendarClock, ListChecks, Trash2,
-  CheckCircle2, XCircle, Hourglass,
+  CheckCircle2, XCircle, Hourglass, FlaskConical,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -251,6 +251,44 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
 
   const submitting = broadcastMutation.isPending || scheduleMutation.isPending;
 
+  // ── Test broadcast: send composed payload ONLY to admin's own browser ──────
+  const testMutation = useMutation({
+    mutationFn: async (): Promise<{ success: true }> => {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        throw new Error("This browser doesn't support push notifications");
+      }
+      if (Notification.permission !== "granted") {
+        throw new Error("Enable notifications in your browser first");
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        throw new Error("No active subscription on this browser — re-enable notifications");
+      }
+      const res = await fetch(`${BASE}/api/admin/broadcast/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({
+          title: title.trim(),
+          body: body.trim(),
+          url: url.trim() || "/",
+          requireInteraction,
+          endpoint: sub.endpoint,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.reason ?? data?.error ?? `HTTP ${res.status}`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Test sent to your browser", {
+        description: "Check your notification tray to preview how it looks.",
+      });
+    },
+    onError: (err: Error) => toast.error("Test failed", { description: err.message }),
+  });
+  const testing = testMutation.isPending;
+
   const applyTemplate = (t: typeof QUICK_TEMPLATES[number]) => {
     setTitle(t.title);
     setBody(t.body);
@@ -436,6 +474,16 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
               ? `Cooldown ${Math.ceil(cooldownRemaining / 1000)}s`
               : "Send broadcast"
             : "Schedule broadcast"}
+        </button>
+        <button
+          onClick={() => testMutation.mutate()}
+          disabled={!baseValid || testing}
+          title="Send only to this browser as a preview"
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-muted hover:bg-muted/70 text-foreground/80 hover:text-foreground text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-border"
+          data-testid="broadcast-test-button"
+        >
+          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5" />}
+          Test on me
         </button>
         <button
           onClick={() => { setTitle(""); setBody(""); setUrl("/"); setRequireInteraction(false); }}
