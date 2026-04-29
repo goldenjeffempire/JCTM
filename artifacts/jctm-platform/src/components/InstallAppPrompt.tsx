@@ -146,14 +146,24 @@ export function InstallAppPrompt() {
                 borderColor: "rgba(56, 189, 248, 0.3)",
               }}
             >
-              <div
-                className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  background: "rgba(56, 189, 248, 0.18)",
-                  border: "1px solid rgba(56,189,248,0.4)",
-                }}
-              >
-                <Smartphone className="h-5 w-5 text-sky-400" />
+              <div className="relative shrink-0">
+                <button
+                  onClick={collapseForSession}
+                  aria-label="Dismiss install prompt"
+                  className="absolute -top-1.5 -left-1.5 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-[#001225] text-white/70 hover:text-white hover:border-white/40 transition-colors cursor-pointer shadow-md"
+                  data-testid="install-app-collapse"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+                <div
+                  className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{
+                    background: "rgba(56, 189, 248, 0.18)",
+                    border: "1px solid rgba(56,189,248,0.4)",
+                  }}
+                >
+                  <Smartphone className="h-5 w-5 text-sky-400" />
+                </div>
               </div>
 
               <div className="flex-1 min-w-0">
@@ -187,14 +197,6 @@ export function InstallAppPrompt() {
                   </button>
                 </div>
               </div>
-
-              <button
-                onClick={collapseForSession}
-                aria-label="Dismiss install prompt"
-                className="absolute top-2.5 right-2.5 text-white/30 hover:text-white/70 transition-colors cursor-pointer"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
             </div>
           </motion.div>
         )}
