@@ -1,0 +1,67 @@
+Implement a dynamic, event-driven promotional and notification system for the upcoming Warri Crusade on the jctm.org.ng platform, designed for high visibility, responsiveness, and real-time engagement across all devices.
+
+🎯 Core Objectives
+Ensure maximum visibility of the Warri Crusade event prior to launch
+Drive user engagement and attendance through persistent, non-intrusive promotion
+Enable real-time transition from pre-event hype → live event activation → post-event updates
+📌 Pre-Event Experience (Until Event Start Date)
+Persistent Event Banner (Hero + Global UI Placement)
+Display a high-impact Warri Crusade banner across:
+Homepage hero section
+Floating header/announcement bar
+Selected internal pages (context-aware placement)
+Banner must include:
+Event title
+Date & time countdown timer (live)
+CTA button: “Learn More / Register / Join”
+Smart Pop-up Notification System
+Trigger a non-blocking, frequency-controlled modal popup
+Behavior:
+Appears once per session (configurable)
+Reappears only after defined cooldown period
+Content:
+Event highlight
+Banner artwork
+Countdown timer
+Action button
+Sticky Announcement Layer
+Add a lightweight top-of-page sticky alert bar
+Always visible but non-intrusive
+Includes countdown + quick CTA
+⏳ Event Activation (At Start Date & Time)
+
+When event start timestamp is reached:
+
+Automatic UI State Switch
+Banner transitions from “Upcoming” → “Live Now”
+Visual indicators update (e.g., LIVE badge, pulsing effect)
+Global Notification Burst System
+Trigger in-app broadcast notifications:
+Toast alerts (desktop & mobile)
+Push notifications (if enabled)
+In-page notification feed updates
+Homepage Priority Shift
+Warri Crusade becomes the primary featured content block
+Secondary content is visually deprioritized
+📡 Event Live Mode Enhancements
+Replace countdown with LIVE status indicator
+Enable real-time streaming entry point (Join Live button)
+Optional: auto-scroll or modal redirect prompt for users landing on homepage
+⚙️ System Design Requirements
+Fully time-driven automation (cron/scheduler-based)
+Centralized event configuration object (admin controlled)
+Supports:
+Start time
+End time
+Banner assets
+Notification rules
+Must be cache-aware and CDN-compatible
+Responsive across:
+Web
+Mobile web
+Smart TV interface (if applicable)
+📊 UX Principles
+Non-intrusive but highly visible promotion
+Minimal disruption to browsing experience
+Strong visual hierarchy during event lifecycle
+Seamless transition between event states
