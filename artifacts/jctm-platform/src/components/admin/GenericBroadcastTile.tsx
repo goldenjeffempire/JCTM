@@ -6,6 +6,7 @@ import {
   Megaphone, Send, Loader2, X, Bell, AlertCircle,
   Sparkles, Clock, CalendarClock, ListChecks, Trash2,
   CheckCircle2, XCircle, Hourglass, FlaskConical, Copy,
+  Bookmark, BookmarkPlus,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -21,6 +22,17 @@ interface BroadcastResult {
 interface BroadcastError extends Error {
   status?: number;
   payload?: { reason?: string; cooldownRemainingMs?: number };
+}
+
+interface BroadcastSnippet {
+  id: number;
+  name: string;
+  title: string;
+  body: string;
+  url: string;
+  require_interaction: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ScheduledBroadcast {
@@ -152,6 +164,75 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
 
   const canSubmit =
     baseValid && (mode === "now" ? !cooldownActive : scheduleValid);
+
+  // ── Snippet save UI state ─────────────────────────────────────────────────
+  const [savingSnippetOpen, setSavingSnippetOpen] = useState(false);
+  const [snippetName, setSnippetName] = useState("");
+
+  // ── Saved snippets ────────────────────────────────────────────────────────
+  const { data: snippetData } = useQuery<{ snippets: BroadcastSnippet[] }>({
+    queryKey: ["admin-broadcast-snippets"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/broadcast-snippets`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) throw new Error("Failed to load snippets");
+      return res.json();
+    },
+    enabled: !!adminToken,
+    staleTime: 60_000,
+  });
+  const snippets = snippetData?.snippets ?? [];
+
+  const saveSnippetMutation = useMutation({
+    mutationFn: async (): Promise<{ snippet: BroadcastSnippet }> => {
+      const res = await fetch(`${BASE}/api/admin/broadcast-snippets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({
+          name: snippetName.trim(),
+          title: title.trim(),
+          body: body.trim(),
+          url: url.trim() || "/",
+          requireInteraction,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Snippet "${data.snippet.name}" saved`);
+      setSavingSnippetOpen(false);
+      setSnippetName("");
+      qc.invalidateQueries({ queryKey: ["admin-broadcast-snippets"] });
+    },
+    onError: (err: Error) => toast.error("Save failed", { description: err.message }),
+  });
+
+  const deleteSnippetMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/broadcast-snippets/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Snippet deleted");
+      qc.invalidateQueries({ queryKey: ["admin-broadcast-snippets"] });
+    },
+    onError: (err: Error) => toast.error("Delete failed", { description: err.message }),
+  });
+
+  const applySnippet = (s: BroadcastSnippet) => {
+    setTitle(s.title);
+    setBody(s.body);
+    setUrl(s.url);
+    setRequireInteraction(s.require_interaction);
+  };
 
   // ── Scheduled broadcasts list ──────────────────────────────────────────────
   const { data: scheduledList } = useQuery<{ broadcasts: ScheduledBroadcast[] }>({
@@ -362,21 +443,106 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
         </button>
       </div>
 
-      {/* Quick templates */}
-      <div className="flex flex-wrap gap-2">
-        <span className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground self-center mr-1 flex items-center gap-1">
-          <Sparkles className="h-3 w-3" />Templates:
-        </span>
-        {QUICK_TEMPLATES.map((t) => (
-          <button
-            key={t.label}
-            onClick={() => applyTemplate(t)}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-muted hover:bg-muted/70 text-foreground/80 hover:text-foreground transition-colors border border-border/50"
-            data-testid={`broadcast-template-${t.label.toLowerCase().replace(/\s+/g, "-")}`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Quick templates + saved snippets */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground mr-1 flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />Templates:
+          </span>
+          {QUICK_TEMPLATES.map((t) => (
+            <button
+              key={t.label}
+              onClick={() => applyTemplate(t)}
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-muted hover:bg-muted/70 text-foreground/80 hover:text-foreground transition-colors border border-border/50"
+              data-testid={`broadcast-template-${t.label.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Saved snippets row + save action */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground mr-1 flex items-center gap-1">
+            <Bookmark className="h-3 w-3" />Saved:
+          </span>
+          {snippets.length === 0 && !savingSnippetOpen && (
+            <span className="text-[11px] text-muted-foreground italic">No saved snippets yet</span>
+          )}
+          {snippets.map((s) => (
+            <span
+              key={s.id}
+              className="group inline-flex items-center rounded-md border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/15 text-purple-700 dark:text-purple-300 transition-colors overflow-hidden"
+            >
+              <button
+                onClick={() => applySnippet(s)}
+                title={`Load: ${s.title}`}
+                className="px-2.5 py-1 text-[11px] font-medium"
+                data-testid={`broadcast-snippet-${s.id}`}
+              >
+                {s.name}
+              </button>
+              <button
+                onClick={() => deleteSnippetMutation.mutate(s.id)}
+                disabled={deleteSnippetMutation.isPending && deleteSnippetMutation.variables === s.id}
+                aria-label={`Delete snippet ${s.name}`}
+                title="Delete snippet"
+                className="px-1.5 py-1 text-purple-600 hover:bg-red-500/15 hover:text-red-500 transition-colors border-l border-purple-500/30 disabled:opacity-50"
+                data-testid={`broadcast-snippet-delete-${s.id}`}
+              >
+                {deleteSnippetMutation.isPending && deleteSnippetMutation.variables === s.id ? (
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                ) : (
+                  <X className="h-2.5 w-2.5" />
+                )}
+              </button>
+            </span>
+          ))}
+          {savingSnippetOpen ? (
+            <div className="inline-flex items-center gap-1 rounded-md border border-purple-500/40 bg-purple-500/10 overflow-hidden">
+              <input
+                type="text"
+                autoFocus
+                value={snippetName}
+                maxLength={60}
+                onChange={(e) => setSnippetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && snippetName.trim()) saveSnippetMutation.mutate();
+                  if (e.key === "Escape") { setSavingSnippetOpen(false); setSnippetName(""); }
+                }}
+                placeholder="Snippet name…"
+                className="px-2 py-1 bg-transparent text-[11px] focus:outline-none text-foreground placeholder:text-muted-foreground w-32"
+                data-testid="broadcast-snippet-name-input"
+              />
+              <button
+                onClick={() => saveSnippetMutation.mutate()}
+                disabled={!snippetName.trim() || saveSnippetMutation.isPending}
+                className="px-2 py-1 text-[11px] font-semibold bg-purple-500 hover:bg-purple-400 text-white disabled:opacity-50 transition-colors"
+                data-testid="broadcast-snippet-save-confirm"
+              >
+                {saveSnippetMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+              </button>
+              <button
+                onClick={() => { setSavingSnippetOpen(false); setSnippetName(""); }}
+                className="px-1.5 py-1 text-muted-foreground hover:text-foreground"
+                aria-label="Cancel"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSavingSnippetOpen(true)}
+              disabled={!baseValid}
+              title={baseValid ? "Save current composition as a snippet" : "Fill in title and body first"}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium border border-dashed border-border hover:border-purple-500/50 hover:bg-purple-500/10 text-muted-foreground hover:text-purple-600 dark:hover:text-purple-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+              data-testid="broadcast-snippet-save-button"
+            >
+              <BookmarkPlus className="h-3 w-3" />
+              Save current
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Form */}

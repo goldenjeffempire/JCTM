@@ -797,6 +797,101 @@ router.delete(
   },
 );
 
+// ── Broadcast Snippets (admin-saved reusable templates) ──────────────────────
+// GET /api/admin/broadcast-snippets — list all saved snippets newest-first.
+router.get(
+  "/admin/broadcast-snippets",
+  requireAdminRole("livestream"),
+  async (_req: Request, res: Response): Promise<void> => {
+    const { rows } = await pool.query(
+      `SELECT id, name, title, body, url, require_interaction, created_at, updated_at
+         FROM broadcast_snippets
+        ORDER BY updated_at DESC`,
+    );
+    res.json({ snippets: rows });
+  },
+);
+
+// POST /api/admin/broadcast-snippets — create or upsert a snippet by name.
+router.post(
+  "/admin/broadcast-snippets",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as {
+      name?: string;
+      title?: string;
+      body?: string;
+      url?: string;
+      requireInteraction?: boolean;
+    };
+    const name = (body.name ?? "").trim();
+    const title = (body.title ?? "").trim();
+    const message = (body.body ?? "").trim();
+    const url = (body.url ?? "").trim() || "/";
+    const requireInteraction = !!body.requireInteraction;
+
+    if (!name || name.length > 60) {
+      res.status(400).json({ error: "name is required (max 60 chars)" });
+      return;
+    }
+    if (!title || title.length > 80) {
+      res.status(400).json({ error: "title is required (max 80 chars)" });
+      return;
+    }
+    if (!message || message.length > 240) {
+      res.status(400).json({ error: "body is required (max 240 chars)" });
+      return;
+    }
+
+    try {
+      // Upsert on lowercased-name uniqueness — saving with the same name
+      // overwrites the existing snippet, which matches user expectation.
+      const { rows } = await pool.query(
+        `INSERT INTO broadcast_snippets
+           (name, title, body, url, require_interaction, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT ((LOWER(name))) DO UPDATE
+           SET name = EXCLUDED.name,
+               title = EXCLUDED.title,
+               body = EXCLUDED.body,
+               url = EXCLUDED.url,
+               require_interaction = EXCLUDED.require_interaction,
+               updated_at = NOW()
+         RETURNING id, name, title, body, url, require_interaction, created_at, updated_at`,
+        [name, title, message, url, requireInteraction, `admin:${req.ip ?? "unknown"}`],
+      );
+      req.log.info({ id: rows[0]?.id, name }, "Broadcast snippet saved");
+      res.json({ success: true, snippet: rows[0] });
+    } catch (err: unknown) {
+      req.log.error({ err }, "Failed to save broadcast snippet");
+      res.status(500).json({ error: "Failed to save snippet" });
+    }
+  },
+);
+
+// DELETE /api/admin/broadcast-snippets/:id — remove a snippet.
+router.delete(
+  "/admin/broadcast-snippets/:id",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = Number.parseInt(req.params.id ?? "", 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const { rowCount } = await pool.query(
+      `DELETE FROM broadcast_snippets WHERE id = $1`,
+      [id],
+    );
+    if (!rowCount) {
+      res.status(404).json({ error: "Snippet not found" });
+      return;
+    }
+    req.log.info({ id }, "Broadcast snippet deleted");
+    res.json({ success: true, id });
+  },
+);
+
 // ── POST /api/admin/warri-crusade/broadcast-now ───────────────────────────────
 router.post(
   "/admin/warri-crusade/broadcast-now",

@@ -452,5 +452,28 @@ export async function runMigrations(): Promise<void> {
     ON scheduled_broadcasts (created_at DESC)
   `);
 
+  // ── Broadcast Snippets (admin-saved reusable templates) ────────────────────
+  // Admins can save commonly-used broadcast compositions by name and reuse
+  // them from the composer. Names are case-insensitively unique. Snippets
+  // store the full payload (title, body, url, requireInteraction) so they
+  // round-trip identically.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS broadcast_snippets (
+      id serial PRIMARY KEY,
+      name text NOT NULL,
+      title text NOT NULL,
+      body text NOT NULL,
+      url text NOT NULL DEFAULT '/',
+      require_interaction boolean NOT NULL DEFAULT false,
+      created_by text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS broadcast_snippets_name_unique_idx
+    ON broadcast_snippets (LOWER(name))
+  `);
+
   logger.info("All migrations complete");
 }
