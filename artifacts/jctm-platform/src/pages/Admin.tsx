@@ -16,6 +16,7 @@ import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
+import { EventPromotionPreview } from "@/components/event-promo/EventPromotionPreview";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Bar, ComposedChart, ResponsiveContainer,
@@ -2374,6 +2375,10 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
                   onChange={v => setForm({ ...form, showBanner: v })} />
                 <ChannelToggle label="Popup Modal" value={form.showPopup}
                   onChange={v => setForm({ ...form, showPopup: v })} />
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <EventPromotionPreview form={form} />
               </div>
 
               <div className="flex items-center gap-2 pt-1">

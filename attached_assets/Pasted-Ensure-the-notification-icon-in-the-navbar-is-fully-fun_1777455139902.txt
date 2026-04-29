@@ -1,0 +1,61 @@
+Ensure the notification icon in the navbar is fully functional, real-time, and scalable for production use across web and mobile platforms.
+
+🌐 Core Functional Requirements
+The notification icon must be globally visible in the navbar on all pages
+It must support:
+Real-time notification updates
+Unread count badge (dynamic)
+Notification dropdown / panel view
+📡 Real-Time Behavior
+Integrate a real-time update system using:
+WebSockets (preferred) or Server-Sent Events (SSE)
+Notifications must:
+Update instantly without page refresh
+Reflect new events, alerts, and system messages immediately
+Sync across multiple open tabs/devices
+🔴 Badge System (Unread Counter)
+Display a dynamic unread count badge
+Rules:
+Increment on new notification arrival
+Reset when notifications are marked as read
+Cap display at “99+” for overflow handling
+📂 Notification Panel (Dropdown UI)
+
+On click of the icon:
+
+Open a dropdown or side panel
+Show:
+Latest notifications (sorted by time DESC)
+Read/unread status indicators
+Timestamp metadata
+Include actions:
+Mark as read
+Mark all as read
+Clear notifications (optional admin rule)
+⚙️ Backend Requirements
+Central notification service module
+Persistent storage (database table/collection)
+API endpoints:
+GET /notifications
+POST /notifications/mark-read
+POST /notifications/mark-all-read
+Event-driven triggers for:
+New events (e.g., crusade updates)
+System alerts
+Broadcast messages
+🔄 Sync & State Management
+Use a global state manager (Redux / Zustand / Context API)
+Ensure:
+Cross-tab synchronization
+Session persistence (optional via localStorage/cache)
+Real-time refresh without reload
+🎯 UX Requirements
+Smooth animations (fade/slide dropdown)
+Mobile-friendly bottom sheet variant
+Non-blocking UI (does not interrupt navigation)
+High responsiveness (<100ms UI update target)
+🧠 Production Readiness Goals
+Zero notification loss (reliable delivery pipeline)
+Scalable to high traffic (event spikes)
+Optimized for low latency real-time updates
+Fully consistent across web, mobile, and smart TV apps
