@@ -2,10 +2,10 @@ import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError,
 import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
-import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification } from "./push-manager.js";
+import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification, type NotificationPayload } from "./push-manager.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl } from "./email-engine.js";
-import { db, sermonsTable, devotionsTable, devotionSubscribersTable } from "@workspace/db";
+import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
 import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
 
@@ -209,6 +209,131 @@ function checkAndSendDevotionNotification(log: Logger): void {
     .catch(err => {
       log.warn({ err }, "Failed to query today's devotion for push notification (non-fatal)");
     });
+}
+
+// ─── Event Promotion Lifecycle Engine ────────────────────────────────────────
+// Per-minute scan that detects active promotions transitioning into their LIVE
+// window (start_at crossed) and dispatches a one-shot push broadcast + logs
+// the event to broadcast_events. push_sent_at acts as the lock so a transition
+// is announced exactly once even across server restarts.
+//
+// Time-tolerance: we fire when start_at is within the last 5 minutes (to absorb
+// short scheduler delays after a restart) and end_at is still in the future.
+
+const EVENT_LIVE_FIRE_TOLERANCE_MS = 5 * 60 * 1000;
+const EVENT_END_FIRE_TOLERANCE_MS = 5 * 60 * 1000;
+
+function buildEventLiveNotification(title: string, location: string | null, ctaUrl: string): NotificationPayload {
+  return {
+    title: `🔴 ${title} — Now Live`,
+    body: location ? `It's happening now — ${location}. Join us live.` : "It's happening now — join us live.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: ctaUrl,
+    tag: "event-live",
+    requireInteraction: true,
+    actions: [{ action: "open", title: "Join Now" }],
+    data: { type: "event_live", timestamp: new Date().toISOString() },
+  };
+}
+
+function buildEventStartingSoonNotification(title: string, minutesBefore: number, ctaUrl: string): NotificationPayload {
+  return {
+    title: `⏰ ${title} starts in ${minutesBefore} minutes`,
+    body: "Get ready — the event begins shortly.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: ctaUrl,
+    tag: "event-starting-soon",
+    data: { type: "event_starting_soon", minutesBefore, timestamp: new Date().toISOString() },
+  };
+}
+
+function checkEventPromotionTransitions(log: Logger): void {
+  const now = Date.now();
+  const tolStart = new Date(now - EVENT_LIVE_FIRE_TOLERANCE_MS);
+
+  db.select()
+    .from(eventPromotionsTable)
+    .where(
+      and(
+        eq(eventPromotionsTable.status, "active"),
+        isNull(eventPromotionsTable.pushSentAt),
+        // start_at crossed within the tolerance window AND end is still in the future
+      ),
+    )
+    .then(async (rows) => {
+      const ready = rows.filter(r =>
+        r.startAt.getTime() <= now &&
+        r.startAt.getTime() >= tolStart.getTime() - 60_000 && // include events whose start was up to ~6m ago
+        r.endAt.getTime() > now
+      );
+
+      // Also catch events that started further in the past but never fired
+      // (e.g. server was down at start time) — fire a one-shot late notification.
+      const lateButLive = rows.filter(r =>
+        r.startAt.getTime() < tolStart.getTime() - 60_000 &&
+        r.endAt.getTime() > now
+      );
+
+      for (const row of [...ready, ...lateButLive]) {
+        try {
+          const notif = buildEventLiveNotification(row.title, row.location, row.ctaUrl);
+          log.info({ slug: row.slug, title: row.title }, "Event promotion → LIVE — dispatching push + broadcast log");
+          await dispatchPushNotification(notif, log, "event_live");
+          await pool.query(
+            `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+            ["event_live", row.title, `${row.title} is now live`, row.ctaUrl],
+          );
+          await db
+            .update(eventPromotionsTable)
+            .set({ pushSentAt: new Date(), updatedAt: new Date() })
+            .where(eq(eventPromotionsTable.id, row.id));
+        } catch (err) {
+          log.warn({ err, slug: row.slug }, "Event promotion live transition failed");
+        }
+      }
+    })
+    .catch(err => log.warn({ err }, "Event promotion scan failed (non-fatal)"));
+
+  // ── Optional: 30-min "starting soon" reminder, fired once per event ────────
+  // Reuses pushSentAt's NULL state by NOT setting it — we use a separate window
+  // check: we only fire if start_at is between now+28min and now+32min.
+  // Idempotency comes from the broadcast_events table (we check for an existing
+  // row with the same title in the last 10 minutes).
+  db.select()
+    .from(eventPromotionsTable)
+    .where(eq(eventPromotionsTable.status, "active"))
+    .then(async (rows) => {
+      const upcoming = rows.filter(r => {
+        const ms = r.startAt.getTime() - now;
+        return ms >= 28 * 60 * 1000 && ms <= 32 * 60 * 1000;
+      });
+      for (const row of upcoming) {
+        try {
+          const recent = await pool.query<{ id: number }>(
+            `SELECT id FROM broadcast_events
+              WHERE type = 'event_starting_soon' AND title = $1
+                AND fired_at > NOW() - INTERVAL '20 minutes' LIMIT 1`,
+            [row.title],
+          );
+          if (recent.rowCount && recent.rowCount > 0) continue;
+          log.info({ slug: row.slug }, "Event promotion → 30-min reminder — dispatching");
+          await dispatchPushNotification(
+            buildEventStartingSoonNotification(row.title, 30, row.ctaUrl),
+            log,
+            "event_starting_soon",
+          );
+          await pool.query(
+            `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+            ["event_starting_soon", row.title, `${row.title} starts in 30 minutes`, row.ctaUrl],
+          );
+        } catch (err) {
+          log.warn({ err, slug: row.slug }, "Event 30-min reminder failed");
+        }
+      }
+    })
+    .catch(err => log.warn({ err }, "Event 30-min reminder scan failed (non-fatal)"));
 }
 
 // ─── Daily Devotion Email Broadcast ───────────────────────────────────────────
@@ -602,6 +727,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndSendServiceReminder(log);
       checkAndSendDevotionNotification(log);
       checkAndBroadcastDevotionEmail(log);
+      checkEventPromotionTransitions(log);
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");
     }

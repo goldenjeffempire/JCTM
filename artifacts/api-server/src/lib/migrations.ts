@@ -376,5 +376,34 @@ export async function runMigrations(): Promise<void> {
     ON devotion_subscribers (is_active) WHERE is_active = true
   `);
 
+  // ── Event Promotions (Time-driven event lifecycle engine) ───────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS event_promotions (
+      id serial PRIMARY KEY,
+      slug text NOT NULL UNIQUE,
+      title text NOT NULL,
+      subtitle text,
+      artwork_url text,
+      location text,
+      cta_text text NOT NULL DEFAULT 'Join Us',
+      cta_url text NOT NULL DEFAULT '/',
+      start_at timestamptz NOT NULL,
+      end_at timestamptz NOT NULL,
+      status text NOT NULL DEFAULT 'active',
+      show_banner boolean NOT NULL DEFAULT true,
+      show_popup boolean NOT NULL DEFAULT true,
+      show_sticky_bar boolean NOT NULL DEFAULT true,
+      push_sent_at timestamptz,
+      end_push_sent_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS event_promotions_active_window_idx
+    ON event_promotions (status, start_at, end_at)
+    WHERE status = 'active'
+  `);
+
   logger.info("All migrations complete");
 }

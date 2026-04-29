@@ -21,6 +21,8 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl, NetworkQualityBadge } from "@/components/DualStreamToggle";
 import { StreamPlayer } from "@/components/StreamPlayer";
 import { Layout } from "@/components/layout/Layout";
+import { EventBanner } from "@/components/event-promo/EventBanner";
+import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
@@ -4004,6 +4006,8 @@ export default function Home() {
       />
       <RebroadcastBanner />
       <HeroSection />
+      <EventBanner />
+      <EventPopupModal />
       <div className="container mx-auto px-4 py-4">
         <AdSlot slot={ADSENSE_SLOTS.homeHero} minHeight={120} className="mx-auto max-w-5xl" lazy={false} />
       </div>

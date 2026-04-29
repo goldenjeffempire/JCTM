@@ -20,6 +20,20 @@ The project is structured as a pnpm monorepo with distinct packages for frontend
 -   **API Types (`@workspace/api-zod`):** Shared Zod schemas for API validation.
 -   **API Hooks (`@workspace/api-client-react`):** TanStack Query wrappers for data fetching.
 
+**Event Promotion Engine (Time-Driven Lifecycle):**
+
+-   **DB Table:** `event_promotions` — schema in `lib/db/src/schema/eventPromotions.ts`. Stores slug, title, subtitle, artwork, location, CTA, `start_at`/`end_at`, channel toggles (`show_banner`, `show_popup`, `show_sticky_bar`), and a `push_sent_at` lock that guarantees the LIVE-transition push fires exactly once.
+-   **API Routes:** `artifacts/api-server/src/routes/eventPromotions.ts`
+    -   `GET /api/event-promotions/active` — public, returns the highest-priority active promotion with computed `phase` (upcoming|live|ended), `msUntilStart`/`msUntilEnd`, plus `serverTime` for client clock-skew correction. Cache: 15s s-maxage + SWR.
+    -   `GET|POST|PUT|DELETE /api/admin/event-promotions[/:id]` — protected by `requireAdminRole("livestream")`.
+-   **Backend Lifecycle:** `checkEventPromotionTransitions` in `artifacts/api-server/src/lib/cron.ts` runs every minute. Fires a "Now Live" web-push + logs to `broadcast_events` when an active promotion crosses its `start_at` (with `push_sent_at` as the idempotency lock). Also fires a one-shot 30-min "starting soon" reminder via `broadcast_events` de-dup.
+-   **Frontend Hook:** `useActiveEventPromotion` polls `/api/event-promotions/active` every 30s and re-derives `livePhase` + countdown every second on the client clock so the LIVE flip is precise.
+-   **Frontend Components** (`artifacts/jctm-platform/src/components/event-promo/`):
+    -   `EventStickyBar` — top-of-page minimal countdown bar mounted in `Layout`, dismissible per session, auto-resurrects on phase flip.
+    -   `EventBanner` — hero-grade card mounted on `Home` between `HeroSection` and the AdSlot. Royal-blue when upcoming, red glow + pulsing chip when live.
+    -   `EventPopupModal` — session-aware (sessionStorage) + 24h cooldown (localStorage) modal mounted on `Home`. Shows independent popups for the upcoming and live phases.
+    -   `EventLiveToast` — sonner toast fired exactly once when the client crosses the LIVE boundary (covers users on the site at the moment of transition; web-push covers users with the tab closed).
+
 **UI/UX and Design Patterns:**
 
 -   **Consistent Branding:** Adheres to JCTM's visual identity with a purple gradient theme and a focus on clean, accessible interfaces.
