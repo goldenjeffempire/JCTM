@@ -9,7 +9,6 @@ import { EventStickyBar } from "../event-promo/EventStickyBar";
 import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
 import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
-import { AdsBanner } from "../AdsBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,7 +17,6 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground overflow-x-hidden">
-      <AdsBanner />
       <EventStickyBar />
       <LiveBanner />
       <Navbar />
