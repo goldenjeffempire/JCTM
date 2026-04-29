@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { useCrusadeCountdown } from "@/hooks/useCrusadeCountdown";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
@@ -28,6 +29,38 @@ const CURRENCY_OPTIONS = [
 
 const QUICK_AMOUNTS_NGN = [1000, 2500, 5000, 10000, 25000, 50000];
 const QUICK_AMOUNTS_USD = [5, 10, 25, 50, 100, 250];
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function CrusadeGivingStrip({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const cd = useCrusadeCountdown();
+  if (cd.phase === "ended") return null;
+  const isLive = cd.phase === "live";
+
+  return (
+    <TouchableOpacity
+      style={[styles.crusadeStrip, { backgroundColor: isLive ? "#E53E3E" : "#1a2e5e" }]}
+      onPress={() => Linking.openURL(`${BASE}/crusade`)}
+      activeOpacity={0.88}
+    >
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={styles.crusadeStripTitle}>
+          {isLive ? "🔴 Warri Crusade is LIVE!" : "🔥 Support the Warri Crusade"}
+        </Text>
+        <Text style={styles.crusadeStripSub}>
+          {isLive
+            ? `Ends in ${pad2(cd.hours)}:${pad2(cd.minutes)}:${pad2(cd.seconds)} — Give Now`
+            : `Starts in ${cd.days > 0 ? `${cd.days}d ` : ""}${pad2(cd.hours)}:${pad2(cd.minutes)}:${pad2(cd.seconds)}`}
+        </Text>
+      </View>
+      <View style={[styles.crusadeStripBtn, { backgroundColor: "#F6C90E" }]}>
+        <Text style={styles.crusadeStripBtnText}>Give →</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function GiveScreen() {
   const colors = useColors();
@@ -58,6 +91,9 @@ export default function GiveScreen() {
             Support the Correction Mandate
           </Text>
         </View>
+
+        {/* Crusade urgency strip — only visible before / during the crusade */}
+        <CrusadeGivingStrip colors={colors} />
 
         {/* Scripture Banner */}
         <View style={[styles.scriptureBanner, { backgroundColor: colors.primary }]}>
@@ -221,6 +257,24 @@ export default function GiveScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { paddingBottom: 104 },
+  crusadeStrip: {
+    marginHorizontal: 20,
+    marginBottom: 14,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  crusadeStripTitle: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  crusadeStripSub: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
+  crusadeStripBtn: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  crusadeStripBtnText: { color: "#001533", fontWeight: "800", fontSize: 13 },
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: "800" },
   headerSub: { fontSize: 12, marginTop: 2 },

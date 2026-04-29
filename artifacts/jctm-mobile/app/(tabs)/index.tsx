@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGetFeaturedSermon, useGetLivestreamStatus } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useCrusadeCountdown } from "@/hooks/useCrusadeCountdown";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
@@ -188,6 +189,80 @@ const QUICK_ACTIONS = [
   { icon: "✨", label: "Stories", href: "/testimonies" },
 ];
 
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function CrusadeBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const cd = useCrusadeCountdown();
+  const isEnded = cd.phase === "ended";
+  const isLive  = cd.phase === "live";
+
+  const badgeText = isEnded ? "GLORY!" : isLive ? "LIVE" : "UPCOMING EVENT";
+  const badgeColor = isEnded ? "#10B981" : isLive ? "#E53E3E" : "#F6C90E";
+
+  return (
+    <TouchableOpacity
+      style={styles.crusadeBanner}
+      onPress={() => Linking.openURL(`${BASE}/crusade`)}
+      activeOpacity={0.88}
+    >
+      <Image
+        source={{ uri: `${BASE}/warri-crusade-flyer2.jpeg` }}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      />
+      <View style={styles.crusadeOverlay} />
+      <View style={styles.crusadeContent}>
+        <Text style={[styles.crusadeBadge, { color: badgeColor }]}>{badgeText}</Text>
+        <Text style={styles.crusadeTitle}>Warri City Crusade 2026</Text>
+        <Text style={styles.crusadeSub}>Apr 30 – May 1 • Warri, Delta State</Text>
+
+        {/* Live countdown clock */}
+        {!isEnded && (
+          <View style={styles.countdownRow}>
+            {isLive ? (
+              <View style={styles.countdownLiveWrap}>
+                <View style={[styles.countdownLiveDot, { backgroundColor: "#E53E3E" }]} />
+                <Text style={styles.countdownLiveText}>
+                  Ends in {pad(cd.hours)}:{pad(cd.minutes)}:{pad(cd.seconds)}
+                </Text>
+              </View>
+            ) : (
+              <>
+                {cd.days > 0 && (
+                  <View style={styles.countdownUnit}>
+                    <Text style={styles.countdownNum}>{pad(cd.days)}</Text>
+                    <Text style={styles.countdownLabel}>DAYS</Text>
+                  </View>
+                )}
+                <View style={styles.countdownUnit}>
+                  <Text style={styles.countdownNum}>{pad(cd.hours)}</Text>
+                  <Text style={styles.countdownLabel}>HRS</Text>
+                </View>
+                <View style={styles.countdownUnit}>
+                  <Text style={styles.countdownNum}>{pad(cd.minutes)}</Text>
+                  <Text style={styles.countdownLabel}>MIN</Text>
+                </View>
+                <View style={styles.countdownUnit}>
+                  <Text style={styles.countdownNum}>{pad(cd.seconds)}</Text>
+                  <Text style={styles.countdownLabel}>SEC</Text>
+                </View>
+              </>
+            )}
+          </View>
+        )}
+
+        <View style={[styles.crusadeRegBtn, { backgroundColor: isLive ? "#E53E3E" : "#F6C90E" }]}>
+          <Text style={styles.crusadeRegText}>
+            {isEnded ? "Watch Replay →" : isLive ? "Watch Live →" : "Register Free →"}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function HomeScreen() {
   const colors = useColors();
   const [refreshing, setRefreshing] = useState(false);
@@ -242,28 +317,7 @@ export default function HomeScreen() {
 
         <FeaturedCard colors={colors} />
         <DevotionCard colors={colors} />
-
-        {/* Crusade Banner */}
-        <TouchableOpacity
-          style={styles.crusadeBanner}
-          onPress={() => Linking.openURL(`${BASE}/crusade`)}
-          activeOpacity={0.88}
-        >
-          <Image
-            source={{ uri: `${BASE}/warri-crusade-flyer2.jpeg` }}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="cover"
-          />
-          <View style={styles.crusadeOverlay} />
-          <View style={styles.crusadeContent}>
-            <Text style={styles.crusadeBadge}>UPCOMING EVENT</Text>
-            <Text style={styles.crusadeTitle}>Warri City Crusade 2026</Text>
-            <Text style={styles.crusadeSub}>Apr 30 – May 1 • Warri, Delta State</Text>
-            <View style={[styles.crusadeRegBtn, { backgroundColor: "#F6C90E" }]}>
-              <Text style={styles.crusadeRegText}>Register Free →</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+        <CrusadeBanner colors={colors} />
 
         <TouchableOpacity
           style={styles.webLink}
@@ -397,23 +451,42 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 16,
     borderRadius: 16,
-    height: 190,
+    height: 220,
     overflow: "hidden",
   },
   crusadeOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,15,50,0.62)",
+    backgroundColor: "rgba(0,15,50,0.68)",
   },
   crusadeContent: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
     padding: 16,
-    gap: 3,
+    gap: 4,
   },
-  crusadeBadge: { color: "#F6C90E", fontSize: 9, fontWeight: "800", letterSpacing: 1.4 },
+  crusadeBadge: { fontSize: 9, fontWeight: "800", letterSpacing: 1.4 },
   crusadeTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
   crusadeSub: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
-  crusadeRegBtn: { marginTop: 8, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start" },
+  countdownRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginVertical: 6,
+    alignItems: "center",
+  },
+  countdownUnit: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    minWidth: 44,
+  },
+  countdownNum: { color: "#fff", fontSize: 20, fontWeight: "900", letterSpacing: 0.5 },
+  countdownLabel: { color: "rgba(255,255,255,0.6)", fontSize: 8, fontWeight: "700", letterSpacing: 1 },
+  countdownLiveWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+  countdownLiveDot: { width: 8, height: 8, borderRadius: 4 },
+  countdownLiveText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  crusadeRegBtn: { marginTop: 4, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, alignSelf: "flex-start" },
   crusadeRegText: { color: "#001533", fontWeight: "800", fontSize: 13 },
   webLink: { alignItems: "center", paddingVertical: 16 },
   webLinkText: { fontSize: 12 },
