@@ -20,7 +20,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Radio, X, Tv, ChevronRight } from "lucide-react";
+import { Radio, X, Tv, ChevronRight, Clock } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { getOrCreateVisitorId } from "@/lib/visitorId";
 
@@ -208,30 +208,44 @@ export function BroadcastEngagementSystem() {
       };
 
       const isLiveMsg = broadcastType === "live" || broadcastType === "live_service";
+      const isReminder = broadcastType === "event_reminder";
+
+      // Notify the rest of the app (banners, sticky bar, hero) so they can
+      // pulse / refresh when a recurring reminder lands. Banner & sticky-bar
+      // listen for this custom event and apply a 3-second pulse animation.
+      if (isReminder) {
+        try {
+          window.dispatchEvent(new CustomEvent("jctm:event-reminder", {
+            detail: { title, body, url },
+          }));
+        } catch { /* CustomEvent unavailable — ignore */ }
+      }
+
+      const palette = isLiveMsg
+        ? { border: "rgba(239,68,68,0.3)", bgIcon: "bg-red-500/20", iconText: "text-red-400", label: "Live Now", labelText: "text-red-400", pill: "bg-red-500", icon: <Radio className="h-4 w-4 animate-pulse text-red-400" />, cta: "Watch" }
+        : isReminder
+          ? { border: "rgba(250,204,21,0.35)", bgIcon: "bg-yellow-400/20", iconText: "text-yellow-300", label: "Coming Soon", labelText: "text-yellow-300", pill: "bg-yellow-500", icon: <Clock className="h-4 w-4 text-yellow-300" />, cta: "Details" }
+          : { border: "rgba(99,102,241,0.3)", bgIcon: "bg-indigo-500/20", iconText: "text-indigo-400", label: "Rebroadcast", labelText: "text-indigo-400", pill: "bg-indigo-500", icon: <Tv className="h-4 w-4 text-indigo-400" />, cta: "Watch" };
 
       toast.custom(
         (id) => (
           <div
             className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/90 px-4 py-3 shadow-2xl backdrop-blur-xl cursor-pointer"
-            style={{ borderColor: isLiveMsg ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.3)" }}
+            style={{ borderColor: palette.border }}
             onClick={() => {
               toast.dismiss(id);
               window.location.href = `${BASE}${url}`;
             }}
           >
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isLiveMsg ? "bg-red-500/20" : "bg-indigo-500/20"}`}>
-              {isLiveMsg
-                ? <Radio className="h-4 w-4 animate-pulse text-red-400" />
-                : <Tv className="h-4 w-4 text-indigo-400" />}
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${palette.bgIcon}`}>
+              {palette.icon}
             </div>
             <div className="min-w-0">
-              <p className={`text-xs font-bold uppercase tracking-wider ${isLiveMsg ? "text-red-400" : "text-indigo-400"}`}>
-                {isLiveMsg ? "Live Now" : "Rebroadcast"}
-              </p>
+              <p className={`text-xs font-bold uppercase tracking-wider ${palette.labelText}`}>{palette.label}</p>
               <p className="truncate text-sm font-semibold text-white">{title}</p>
               {body && <p className="truncate text-xs text-white/50">{body}</p>}
             </div>
-            <span className={`ml-auto shrink-0 rounded-full px-3 py-1 text-xs font-bold text-white ${isLiveMsg ? "bg-red-500" : "bg-indigo-500"}`}>Watch</span>
+            <span className={`ml-auto shrink-0 rounded-full px-3 py-1 text-xs font-bold text-white ${palette.pill}`}>{palette.cta}</span>
           </div>
         ),
         { duration: 15000, position: "top-center" }

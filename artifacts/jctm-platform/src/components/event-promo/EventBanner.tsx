@@ -10,7 +10,7 @@
  * pre-event window AND the live window, then disappear silently afterward.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, MapPin, Radio, ArrowRight, Clock, X } from "lucide-react";
@@ -25,6 +25,21 @@ export function EventBanner({ className = "" }: Props) {
   // Per-session-view dismissal: state-only, no storage. Resets on every page
   // refresh so the banner always reappears, exactly as designed.
   const [dismissed, setDismissed] = useState(false);
+  // Pulse glow when a recurring 6-hour reminder lands while the user is here.
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    const onReminder = () => {
+      // Reveal the banner again so the just-fired reminder is unmissable, and
+      // glow for a few seconds so the user notices the refreshed call-out.
+      setDismissed(false);
+      setPulse(true);
+      const t = window.setTimeout(() => setPulse(false), 4000);
+      return () => window.clearTimeout(t);
+    };
+    window.addEventListener("jctm:event-reminder", onReminder as EventListener);
+    return () => window.removeEventListener("jctm:event-reminder", onReminder as EventListener);
+  }, []);
 
   if (!promotion) return null;
   if (!promotion.showBanner) return null;
@@ -56,10 +71,13 @@ export function EventBanner({ className = "" }: Props) {
             exit={{ opacity: 0, y: -10, height: 0, marginTop: 0, paddingTop: 0 }}
             transition={{ type: "spring", stiffness: 90, damping: 20 }}
             className={
-              "relative overflow-hidden rounded-3xl border shadow-2xl " +
+              "relative overflow-hidden rounded-3xl border shadow-2xl transition-shadow duration-500 " +
               (isLive
                 ? "border-red-500/40 ring-1 ring-red-500/40"
-                : "border-yellow-400/30")
+                : "border-yellow-400/30") +
+              (pulse
+                ? " ring-4 ring-yellow-300/60 animate-pulse"
+                : "")
             }
             style={{
               background: isLive

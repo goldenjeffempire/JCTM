@@ -249,6 +249,109 @@ function buildEventStartingSoonNotification(title: string, minutesBefore: number
   };
 }
 
+// ─── Recurring 6-hour Event Reminder ─────────────────────────────────────────
+// Fires across all enabled channels (push, in-app toast via SW relay,
+// banner/sticky pulse via SSE broadcast_events row) at every 6-hour boundary
+// before an upcoming event's start_at. Capped at 168 h (7 days) to avoid
+// spamming users for far-future events. Per-boundary idempotency comes from
+// an exact-match check against broadcast_events (type + title + message).
+
+const REMINDER_BOUNDARIES_HOURS = [
+  168, 144, 120, 96, 72, 60, 48, 42, 36, 30, 24, 18, 12, 6,
+];
+// Catch-up window: fire a missed boundary if we're within this many hours of
+// it (covers brief outages without resurrecting day-old reminders).
+const REMINDER_CATCHUP_MS = 6 * 60 * 60 * 1000;
+
+function humaniseHours(hours: number): string {
+  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+  if (hours === 24) return "in 24 hours";
+  const days = Math.round(hours / 24);
+  return `in ${days} day${days === 1 ? "" : "s"}`;
+}
+
+function buildEventReminderNotification(
+  title: string,
+  hoursBefore: number,
+  location: string | null,
+  ctaUrl: string,
+): NotificationPayload {
+  const when = humaniseHours(hoursBefore);
+  return {
+    title: `⏰ ${title} starts ${when}`,
+    body: location
+      ? `Get ready — ${location}. Mark your calendar and prepare your heart.`
+      : "Mark your calendar and prepare your heart — the event is approaching.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: ctaUrl,
+    tag: `event-reminder-${hoursBefore}h`,
+    data: {
+      type: "event_reminder",
+      broadcastType: "event_reminder",
+      hoursBefore,
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+function checkAndSendEventReminders(log: Logger): void {
+  const now = Date.now();
+
+  db.select()
+    .from(eventPromotionsTable)
+    .where(eq(eventPromotionsTable.status, "active"))
+    .then(async (rows) => {
+      for (const row of rows) {
+        const startMs = row.startAt.getTime();
+        // Stop scheduling once event begins
+        if (startMs <= now) continue;
+        // Skip events more than 7 days out — no boundary could possibly fire
+        if (startMs - now > 168 * 60 * 60 * 1000 + 60_000) continue;
+
+        for (const hours of REMINDER_BOUNDARIES_HOURS) {
+          const boundaryMs = startMs - hours * 60 * 60 * 1000;
+          if (now < boundaryMs) continue;                         // not yet
+          if (now - boundaryMs > REMINDER_CATCHUP_MS) continue;   // too stale
+
+          const dedupMessage = `${row.title} starts ${humaniseHours(hours)}`;
+          try {
+            const recent = await pool.query<{ id: number }>(
+              `SELECT id FROM broadcast_events
+                WHERE type = 'event_reminder' AND title = $1 AND message = $2
+                LIMIT 1`,
+              [row.title, dedupMessage],
+            );
+            if (recent.rowCount && recent.rowCount > 0) continue;
+
+            log.info(
+              { slug: row.slug, hoursBefore: hours },
+              "Event promotion → recurring reminder — dispatching push + broadcast",
+            );
+            await dispatchPushNotification(
+              buildEventReminderNotification(row.title, hours, row.location, row.ctaUrl),
+              log,
+              "event_reminder",
+            );
+            await pool.query(
+              `INSERT INTO broadcast_events (type, title, message, url)
+               VALUES ($1, $2, $3, $4)`,
+              ["event_reminder", row.title, dedupMessage, row.ctaUrl],
+            );
+          } catch (err) {
+            log.warn(
+              { err, slug: row.slug, hours },
+              "Event recurring reminder failed (non-fatal)",
+            );
+          }
+        }
+      }
+    })
+    .catch((err) =>
+      log.warn({ err }, "Event recurring reminder scan failed (non-fatal)"),
+    );
+}
+
 function checkEventPromotionTransitions(log: Logger): void {
   const now = Date.now();
   const tolStart = new Date(now - EVENT_LIVE_FIRE_TOLERANCE_MS);
@@ -728,6 +831,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndSendDevotionNotification(log);
       checkAndBroadcastDevotionEmail(log);
       checkEventPromotionTransitions(log);
+      checkAndSendEventReminders(log);
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");
     }
