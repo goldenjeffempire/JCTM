@@ -21,6 +21,7 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl, NetworkQualityBadge } from "@/components/DualStreamToggle";
 import { StreamPlayer } from "@/components/StreamPlayer";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
+import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
@@ -2747,15 +2748,25 @@ function WarriCrusadeSection() {
                     Live
                   </div>
                 )}
-                <YouTubeEmbed
-                  videoId={isLive ? LIVE_STREAM_VIDEO_ID : CRUSADE_YT}
-                  title={isLive ? "Warri City Crusade 2026 — Live Broadcast" : "Warri City Crusade 2026 Promo"}
-                  mode="eager"
-                  autoplay={true}
-                  loop={!isLive}
-                  audioOnly={!isLive}
-                  analyticsPage="/"
-                />
+                {isLive ? (
+                  <YouTubeEmbed
+                    videoId={LIVE_STREAM_VIDEO_ID}
+                    title="Warri City Crusade 2026 — Live Broadcast"
+                    mode="eager"
+                    autoplay={true}
+                    analyticsPage="/"
+                  />
+                ) : (
+                  <MutedVideoPlayer
+                    videoId={CRUSADE_YT}
+                    title="Warri City Crusade 2026 Promo"
+                    mode="eager"
+                    autoplay={true}
+                    loop={true}
+                    audioOnly={true}
+                    analyticsPage="/"
+                  />
+                )}
               </div>
 
               {/* CTAs */}
@@ -3019,7 +3030,7 @@ function MinisterConferenceSection() {
 
               {/* Ministers Conference promo — eager autoplay loop */}
               <div className="rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(168,85,247,0.25)" }}>
-                <YouTubeEmbed
+                <MutedVideoPlayer
                   videoId={MCONF_YT}
                   title="Ministers Conference 2026"
                   mode="eager"

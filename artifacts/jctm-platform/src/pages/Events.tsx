@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
+import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
@@ -956,7 +957,7 @@ export default function Events() {
                   <Youtube className="h-3.5 w-3.5" /> YouTube
                 </a>
               </div>
-              <YouTubeEmbed
+              <MutedVideoPlayer
                 videoId={CRUSADE_VIDEO_ID}
                 title="Warri City Crusade 2026 — Official Promo Video"
                 mode="eager"
@@ -983,7 +984,7 @@ export default function Events() {
                   <Youtube className="h-3.5 w-3.5" /> YouTube
                 </a>
               </div>
-              <YouTubeEmbed
+              <MutedVideoPlayer
                 videoId={MINISTER_CONF_VIDEO_ID}
                 title="Ministers Conference 2026 — Official Promo Video"
                 mode="eager"
