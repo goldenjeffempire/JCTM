@@ -913,6 +913,17 @@ function PushNotificationsCard() {
     refetchInterval: auth.adminToken ? 30_000 : false,
   });
 
+  const { data: expoStats, refetch: refetchExpo } = useQuery<{
+    tokens: { total: number; breakdown: { platform: string; count: string }[] };
+    receipts: { last7Days: Record<string, number>; deliveryRate: number | null };
+  }>({
+    queryKey: ["expo-stats"],
+    queryFn: () => fetch(`${BASE}/api/push/expo-stats`).then(r => r.json()),
+    refetchInterval: 30_000,
+  });
+
+  const [expoSending, setExpoSending] = useState(false);
+
   const chartData = (growthData?.growth ?? [])
     .slice(-range)
     .map(r => ({
@@ -949,6 +960,31 @@ function PushNotificationsCard() {
       toast.error("Network error — could not send alert");
     } finally {
       setSending(null);
+    }
+  };
+
+  const sendExpoTest = async () => {
+    setExpoSending(true);
+    try {
+      const res = await fetch(`${BASE}/api/push/expo-test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.sent === 0) {
+          toast.info(data.message ?? "No active Expo devices registered yet");
+        } else {
+          toast.success(`Test push sent to ${data.sent} mobile device${data.sent !== 1 ? "s" : ""}`);
+        }
+        refetchExpo();
+      } else {
+        toast.error(data.error ?? "Failed to send Expo test push");
+      }
+    } catch {
+      toast.error("Network error — could not send test push");
+    } finally {
+      setExpoSending(false);
     }
   };
 
@@ -1078,6 +1114,63 @@ function PushNotificationsCard() {
             >
               {sending === "custom" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Broadcast to All Subscribers
+            </button>
+          </div>
+
+          {/* ── Expo Mobile Push ────────────────────────────────────────── */}
+          <div className="pt-1">
+            <div className="flex items-center gap-2 mb-3">
+              <Smartphone className="w-3.5 h-3.5 text-blue-400" />
+              <p className="text-xs font-semibold text-blue-400">Expo Mobile Push</p>
+            </div>
+
+            {/* Stats chips */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-blue-400">{expoStats?.tokens.total ?? "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Active Devices</p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-center">
+                {expoStats?.receipts.deliveryRate != null ? (
+                  <p className={`text-lg font-bold ${expoStats.receipts.deliveryRate >= 90 ? "text-emerald-400" : expoStats.receipts.deliveryRate >= 70 ? "text-amber-400" : "text-red-400"}`}>
+                    {expoStats.receipts.deliveryRate}%
+                  </p>
+                ) : (
+                  <p className="text-lg font-bold text-muted-foreground">—</p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">7d Delivery</p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-muted-foreground">
+                  {expoStats?.receipts.last7Days.pending ?? "—"}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Pending</p>
+              </div>
+            </div>
+
+            {/* Platform breakdown */}
+            {(expoStats?.tokens.breakdown ?? []).length > 0 && (
+              <div className="flex gap-2 mb-3 flex-wrap">
+                {(expoStats!.tokens.breakdown).map(row => (
+                  <span
+                    key={row.platform}
+                    className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-[11px] font-semibold text-blue-400"
+                  >
+                    {row.platform === "ios" ? "🍎" : row.platform === "android" ? "🤖" : "📱"}
+                    {row.platform} · {row.count}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Send test push button */}
+            <button
+              onClick={sendExpoTest}
+              disabled={expoSending}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 py-2.5 text-sm font-semibold text-blue-400 transition-colors hover:bg-blue-500/20 disabled:opacity-50 cursor-pointer"
+            >
+              {expoSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Signal className="w-4 h-4" />}
+              Send Test Push to All Devices
             </button>
           </div>
 

@@ -365,4 +365,79 @@ router.post("/push/broadcast", requireAdminRole("livestream"), async (req, res):
   res.json({ success: true, subscribers, ...result });
 });
 
+// ─── POST /push/expo-test — Admin: send a test push to all active Expo devices ─
+
+router.post("/push/expo-test", requireAdminRole("livestream"), async (req, res): Promise<void> => {
+  try {
+    const { title = "JCTM Mobile — Test Notification", body = "Your push notifications are working correctly." } =
+      req.body as { title?: string; body?: string };
+
+    // Fetch active tokens
+    const tokensResult = await pool.query<{ token: string }>(
+      `SELECT token FROM expo_push_tokens WHERE is_active = true ORDER BY created_at DESC LIMIT 1000`,
+    );
+
+    if (tokensResult.rows.length === 0) {
+      res.json({ success: true, sent: 0, message: "No active Expo devices registered" });
+      return;
+    }
+
+    // Send via Expo Push API (batch of up to 100)
+    const CHUNK = 100;
+    let sent = 0;
+    let failed = 0;
+
+    for (let i = 0; i < tokensResult.rows.length; i += CHUNK) {
+      const chunk = tokensResult.rows.slice(i, i + CHUNK);
+      const messages = chunk.map(({ token }) => ({
+        to: token,
+        title: title.trim(),
+        body: body.trim(),
+        sound: "default",
+        priority: "high",
+        data: { type: "admin_test", timestamp: new Date().toISOString() },
+      }));
+
+      try {
+        const expoRes = await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(messages),
+        });
+        if (expoRes.ok) {
+          const json = await expoRes.json() as { data?: Array<{ status: string; id?: string }> };
+          const ticketRows: Array<[string, string, string]> = [];
+          json.data?.forEach((ticket, idx) => {
+            if (ticket.status === "ok" && ticket.id) {
+              sent++;
+              ticketRows.push([ticket.id, chunk[idx]!.token, title.trim()]);
+            } else {
+              failed++;
+            }
+          });
+          if (ticketRows.length > 0) {
+            const placeholders = ticketRows
+              .map((_, ri) => `($${ri * 3 + 1}, $${ri * 3 + 2}, $${ri * 3 + 3})`)
+              .join(", ");
+            await pool.query(
+              `INSERT INTO expo_push_receipts (ticket_id, token, title) VALUES ${placeholders} ON CONFLICT (ticket_id) DO NOTHING`,
+              ticketRows.flat(),
+            );
+          }
+        } else {
+          failed += chunk.length;
+        }
+      } catch {
+        failed += chunk.length;
+      }
+    }
+
+    req.log.info({ sent, failed, title }, "Expo test push dispatched by admin");
+    res.json({ success: true, sent, failed, total: tokensResult.rows.length });
+  } catch (err) {
+    req.log.error({ err }, "Expo test push failed");
+    res.status(500).json({ error: "Failed to send Expo test push" });
+  }
+});
+
 export default router;
