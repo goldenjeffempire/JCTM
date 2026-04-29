@@ -959,7 +959,10 @@ export default function Events() {
               <YouTubeEmbed
                 videoId={CRUSADE_VIDEO_ID}
                 title="Warri City Crusade 2026 — Official Promo Video"
-                mode="facade"
+                mode="eager"
+                autoplay={true}
+                loop={true}
+                audioOnly={true}
                 analyticsPage="/events"
               />
             </div>
@@ -983,7 +986,10 @@ export default function Events() {
               <YouTubeEmbed
                 videoId={MINISTER_CONF_VIDEO_ID}
                 title="Ministers Conference 2026 — Official Promo Video"
-                mode="facade"
+                mode="eager"
+                autoplay={true}
+                loop={true}
+                audioOnly={true}
                 analyticsPage="/events"
               />
             </div>
