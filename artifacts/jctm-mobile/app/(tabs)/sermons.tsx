@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useListSermons, useGetLivestreamStatus } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useCrusadeCountdown } from "@/hooks/useCrusadeCountdown";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
@@ -111,6 +112,37 @@ function SermonRow({ sermon, colors }: { sermon: Sermon; colors: ReturnType<type
   );
 }
 
+function pad2s(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function CrusadeSermonStrip({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const cd = useCrusadeCountdown();
+  if (cd.phase === "ended") return null;
+  const isLive = cd.phase === "live";
+
+  return (
+    <TouchableOpacity
+      style={[styles.crusadeStrip, { backgroundColor: isLive ? "#E53E3E" : "#1a2e5e" }]}
+      onPress={() => Linking.openURL(`${BASE}/crusade`)}
+      activeOpacity={0.88}
+    >
+      <Text style={styles.crusadeStripEmoji}>{isLive ? "🔴" : "🔥"}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.crusadeStripTitle} numberOfLines={1}>
+          {isLive ? "Warri Crusade is LIVE — Watch Now" : "Warri City Crusade 2026"}
+        </Text>
+        <Text style={styles.crusadeStripSub}>
+          {isLive
+            ? `Ends in ${pad2s(cd.hours)}:${pad2s(cd.minutes)}:${pad2s(cd.seconds)}`
+            : `Starts in ${cd.days > 0 ? `${cd.days}d ` : ""}${pad2s(cd.hours)}:${pad2s(cd.minutes)}:${pad2s(cd.seconds)}`}
+        </Text>
+      </View>
+      <Text style={styles.crusadeStripArrow}>›</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function SermonsScreen() {
   const colors = useColors();
   const [search, setSearch] = useState("");
@@ -144,6 +176,8 @@ export default function SermonsScreen() {
           {total > 0 ? `${total} teachings` : "Temple TV Library"}
         </Text>
       </View>
+
+      <CrusadeSermonStrip colors={colors} />
 
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
@@ -245,6 +279,21 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 24, fontWeight: "800" },
   headerSub: { fontSize: 12, marginTop: 2 },
+  crusadeStrip: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 2,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  crusadeStripEmoji: { fontSize: 18 },
+  crusadeStripTitle: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  crusadeStripSub:   { color: "rgba(255,255,255,0.75)", fontSize: 11 },
+  crusadeStripArrow: { color: "#fff", fontSize: 22, fontWeight: "300" },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",

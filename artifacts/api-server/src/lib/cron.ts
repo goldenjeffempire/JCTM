@@ -69,6 +69,92 @@ const WARRI_CRUSADE_MESSAGES = [
   "🔥 The fire of revival is burning in Warri! Join us right now!",
 ] as const;
 
+// ── Expo Push Notification Dispatcher ────────────────────────────────────────
+// Sends push notifications to mobile devices registered via expo-notifications.
+// Uses the Expo Push API (https://exp.host/--/api/v2/push/send) — no SDK needed.
+// Batched in chunks of 100 as per Expo's recommendations.
+
+interface ExpoPushMessage {
+  to: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  sound?: "default" | null;
+  badge?: number;
+  priority?: "default" | "normal" | "high";
+}
+
+async function dispatchExpoPush(
+  title: string,
+  body: string,
+  data: Record<string, unknown>,
+  log: Logger,
+): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+  try {
+    const result = await pool.query<{ token: string }>(
+      `SELECT token FROM expo_push_tokens WHERE is_active = true ORDER BY created_at DESC LIMIT 1000`,
+    );
+    if (result.rows.length === 0) return { sent: 0, failed: 0 };
+
+    // Chunk into batches of 100
+    const CHUNK = 100;
+    for (let i = 0; i < result.rows.length; i += CHUNK) {
+      const chunk = result.rows.slice(i, i + CHUNK);
+      const messages: ExpoPushMessage[] = chunk.map(({ token }) => ({
+        to: token,
+        title,
+        body,
+        data,
+        sound: "default",
+        priority: "high",
+      }));
+
+      try {
+        const res = await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+          },
+          body: JSON.stringify(messages),
+        });
+        if (res.ok) {
+          const json = await res.json() as { data?: Array<{ status: string; details?: { error?: string } }> };
+          const invalid: string[] = [];
+          json.data?.forEach((ticket, idx) => {
+            if (ticket.status === "ok") {
+              sent++;
+            } else {
+              failed++;
+              // Deactivate permanently invalid tokens
+              const errCode = ticket.details?.error;
+              if (errCode === "DeviceNotRegistered") {
+                invalid.push(chunk[idx]!.token);
+              }
+            }
+          });
+          if (invalid.length > 0) {
+            await pool.query(
+              `UPDATE expo_push_tokens SET is_active = false, updated_at = now() WHERE token = ANY($1)`,
+              [invalid],
+            );
+          }
+        } else {
+          failed += chunk.length;
+        }
+      } catch {
+        failed += chunk.length;
+      }
+    }
+  } catch (err) {
+    log.warn({ err }, "Expo push dispatch error");
+  }
+  return { sent, failed };
+}
+
 // ─── State exports (for health endpoint) ──────────────────────────────────────
 
 export function isQuotaPaused(): boolean {
@@ -711,9 +797,22 @@ async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
 
     const notif = buildWarriCrusadeNotification(bucket);
     const result = await dispatchPushNotification(notif, log, "warri_crusade_promo");
+
+    // Also dispatch to Expo (mobile) push tokens
+    const expoResult = await dispatchExpoPush(
+      notif.title,
+      notif.body,
+      { url: notif.url, type: "warri_crusade_promo" },
+      log,
+    );
+
     log.info(
-      { bucket, sent: result.sent, failed: result.failed, deactivated: result.deactivated },
-      "Warri Crusade hourly broadcast complete",
+      {
+        bucket,
+        web: { sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+        expo: expoResult,
+      },
+      "Warri Crusade hourly broadcast complete (web + expo)",
     );
   } catch (err) {
     log.warn({ err, bucket }, "Warri Crusade hourly broadcast failed (non-fatal)");

@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useGetFeaturedSermon, useGetLivestreamStatus } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useCrusadeCountdown } from "@/hooks/useCrusadeCountdown";
+import { PushPermissionPrompt } from "@/components/PushPermissionPrompt";
 
 const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
 const BASE = DOMAIN ? `https://${DOMAIN}` : "";
@@ -299,6 +300,7 @@ export default function HomeScreen() {
         </View>
 
         <LiveBanner colors={colors} />
+        <PushPermissionPrompt />
 
         {/* Quick Actions */}
         <View style={styles.quickRow}>

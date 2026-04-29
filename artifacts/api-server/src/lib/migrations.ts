@@ -542,5 +542,24 @@ export async function runMigrations(): Promise<void> {
     ON sermon_pin_audit (created_at DESC)
   `);
 
+  // ── Expo Mobile Push Tokens ─────────────────────────────────────────────────
+  // Separate from push_subscriptions (WebPush/VAPID) because Expo tokens use
+  // the Expo Push API, not the Web Push Protocol.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS expo_push_tokens (
+      id          bigserial   PRIMARY KEY,
+      token       text        NOT NULL UNIQUE,
+      platform    text        NOT NULL DEFAULT 'unknown',
+      device_id   text,
+      is_active   boolean     NOT NULL DEFAULT true,
+      created_at  timestamptz NOT NULL DEFAULT now(),
+      updated_at  timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS expo_push_tokens_active_idx
+    ON expo_push_tokens (is_active) WHERE is_active = true
+  `);
+
   logger.info("All migrations complete");
 }

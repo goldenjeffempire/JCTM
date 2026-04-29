@@ -240,6 +240,84 @@ router.post("/push/upcoming-service", requireAdminRole("livestream"), async (req
   res.json({ success: true, subscribers, ...result });
 });
 
+// ─── POST /push/expo-register — Store an Expo Push Token from a mobile device ─
+// Tokens look like: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+// Uses the Expo Push API (not WebPush/VAPID) so a separate table is used.
+
+router.post("/push/expo-register", async (req, res): Promise<void> => {
+  const { token, platform, deviceId } = req.body as {
+    token?: string;
+    platform?: string;
+    deviceId?: string;
+  };
+
+  if (!token || typeof token !== "string" || !token.startsWith("ExponentPushToken[")) {
+    res.status(400).json({ error: "A valid Expo push token is required" });
+    return;
+  }
+
+  const safeToken    = token.trim().slice(0, 200);
+  const safePlatform = (platform ?? "unknown").slice(0, 20);
+  const safeDevice   = (deviceId ?? null)?.slice(0, 100) ?? null;
+
+  try {
+    await pool.query(
+      `INSERT INTO expo_push_tokens (token, platform, device_id, is_active, updated_at)
+       VALUES ($1, $2, $3, true, now())
+       ON CONFLICT (token) DO UPDATE
+         SET is_active  = true,
+             platform   = EXCLUDED.platform,
+             device_id  = COALESCE(EXCLUDED.device_id, expo_push_tokens.device_id),
+             updated_at = now()`,
+      [safeToken, safePlatform, safeDevice]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Registered for crusade and service alerts",
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to store Expo push token");
+    res.status(500).json({ error: "Failed to register for notifications" });
+  }
+});
+
+// ─── DELETE /push/expo-unregister — Opt a device out ─────────────────────────
+
+router.delete("/push/expo-unregister", async (req, res): Promise<void> => {
+  const { token } = req.body as { token?: string };
+  if (!token) {
+    res.status(400).json({ error: "token required" });
+    return;
+  }
+  try {
+    await pool.query(
+      `UPDATE expo_push_tokens SET is_active = false, updated_at = now() WHERE token = $1`,
+      [token.trim().slice(0, 200)]
+    );
+    res.json({ success: true, message: "Unregistered from notifications" });
+  } catch (err) {
+    req.log.error({ err }, "Failed to deregister Expo push token");
+    res.status(500).json({ error: "Failed to unregister" });
+  }
+});
+
+// ─── GET /push/expo-stats — Count of active Expo devices ─────────────────────
+
+router.get("/push/expo-stats", async (_req, res): Promise<void> => {
+  try {
+    const result = await pool.query<{ platform: string; count: string }>(
+      `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::text AS count
+       FROM expo_push_tokens WHERE is_active = true
+       GROUP BY 1 ORDER BY 2 DESC`
+    );
+    const total = result.rows.reduce((s, r) => s + parseInt(r.count, 10), 0);
+    res.json({ total, breakdown: result.rows });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch Expo push stats" });
+  }
+});
+
 // ─── POST /push/broadcast — Admin: send a custom push to all subscribers ──────
 
 router.post("/push/broadcast", requireAdminRole("livestream"), async (req, res): Promise<void> => {
