@@ -17,14 +17,35 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+function isIosSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+  const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+  return isIos && isSafari;
+}
+
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
+  // iOS Safari: navigator.standalone is non-standard
+  return Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+}
+
 export function PushNotificationPrompt() {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
     if (Notification.permission !== "default") return;
     if (safeSessionGet(STORAGE_KEY)) return;
+
+    // iOS Safari only supports web push when the site has been added to the
+    // Home Screen and launched in standalone mode. Avoid prompting in plain
+    // Safari — the InstallAppPrompt will guide them to install first.
+    if (isIosSafari() && !isStandalone()) return;
 
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
@@ -51,20 +72,57 @@ export function PushNotificationPrompt() {
     if (loading) return;
     setLoading(true);
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        toast.error("Notification permission denied");
+      // 1. Capability checks with specific guidance
+      if (!("Notification" in window)) {
+        toast.error("This browser doesn't support web notifications.");
+        dismiss();
+        return;
+      }
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        toast.error("Push notifications aren't supported on this browser.");
+        dismiss();
+        return;
+      }
+      if (isIosSafari() && !isStandalone()) {
+        toast.error("On iPhone, install the app first (Share → Add to Home Screen) to enable alerts.");
         dismiss();
         return;
       }
 
+      // 2. Permission request — handle every state
+      let permission = Notification.permission;
+      if (permission === "default") {
+        permission = await Notification.requestPermission();
+      }
+      if (permission === "denied") {
+        toast.error("Notifications are blocked. Enable them from your browser site settings, then refresh.");
+        dismiss();
+        return;
+      }
+      if (permission !== "granted") {
+        toast.error("Notification permission was not granted.");
+        dismiss();
+        return;
+      }
+
+      // 3. Fetch VAPID key
       const keyRes = await fetch(`${BASE}/api/push/vapid-key`);
-      const { publicKey } = await keyRes.json();
+      if (!keyRes.ok) {
+        const text = await keyRes.text().catch(() => "");
+        throw new Error(`VAPID key unavailable (${keyRes.status})${text ? `: ${text.slice(0, 80)}` : ""}`);
+      }
+      const { publicKey } = (await keyRes.json()) as { publicKey?: string };
+      if (!publicKey) throw new Error("Server did not return a VAPID public key.");
+
+      // 4. Service worker subscribe
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+      }
       const subJson = sub.toJSON() as {
         endpoint: string;
         keys: { p256dh: string; auth: string };
@@ -72,16 +130,29 @@ export function PushNotificationPrompt() {
 
       const visitorId = getOrCreateVisitorId();
 
-      await fetch(`${BASE}/api/push/subscribe`, {
+      // 5. Persist on server
+      const saveRes = await fetch(`${BASE}/api/push/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscription: subJson, deviceType: "web", visitorId }),
       });
+      if (!saveRes.ok) {
+        const text = await saveRes.text().catch(() => "");
+        throw new Error(`Server rejected subscription (${saveRes.status})${text ? `: ${text.slice(0, 80)}` : ""}`);
+      }
 
       toast.success("You'll be notified when JCTM goes live!");
       setVisible(false);
-    } catch {
-      toast.error("Could not enable notifications. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Common DOMException reasons surfaced clearly
+      const friendly =
+        /denied/i.test(msg) ? "Notifications are blocked in your browser settings." :
+        /AbortError/i.test(msg) ? "Subscription was cancelled. Please try again." :
+        /NotSupportedError/i.test(msg) ? "Push notifications aren't supported on this device." :
+        /InvalidStateError/i.test(msg) ? "Service worker isn't ready yet — please refresh and try again." :
+        msg;
+      toast.error(`Failed to enable notifications: ${friendly}`);
     } finally {
       setLoading(false);
     }
