@@ -10,7 +10,7 @@
  * Push Notifications: Supported for live service alerts
  */
 
-const CACHE_VERSION = "jctm-v4";
+const CACHE_VERSION = "jctm-v5";
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const API_CACHE     = `${CACHE_VERSION}-api`;
 
@@ -237,16 +237,26 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url ?? "/sermons";
+  const broadcastType = event.notification.data?.broadcastType ?? "unknown";
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      // Focus and navigate the first existing window, or open a new one
-      const existing = clients.find((c) => c.url.includes(self.location.origin));
-      if (existing) {
-        existing.focus();
-        existing.navigate(targetUrl);
-      } else {
-        self.clients.openWindow(targetUrl);
-      }
-    })
+    Promise.all([
+      // Fire-and-forget click tracking — never block navigation on this
+      fetch("/api/push/track-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ broadcastType, targetUrl }),
+        keepalive: true,
+      }).catch(() => {}),
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        // Focus and navigate the first existing window, or open a new one
+        const existing = clients.find((c) => c.url.includes(self.location.origin));
+        if (existing) {
+          existing.focus();
+          existing.navigate(targetUrl);
+        } else {
+          self.clients.openWindow(targetUrl);
+        }
+      }),
+    ])
   );
 });

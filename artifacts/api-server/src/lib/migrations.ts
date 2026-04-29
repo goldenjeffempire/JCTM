@@ -159,6 +159,19 @@ export async function runMigrations(): Promise<void> {
       dispatched_at timestamptz NOT NULL DEFAULT now()
     )
   `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS push_dispatch_log_type_idx ON push_dispatch_log (notification_type, dispatched_at DESC)`);
+
+  // ── Notification click tracking ─────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_clicks (
+      id serial PRIMARY KEY,
+      broadcast_type text NOT NULL,
+      target_url text NOT NULL,
+      visitor_id text,
+      clicked_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS notification_clicks_type_idx ON notification_clicks (broadcast_type, clicked_at DESC)`);
 
   // ── Sermon transcript indexing ──────────────────────────────────────────────
   await pool.query(`ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS transcript_summary text`);

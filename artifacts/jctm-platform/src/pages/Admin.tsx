@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 import { EventPromotionPreview } from "@/components/event-promo/EventPromotionPreview";
+import { WarriCrusadeStatsTile } from "@/components/admin/WarriCrusadeStatsTile";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Bar, ComposedChart, ResponsiveContainer,
@@ -2266,6 +2267,7 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
   return (
     <div className="space-y-5">
       <AdminLoginGate role="livestream" auth={auth} title="Event Promotions">
+        <WarriCrusadeStatsTile adminToken={auth.adminToken} />
         <div className="flex items-center justify-between flex-wrap gap-3">
           <SectionHeader
             title="Event Promotions"

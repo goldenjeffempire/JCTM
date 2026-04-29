@@ -194,6 +194,30 @@ router.get("/push/delivery-log", requireAdminRole("livestream"), async (_req, re
   }
 });
 
+// ─── POST /push/track-click — record a notification click ───────────────────
+
+router.post("/push/track-click", async (req, res): Promise<void> => {
+  const { broadcastType, targetUrl, visitorId } = req.body as {
+    broadcastType?: string;
+    targetUrl?: string;
+    visitorId?: string;
+  };
+  if (!broadcastType || !targetUrl) {
+    res.status(400).json({ error: "broadcastType and targetUrl required" });
+    return;
+  }
+  try {
+    await pool.query(
+      `INSERT INTO notification_clicks (broadcast_type, target_url, visitor_id) VALUES ($1, $2, $3)`,
+      [broadcastType.slice(0, 64), targetUrl.slice(0, 512), visitorId?.slice(0, 128) ?? null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to record notification click");
+    res.status(500).json({ error: "Failed to record click" });
+  }
+});
+
 // ─── POST /push/test ─────────────────────────────────────────────────────────
 
 router.post("/push/test", async (req, res): Promise<void> => {

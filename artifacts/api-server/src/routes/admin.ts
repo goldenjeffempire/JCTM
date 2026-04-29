@@ -466,4 +466,195 @@ router.patch(
   },
 );
 
+// ── GET /api/admin/warri-crusade/stats ────────────────────────────────────────
+router.get(
+  "/admin/warri-crusade/stats",
+  requireAnyRoleAdmin,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const CAMPAIGN_END_ISO = "2026-05-01T20:00:00Z"; // 21:00 WAT == 20:00 UTC
+      const NOTIF_TYPE = "warri_crusade_promo";
+      const BROADCAST_TYPE = "warri_crusade_promo";
+
+      const [
+        subsResult,
+        broadcastsResult,
+        timelineResult,
+        eventsResult,
+        clicksResult,
+        clicksTotalResult,
+      ] = await Promise.all([
+        pool.query<{ active: string; total: string }>(`
+          SELECT
+            COUNT(*) FILTER (WHERE is_active = true)::text AS active,
+            COUNT(*)::text AS total
+          FROM push_subscriptions
+        `),
+        pool.query<{
+          total_broadcasts: string;
+          total_sent: string;
+          total_failed: string;
+          total_deactivated: string;
+          total_attempted: string;
+          last_dispatched_at: string | null;
+          avg_delivery_rate: string | null;
+        }>(
+          `SELECT
+             COUNT(*)::text AS total_broadcasts,
+             COALESCE(SUM(sent), 0)::text AS total_sent,
+             COALESCE(SUM(failed), 0)::text AS total_failed,
+             COALESCE(SUM(deactivated), 0)::text AS total_deactivated,
+             COALESCE(SUM(total_attempted), 0)::text AS total_attempted,
+             MAX(dispatched_at)::text AS last_dispatched_at,
+             ROUND(AVG(delivery_rate)::numeric * 100, 1)::text AS avg_delivery_rate
+           FROM push_dispatch_log
+           WHERE notification_type = $1`,
+          [NOTIF_TYPE]
+        ),
+        pool.query<{
+          hour_bucket: string;
+          sent: string;
+          failed: string;
+          attempted: string;
+          delivery_rate: string;
+        }>(
+          `SELECT
+             to_char(date_trunc('hour', dispatched_at), 'YYYY-MM-DD"T"HH24":00Z"') AS hour_bucket,
+             SUM(sent)::text AS sent,
+             SUM(failed)::text AS failed,
+             SUM(total_attempted)::text AS attempted,
+             ROUND(AVG(delivery_rate)::numeric * 100, 1)::text AS delivery_rate
+           FROM push_dispatch_log
+           WHERE notification_type = $1
+             AND dispatched_at >= now() - INTERVAL '24 hours'
+           GROUP BY 1
+           ORDER BY 1`,
+          [NOTIF_TYPE]
+        ),
+        pool.query<{
+          id: string;
+          message: string;
+          fired_at: string;
+        }>(
+          `SELECT id::text, message, fired_at::text
+           FROM broadcast_events
+           WHERE type = $1
+           ORDER BY fired_at DESC
+           LIMIT 20`,
+          [BROADCAST_TYPE]
+        ),
+        pool.query<{
+          hour_bucket: string;
+          clicks: string;
+        }>(
+          `SELECT
+             to_char(date_trunc('hour', clicked_at), 'YYYY-MM-DD"T"HH24":00Z"') AS hour_bucket,
+             COUNT(*)::text AS clicks
+           FROM notification_clicks
+           WHERE broadcast_type = $1
+             AND clicked_at >= now() - INTERVAL '24 hours'
+           GROUP BY 1
+           ORDER BY 1`,
+          [BROADCAST_TYPE]
+        ),
+        pool.query<{ total_clicks: string; last_clicked_at: string | null }>(
+          `SELECT
+             COUNT(*)::text AS total_clicks,
+             MAX(clicked_at)::text AS last_clicked_at
+           FROM notification_clicks
+           WHERE broadcast_type = $1`,
+          [BROADCAST_TYPE]
+        ),
+      ]);
+
+      const subs = subsResult.rows[0] ?? { active: "0", total: "0" };
+      const b = broadcastsResult.rows[0] ?? {
+        total_broadcasts: "0", total_sent: "0", total_failed: "0",
+        total_deactivated: "0", total_attempted: "0",
+        last_dispatched_at: null, avg_delivery_rate: null,
+      };
+      const c = clicksTotalResult.rows[0] ?? { total_clicks: "0", last_clicked_at: null };
+
+      const totalSent = parseInt(b.total_sent, 10) || 0;
+      const totalClicks = parseInt(c.total_clicks, 10) || 0;
+      const ctr = totalSent > 0 ? Math.round((totalClicks / totalSent) * 1000) / 10 : 0;
+
+      // Build merged 24h timeline (delivery + clicks per hour)
+      const timelineMap = new Map<string, {
+        hour: string; sent: number; failed: number; attempted: number; clicks: number; deliveryRate: number;
+      }>();
+      for (const row of timelineResult.rows) {
+        timelineMap.set(row.hour_bucket, {
+          hour: row.hour_bucket,
+          sent: parseInt(row.sent, 10) || 0,
+          failed: parseInt(row.failed, 10) || 0,
+          attempted: parseInt(row.attempted, 10) || 0,
+          clicks: 0,
+          deliveryRate: parseFloat(row.delivery_rate) || 0,
+        });
+      }
+      for (const row of clicksResult.rows) {
+        const existing = timelineMap.get(row.hour_bucket);
+        if (existing) {
+          existing.clicks = parseInt(row.clicks, 10) || 0;
+        } else {
+          timelineMap.set(row.hour_bucket, {
+            hour: row.hour_bucket,
+            sent: 0, failed: 0, attempted: 0,
+            clicks: parseInt(row.clicks, 10) || 0,
+            deliveryRate: 0,
+          });
+        }
+      }
+      const timeline = Array.from(timelineMap.values()).sort((a, b) => a.hour.localeCompare(b.hour));
+
+      // Compute next scheduled hour bucket (UTC top-of-hour)
+      const now = new Date();
+      const campaignEnd = new Date(CAMPAIGN_END_ISO);
+      const nextHour = new Date(now);
+      nextHour.setUTCMinutes(0, 0, 0);
+      nextHour.setUTCHours(nextHour.getUTCHours() + 1);
+      const nextScheduledAt = nextHour.getTime() <= campaignEnd.getTime() ? nextHour.toISOString() : null;
+      const campaignActive = now.getTime() < campaignEnd.getTime();
+
+      res.json({
+        campaign: {
+          slug: "warri-crusade-2026",
+          endsAt: CAMPAIGN_END_ISO,
+          active: campaignActive,
+          nextScheduledAt,
+        },
+        subscribers: {
+          active: parseInt(subs.active, 10) || 0,
+          total: parseInt(subs.total, 10) || 0,
+        },
+        broadcasts: {
+          total: parseInt(b.total_broadcasts, 10) || 0,
+          totalSent,
+          totalFailed: parseInt(b.total_failed, 10) || 0,
+          totalDeactivated: parseInt(b.total_deactivated, 10) || 0,
+          totalAttempted: parseInt(b.total_attempted, 10) || 0,
+          avgDeliveryRate: b.avg_delivery_rate ? parseFloat(b.avg_delivery_rate) : 0,
+          lastDispatchedAt: b.last_dispatched_at,
+        },
+        clicks: {
+          total: totalClicks,
+          ctr,
+          lastClickedAt: c.last_clicked_at,
+        },
+        timeline,
+        recentEvents: eventsResult.rows.map((r) => ({
+          id: r.id,
+          message: r.message,
+          firedAt: r.fired_at,
+        })),
+        serverTime: new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch Warri Crusade stats");
+      res.status(500).json({ error: "Failed to fetch crusade stats" });
+    }
+  }
+);
+
 export default router;
