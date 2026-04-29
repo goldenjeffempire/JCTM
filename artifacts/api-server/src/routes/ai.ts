@@ -7,6 +7,7 @@ import {
 import { db, conversations, messages } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { runLocalInference, ENGINE_METADATA } from "../lib/local-ai-engine.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -109,6 +110,7 @@ Ground the analysis in JCTM doctrine and Primitive Christianity principles.`;
     }
     sse(res, { done: true });
   } catch (err) {
+    logger.error({ err, route: "ai/scripture-study" }, "Scripture study stream failed");
     sse(res, { error: "Scripture study service temporarily unavailable. Please try again." });
   } finally {
     res.end();
@@ -182,6 +184,7 @@ Provide a deeply personal, prophetically-grounded, and scripturally-anchored spi
     }
     sse(res, { done: true });
   } catch (err) {
+    logger.error({ err, route: "ai/spiritual-insight" }, "Spiritual insight stream failed");
     sse(res, { error: "Spiritual insight service temporarily unavailable." });
   } finally {
     res.end();
@@ -228,7 +231,9 @@ router.post("/ai/voice-chat", async (req: Request, res: Response): Promise<void>
           .orderBy(desc(messages.createdAt))
           .limit(10);
         priorMessages = history.reverse().map(r => ({ role: r.role as "user" | "assistant", content: r.content }));
-      } catch { /* non-critical */ }
+      } catch (err) {
+        logger.warn({ err, conversationId: convId, route: "ai/voice-chat" }, "Failed to load voice conversation history — proceeding without prior context");
+      }
     } else {
       try {
         const [newConv] = await db
@@ -236,7 +241,9 @@ router.post("/ai/voice-chat", async (req: Request, res: Response): Promise<void>
           .values({ title: `Voice session ${new Date().toISOString()}` })
           .returning({ id: conversations.id });
         convId = newConv.id;
-      } catch { /* non-critical */ }
+      } catch (err) {
+        logger.warn({ err, route: "ai/voice-chat" }, "Failed to create voice conversation row — continuing without persistence");
+      }
     }
 
     const stream = await voiceChatStream(compatBuffer, "alloy", format);
@@ -264,11 +271,14 @@ router.post("/ai/voice-chat", async (req: Request, res: Response): Promise<void>
         if (userTranscript) vals.push({ conversationId: convId, role: "user", content: userTranscript });
         if (assistantTranscript) vals.push({ conversationId: convId, role: "assistant", content: assistantTranscript });
         if (vals.length > 0) await db.insert(messages).values(vals);
-      } catch { /* non-critical */ }
+      } catch (err) {
+        logger.warn({ err, conversationId: convId, route: "ai/voice-chat" }, "Failed to persist voice transcript — response was already streamed to client");
+      }
     }
 
     sse(res, { done: true, conversationId: convId });
   } catch (err) {
+    logger.error({ err, route: "ai/voice-chat" }, "Voice chat stream failed");
     const msg = err instanceof Error ? err.message : "Voice chat failed";
     sse(res, { type: "error", error: msg });
   } finally {
@@ -332,6 +342,7 @@ Provide a rich prophetic reflection on this testimony, celebrating God's faithfu
     }
     sse(res, { done: true });
   } catch (err) {
+    logger.error({ err, route: "ai/testimony-reflect" }, "Testimony reflection stream failed");
     sse(res, { error: "Reflection service temporarily unavailable." });
   } finally {
     res.end();
@@ -370,7 +381,8 @@ router.post("/ai/suggested-questions", async (req: Request, res: Response): Prom
     const parsed = JSON.parse(raw) as { questions?: string[] };
     const questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, 5) : [];
     res.json({ questions });
-  } catch {
+  } catch (err) {
+    logger.warn({ err, route: "ai/suggested-questions:post" }, "Suggested-questions generation failed — returning empty list");
     res.status(500).json({ questions: [] });
   }
 });
@@ -413,7 +425,8 @@ router.get("/ai/suggested-questions", async (_req: Request, res: Response): Prom
     cacheExpiry = now + 6 * 60 * 60 * 1000;
 
     res.json({ questions });
-  } catch {
+  } catch (err) {
+    logger.warn({ err, route: "ai/suggested-questions:get" }, "Suggested-questions generation failed — serving static fallback list");
     res.json({
       questions: [
         "What is the Correction Mandate and why was it given to Prophet Amos?",
@@ -435,7 +448,22 @@ router.get("/ai/suggested-questions", async (_req: Request, res: Response): Prom
 // GET /api/ai/health
 // AI system health check
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-router.get("/ai/health", (_req: Request, res: Response): void => {
+router.get("/ai/health", (req: Request, res: Response): void => {
+  // Default public response — operational status only, no internal architecture
+  // details (model names, engine version, feature inventory) which would aid
+  // reconnaissance against the AI surface area.
+  const isAdmin = req.headers["x-admin-token"] === process.env.ADMIN_HEALTH_TOKEN
+    && !!process.env.ADMIN_HEALTH_TOKEN;
+
+  if (!isAdmin) {
+    res.json({
+      status: "operational",
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  // Detailed payload (admin-only) — useful for diagnostics & monitoring.
   res.json({
     status: "operational",
     architecture: {

@@ -40,9 +40,44 @@ app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    strictTransportSecurity: {
+      maxAge: 60 * 60 * 24 * 365,
+      includeSubDomains: true,
+      preload: true,
+    },
   }),
 );
+
+// Permissions-Policy — explicitly deny browser features the platform never
+// uses, so a future XSS or third-party script cannot silently access them.
+// `microphone` is allowed because the Voice TempleBots widget records audio.
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    [
+      "accelerometer=()",
+      "autoplay=(self)",
+      "camera=(self)",
+      "display-capture=()",
+      "fullscreen=(self)",
+      "geolocation=(self)",
+      "gyroscope=()",
+      "magnetometer=()",
+      "microphone=(self)",
+      "midi=()",
+      "payment=(self)",
+      "picture-in-picture=(self)",
+      "publickey-credentials-get=()",
+      "screen-wake-lock=(self)",
+      "sync-xhr=()",
+      "usb=()",
+      "xr-spatial-tracking=()",
+    ].join(", "),
+  );
+  next();
+});
 
 app.use(
   compression({

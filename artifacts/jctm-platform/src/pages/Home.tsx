@@ -35,6 +35,7 @@ import { GlobalAltar } from "@/components/GlobalAltar";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
 import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 import { toast } from "sonner";
 
@@ -4106,9 +4107,20 @@ function GlobalAltarSection() {
           transition={{ duration: 1 }}
           className="mb-8"
         >
-          <Suspense fallback={<div className="h-80 animate-pulse bg-white/5 rounded-2xl" />}>
-            <GlobalAltar3D />
-          </Suspense>
+          <SectionErrorBoundary
+            name="GlobalAltar3D"
+            fallback={
+              <div className="h-80 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center text-center px-6">
+                <p className="text-white/60 text-sm max-w-md">
+                  The 3D Global Altar is unavailable on this device. The rest of the page is unaffected.
+                </p>
+              </div>
+            }
+          >
+            <Suspense fallback={<div className="h-80 animate-pulse bg-white/5 rounded-2xl" />}>
+              <GlobalAltar3D />
+            </Suspense>
+          </SectionErrorBoundary>
         </motion.div>
 
         <motion.div

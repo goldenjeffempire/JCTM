@@ -410,7 +410,7 @@ function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }
               {photo ? (
                 <div className="relative">
                   <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-purple-400 shadow-lg group-hover:border-purple-300 transition-all" style={{ minWidth: "64px", minHeight: "64px" }}>
-                    <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                    <img src={photo} alt="Your conference registration photo — tap to replace" className="w-full h-full object-cover" />
                   </div>
                   <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <Camera className="h-4 w-4 text-white" />
@@ -1289,11 +1289,11 @@ export default function ConferenceRegistration() {
                       {rsvpPhoto ? (
                         <div className="flex justify-center mb-4">
                           <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
-                            <img src={rsvpPhoto} alt="Your photo" className="w-full h-full object-cover" />
+                            <img src={rsvpPhoto} alt="Your conference RSVP photo confirming your registration" className="w-full h-full object-cover" />
                           </div>
                         </div>
                       ) : (
-                        <div className="text-5xl mb-4">🙌</div>
+                        <div className="text-5xl mb-4" role="img" aria-label="Hands raised in praise">🙌</div>
                       )}
                       <h4 className="font-serif font-bold text-white text-2xl mb-2">You're Registered!</h4>
                       {regId && (
@@ -1390,7 +1390,7 @@ export default function ConferenceRegistration() {
                           {photo ? (
                             <div className="relative">
                               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl group-hover:border-purple-300 transition-all">
-                                <img src={photo} alt="Your photo" className="w-full h-full object-cover" />
+                                <img src={photo} alt="Your invite-card portrait for the conference — tap to change" className="w-full h-full object-cover" />
                               </div>
                               <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                 <Camera className="h-6 w-6 text-white" />
