@@ -9,6 +9,7 @@ import {
   Power, Repeat2, LayoutDashboard, Image, FileText,
   Shield, Menu, KeyRound, ImageOff, Bell, Send,
   TrendingUp, Globe, Monitor, Smartphone, Tablet, Signal,
+  Megaphone, MapPin, Save, Plus, Edit3,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -79,11 +80,12 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "sermons" | "gallery" | "testimonies" | "platform" | "credentials";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "credentials";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "broadcast",    label: "Broadcast",    icon: <Radio className="w-4 h-4" /> },
+  { id: "events",       label: "Events",       icon: <Megaphone className="w-4 h-4" /> },
   { id: "sermons",      label: "Sermons",      icon: <BookOpen className="w-4 h-4" /> },
   { id: "gallery",      label: "Gallery",      icon: <Image className="w-4 h-4" /> },
   { id: "testimonies",  label: "Testimonies",  icon: <MessageSquare className="w-4 h-4" /> },
@@ -2043,6 +2045,542 @@ function TestimoniesSection({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── Event Promotions ────────────────────────────────────────────────────────
+
+interface AdminEventPromotion {
+  id: number;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  artworkUrl: string | null;
+  location: string | null;
+  ctaText: string;
+  ctaUrl: string;
+  startAt: string;
+  endAt: string;
+  status: "draft" | "active" | "archived";
+  showBanner: boolean;
+  showPopup: boolean;
+  showStickyBar: boolean;
+  phase: "upcoming" | "live" | "ended";
+  msUntilStart: number;
+  msUntilEnd: number;
+  pushSentAt: string | null;
+  endPushSentAt: string | null;
+}
+
+interface PromotionFormState {
+  id: number | null;
+  slug: string;
+  title: string;
+  subtitle: string;
+  artworkUrl: string;
+  location: string;
+  ctaText: string;
+  ctaUrl: string;
+  startAtLocal: string;
+  endAtLocal: string;
+  status: "draft" | "active" | "archived";
+  showBanner: boolean;
+  showPopup: boolean;
+  showStickyBar: boolean;
+}
+
+const EMPTY_PROMOTION_FORM: PromotionFormState = {
+  id: null,
+  slug: "",
+  title: "",
+  subtitle: "",
+  artworkUrl: "",
+  location: "",
+  ctaText: "Join Us",
+  ctaUrl: "/",
+  startAtLocal: "",
+  endAtLocal: "",
+  status: "active",
+  showBanner: true,
+  showPopup: true,
+  showStickyBar: true,
+};
+
+// Convert an ISO UTC string into the value format <input type="datetime-local">
+// expects (YYYY-MM-DDTHH:mm in the user's local TZ).
+function isoToLocalInput(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localInputToIso(local: string): string {
+  if (!local) return "";
+  return new Date(local).toISOString();
+}
+
+function formatPromotionTimeline(p: AdminEventPromotion): string {
+  if (p.phase === "live") {
+    const hrs = Math.floor(p.msUntilEnd / 3_600_000);
+    const mins = Math.floor((p.msUntilEnd % 3_600_000) / 60_000);
+    return `Ends in ${hrs}h ${mins}m`;
+  }
+  if (p.phase === "upcoming") {
+    const days = Math.floor(p.msUntilStart / 86_400_000);
+    const hrs = Math.floor((p.msUntilStart % 86_400_000) / 3_600_000);
+    const mins = Math.floor((p.msUntilStart % 3_600_000) / 60_000);
+    if (days > 0) return `Starts in ${days}d ${hrs}h`;
+    return `Starts in ${hrs}h ${mins}m`;
+  }
+  return "Ended";
+}
+
+function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
+  const qc = useQueryClient();
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+  const [form, setForm] = useState<PromotionFormState>(EMPTY_PROMOTION_FORM);
+  const [showForm, setShowForm] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery<AdminEventPromotion[]>({
+    queryKey: ["admin-event-promotions"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-promotions`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<AdminEventPromotion[]>(res, "Unable to load promotions");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 30_000,
+    staleTime: 0,
+  });
+
+  const upsertMutation = useMutation({
+    mutationFn: async (payload: PromotionFormState) => {
+      const body = {
+        slug: payload.slug.trim(),
+        title: payload.title.trim(),
+        subtitle: payload.subtitle.trim() || null,
+        artworkUrl: payload.artworkUrl.trim() || null,
+        location: payload.location.trim() || null,
+        ctaText: payload.ctaText.trim() || "Join Us",
+        ctaUrl: payload.ctaUrl.trim() || "/",
+        startAt: localInputToIso(payload.startAtLocal),
+        endAt: localInputToIso(payload.endAtLocal),
+        status: payload.status,
+        showBanner: payload.showBanner,
+        showPopup: payload.showPopup,
+        showStickyBar: payload.showStickyBar,
+      };
+      const url = payload.id
+        ? `${BASE}/api/admin/event-promotions/${payload.id}`
+        : `${BASE}/api/admin/event-promotions`;
+      const method = payload.id ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Failed to save promotion");
+    },
+    onSuccess: () => {
+      toast.success(form.id ? "Promotion updated" : "Promotion created");
+      qc.invalidateQueries({ queryKey: ["admin-event-promotions"] });
+      qc.invalidateQueries({ queryKey: ["event-promotions", "active"] });
+      setForm(EMPTY_PROMOTION_FORM);
+      setShowForm(false);
+    },
+    onError: (error) => toast.error(formatAdminError(error, "Save failed")),
+  });
+
+  const togglePatchMutation = useMutation({
+    mutationFn: async ({ id, patch }: { id: number; patch: Partial<AdminEventPromotion> }) => {
+      const res = await fetch(`${BASE}/api/admin/event-promotions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify(patch),
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Failed to update");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-event-promotions"] });
+      qc.invalidateQueries({ queryKey: ["event-promotions", "active"] });
+    },
+    onError: (error) => toast.error(formatAdminError(error)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/event-promotions/${id}`, { method: "DELETE", headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Failed to delete");
+    },
+    onSuccess: () => {
+      toast.success("Promotion deleted");
+      qc.invalidateQueries({ queryKey: ["admin-event-promotions"] });
+      qc.invalidateQueries({ queryKey: ["event-promotions", "active"] });
+    },
+    onError: (error) => toast.error(formatAdminError(error, "Delete failed")),
+  });
+
+  const handleEdit = (p: AdminEventPromotion) => {
+    setForm({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      subtitle: p.subtitle ?? "",
+      artworkUrl: p.artworkUrl ?? "",
+      location: p.location ?? "",
+      ctaText: p.ctaText,
+      ctaUrl: p.ctaUrl,
+      startAtLocal: isoToLocalInput(p.startAt),
+      endAtLocal: isoToLocalInput(p.endAt),
+      status: p.status,
+      showBanner: p.showBanner,
+      showPopup: p.showPopup,
+      showStickyBar: p.showStickyBar,
+    });
+    setShowForm(true);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.slug || !form.title || !form.startAtLocal || !form.endAtLocal) {
+      toast.error("Slug, title, start and end are required");
+      return;
+    }
+    if (new Date(form.endAtLocal).getTime() <= new Date(form.startAtLocal).getTime()) {
+      toast.error("End time must be after start time");
+      return;
+    }
+    upsertMutation.mutate(form);
+  };
+
+  const promotions = data ?? [];
+  const counts = {
+    live: promotions.filter(p => p.phase === "live" && p.status === "active").length,
+    upcoming: promotions.filter(p => p.phase === "upcoming" && p.status === "active").length,
+    ended: promotions.filter(p => p.phase === "ended").length,
+  };
+
+  return (
+    <div className="space-y-5">
+      <AdminLoginGate role="livestream" auth={auth} title="Event Promotions">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <SectionHeader
+            title="Event Promotions"
+            description={
+              isLoading
+                ? "Loading…"
+                : `${counts.live} live · ${counts.upcoming} upcoming · ${counts.ended} ended`
+            }
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-muted border border-border hover:bg-muted/80 transition-colors text-muted-foreground"
+              data-testid="event-promo-refresh"
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh
+            </button>
+            <button
+              onClick={() => {
+                setForm(EMPTY_PROMOTION_FORM);
+                setShowForm(s => !s);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-semibold"
+              data-testid="event-promo-new"
+            >
+              <Plus className="w-3.5 h-3.5" /> {showForm && !form.id ? "Close form" : "New promotion"}
+            </button>
+          </div>
+        </div>
+
+        {showForm && (
+          <Card>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  {form.id ? <><Edit3 className="w-4 h-4" /> Editing #{form.id}</> : <><Plus className="w-4 h-4" /> New promotion</>}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => { setForm(EMPTY_PROMOTION_FORM); setShowForm(false); }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Slug (unique)">
+                  <input value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })}
+                    placeholder="warri-city-crusade-2026"
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="Status">
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as PromotionFormState["status"] })}
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm">
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </Field>
+                <Field label="Title" className="sm:col-span-2">
+                  <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+                    placeholder="Warri City Crusade 2026"
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="Subtitle / Tagline" className="sm:col-span-2">
+                  <textarea value={form.subtitle} onChange={e => setForm({ ...form, subtitle: e.target.value })}
+                    rows={2}
+                    placeholder="A short description shown beneath the title"
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm resize-none" />
+                </Field>
+                <Field label="Artwork URL">
+                  <input value={form.artworkUrl} onChange={e => setForm({ ...form, artworkUrl: e.target.value })}
+                    placeholder="/warri-city-crusade-2026.jpeg"
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="Location">
+                  <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+                    placeholder="Ighogbadu Primary School, Warri"
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="CTA Text">
+                  <input value={form.ctaText} onChange={e => setForm({ ...form, ctaText: e.target.value })}
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="CTA Link">
+                  <input value={form.ctaUrl} onChange={e => setForm({ ...form, ctaUrl: e.target.value })}
+                    placeholder="/crusade"
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="Starts at (your local time)">
+                  <input type="datetime-local" value={form.startAtLocal}
+                    onChange={e => setForm({ ...form, startAtLocal: e.target.value })}
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+                <Field label="Ends at (your local time)">
+                  <input type="datetime-local" value={form.endAtLocal}
+                    onChange={e => setForm({ ...form, endAtLocal: e.target.value })}
+                    className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm" />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                <ChannelToggle label="Sticky Bar" value={form.showStickyBar}
+                  onChange={v => setForm({ ...form, showStickyBar: v })} />
+                <ChannelToggle label="Hero Banner" value={form.showBanner}
+                  onChange={v => setForm({ ...form, showBanner: v })} />
+                <ChannelToggle label="Popup Modal" value={form.showPopup}
+                  onChange={v => setForm({ ...form, showPopup: v })} />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button type="submit" disabled={upsertMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-semibold text-sm disabled:opacity-60">
+                  {upsertMutation.isPending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                    : <><Save className="w-4 h-4" /> {form.id ? "Update promotion" : "Create promotion"}</>}
+                </button>
+                <button type="button" onClick={() => { setForm(EMPTY_PROMOTION_FORM); setShowForm(false); }}
+                  className="px-4 py-2 rounded-lg bg-muted border border-border hover:bg-muted/80 text-sm">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </Card>
+        )}
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) =>
+              <div key={i} className="h-32 rounded-2xl bg-card border border-border animate-pulse" />
+            )}
+          </div>
+        ) : promotions.length === 0 ? (
+          <Card>
+            <div className="text-center py-10 text-muted-foreground">
+              <Megaphone className="w-8 h-8 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No promotions yet — create one to start surfacing event banners and popups across the site.</p>
+            </div>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {promotions.map(p => (
+              <PromotionRow
+                key={p.id}
+                promotion={p}
+                onEdit={() => handleEdit(p)}
+                onDelete={() => {
+                  if (typeof window !== "undefined" && !window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
+                  deleteMutation.mutate(p.id);
+                }}
+                onPatch={(patch) => togglePatchMutation.mutate({ id: p.id, patch })}
+                isPending={togglePatchMutation.isPending || deleteMutation.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </AdminLoginGate>
+    </div>
+  );
+}
+
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="block text-xs font-semibold text-muted-foreground mb-1">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ChannelToggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${value
+        ? "bg-primary/10 border-primary/40 text-primary"
+        : "bg-muted border-border text-muted-foreground"}`}
+    >
+      <span>{label}</span>
+      <span className={`inline-flex h-4 w-7 rounded-full transition-colors ${value ? "bg-primary" : "bg-border"}`}>
+        <span className={`h-3 w-3 rounded-full bg-white shadow transition-transform mt-0.5 ${value ? "translate-x-3.5" : "translate-x-0.5"}`} />
+      </span>
+    </button>
+  );
+}
+
+function PromotionRow({
+  promotion: p,
+  onEdit,
+  onDelete,
+  onPatch,
+  isPending,
+}: {
+  promotion: AdminEventPromotion;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPatch: (patch: Partial<AdminEventPromotion>) => void;
+  isPending: boolean;
+}) {
+  const phaseStyles =
+    p.phase === "live"
+      ? "bg-red-500/15 text-red-600 border-red-500/30"
+      : p.phase === "upcoming"
+        ? "bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400"
+        : "bg-muted text-muted-foreground border-border";
+  const statusStyles =
+    p.status === "active"
+      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+      : p.status === "draft"
+        ? "bg-slate-500/15 text-slate-600 dark:text-slate-300 border-slate-500/30"
+        : "bg-zinc-500/10 text-zinc-500 border-zinc-500/20";
+
+  return (
+    <Card>
+      <div className="flex items-start gap-4">
+        <div className="h-16 w-16 rounded-xl bg-muted overflow-hidden shrink-0 border border-border">
+          {p.artworkUrl ? (
+            <img src={p.artworkUrl} alt={p.title} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+              <ImageOff className="w-5 h-5" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center flex-wrap gap-2">
+            <span className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border ${phaseStyles}`}>
+              {p.phase === "live" && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1 animate-pulse" />}
+              {p.phase}
+            </span>
+            <span className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 border ${statusStyles}`}>
+              {p.status}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{formatPromotionTimeline(p)}</span>
+          </div>
+          <h3 className="mt-1 font-semibold text-sm sm:text-base truncate">{p.title}</h3>
+          <p className="text-[11px] text-muted-foreground font-mono">{p.slug}</p>
+          {p.location && (
+            <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1 truncate">
+              <MapPin className="w-3 h-3 shrink-0" /> {p.location}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {new Date(p.startAt).toLocaleString()} → {new Date(p.endAt).toLocaleString()}
+            </span>
+            {p.pushSentAt && (
+              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <Bell className="w-3 h-3" /> Live push sent
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <InlineToggle
+              label="Sticky"
+              value={p.showStickyBar}
+              disabled={isPending}
+              onClick={() => onPatch({ showStickyBar: !p.showStickyBar })}
+            />
+            <InlineToggle
+              label="Banner"
+              value={p.showBanner}
+              disabled={isPending}
+              onClick={() => onPatch({ showBanner: !p.showBanner })}
+            />
+            <InlineToggle
+              label="Popup"
+              value={p.showPopup}
+              disabled={isPending}
+              onClick={() => onPatch({ showPopup: !p.showPopup })}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5 shrink-0">
+          <button
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 rounded-lg bg-muted border border-border hover:bg-muted/70 px-2.5 py-1 text-xs"
+            data-testid={`event-promo-edit-${p.id}`}
+          >
+            <Edit3 className="w-3 h-3" /> Edit
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={isPending}
+            className="inline-flex items-center gap-1 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/20 px-2.5 py-1 text-xs disabled:opacity-60"
+            data-testid={`event-promo-delete-${p.id}`}
+          >
+            <Trash2 className="w-3 h-3" /> Delete
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function InlineToggle({ label, value, disabled, onClick }: { label: string; value: boolean; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border transition-colors ${value
+        ? "bg-primary/15 text-primary border-primary/30"
+        : "bg-muted text-muted-foreground border-border"}`}
+    >
+      <span className={`inline-block w-1.5 h-1.5 rounded-full ${value ? "bg-primary" : "bg-muted-foreground/40"}`} />
+      {label} {value ? "on" : "off"}
+    </button>
+  );
+}
+
 // ─── Platform ─────────────────────────────────────────────────────────────────
 
 function PlatformSection({ auth }: { auth: AdminAuth }) {
@@ -2315,6 +2853,7 @@ export default function Admin() {
             <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>
               {section === "overview"    && <OverviewSection liveStatus={liveStatus} adminAuth={livestreamAuth} />}
               {section === "broadcast"   && <BroadcastSection liveStatus={liveStatus} auth={livestreamAuth} />}
+              {section === "events"      && <EventPromotionsSection auth={livestreamAuth} />}
               {section === "sermons"     && <SermonsSection auth={sermonAuth} />}
               {section === "gallery"     && <GallerySection auth={galleryAuth} />}
               {section === "testimonies" && <TestimoniesSection auth={sermonAuth} />}
