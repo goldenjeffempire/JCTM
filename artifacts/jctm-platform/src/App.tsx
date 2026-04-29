@@ -94,6 +94,7 @@ function Router() {
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/crusade" component={Crusade} />
+        <Route path="/warri-crusade" component={Crusade} />
         <Route path="/viewing-centres" component={ViewingCentres} />
         <Route path="/prayer" component={Prayer} />
         <Route path="/moments" component={Moments} />

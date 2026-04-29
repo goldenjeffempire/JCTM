@@ -10,6 +10,8 @@ import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
 import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
 import { EventPromoPreviewToggle } from "../event-promo/EventPromoPreviewToggle";
+import { WarriCrusadeStickyBanner } from "../event-promo/WarriCrusadeStickyBanner";
+import { CrusadeInlineAd } from "../event-promo/CrusadeInlineAd";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +20,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground overflow-x-hidden">
+      <WarriCrusadeStickyBanner />
       <EventStickyBar />
       <LiveBanner />
       <Navbar />
@@ -25,6 +28,7 @@ export function Layout({ children }: LayoutProps) {
       <main className="flex-1 w-full">
         {children}
       </main>
+      <CrusadeInlineAd />
       <Footer />
       <TempleBots />
       <LanguageSuggestionBanner />

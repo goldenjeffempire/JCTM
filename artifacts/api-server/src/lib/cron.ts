@@ -41,6 +41,18 @@ let serviceReminderSentAt: number | null = null;
 let devotionNotificationSentDate: string | null = null; // ISO date string (YYYY-MM-DD)
 let devotionEmailBroadcastDate: string | null = null;   // ISO date string (YYYY-MM-DD)
 
+// ── Warri Crusade 2026 hourly campaign broadcast ─────────────────────────────
+// Fires once per hour from "now" up to CAMPAIGN_END. Sends web push +
+// inserts a broadcast_events row (which the in-app SSE relay turns into a
+// toast for connected clients). Email is intentionally NOT sent here — we
+// already send a separate, less-frequent crusade email (daily max) further
+// down to avoid spamming devotion subscribers.
+const WARRI_CRUSADE_END_MS  = new Date("2026-05-01T21:00:00+01:00").getTime();
+const WARRI_CRUSADE_START_MS = new Date("2026-04-30T18:00:00+01:00").getTime();
+const WARRI_CRUSADE_TITLE   = "Warri Crusade 2026";
+const WARRI_CRUSADE_URL     = "/crusade";
+const WARRI_CRUSADE_BODY    = "Join the powerful move of God today";
+
 // ─── State exports (for health endpoint) ──────────────────────────────────────
 
 export function isQuotaPaused(): boolean {
@@ -439,6 +451,87 @@ function checkEventPromotionTransitions(log: Logger): void {
     .catch(err => log.warn({ err }, "Event 30-min reminder scan failed (non-fatal)"));
 }
 
+// ─── Warri Crusade hourly multi-channel broadcast ─────────────────────────────
+// Each hour bucket is identified by `YYYY-MM-DD-HH` (UTC). Idempotency is
+// enforced by an exact-match check against `broadcast_events` (type +
+// title + message), so a process restart inside the same hour will NOT
+// re-send. Stops automatically once the event window ends. Inserts the
+// broadcast_events row FIRST (acts as the lock) so concurrent ticks across
+// multiple processes can never both fire for the same hour bucket.
+
+function hourBucketUTC(now: number = Date.now()): string {
+  const d = new Date(now);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const h = String(d.getUTCHours()).padStart(2, "0");
+  return `${y}-${m}-${day}-${h}`;
+}
+
+function buildWarriCrusadeNotification(): NotificationPayload {
+  return {
+    title: "🔥 Warri Crusade 2026 Update",
+    body: WARRI_CRUSADE_BODY,
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    image: "/warri-crusade-flyer2.jpeg",
+    url: WARRI_CRUSADE_URL,
+    tag: "warri-crusade-2026",
+    requireInteraction: false,
+    actions: [{ action: "open", title: "Join Now" }],
+    data: {
+      type: "warri_crusade_promo",
+      broadcastType: "event_reminder", // reuses existing in-app yellow toast palette
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
+  const now = Date.now();
+  if (now >= WARRI_CRUSADE_END_MS) return; // event finished — nothing to do
+
+  // Only broadcast within the first ~5 minutes of each hour to avoid drift /
+  // duplicate firings across the per-minute scheduler tick.
+  const minutePastHour = new Date(now).getUTCMinutes();
+  if (minutePastHour >= 5) return;
+
+  const bucket = hourBucketUTC(now);
+  const dedupMessage = `${WARRI_CRUSADE_BODY} [hour:${bucket}]`;
+
+  try {
+    // Atomic insert-or-skip via UNIQUE constraint check
+    const existing = await pool.query<{ id: number }>(
+      `SELECT id FROM broadcast_events
+        WHERE type = 'warri_crusade_promo' AND title = $1 AND message = $2
+        LIMIT 1`,
+      [WARRI_CRUSADE_TITLE, dedupMessage],
+    );
+    if (existing.rowCount && existing.rowCount > 0) return;
+
+    // Acquire the lock row first; if a parallel process beat us, the next
+    // tick will short-circuit on the SELECT above.
+    await pool.query(
+      `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+      ["warri_crusade_promo", WARRI_CRUSADE_TITLE, dedupMessage, WARRI_CRUSADE_URL],
+    );
+
+    log.info(
+      { bucket, isLive: now >= WARRI_CRUSADE_START_MS },
+      "Warri Crusade hourly broadcast — dispatching push + in-app toast",
+    );
+
+    const notif = buildWarriCrusadeNotification();
+    const result = await dispatchPushNotification(notif, log, "warri_crusade_promo");
+    log.info(
+      { bucket, sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+      "Warri Crusade hourly broadcast complete",
+    );
+  } catch (err) {
+    log.warn({ err, bucket }, "Warri Crusade hourly broadcast failed (non-fatal)");
+  }
+}
+
 // ─── Daily Devotion Email Broadcast ───────────────────────────────────────────
 // Sends today's devotion to all active subscribers between 6:00–6:14 AM WAT.
 // Runs at most once per UTC day (guarded by `devotionEmailBroadcastDate`).
@@ -832,6 +925,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndBroadcastDevotionEmail(log);
       checkEventPromotionTransitions(log);
       checkAndSendEventReminders(log);
+      checkAndBroadcastWarriCrusadeHourly(log).catch(err =>
+        log.warn({ err }, "Warri Crusade hourly broadcast tick error"),
+      );
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");
     }
