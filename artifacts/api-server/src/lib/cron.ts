@@ -98,7 +98,7 @@ async function dispatchExpoPush(
     );
     if (result.rows.length === 0) return { sent: 0, failed: 0 };
 
-    // Chunk into batches of 100
+    // Chunk into batches of 100 (Expo recommendation)
     const CHUNK = 100;
     for (let i = 0; i < result.rows.length; i += CHUNK) {
       const chunk = result.rows.slice(i, i + CHUNK);
@@ -122,20 +122,37 @@ async function dispatchExpoPush(
           body: JSON.stringify(messages),
         });
         if (res.ok) {
-          const json = await res.json() as { data?: Array<{ status: string; details?: { error?: string } }> };
+          const json = await res.json() as {
+            data?: Array<{ status: string; id?: string; details?: { error?: string } }>;
+          };
           const invalid: string[] = [];
+          const receiptRows: Array<[string, string, string]> = []; // [ticket_id, token, title]
+
           json.data?.forEach((ticket, idx) => {
-            if (ticket.status === "ok") {
+            const token = chunk[idx]!.token;
+            if (ticket.status === "ok" && ticket.id) {
               sent++;
+              receiptRows.push([ticket.id, token, title]);
             } else {
               failed++;
-              // Deactivate permanently invalid tokens
               const errCode = ticket.details?.error;
               if (errCode === "DeviceNotRegistered") {
-                invalid.push(chunk[idx]!.token);
+                invalid.push(token);
               }
             }
           });
+
+          // Persist ticket IDs for receipt checking (15 min later)
+          if (receiptRows.length > 0) {
+            const placeholders = receiptRows
+              .map((_, ri) => `($${ri * 3 + 1}, $${ri * 3 + 2}, $${ri * 3 + 3})`)
+              .join(", ");
+            await pool.query(
+              `INSERT INTO expo_push_receipts (ticket_id, token, title) VALUES ${placeholders} ON CONFLICT (ticket_id) DO NOTHING`,
+              receiptRows.flat(),
+            );
+          }
+
           if (invalid.length > 0) {
             await pool.query(
               `UPDATE expo_push_tokens SET is_active = false, updated_at = now() WHERE token = ANY($1)`,
@@ -153,6 +170,87 @@ async function dispatchExpoPush(
     log.warn({ err }, "Expo push dispatch error");
   }
   return { sent, failed };
+}
+
+// ── Expo Receipt Checker ─────────────────────────────────────────────────────
+// Polls the Expo receipts API for any pending ticket IDs that were sent more
+// than 15 minutes ago. Marks each receipt as "ok" or "error", and deactivates
+// any token that returns DeviceNotRegistered.
+// Runs every 15 minutes; processes up to 300 pending receipts per run.
+
+const RECEIPT_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const RECEIPT_MIN_AGE_MS        = 15 * 60 * 1000; // only check receipts > 15 min old
+let receiptCheckerHandle: ReturnType<typeof setInterval> | null = null;
+
+async function checkExpoPushReceipts(log: Logger): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - RECEIPT_MIN_AGE_MS).toISOString();
+    const pending = await pool.query<{ id: number; ticket_id: string; token: string }>(
+      `SELECT id, ticket_id, token FROM expo_push_receipts
+       WHERE status = 'pending' AND sent_at < $1
+       ORDER BY sent_at ASC LIMIT 300`,
+      [cutoff],
+    );
+    if (pending.rows.length === 0) return;
+
+    const ticketIds = pending.rows.map((r) => r.ticket_id);
+    const res = await fetch("https://exp.host/--/api/v2/push/getReceipts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({ ids: ticketIds }),
+    });
+
+    if (!res.ok) {
+      log.warn({ status: res.status }, "Expo receipt check HTTP error");
+      return;
+    }
+
+    const json = await res.json() as {
+      data?: Record<string, { status: "ok" | "error"; details?: { error?: string; fault?: string } }>;
+    };
+    if (!json.data) return;
+
+    const invalid: string[] = [];
+
+    for (const row of pending.rows) {
+      const receipt = json.data[row.ticket_id];
+      if (!receipt) continue; // not ready yet — leave as pending
+
+      const status = receipt.status === "ok" ? "ok" : "error";
+      const errCode = receipt.details?.error ?? null;
+
+      await pool.query(
+        `UPDATE expo_push_receipts SET status = $1, error_code = $2, checked_at = now() WHERE id = $3`,
+        [status, errCode, row.id],
+      );
+
+      if (errCode === "DeviceNotRegistered") {
+        invalid.push(row.token);
+      }
+    }
+
+    if (invalid.length > 0) {
+      await pool.query(
+        `UPDATE expo_push_tokens SET is_active = false, updated_at = now() WHERE token = ANY($1)`,
+        [invalid],
+      );
+      log.info({ count: invalid.length }, "Expo receipt check — deactivated stale tokens");
+    }
+
+    const okCount    = pending.rows.filter((r) => json.data?.[r.ticket_id]?.status === "ok").length;
+    const errCount   = pending.rows.filter((r) => json.data?.[r.ticket_id]?.status === "error").length;
+    const pendStill  = pending.rows.filter((r) => !json.data?.[r.ticket_id]).length;
+
+    log.info(
+      { checked: pending.rows.length, ok: okCount, error: errCount, stillPending: pendStill },
+      "Expo receipt check complete",
+    );
+  } catch (err) {
+    log.warn({ err }, "Expo receipt check failed (non-fatal)");
+  }
 }
 
 // ─── State exports (for health endpoint) ──────────────────────────────────────
@@ -1244,11 +1342,21 @@ export function startCron(log: Logger, websubUrl?: string): void {
     (midnightTimer as ReturnType<typeof setTimeout> & { unref(): void }).unref();
   }
 
-  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation");
+  // ── Expo receipt checker — runs every 15 minutes ────────────────────────────
+  // First run is delayed by 15 minutes so we don't check receipts that were
+  // sent only seconds ago (Expo needs time to process them).
+  receiptCheckerHandle = setInterval(
+    () => checkExpoPushReceipts(log).catch(err => log.warn({ err }, "Expo receipt check error")),
+    RECEIPT_CHECK_INTERVAL_MS,
+  );
+  receiptCheckerHandle.unref();
+  log.info({ intervalMs: RECEIPT_CHECK_INTERVAL_MS }, "Expo push receipt checker started (15-min interval)");
+
+  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker");
 }
 
 export function stopCron(): void {
-  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer]
     .forEach(h => h && clearTimeout(h));
@@ -1259,6 +1367,7 @@ export function stopCron(): void {
   websubCronHandle = null;
   metadataCronHandle = null;
   reminderCronHandle = null;
+  receiptCheckerHandle = null;
   apiStartupTimer = null;
   metadataStartupTimer = null;
   midnightTimer = null;

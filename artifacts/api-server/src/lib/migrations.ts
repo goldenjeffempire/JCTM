@@ -561,5 +561,26 @@ export async function runMigrations(): Promise<void> {
     ON expo_push_tokens (is_active) WHERE is_active = true
   `);
 
+  // ── Expo Push Receipts ───────────────────────────────────────────────────────
+  // Stores ticket IDs returned by the Expo Push API so we can poll
+  // https://exp.host/--/api/v2/push/getReceipts 15+ minutes later and confirm
+  // delivery. DeviceNotRegistered errors trigger token deactivation.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS expo_push_receipts (
+      id          bigserial   PRIMARY KEY,
+      ticket_id   text        NOT NULL UNIQUE,
+      token       text        NOT NULL,
+      title       text,
+      sent_at     timestamptz NOT NULL DEFAULT now(),
+      checked_at  timestamptz,
+      status      text        NOT NULL DEFAULT 'pending',
+      error_code  text
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS expo_push_receipts_pending_idx
+    ON expo_push_receipts (sent_at) WHERE status = 'pending'
+  `);
+
   logger.info("All migrations complete");
 }

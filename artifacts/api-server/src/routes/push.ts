@@ -306,13 +306,34 @@ router.delete("/push/expo-unregister", async (req, res): Promise<void> => {
 
 router.get("/push/expo-stats", async (_req, res): Promise<void> => {
   try {
-    const result = await pool.query<{ platform: string; count: string }>(
-      `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::text AS count
-       FROM expo_push_tokens WHERE is_active = true
-       GROUP BY 1 ORDER BY 2 DESC`
+    const [tokensResult, receiptsResult] = await Promise.all([
+      pool.query<{ platform: string; count: string }>(
+        `SELECT COALESCE(platform, 'unknown') AS platform, COUNT(*)::text AS count
+         FROM expo_push_tokens WHERE is_active = true
+         GROUP BY 1 ORDER BY 2 DESC`,
+      ),
+      pool.query<{ status: string; count: string }>(
+        `SELECT status, COUNT(*)::text AS count
+         FROM expo_push_receipts
+         WHERE sent_at > now() - INTERVAL '7 days'
+         GROUP BY 1`,
+      ),
+    ]);
+
+    const total = tokensResult.rows.reduce((s, r) => s + parseInt(r.count, 10), 0);
+    const receiptSummary = Object.fromEntries(
+      receiptsResult.rows.map((r) => [r.status, parseInt(r.count, 10)]),
     );
-    const total = result.rows.reduce((s, r) => s + parseInt(r.count, 10), 0);
-    res.json({ total, breakdown: result.rows });
+
+    res.json({
+      tokens: { total, breakdown: tokensResult.rows },
+      receipts: {
+        last7Days: receiptSummary,
+        deliveryRate: receiptSummary.ok && (receiptSummary.ok + (receiptSummary.error ?? 0)) > 0
+          ? Math.round((receiptSummary.ok / (receiptSummary.ok + (receiptSummary.error ?? 0))) * 100)
+          : null,
+      },
+    });
   } catch {
     res.status(500).json({ error: "Failed to fetch Expo push stats" });
   }
