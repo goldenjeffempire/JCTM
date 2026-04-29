@@ -10,15 +10,20 @@
  * Push Notifications: Supported for live service alerts
  */
 
-const CACHE_VERSION = "jctm-v3";
+const CACHE_VERSION = "jctm-v4";
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const API_CACHE     = `${CACHE_VERSION}-api`;
 
+// Pre-caching the manifest, icons, and screenshot ensures all install
+// criteria assets are available offline, which keeps the browser's native
+// install affordance (address-bar icon, menu entry) eligible to appear on
+// every refresh — even on flaky connections.
 const PRECACHE_URLS = [
   "/manifest.json",
   "/favicon.svg",
   "/icon-192.png",
   "/favicon.png",
+  "/opengraph.jpg",
 ];
 
 const NEVER_CACHE = [
@@ -49,7 +54,19 @@ self.addEventListener("activate", (event) => {
           .filter((k) => k !== STATIC_CACHE && k !== API_CACHE)
           .map((k) => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => self.clients.claim()).then(() => {
+      // Broadcast that the SW is ready and install criteria are satisfied.
+      // Page-side code listens for this so it can re-check whether the
+      // browser has a deferred `beforeinstallprompt` to surface.
+      return self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: "INSTALLABILITY_READY",
+            version: CACHE_VERSION,
+          });
+        });
+      });
+    })
   );
 });
 
@@ -153,6 +170,19 @@ async function navigationStrategy(request) {
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  // Allow the page to ask the SW to re-broadcast installability readiness.
+  // Useful on SPA navigations where no full reload happens but we still want
+  // to nudge any listeners (e.g. an "Install App" button) to re-evaluate.
+  if (event.data?.type === "CHECK_INSTALLABILITY") {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({
+          type: "INSTALLABILITY_READY",
+          version: CACHE_VERSION,
+        });
+      });
+    });
   }
 });
 

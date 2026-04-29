@@ -84,9 +84,64 @@ if ("serviceWorker" in navigator) {
             }
           });
         });
+        // Re-poll the SW for updates whenever the tab regains focus so
+        // installability metadata stays fresh on long-lived sessions.
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            reg.update().catch(() => {});
+            navigator.serviceWorker.controller?.postMessage({ type: "CHECK_INSTALLABILITY" });
+          }
+        });
       })
       .catch((err) => {
         console.warn("[SW] Registration failed:", err);
       });
   });
 }
+
+// ─── PWA Install Prompt Capture ───────────────────────────────────────────────
+// Browsers fire `beforeinstallprompt` once per page-load when install criteria
+// are satisfied. We capture the deferred event and stash it on `window` so the
+// browser's native install affordance (address-bar icon, menu entry) stays
+// available across SPA navigations, and any future "Install App" UI can call
+// `window.__jctmInstallPrompt.prompt()` on demand. We also re-broadcast a
+// custom event each time so listeners across the app can react.
+declare global {
+  interface Window {
+    __jctmInstallPrompt: BeforeInstallPromptEvent | null;
+    __jctmIsAppInstalled: boolean;
+  }
+  interface BeforeInstallPromptEvent extends Event {
+    readonly platforms: ReadonlyArray<string>;
+    readonly userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+    prompt(): Promise<void>;
+  }
+}
+
+window.__jctmInstallPrompt = null;
+window.__jctmIsAppInstalled =
+  typeof window !== "undefined" &&
+  (window.matchMedia?.("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  // Do NOT call preventDefault — letting the browser handle its own native
+  // install UI is exactly what "advertise installability every refresh" means.
+  // We just stash the event so any in-app trigger can also fire it later.
+  window.__jctmInstallPrompt = event as BeforeInstallPromptEvent;
+  window.dispatchEvent(
+    new CustomEvent("jctm:installability-changed", {
+      detail: { installable: true, installed: window.__jctmIsAppInstalled },
+    }),
+  );
+});
+
+window.addEventListener("appinstalled", () => {
+  window.__jctmInstallPrompt = null;
+  window.__jctmIsAppInstalled = true;
+  window.dispatchEvent(
+    new CustomEvent("jctm:installability-changed", {
+      detail: { installable: false, installed: true },
+    }),
+  );
+});
