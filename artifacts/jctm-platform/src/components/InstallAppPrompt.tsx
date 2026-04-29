@@ -158,7 +158,7 @@ export function InstallAppPrompt() {
 
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white leading-snug">
-                  Install the Temple TV app
+                  Install the JCTM App
                 </p>
                 <p className="mt-0.5 text-[11px] text-white/60 leading-snug sm:text-xs">
                   {platformCopy}
