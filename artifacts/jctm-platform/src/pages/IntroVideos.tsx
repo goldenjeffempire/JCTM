@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
+import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -344,19 +345,12 @@ function IntroCard({
   isActive: boolean;
   isPreload: boolean;
 }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const embedRef = useRef<YouTubeEmbedHandle>(null);
   const [iframeReady, setIframeReady] = useState(false);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
 
-  const buildSrc = (active: boolean, muted: boolean) =>
-    `https://www.youtube.com/embed/${video.videoId}` +
-    `?autoplay=${active ? 1 : 0}&mute=${muted ? 1 : 0}&loop=1&playlist=${video.videoId}` +
-    `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&iv_load_policy=3` +
-    `&origin=${encodeURIComponent(window.location.origin)}`;
-
   const nav = navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } };
   const shouldMountIframe = isActive || (isPreload && nav.connection?.effectiveType === "4g" && !nav.connection?.saveData);
-  const embedSrc = shouldMountIframe ? buildSrc(isActive, isActive ? muted : true) : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });
   const [liking, setLiking] = useState(false);
@@ -376,15 +370,6 @@ function IntroCard({
 
   const handleLoad = () => {
     setIframeReady(true);
-    if (!isActive) return;
-    const pump = (n: number) => {
-      iframeRef.current?.contentWindow?.postMessage(
-        JSON.stringify({ event: "command", func: "setVolume", args: [100] }),
-        "*",
-      );
-      if (n < 8) setTimeout(() => pump(n + 1), 600);
-    };
-    setTimeout(() => pump(0), 300);
   };
 
   const ytUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
@@ -439,20 +424,26 @@ function IntroCard({
 
   return (
     <div className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}>
-      {embedSrc ? (
-        <div className="absolute inset-0 bg-black">
-          <iframe
+      {shouldMountIframe ? (
+        <div
+          className="absolute inset-0 bg-black"
+          style={{ opacity: isPreload && !isActive ? 0 : 1, pointerEvents: isActive ? "auto" : "none" }}
+        >
+          <YouTubeEmbed
             key={`${video.videoId}-${isActive}`}
-            ref={iframeRef}
-            src={embedSrc}
+            ref={embedRef}
+            videoId={video.videoId}
             title={video.title}
-            className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            loading={isActive ? "eager" : "lazy"}
-            onLoad={handleLoad}
-            style={{ opacity: isPreload && !isActive ? 0 : 1, pointerEvents: isActive ? "auto" : "none" }}
+            thumbnailUrl={video.thumbnailUrl}
+            mode="eager"
+            autoplay={isActive}
+            loop
+            audioOnly={isActive ? muted : true}
+            aspectRatio="9/16"
+            analyticsPage="/intro-videos"
+            iframeClassName="border-0"
+            className="border-0 h-full"
+            onIframeLoad={handleLoad}
           />
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.1) 40%, transparent 65%)" }} />
@@ -480,7 +471,7 @@ function IntroCard({
       )}
 
       {/* Fade-in overlay when iframe is loading */}
-      {isActive && embedSrc && !iframeReady && (
+      {isActive && shouldMountIframe && !iframeReady && (
         <div className="absolute inset-0 z-5 flex items-center justify-center bg-black/50 pointer-events-none">
           <div className="flex flex-col items-center gap-3">
             <div className="relative">

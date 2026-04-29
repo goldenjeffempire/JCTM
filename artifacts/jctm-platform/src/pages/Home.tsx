@@ -20,6 +20,7 @@ import {
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl, NetworkQualityBadge } from "@/components/DualStreamToggle";
 import { StreamPlayer } from "@/components/StreamPlayer";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
@@ -788,7 +789,7 @@ function HeroSection() {
     if (!livePlayerOpen) return;
 
     const handleMessage = (e: MessageEvent) => {
-      if (e.origin !== "https://www.youtube.com" && e.origin !== "https://www.youtube-nocookie.com") return;
+      if (e.origin !== "https://www.youtube.com") return;
       try {
         const data = JSON.parse(typeof e.data === "string" ? e.data : JSON.stringify(e.data)) as {
           event?: string;
@@ -1556,55 +1557,31 @@ function BentoGrid() {
                 ) : sermon && ytId ? (
                   <>
                     <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                      <AnimatePresence mode="wait">
-                        {hoveredSermon ? (
-                          <motion.div key="iframe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="absolute inset-0">
-                            <iframe
-                              className="w-full h-full"
-                              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&loop=1&rel=0&playlist=${ytId}&origin=${encodeURIComponent(window.location.origin)}`}
-                              allow="autoplay; fullscreen"
-                              allowFullScreen
-                              referrerPolicy="strict-origin-when-cross-origin"
-                              title={sermon.title}
-                            />
-                          </motion.div>
-                        ) : (
-                          <motion.div key="thumb" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="absolute inset-0">
-                            <img
-                              src={sermon.thumbnailUrl}
-                              alt={sermon.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                              loading="lazy"
-                              decoding="async"
-                              onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/20 to-transparent" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <motion.div
-                                animate={{ scale: [1, 1.08, 1] }}
-                                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                                className="h-16 w-16 rounded-full bg-white/15 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-2xl"
-                              >
-                                <Play className="h-7 w-7 text-white fill-white ml-1" />
-                              </motion.div>
-                            </div>
-                            <div className="absolute bottom-0 left-0 right-0 p-6">
-                              <span className="text-accent text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                                <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse" />
-                                {bentoIsRecentBroadcast ? "Latest Broadcast" : "Latest from Temple TV"}
-                              </span>
-                              <h3 className="text-white font-serif font-bold text-xl leading-snug line-clamp-2">{sermon.title}</h3>
-                              <p className="text-white/50 text-xs mt-1.5">
-                                Hover to preview · <span className="text-accent">
-                                  {bentoIsRecentBroadcast && bentoBroadcastEndedAt
-                                    ? `Aired ${formatDistanceToNow(new Date(bentoBroadcastEndedAt), { addSuffix: true })}`
-                                    : `Published ${formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}`}
-                                </span>
-                              </p>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {/* Facade preview — clicking the play button mounts the
+                          monetized iframe so YouTube serves pre-roll ads. */}
+                      <YouTubeEmbed
+                        videoId={ytId}
+                        title={sermon.title}
+                        thumbnailUrl={sermon.thumbnailUrl}
+                        mode="facade"
+                        analyticsPage="/"
+                        className="rounded-none"
+                      />
+                    </div>
+                    {/* Title strip beneath the embed (shown alongside the
+                        facade thumbnail, so users see the context even before
+                        clicking play). */}
+                    <div className="px-5 pt-3 pb-1 bg-primary">
+                      <span className="text-accent text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse" />
+                        {bentoIsRecentBroadcast ? "Latest Broadcast" : "Latest from Temple TV"}
+                      </span>
+                      <h3 className="text-white font-serif font-bold text-lg leading-snug line-clamp-2">{sermon.title}</h3>
+                      <p className="text-white/50 text-xs mt-1">
+                        {bentoIsRecentBroadcast && bentoBroadcastEndedAt
+                          ? `Aired ${formatDistanceToNow(new Date(bentoBroadcastEndedAt), { addSuffix: true })}`
+                          : `Published ${formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}`}
+                      </p>
                     </div>
                     <div className="p-5 flex items-center justify-between bg-primary">
                       <Badge variant="secondary" className={`text-[10px] rounded-full border ${bentoIsRecentBroadcast ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-white/10 text-white border-white/10"}`}>
@@ -2202,7 +2179,13 @@ function SermonSpotlight() {
                   <div className="absolute -inset-4 bg-gradient-to-r from-accent/15 to-primary/15 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-primary">
                     {playing && ytId ? (
-                      <iframe className="w-full aspect-video" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`} allow="autoplay; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" title={sermon.title} />
+                      <YouTubeEmbed
+                        videoId={ytId}
+                        title={sermon.title}
+                        thumbnailUrl={sermon.thumbnailUrl}
+                        mode="eager"
+                        analyticsPage="/"
+                      />
                     ) : (
                       <>
                         <div className="aspect-video relative overflow-hidden">
@@ -2280,13 +2263,12 @@ function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
       <div className="relative aspect-video overflow-hidden">
         {playing ? (
           <>
-            <iframe
-              className="w-full h-full absolute inset-0"
-              src={`https://www.youtube.com/embed/${s.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-              allow="autoplay; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+            <YouTubeEmbed
+              videoId={s.videoId}
               title={s.title}
+              mode="eager"
+              analyticsPage="/"
+              className="absolute inset-0"
             />
             <button
               onClick={() => onClose()}
@@ -2765,18 +2747,12 @@ function WarriCrusadeSection() {
                     Live
                   </div>
                 )}
-                <div className="aspect-video">
-                  <iframe
-                    src={isLive
-                      ? `https://www.youtube.com/embed/${LIVE_STREAM_VIDEO_ID}?autoplay=1&mute=1&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`
-                      : `https://www.youtube.com/embed/${CRUSADE_YT}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_YT}&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-                    title={isLive ? "Warri City Crusade 2026 — Live Broadcast" : "Warri City Crusade 2026 Promo"}
-                    allow="autoplay; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    className="w-full h-full"
-                  />
-                </div>
+                <YouTubeEmbed
+                  videoId={isLive ? LIVE_STREAM_VIDEO_ID : CRUSADE_YT}
+                  title={isLive ? "Warri City Crusade 2026 — Live Broadcast" : "Warri City Crusade 2026 Promo"}
+                  mode={isLive ? "eager" : "facade"}
+                  analyticsPage="/"
+                />
               </div>
 
               {/* CTAs */}
@@ -3038,18 +3014,16 @@ function MinisterConferenceSection() {
                 ))}
               </div>
 
-              {/* YouTube promo — autoplay, muted, loop */}
+              {/* Ministers Conference promo — facade so YouTube serves a
+                  pre-roll ad on user-initiated playback (muted autoplay loops
+                  earn nothing and weigh down LCP). */}
               <div className="rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(168,85,247,0.25)" }}>
-                <div className="aspect-video">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${MCONF_YT}?autoplay=1&mute=1&loop=1&playlist=${MCONF_YT}&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-                    title="Minister Conference 2026"
-                    allow="autoplay; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    className="w-full h-full"
-                  />
-                </div>
+                <YouTubeEmbed
+                  videoId={MCONF_YT}
+                  title="Ministers Conference 2026"
+                  mode="facade"
+                  analyticsPage="/"
+                />
               </div>
 
               {/* CTAs */}
@@ -3161,17 +3135,13 @@ function SundayServiceCard() {
                   <X className="h-4 w-4 text-white/70" />
                 </button>
               </div>
-              <div className="relative bg-black" style={{ paddingBottom: "56.25%" }}>
-                <iframe
-                  key={videoId}
-                  src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
-                  title="Holy Spirit Sunday Service — Live"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  className="absolute inset-0 w-full h-full"
-                />
-              </div>
+              <YouTubeEmbed
+                key={videoId}
+                videoId={videoId}
+                title="Holy Spirit Sunday Service — Live"
+                mode="eager"
+                analyticsPage="/"
+              />
             </motion.div>
           </motion.div>
         )}

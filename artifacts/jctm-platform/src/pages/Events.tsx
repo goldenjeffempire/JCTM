@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
@@ -566,16 +567,12 @@ function StaticEventCard({ event, index }: { event: StaticEvent; index: number }
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                <div className="aspect-video">
-                  <iframe
-                    className="w-full h-full"
-                    src={`https://www.youtube.com/embed/${event.youtubeVideoId}?autoplay=1&mute=0&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
-                    title={`${event.title} — Promo Video`}
-                    allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                  />
-                </div>
+                <YouTubeEmbed
+                  videoId={event.youtubeVideoId}
+                  title={`${event.title} — Promo Video`}
+                  mode="eager"
+                  analyticsPage="/events"
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -728,20 +725,12 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
     >
       {!imageUrl && event.youtubeUrl && (
         <div className="relative">
-          <div className="aspect-video">
-            <iframe
-              className="w-full h-full"
-              src={
-                !past
-                  ? `https://www.youtube.com/embed/${event.youtubeUrl}?autoplay=1&mute=1&loop=1&playlist=${event.youtubeUrl}&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`
-                  : `https://www.youtube.com/embed/${event.youtubeUrl}?rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`
-              }
-              title={event.title}
-              allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          </div>
+          <YouTubeEmbed
+            videoId={event.youtubeUrl}
+            title={event.title}
+            mode="facade"
+            analyticsPage="/events"
+          />
           {!past && (
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
               <Countdown target={event.startDate} />
@@ -967,16 +956,12 @@ export default function Events() {
                   <Youtube className="h-3.5 w-3.5" /> YouTube
                 </a>
               </div>
-              <div className="aspect-video">
-                <iframe
-                  className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${CRUSADE_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${CRUSADE_VIDEO_ID}&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
-                  title="Warri City Crusade 2026 — Official Promo Video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
+              <YouTubeEmbed
+                videoId={CRUSADE_VIDEO_ID}
+                title="Warri City Crusade 2026 — Official Promo Video"
+                mode="facade"
+                analyticsPage="/events"
+              />
             </div>
 
             {/* Ministers Conference 2026 */}
@@ -995,16 +980,12 @@ export default function Events() {
                   <Youtube className="h-3.5 w-3.5" /> YouTube
                 </a>
               </div>
-              <div className="aspect-video">
-                <iframe
-                  className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${MINISTER_CONF_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${MINISTER_CONF_VIDEO_ID}&rel=0&controls=1&origin=${encodeURIComponent(window.location.origin)}`}
-                  title="Ministers Conference 2026 — Official Promo Video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
+              <YouTubeEmbed
+                videoId={MINISTER_CONF_VIDEO_ID}
+                title="Ministers Conference 2026 — Official Promo Video"
+                mode="facade"
+                analyticsPage="/events"
+              />
             </div>
           </div>
         </motion.div>
@@ -1039,16 +1020,13 @@ export default function Events() {
           </div>
           {showLive && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-6 overflow-hidden">
-              <div className="aspect-video rounded-xl overflow-hidden shadow-xl">
-                <iframe
-                  src={`https://www.youtube.com/embed?listType=playlist&list=${YOUTUBE_LIVE_ID}&index=0&autoplay=0&origin=${encodeURIComponent(window.location.origin)}`}
-                  className="w-full h-full"
-                  title="Holy Spirit Sunday Service — Live"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                />
-              </div>
+              <YouTubeEmbed
+                videoId={YOUTUBE_LIVE_ID}
+                title="Holy Spirit Sunday Service — Live"
+                mode="facade"
+                analyticsPage="/events"
+                className="rounded-xl shadow-xl"
+              />
             </motion.div>
           )}
         </div>

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGetSermonStats, getGetSermonStatsQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -670,13 +671,13 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
       <div className="relative bg-muted overflow-hidden" style={{ aspectRatio: "16/9" }}>
         {playing ? (
           <>
-            <iframe
-              className="w-full h-full absolute inset-0"
-              src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-              allow="autoplay; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+            <YouTubeEmbed
+              videoId={sermon.videoId}
               title={sermon.title}
+              thumbnailUrl={sermon.thumbnailUrl}
+              mode="eager"
+              analyticsPage="/sermons"
+              className="absolute inset-0"
             />
             <button
               onClick={() => onClose()}
@@ -690,13 +691,13 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
           <>
             {/* Full-size iframe behind overlay — YouTube allows autoplay only when it
                 detects real layout dimensions via IntersectionObserver */}
-            <iframe
-              className="absolute inset-0 w-full h-full"
-              src={`https://www.youtube.com/embed/${sermon.videoId}?autoplay=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-              allow="autoplay; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+            <YouTubeEmbed
+              videoId={sermon.videoId}
               title={`${sermon.title} audio`}
+              thumbnailUrl={sermon.thumbnailUrl}
+              mode="eager"
+              analyticsPage="/sermons"
+              className="absolute inset-0"
             />
             {/* Opaque overlay covering the video — pointer-events-none so the
                 Watch / Audio Only buttons below remain clickable */}

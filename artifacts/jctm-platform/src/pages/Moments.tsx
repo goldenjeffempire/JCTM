@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
+import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -318,16 +319,8 @@ function MomentCard({
   onToggleMute: () => void;
   isActive: boolean;
 }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const embedRef = useRef<YouTubeEmbedHandle>(null);
   const gradient = GRADIENT_THEMES[index % GRADIENT_THEMES.length]!;
-
-  // Only build embed src when this card is active — destroyed when inactive so video stops
-  const embedSrc = isActive
-    ? `https://www.youtube.com/embed/${moment.videoId}` +
-      `?autoplay=1&mute=${muted ? 1 : 0}&loop=1&playlist=${moment.videoId}` +
-      `&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` +
-      `&origin=${encodeURIComponent(window.location.origin)}`
-    : null;
 
   const [likes, setLikes] = useState<NativeLikes>({ count: 0, liked: false, shareCount: 0 });
   const [liking, setLiking] = useState(false);
@@ -345,18 +338,6 @@ function MomentCard({
     });
     fetchComments(moment.videoId).then(comments => setCommentCount(comments.length));
   }, [isActive, moment.videoId, visitorId]);
-
-  // Pump volume to max after iframe loads
-  const handleLoad = () => {
-    const pump = (n: number) => {
-      iframeRef.current?.contentWindow?.postMessage(
-        JSON.stringify({ event: "command", func: "setVolume", args: [100] }),
-        "*",
-      );
-      if (n < 8) setTimeout(() => pump(n + 1), 600);
-    };
-    setTimeout(() => pump(0), 300);
-  };
 
   const ytUrl = `https://www.youtube.com/watch?v=${moment.videoId}`;
 
@@ -413,19 +394,25 @@ function MomentCard({
 
   return (
     <div className={`relative w-full h-full flex-shrink-0 bg-gradient-to-b ${gradient} overflow-hidden`}>
-      {/* Video layer — only renders for the active card */}
-      {isActive && embedSrc ? (
+      {/* Video layer — only renders for the active card. Eager YouTubeEmbed
+          autoplays the moment the card becomes active (after a swipe gesture,
+          which counts as a user-initiated activation for monetization). */}
+      {isActive ? (
         <div className="absolute inset-0 bg-black">
-          <iframe
+          <YouTubeEmbed
             key={`${moment.videoId}-${muted}`}
-            ref={iframeRef}
-            src={embedSrc}
+            ref={embedRef}
+            videoId={moment.videoId}
             title={moment.title}
-            className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            onLoad={handleLoad}
+            thumbnailUrl={moment.thumbnailUrl}
+            mode="eager"
+            autoplay
+            loop
+            audioOnly={muted}
+            aspectRatio="9/16"
+            analyticsPage="/moments"
+            iframeClassName="border-0"
+            className="border-0 h-full"
           />
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.15) 40%, transparent 65%)" }} />

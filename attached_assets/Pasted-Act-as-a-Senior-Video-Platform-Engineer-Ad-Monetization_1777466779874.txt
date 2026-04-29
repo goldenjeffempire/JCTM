@@ -1,0 +1,111 @@
+Act as a Senior Video Platform Engineer, Ad Monetization Architect, and Performance Optimization Expert.
+
+Objective:
+Integrate fully compliant YouTube monetized embeds across the entire JCTM platform (`jctm.org.ng`) so embedded videos can serve YouTube ads from our monetized YouTube channel while maintaining high performance, responsiveness, SEO, accessibility, and enterprise-grade UX.
+
+Execution Requirements:
+
+1. Audit the entire platform and locate all YouTube video embeds, players, livestream embeds, sermon pages, media pages, archive pages, hero video sections, popups, and dynamic video components.
+
+2. Replace all non-compliant or custom YouTube implementations with the official YouTube iframe embed player using:
+   `https://www.youtube.com/embed/VIDEO_ID`
+
+3. Ensure all embeds preserve YouTube monetization eligibility and ad delivery:
+
+* DO NOT use `youtube-nocookie.com`
+* DO NOT proxy, restream, or self-host YouTube videos
+* DO NOT suppress YouTube monetization scripts
+* Preserve standard YouTube playback behavior
+* Ensure ads can render naturally before/mid playback
+
+4. Remove any parameters or logic that may negatively affect ad delivery including:
+
+* forced muted autoplay
+* hidden playback
+* invisible iframe rendering
+* aggressive auto-refresh logic
+* simultaneous autoplay of multiple videos
+
+5. Implement enterprise-grade responsive embed components:
+
+* mobile optimized
+* adaptive aspect ratios
+* lazy loading
+* skeleton loaders
+* optimized CLS/LCP performance
+* accessibility support
+* graceful fallback states
+
+6. Add intelligent lazy loading:
+
+* load iframe only when visible in viewport
+* use thumbnail preview before iframe initialization
+* preserve ad eligibility during deferred loading
+
+7. Standardize all embeds using:
+
+* `rel=0`
+* `modestbranding=1`
+* secure HTTPS embeds
+* fullscreen support
+* proper permissions policy
+
+8. Add analytics tracking:
+
+* embedded video impressions
+* play events
+* engagement duration
+* watch completion tracking
+* ad-safe event handling
+
+9. Ensure compatibility across:
+
+* desktop
+* tablet
+* mobile
+* smart TV browsers
+* low bandwidth environments
+
+10. Optimize SEO around embedded videos:
+
+* structured metadata
+* schema markup
+* video indexing optimization
+* accessible titles/descriptions
+
+11. Add surrounding monetization enhancements:
+
+* optimized display ad placements around video sections
+* sponsor banner slots
+* non-intrusive ad containers
+* preserve UX quality
+
+12. Verify compliance with:
+
+* YouTube monetization policies
+* Google ad policies
+* privacy/security best practices
+* performance best practices
+
+13. Refactor all related frontend code into reusable production-grade components and remove duplicated embed logic.
+
+14. Run full QA validation:
+
+* ad rendering validation
+* responsive testing
+* performance testing
+* accessibility testing
+* playback testing
+* cross-browser testing
+
+15. Deliver final production-ready implementation with:
+
+* clean architecture
+* optimized performance
+* scalable reusable components
+* maintainable codebase
+* zero broken embeds
+* maximum monetization compatibility
+
+Goal:
+Transform the entire JCTM video experience into a production-grade monetized YouTube embed ecosystem optimized for ad revenue, performance, scalability, engagement, and long-term platform growth.

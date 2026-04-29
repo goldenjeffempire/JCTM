@@ -9,6 +9,7 @@ import {
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
 import { Layout } from "@/components/layout/Layout";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -904,16 +905,19 @@ function ConferenceVideoLoop() {
         <p className="text-white/60 text-sm">The official conference video uploaded to YouTube. Playing as a continuous ad — watch, share, and amplify the reach across all platforms.</p>
       </div>
       <div className="p-4">
-        <div className="rounded-2xl overflow-hidden shadow-2xl" style={{ aspectRatio: "16/9" }}>
-          <iframe
-            src={`https://www.youtube.com/embed/${CONF_YT_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${CONF_YT_VIDEO}&controls=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}`}
-            title="Ministers Conference 2026 — Official Promo Video"
-            allow="autoplay; fullscreen; accelerometer; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            className="w-full h-full"
-          />
-        </div>
+        <YouTubeEmbed
+          videoId={CONF_YT_VIDEO}
+          title="Ministers Conference 2026 — Official Promo Video"
+          mode="facade"
+          emitSchema
+          schema={{
+            description: "Official promo video for the Ministers Conference 2026 hosted by Jesus Christ Temple Ministry.",
+            publisherName: "Jesus Christ Temple Ministry (JCTM)",
+            publisherUrl: "https://jctm.org.ng",
+          }}
+          className="rounded-2xl shadow-2xl"
+          analyticsPage="/conference-registration"
+        />
         <div className="flex flex-wrap gap-3 mt-5 justify-center">
           <a
             href={`https://wa.me/?text=${videoShareText}`}

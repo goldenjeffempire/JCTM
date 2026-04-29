@@ -475,5 +475,29 @@ export async function runMigrations(): Promise<void> {
     ON broadcast_snippets (LOWER(name))
   `);
 
+  // ── Video Event Counts (YouTube embed analytics) ───────────────────────────
+  // Aggregates per (video_id, page) of impressions / plays / quartile reach /
+  // completes coming from the canonical <YouTubeEmbed/> component on the
+  // frontend. Used to surface top-performing embeds in the admin dashboard.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS video_event_counts (
+      video_id text NOT NULL,
+      page text NOT NULL DEFAULT '/',
+      impressions bigint NOT NULL DEFAULT 0,
+      plays bigint NOT NULL DEFAULT 0,
+      pauses bigint NOT NULL DEFAULT 0,
+      q25 bigint NOT NULL DEFAULT 0,
+      q50 bigint NOT NULL DEFAULT 0,
+      q75 bigint NOT NULL DEFAULT 0,
+      completes bigint NOT NULL DEFAULT 0,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (video_id, page)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS video_event_counts_plays_idx
+    ON video_event_counts (plays DESC)
+  `);
+
   logger.info("All migrations complete");
 }

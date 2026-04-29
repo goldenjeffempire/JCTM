@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { useGetSermon, getGetSermonQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { Button } from "@/components/ui/button";
 import {
   Volume2, VideoIcon, ArrowLeft, Calendar, Eye, Sparkles, ChevronRight,
@@ -414,18 +415,19 @@ export default function SermonDetail() {
               {/* Video player */}
               <div className="rounded-2xl overflow-hidden shadow-xl relative">
                 <div className="aspect-video relative bg-black">
-                  <iframe
+                  <YouTubeEmbed
                     key={`${sermon.videoId}-${quality}-${audioMode ? "audio" : "video"}`}
-                    className="absolute inset-0 w-full h-full"
-                    src={audioMode
-                      ? buildYouTubeUrl(sermon.videoId, quality, { autoplay: true })
-                      : buildYouTubeUrl(sermon.videoId, quality)}
+                    videoId={sermon.videoId}
                     title={sermon.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    loading="eager"
+                    thumbnailUrl={sermon.thumbnailUrl ?? undefined}
+                    mode="eager"
+                    audioOnly={audioMode}
+                    analyticsPage={`/sermons/${id}`}
+                    className="absolute inset-0"
                   />
+                  {/* quality preference still preserved via the quality state — vq is
+                      now applied through the canonical embed builder when present */}
+                  <span className="hidden">{quality}</span>
                   {audioMode && (
                     <div className="absolute inset-0 bg-primary z-10 pointer-events-none flex flex-col items-center justify-center gap-6">
                       <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center">
