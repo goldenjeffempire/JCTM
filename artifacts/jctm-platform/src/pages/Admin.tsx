@@ -2701,6 +2701,13 @@ interface MonthRow {
   plays: string | number | null;
 }
 
+interface TrendPoint {
+  month:       string;
+  impressions: number;
+  plays:       number;
+  completes:   number;
+}
+
 function currentUtcMonth(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -2732,6 +2739,110 @@ function formatPct(num: number, den: number): string {
   return `${((num / den) * 100).toFixed(1)}%`;
 }
 
+function TrendChart({ trend }: { trend: TrendPoint[] }) {
+  if (trend.length === 0) return null;
+
+  const W = 600;
+  const H = 120;
+  const PAD = { top: 8, right: 4, bottom: 22, left: 4 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+
+  const maxImpr  = Math.max(1, ...trend.map(p => p.impressions));
+  const maxPlays = Math.max(1, ...trend.map(p => p.plays));
+  const yMax = Math.max(maxImpr, maxPlays);
+
+  const stepX = innerW / Math.max(1, trend.length - 1);
+  const xAt = (i: number) => PAD.left + i * stepX;
+  const yAt = (v: number) => PAD.top + innerH - (v / yMax) * innerH;
+
+  const linePath = (key: "impressions" | "plays") =>
+    trend.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)},${yAt(p[key]).toFixed(1)}`).join(" ");
+
+  const areaPath = (key: "impressions" | "plays") => {
+    const top = trend.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)},${yAt(p[key]).toFixed(1)}`).join(" ");
+    return `${top} L${xAt(trend.length - 1).toFixed(1)},${(PAD.top + innerH).toFixed(1)} L${xAt(0).toFixed(1)},${(PAD.top + innerH).toFixed(1)} Z`;
+  };
+
+  const totalPlays = trend.reduce((acc, p) => acc + p.plays, 0);
+  const lastMonth  = trend[trend.length - 1];
+  const prevMonth  = trend[trend.length - 2];
+  const momDelta   = prevMonth && prevMonth.plays > 0
+    ? ((lastMonth.plays - prevMonth.plays) / prevMonth.plays) * 100
+    : null;
+  const momLabel = momDelta === null
+    ? null
+    : (momDelta >= 0 ? "+" : "") + momDelta.toFixed(1) + "%";
+
+  return (
+    <div className="mb-4 rounded-xl border border-border bg-muted/20 p-3">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div>
+          <div className="text-xs font-semibold flex items-center gap-1.5">
+            <TrendingUp className="w-3 h-3 text-primary" /> 12-Month Trend
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            {formatCount(totalPlays)} plays across the last year
+            {momLabel !== null && (
+              <>
+                {" • "}
+                <span className={momDelta! >= 0 ? "text-emerald-500" : "text-red-500"}>
+                  {momLabel} MoM
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-blue-500/70 inline-block" /> Impressions
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Plays
+          </span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="trendImprFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stopColor="rgb(59,130,246)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="rgb(59,130,246)" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="trendPlaysFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stopColor="rgb(239,68,68)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="rgb(239,68,68)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <path d={areaPath("impressions")} fill="url(#trendImprFill)" />
+        <path d={linePath("impressions")} fill="none" stroke="rgb(59,130,246)" strokeWidth="1.5" strokeOpacity="0.7" />
+        <path d={areaPath("plays")}       fill="url(#trendPlaysFill)" />
+        <path d={linePath("plays")}       fill="none" stroke="rgb(239,68,68)" strokeWidth="2" />
+
+        {trend.map((p, i) => (
+          <g key={p.month}>
+            <circle cx={xAt(i)} cy={yAt(p.plays)} r={2} fill="rgb(239,68,68)">
+              <title>{`${formatMonthLabel(p.month)}\n${p.plays.toLocaleString()} plays\n${p.impressions.toLocaleString()} impressions\n${p.completes.toLocaleString()} completes`}</title>
+            </circle>
+            {(i % 2 === 0 || i === trend.length - 1) && (
+              <text
+                x={xAt(i)}
+                y={H - 6}
+                textAnchor="middle"
+                className="fill-muted-foreground"
+                style={{ fontSize: 9 }}
+              >
+                {p.month.slice(2).replace("-", "/")}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function TopVideosPanel({ auth }: { auth: AdminAuth }) {
   const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
   const [exportMonth, setExportMonth] = useState<string>(currentUtcMonth());
@@ -2760,6 +2871,19 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
     enabled: !!auth.adminToken,
     staleTime: 60_000,
   });
+
+  const { data: trendData } = useQuery<{ trend: TrendPoint[] }>({
+    queryKey: ["video-events-trend"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/video-events/trend`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ trend: TrendPoint[] }>(res, "Unable to load trend");
+    },
+    enabled: !!auth.adminToken,
+    staleTime: 60_000,
+  });
+
+  const trend = trendData?.trend ?? [];
 
   const availableMonths = useMemo(() => {
     const fromApi = (monthsData?.months ?? []).map(m => m.month);
@@ -2844,6 +2968,8 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
           {exportError}
         </div>
       )}
+
+      <TrendChart trend={trend} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <MetricCard label="Impressions" value={formatCount(totals.impressions)} icon={<Eye className="w-4 h-4" />} />

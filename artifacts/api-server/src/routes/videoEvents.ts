@@ -221,6 +221,52 @@ router.get(
   },
 );
 
+// Admin-only — last 12 months of totals (impressions/plays/completes) so the
+// dashboard can render a trend sparkline. Backfills missing months with zeros
+// so the chart x-axis is always continuous.
+router.get(
+  "/video-events/trend",
+  requireAdminRole(["sermon", "livestream"]),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          month,
+          SUM(impressions)::bigint AS impressions,
+          SUM(plays)::bigint       AS plays,
+          SUM(completes)::bigint   AS completes
+        FROM video_event_counts_monthly
+        GROUP BY month;
+      `);
+
+      type Row = { month: string; impressions: number; plays: number; completes: number };
+      const map = new Map<string, Row>();
+      for (const r of (rows.rows ?? rows) as Array<Record<string, unknown>>) {
+        const key = String(r.month);
+        map.set(key, {
+          month:       key,
+          impressions: Number(r.impressions ?? 0),
+          plays:       Number(r.plays       ?? 0),
+          completes:   Number(r.completes   ?? 0),
+        });
+      }
+
+      // Build a 12-slot continuous timeline ending at the current UTC month.
+      const trend: Row[] = [];
+      const now = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+        trend.push(map.get(key) ?? { month: key, impressions: 0, plays: 0, completes: 0 });
+      }
+      res.json({ trend });
+    } catch (err) {
+      _req.log?.warn?.({ err }, "video-events/trend query failed");
+      res.json({ trend: [] });
+    }
+  },
+);
+
 // Admin-only — list of months that actually have data, newest first.
 router.get(
   "/video-events/months",
