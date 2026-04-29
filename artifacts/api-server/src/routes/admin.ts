@@ -16,6 +16,7 @@ import { logger } from "../lib/logger.js";
 import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
+import { broadcastWarriCrusadeManual } from "../lib/cron.js";
 
 const router: IRouter = Router();
 const requireAnyRoleAdmin = requireAdminRole(["gallery", "sermon", "livestream"]);
@@ -464,6 +465,29 @@ router.patch(
       res.status(500).json({ error: "Failed to update member role" });
     }
   },
+);
+
+// ── POST /api/admin/warri-crusade/broadcast-now ───────────────────────────────
+router.post(
+  "/admin/warri-crusade/broadcast-now",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const triggeredBy = `admin:${req.ip ?? "unknown"}`;
+      const result = await broadcastWarriCrusadeManual(req.log, triggeredBy, 5);
+      if (result.skipped) {
+        res.status(429).json({
+          success: false,
+          ...result,
+        });
+        return;
+      }
+      res.json({ success: true, ...result });
+    } catch (err) {
+      req.log.error({ err }, "Manual Warri Crusade broadcast failed");
+      res.status(500).json({ error: "Failed to dispatch broadcast" });
+    }
+  }
 );
 
 // ── GET /api/admin/warri-crusade/stats ────────────────────────────────────────

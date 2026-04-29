@@ -487,6 +487,67 @@ function buildWarriCrusadeNotification(): NotificationPayload {
   };
 }
 
+/**
+ * Manual one-shot Warri Crusade broadcast trigger — used by the admin
+ * "Send broadcast now" button. Idempotent within `cooldownMinutes` (default 5)
+ * via a synthetic dedup key in `broadcast_events`. Returns the dispatch
+ * result, or `{ skipped: true }` if a manual send already fired inside the
+ * cooldown window.
+ */
+export async function broadcastWarriCrusadeManual(
+  log: Logger,
+  triggeredBy: string,
+  cooldownMinutes = 5,
+): Promise<
+  | { skipped: true; reason: string; lastFiredAt: string }
+  | { skipped: false; sent: number; failed: number; deactivated: number; total: number }
+> {
+  const now = Date.now();
+  if (now >= WARRI_CRUSADE_END_MS) {
+    return { skipped: true, reason: "Campaign has ended", lastFiredAt: new Date(WARRI_CRUSADE_END_MS).toISOString() };
+  }
+
+  // Look back `cooldownMinutes` for any manual send (synthetic [manual] tag).
+  const cooldownAgo = new Date(now - cooldownMinutes * 60_000).toISOString();
+  const recent = await pool.query<{ fired_at: string }>(
+    `SELECT fired_at::text FROM broadcast_events
+      WHERE type = 'warri_crusade_promo'
+        AND message LIKE $1
+        AND fired_at >= $2
+      ORDER BY fired_at DESC
+      LIMIT 1`,
+    [`%[manual%`, cooldownAgo],
+  );
+  if (recent.rowCount && recent.rowCount > 0) {
+    return {
+      skipped: true,
+      reason: `A manual broadcast was sent within the last ${cooldownMinutes} minutes`,
+      lastFiredAt: recent.rows[0].fired_at,
+    };
+  }
+
+  const manualMessage = `${WARRI_CRUSADE_BODY} [manual:${new Date(now).toISOString()}:${triggeredBy}]`;
+  await pool.query(
+    `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+    ["warri_crusade_promo", WARRI_CRUSADE_TITLE, manualMessage, WARRI_CRUSADE_URL],
+  );
+
+  log.info({ triggeredBy }, "Warri Crusade manual broadcast — dispatching push + in-app toast");
+  const notif = buildWarriCrusadeNotification();
+  const result = await dispatchPushNotification(notif, log, "warri_crusade_promo");
+  log.info(
+    { triggeredBy, sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+    "Warri Crusade manual broadcast complete",
+  );
+  return {
+    skipped: false,
+    sent: result.sent,
+    failed: result.failed,
+    deactivated: result.deactivated,
+    total: result.sent + result.failed + result.deactivated,
+  };
+}
+
 async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
   const now = Date.now();
   if (now >= WARRI_CRUSADE_END_MS) return; // event finished — nothing to do

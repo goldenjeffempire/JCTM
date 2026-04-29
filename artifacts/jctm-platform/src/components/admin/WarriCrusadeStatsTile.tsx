@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   Flame, Users, Send, MousePointerClick, Clock, CheckCircle,
-  AlertCircle, TrendingUp, Activity, Calendar, RefreshCw,
+  AlertCircle, TrendingUp, Activity, Calendar, RefreshCw, Zap, X,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, XAxis, YAxis, Tooltip,
@@ -56,6 +58,8 @@ function fmtHour(iso: string): string {
 
 export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
   const [now, setNow] = useState(Date.now());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const qc = useQueryClient();
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -74,6 +78,42 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
     refetchInterval: 30_000,
     staleTime: 10_000,
     enabled: !!adminToken,
+  });
+
+  const broadcastMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/warri-crusade/broadcast-now`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(body?.reason ?? body?.error ?? `HTTP ${res.status}`) as Error & {
+          status?: number; payload?: { reason?: string; lastFiredAt?: string };
+        };
+        err.status = res.status;
+        err.payload = body;
+        throw err;
+      }
+      return body as { success: true; sent: number; failed: number; deactivated: number; total: number };
+    },
+    onSuccess: (result) => {
+      toast.success(
+        `Broadcast sent — ${result.sent.toLocaleString()} delivered`,
+        { description: `${result.failed} failed · ${result.deactivated} deactivated · ${result.total} total subscribers reached` }
+      );
+      setConfirmOpen(false);
+      qc.invalidateQueries({ queryKey: ["admin-warri-crusade-stats"] });
+    },
+    onError: (err: Error & { status?: number; payload?: { reason?: string; lastFiredAt?: string } }) => {
+      if (err.status === 429) {
+        toast.warning("Cooldown active", {
+          description: err.payload?.reason ?? "A manual broadcast was just sent. Please wait a few minutes.",
+        });
+      } else {
+        toast.error("Broadcast failed", { description: err.message });
+      }
+    },
   });
 
   if (isLoading) {
@@ -155,15 +195,118 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="shrink-0 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition disabled:opacity-50"
-          title="Refresh"
-        >
-          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-        </button>
+        <div className="shrink-0 flex items-center gap-2">
+          {campaign.active && (
+            <button
+              onClick={() => setConfirmOpen(true)}
+              disabled={broadcastMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-zinc-950 text-xs font-bold transition shadow-lg shadow-red-900/40 disabled:opacity-50"
+              title="Send a Warri Crusade broadcast right now"
+              data-testid="warri-crusade-broadcast-now"
+            >
+              {broadcastMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">Send broadcast now</span>
+              <span className="sm:hidden">Send</span>
+            </button>
+          )}
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
+
+      {/* Confirm broadcast modal */}
+      <AnimatePresence>
+        {confirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !broadcastMutation.isPending && setConfirmOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-2xl bg-zinc-950 border border-amber-500/30 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-red-950 via-amber-950/50 to-red-950 p-5 border-b border-amber-500/20">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-red-600 flex items-center justify-center">
+                      <Zap className="h-5 w-5 text-zinc-950" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-base">Send broadcast now?</h3>
+                      <p className="text-xs text-amber-200/80 mt-0.5">Outside the hourly schedule</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => !broadcastMutation.isPending && setConfirmOpen(false)}
+                    disabled={broadcastMutation.isPending}
+                    className="text-white/50 hover:text-white p-1 rounded disabled:opacity-30"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-100/90 space-y-1">
+                  <p>This will instantly fan out a push notification to <strong className="text-amber-200 tabular-nums">{subscribers.active.toLocaleString()}</strong> active subscribers and surface the in-app toast on every connected device.</p>
+                </div>
+                <div className="rounded-lg bg-black/40 border border-white/10 p-3 space-y-1.5">
+                  <div className="text-[10px] uppercase font-semibold tracking-wide text-white/50">Notification preview</div>
+                  <div className="font-semibold text-white text-sm">🔥 Warri Crusade 2026 Update</div>
+                  <div className="text-xs text-white/70">Join the powerful move of God today</div>
+                </div>
+                <div className="text-[11px] text-white/50 flex items-start gap-1.5">
+                  <Clock className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span>A 5-minute cooldown prevents accidental double-sends. Hourly auto-broadcasts continue independently.</span>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => setConfirmOpen(false)}
+                    disabled={broadcastMutation.isPending}
+                    className="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => broadcastMutation.mutate()}
+                    disabled={broadcastMutation.isPending}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-zinc-950 text-sm font-bold transition shadow-lg shadow-red-900/40 disabled:opacity-60"
+                    data-testid="warri-crusade-broadcast-confirm"
+                  >
+                    {broadcastMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending…
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Send broadcast
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
