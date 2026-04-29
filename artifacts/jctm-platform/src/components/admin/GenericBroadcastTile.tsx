@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Megaphone, Send, Loader2, X, Bell, AlertCircle,
   Sparkles, Clock, CalendarClock, ListChecks, Trash2,
-  CheckCircle2, XCircle, Hourglass, FlaskConical,
+  CheckCircle2, XCircle, Hourglass, FlaskConical, Copy,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -300,6 +300,24 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
     else scheduleMutation.mutate();
   };
 
+  // Load a previous broadcast back into the composer for editing/re-firing.
+  // Always switches to "now" mode (most common reuse pattern). Scrolls the
+  // form into view since the scheduled list may be below the fold.
+  const handleDuplicate = (b: ScheduledBroadcast) => {
+    setTitle(b.title);
+    setBody(b.body);
+    setUrl(b.url);
+    setRequireInteraction(b.require_interaction);
+    setMode("now");
+    toast.success("Loaded into composer", {
+      description: "Edit if needed, then send or schedule.",
+    });
+    if (typeof document !== "undefined") {
+      document.querySelector<HTMLInputElement>('[data-testid="broadcast-title-input"]')
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   return (
     <div className="rounded-xl bg-card border border-border p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
@@ -506,6 +524,7 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
                 key={b.id}
                 broadcast={b}
                 onCancel={() => cancelMutation.mutate(b.id)}
+                onDuplicate={() => handleDuplicate(b)}
                 cancelling={cancelMutation.isPending && cancelMutation.variables === b.id}
               />
             ))}
@@ -611,10 +630,12 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
 function ScheduledBroadcastRow({
   broadcast: b,
   onCancel,
+  onDuplicate,
   cancelling,
 }: {
   broadcast: ScheduledBroadcast;
   onCancel: () => void;
+  onDuplicate: () => void;
   cancelling: boolean;
 }) {
   const statusMeta = (() => {
@@ -650,6 +671,16 @@ function ScheduledBroadcastRow({
           )}
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onDuplicate}
+        aria-label="Duplicate into composer"
+        title="Load into composer to re-send or edit"
+        className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 transition-colors"
+        data-testid={`broadcast-duplicate-${b.id}`}
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
       {b.status === "pending" && (
         <button
           type="button"
