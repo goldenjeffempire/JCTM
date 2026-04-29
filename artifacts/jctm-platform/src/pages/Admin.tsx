@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Radio, Tv2, RefreshCw, CheckCircle, AlertCircle, Clock,
   BarChart3, Zap, Calendar, PlayCircle, Settings, Activity,
-  ChevronRight, Eye, Users, MessageSquare, Check, Trash2,
+  ChevronRight, Eye, Users, MessageSquare, Check, Trash2, Download,
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
   Power, Repeat2, LayoutDashboard, Image, FileText,
   Shield, Menu, KeyRound, ImageOff, Bell, Send,
@@ -2696,6 +2696,26 @@ interface TopVideosPayload {
   pages:  TopVideoPageRow[];
 }
 
+interface MonthRow {
+  month: string;
+  plays: string | number | null;
+}
+
+function currentUtcMonth(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthLabel(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return month;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(undefined, {
+    month: "long",
+    year:  "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function num(v: string | number | null | undefined): number {
   if (v === null || v === undefined) return 0;
   return typeof v === "number" ? v : parseInt(v, 10) || 0;
@@ -2714,6 +2734,9 @@ function formatPct(num: number, den: number): string {
 
 function TopVideosPanel({ auth }: { auth: AdminAuth }) {
   const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+  const [exportMonth, setExportMonth] = useState<string>(currentUtcMonth());
+  const [downloading, setDownloading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useQuery<TopVideosPayload>({
     queryKey: ["video-events-top"],
@@ -2726,6 +2749,47 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+
+  const { data: monthsData } = useQuery<{ months: MonthRow[] }>({
+    queryKey: ["video-events-months"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/video-events/months`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ months: MonthRow[] }>(res, "Unable to load months");
+    },
+    enabled: !!auth.adminToken,
+    staleTime: 60_000,
+  });
+
+  const availableMonths = useMemo(() => {
+    const fromApi = (monthsData?.months ?? []).map(m => m.month);
+    const set = new Set<string>(fromApi);
+    set.add(currentUtcMonth());
+    return Array.from(set).sort().reverse();
+  }, [monthsData]);
+
+  const downloadCsv = async () => {
+    setDownloading(true);
+    setExportError(null);
+    try {
+      const res = await fetch(`${BASE}/api/video-events/export.csv?month=${exportMonth}`, { headers: authHeader });
+      if (res.status === 401) { auth.logout(); return; }
+      if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jctm-video-analytics-${exportMonth}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const items   = data?.items ?? [];
   const totals  = data?.totals ?? { impressions: 0, plays: 0, completes: 0 };
@@ -2745,15 +2809,41 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
             Real watch-time signals from every <code className="px-1 py-0.5 rounded bg-muted text-[10px]">YouTubeEmbed</code> on the site.
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
-        >
-          {isFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={exportMonth}
+            onChange={e => setExportMonth(e.target.value)}
+            className="text-xs px-2.5 py-1.5 rounded-lg border border-border bg-background hover:bg-muted transition-colors cursor-pointer"
+            aria-label="Select month for CSV export"
+          >
+            {availableMonths.map(m => (
+              <option key={m} value={m}>{formatMonthLabel(m)}</option>
+            ))}
+          </select>
+          <button
+            onClick={downloadCsv}
+            disabled={downloading}
+            className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
+            title={`Download ${formatMonthLabel(exportMonth)} as CSV`}
+          >
+            {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+            Export CSV
+          </button>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            {isFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+            Refresh
+          </button>
+        </div>
       </div>
+      {exportError && (
+        <div className="mb-3 text-xs text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          {exportError}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <MetricCard label="Impressions" value={formatCount(totals.impressions)} icon={<Eye className="w-4 h-4" />} />

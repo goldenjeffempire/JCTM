@@ -499,5 +499,29 @@ export async function runMigrations(): Promise<void> {
     ON video_event_counts (plays DESC)
   `);
 
+  // Monthly bucket of the same data so we can produce per-month CSV exports
+  // without touching the rolling totals above. Month is stored as 'YYYY-MM'
+  // in UTC for stable, timezone-independent grouping.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS video_event_counts_monthly (
+      month text NOT NULL,
+      video_id text NOT NULL,
+      page text NOT NULL DEFAULT '/',
+      impressions bigint NOT NULL DEFAULT 0,
+      plays bigint NOT NULL DEFAULT 0,
+      pauses bigint NOT NULL DEFAULT 0,
+      q25 bigint NOT NULL DEFAULT 0,
+      q50 bigint NOT NULL DEFAULT 0,
+      q75 bigint NOT NULL DEFAULT 0,
+      completes bigint NOT NULL DEFAULT 0,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (month, video_id, page)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS video_event_counts_monthly_month_idx
+    ON video_event_counts_monthly (month DESC)
+  `);
+
   logger.info("All migrations complete");
 }
