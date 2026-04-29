@@ -567,6 +567,117 @@ router.post(
   }
 );
 
+// ── Scheduled broadcasts ──────────────────────────────────────────────────────
+// Admin can queue a notification to fire at a future time. The cron tick polls
+// `scheduled_broadcasts` and dispatches due rows. These routes provide the
+// list/create/cancel surface for the admin UI.
+
+router.get(
+  "/admin/scheduled-broadcasts",
+  requireAdminRole("livestream"),
+  async (_req: Request, res: Response): Promise<void> => {
+    const { rows } = await pool.query(
+      `SELECT id, title, body, url, require_interaction, scheduled_for, status,
+              sent_at, sent_count, failed_count, deactivated_count, error,
+              created_by, created_at
+         FROM scheduled_broadcasts
+        WHERE created_at > now() - interval '14 days'
+        ORDER BY
+          CASE status WHEN 'pending' THEN 0 WHEN 'processing' THEN 1 ELSE 2 END,
+          scheduled_for ASC,
+          created_at DESC
+        LIMIT 100`,
+    );
+    res.json({ broadcasts: rows });
+  },
+);
+
+router.post(
+  "/admin/scheduled-broadcasts",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as {
+      title?: string;
+      body?: string;
+      url?: string;
+      requireInteraction?: boolean;
+      scheduledFor?: string;
+    };
+    const title = (body.title ?? "").trim();
+    const message = (body.body ?? "").trim();
+    const url = (body.url ?? "").trim() || "/";
+    const requireInteraction = !!body.requireInteraction;
+    const scheduledForRaw = (body.scheduledFor ?? "").trim();
+
+    if (!title || title.length > 80) {
+      res.status(400).json({ error: "title is required (max 80 chars)" });
+      return;
+    }
+    if (!message || message.length > 240) {
+      res.status(400).json({ error: "body is required (max 240 chars)" });
+      return;
+    }
+    if (!url.startsWith("/") && !url.startsWith("http")) {
+      res.status(400).json({ error: "url must start with / or http" });
+      return;
+    }
+    const scheduledFor = new Date(scheduledForRaw);
+    if (Number.isNaN(scheduledFor.getTime())) {
+      res.status(400).json({ error: "scheduledFor must be a valid ISO datetime" });
+      return;
+    }
+    // Must be at least 60 seconds in the future to give the per-minute cron a
+    // chance to pick it up; otherwise it would fire on the very next tick which
+    // is essentially "send now" and should use /admin/broadcast/send instead.
+    if (scheduledFor.getTime() < Date.now() + 60_000) {
+      res.status(400).json({ error: "scheduledFor must be at least 1 minute in the future" });
+      return;
+    }
+    // Cap at 90 days out — sanity guard against accidental "schedule for 2099"
+    if (scheduledFor.getTime() > Date.now() + 90 * 24 * 60 * 60 * 1000) {
+      res.status(400).json({ error: "scheduledFor cannot be more than 90 days out" });
+      return;
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO scheduled_broadcasts
+         (title, body, url, require_interaction, scheduled_for, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, title, body, url, require_interaction, scheduled_for, status, created_at`,
+      [title, message, url, requireInteraction, scheduledFor.toISOString(), req.ip ?? null],
+    );
+    req.log.info({ id: rows[0]?.id, title, scheduledFor: scheduledFor.toISOString() }, "Scheduled broadcast queued");
+    res.status(201).json({ success: true, broadcast: rows[0] });
+  },
+);
+
+router.delete(
+  "/admin/scheduled-broadcasts/:id",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = Number.parseInt(req.params.id ?? "", 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    // Only pending broadcasts can be cancelled. Processing/sent/failed rows
+    // are immutable history.
+    const { rows } = await pool.query(
+      `UPDATE scheduled_broadcasts
+          SET status = 'cancelled'
+        WHERE id = $1 AND status = 'pending'
+        RETURNING id, status`,
+      [id],
+    );
+    if (rows.length === 0) {
+      res.status(404).json({ error: "Broadcast not found or not cancellable" });
+      return;
+    }
+    req.log.info({ id }, "Scheduled broadcast cancelled");
+    res.json({ success: true, id });
+  },
+);
+
 // ── POST /api/admin/warri-crusade/broadcast-now ───────────────────────────────
 router.post(
   "/admin/warri-crusade/broadcast-now",

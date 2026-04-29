@@ -12,6 +12,7 @@ import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
 import { EventPromoPreviewToggle } from "../event-promo/EventPromoPreviewToggle";
 import { WarriCrusadeStickyBanner } from "../event-promo/WarriCrusadeStickyBanner";
 import { CrusadeInlineAd } from "../event-promo/CrusadeInlineAd";
+import { FloatingJoinCrusadeCTA } from "../event-promo/FloatingJoinCrusadeCTA";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -36,6 +37,7 @@ export function Layout({ children }: LayoutProps) {
       <BroadcastStatusIndicator />
       <EventLiveToast />
       <GlobalEventAdBanner />
+      <FloatingJoinCrusadeCTA />
       <EventPromoPreviewToggle />
     </div>
   );

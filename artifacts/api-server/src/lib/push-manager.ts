@@ -272,7 +272,24 @@ export async function dispatchPushNotification(
 
     const payload = JSON.stringify(notification);
 
-    const promises = subscriptions.rows.map(async (sub) => {
+    // Track endpoints that fail with transient errors (5xx, network) so we
+    // can retry once after a short delay. 4xx (other than 410/404 which
+    // deactivate) and 429 (rate limit) are not retried — they would just
+    // fail again immediately.
+    const transientRetry: Array<{ endpoint: string; p256dh: string; auth: string }> = [];
+
+    const isTransient = (status: number | undefined, err: unknown): boolean => {
+      if (status && status >= 500 && status < 600) return true;
+      if (status === 408) return true;
+      const code = (err as { code?: string }).code;
+      if (code === "ECONNRESET" || code === "ETIMEDOUT" || code === "ENOTFOUND" || code === "EAI_AGAIN") return true;
+      return false;
+    };
+
+    const sendOnce = async (
+      sub: { endpoint: string; p256dh: string; auth: string },
+      isRetry: boolean,
+    ): Promise<void> => {
       try {
         await webpush.sendNotification(
           {
@@ -291,16 +308,27 @@ export async function dispatchPushNotification(
             [sub.endpoint]
           );
           deactivated++;
+        } else if (!isRetry && isTransient(status, err)) {
+          transientRetry.push(sub);
         } else {
           failed++;
-          log?.warn({ err, endpoint: sub.endpoint.slice(0, 40) }, "Push notification failed");
+          log?.warn({ err, endpoint: sub.endpoint.slice(0, 40), isRetry }, "Push notification failed");
         }
       }
-    });
+    };
 
-    await Promise.allSettled(promises);
+    await Promise.allSettled(subscriptions.rows.map((sub) => sendOnce(sub, false)));
 
-    log?.info({ sent, failed, deactivated }, "Push dispatch complete");
+    // Retry transient failures once after a short backoff so the affected
+    // endpoints have a chance to recover (e.g. brief 5xx blips at the push
+    // service edge).
+    if (transientRetry.length > 0) {
+      log?.info({ count: transientRetry.length }, "Retrying transient push failures after 3s");
+      await new Promise((r) => setTimeout(r, 3000));
+      await Promise.allSettled(transientRetry.map((sub) => sendOnce(sub, true)));
+    }
+
+    log?.info({ sent, failed, deactivated, retried: transientRetry.length }, "Push dispatch complete");
   } catch (err) {
     log?.error({ err }, "Push dispatch system error");
   }

@@ -1,10 +1,11 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   Megaphone, Send, Loader2, X, Bell, AlertCircle,
-  Sparkles, Clock,
+  Sparkles, Clock, CalendarClock, ListChecks, Trash2,
+  CheckCircle2, XCircle, Hourglass,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -20,6 +21,22 @@ interface BroadcastResult {
 interface BroadcastError extends Error {
   status?: number;
   payload?: { reason?: string; cooldownRemainingMs?: number };
+}
+
+interface ScheduledBroadcast {
+  id: number;
+  title: string;
+  body: string;
+  url: string;
+  require_interaction: boolean;
+  scheduled_for: string;
+  status: "pending" | "processing" | "sent" | "failed" | "cancelled";
+  sent_at: string | null;
+  sent_count: number | null;
+  failed_count: number | null;
+  deactivated_count: number | null;
+  error: string | null;
+  created_at: string;
 }
 
 const QUICK_TEMPLATES: { label: string; title: string; body: string; url: string }[] = [
@@ -43,17 +60,62 @@ const QUICK_TEMPLATES: { label: string; title: string; body: string; url: string
   },
 ];
 
+type SendMode = "now" | "schedule";
+
+// Convert a Date to the value format an <input type="datetime-local"> expects
+// in the user's local timezone (YYYY-MM-DDTHH:MM).
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    d.getFullYear() +
+    "-" + pad(d.getMonth() + 1) +
+    "-" + pad(d.getDate()) +
+    "T" + pad(d.getHours()) +
+    ":" + pad(d.getMinutes())
+  );
+}
+
+function formatScheduledFor(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function relativeTime(iso: string): string {
+  const diff = new Date(iso).getTime() - Date.now();
+  const abs = Math.abs(diff);
+  const mins = Math.round(abs / 60_000);
+  const hours = Math.round(abs / 3_600_000);
+  const days = Math.round(abs / 86_400_000);
+  const sign = diff >= 0 ? "in " : "";
+  const tail = diff >= 0 ? "" : " ago";
+  if (abs < 60_000) return diff >= 0 ? "in <1m" : "just now";
+  if (mins < 60) return `${sign}${mins}m${tail}`;
+  if (hours < 48) return `${sign}${hours}h${tail}`;
+  return `${sign}${days}d${tail}`;
+}
+
 export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("/");
   const [requireInteraction, setRequireInteraction] = useState(false);
+  const [mode, setMode] = useState<SendMode>("now");
+  // Default schedule input = now + 15 min
+  const [scheduledForLocal, setScheduledForLocal] = useState(() =>
+    toLocalInputValue(new Date(Date.now() + 15 * 60_000)),
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
 
-  // Tick every second only while cooldown is active, so the countdown updates
+  // Tick every second only while cooldown is active
   useEffect(() => {
     if (!cooldownUntil) return;
     const id = setInterval(() => {
@@ -75,13 +137,37 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
   const titleOver = titleLen > 80;
   const bodyOver = bodyLen > 240;
 
-  const canSubmit =
+  const scheduleDate = useMemo(() => {
+    const d = new Date(scheduledForLocal);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [scheduledForLocal]);
+  const scheduleValid = !!scheduleDate && scheduleDate.getTime() >= Date.now() + 60_000;
+
+  const baseValid =
     title.trim().length > 0 &&
     !titleOver &&
     body.trim().length > 0 &&
     !bodyOver &&
-    (url.startsWith("/") || url.startsWith("http")) &&
-    !cooldownActive;
+    (url.startsWith("/") || url.startsWith("http"));
+
+  const canSubmit =
+    baseValid && (mode === "now" ? !cooldownActive : scheduleValid);
+
+  // ── Scheduled broadcasts list ──────────────────────────────────────────────
+  const { data: scheduledList } = useQuery<{ broadcasts: ScheduledBroadcast[] }>({
+    queryKey: ["admin-scheduled-broadcasts"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/scheduled-broadcasts`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) throw new Error("Failed to load scheduled broadcasts");
+      return res.json();
+    },
+    enabled: !!adminToken,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+  const scheduledBroadcasts = scheduledList?.broadcasts ?? [];
 
   const broadcastMutation = useMutation({
     mutationFn: async (): Promise<BroadcastResult> => {
@@ -119,10 +205,61 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
     },
   });
 
+  const scheduleMutation = useMutation({
+    mutationFn: async (): Promise<{ broadcast: ScheduledBroadcast }> => {
+      const res = await fetch(`${BASE}/api/admin/scheduled-broadcasts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({
+          title: title.trim(),
+          body: body.trim(),
+          url: url.trim() || "/",
+          requireInteraction,
+          scheduledFor: scheduleDate?.toISOString(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success("Broadcast scheduled", {
+        description: `Will fire ${formatScheduledFor(data.broadcast.scheduled_for)}`,
+      });
+      setConfirmOpen(false);
+      qc.invalidateQueries({ queryKey: ["admin-scheduled-broadcasts"] });
+    },
+    onError: (err: Error) => toast.error("Schedule failed", { description: err.message }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/scheduled-broadcasts/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Scheduled broadcast cancelled");
+      qc.invalidateQueries({ queryKey: ["admin-scheduled-broadcasts"] });
+    },
+    onError: (err: Error) => toast.error("Cancel failed", { description: err.message }),
+  });
+
+  const submitting = broadcastMutation.isPending || scheduleMutation.isPending;
+
   const applyTemplate = (t: typeof QUICK_TEMPLATES[number]) => {
     setTitle(t.title);
     setBody(t.body);
     setUrl(t.url);
+  };
+
+  const handleSubmit = () => {
+    if (mode === "now") broadcastMutation.mutate();
+    else scheduleMutation.mutate();
   };
 
   return (
@@ -134,15 +271,39 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
           </div>
           <div>
             <h3 className="font-semibold text-base">Send instant broadcast</h3>
-            <p className="text-xs text-muted-foreground">Push notification + in-app toast to all active subscribers</p>
+            <p className="text-xs text-muted-foreground">Push notification + in-app toast — fire now or schedule</p>
           </div>
         </div>
-        {cooldownActive && (
+        {cooldownActive && mode === "now" && (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-300 text-[11px] font-medium border border-amber-500/30 tabular-nums">
             <Clock className="h-3 w-3" />
             cooldown {Math.ceil(cooldownRemaining / 1000)}s
           </span>
         )}
+      </div>
+
+      {/* Mode toggle */}
+      <div className="inline-flex rounded-lg bg-muted p-1 text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => setMode("now")}
+          className={`px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5 ${
+            mode === "now" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="broadcast-mode-now"
+        >
+          <Send className="h-3.5 w-3.5" /> Send now
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("schedule")}
+          className={`px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5 ${
+            mode === "schedule" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="broadcast-mode-schedule"
+        >
+          <CalendarClock className="h-3.5 w-3.5" /> Schedule for later
+        </button>
       </div>
 
       {/* Quick templates */}
@@ -225,6 +386,30 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
             <span className="text-xs text-foreground/80">Require interaction (sticky notification)</span>
           </label>
         </div>
+
+        {/* Schedule input — only when in schedule mode */}
+        {mode === "schedule" && (
+          <div>
+            <label className="text-xs font-medium text-foreground/80 mb-1 block">Send at</label>
+            <input
+              type="datetime-local"
+              value={scheduledForLocal}
+              onChange={(e) => setScheduledForLocal(e.target.value)}
+              min={toLocalInputValue(new Date(Date.now() + 60_000))}
+              className={`w-full px-3 py-2 rounded-lg bg-background border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                !scheduleValid ? "border-amber-500" : "border-border"
+              }`}
+              data-testid="broadcast-schedule-input"
+            />
+            <p className={`mt-1 text-[10px] ${scheduleValid ? "text-muted-foreground" : "text-amber-600 dark:text-amber-400"}`}>
+              {scheduleDate
+                ? scheduleValid
+                  ? `Will fire ${relativeTime(scheduleDate.toISOString())} (in your local timezone)`
+                  : "Must be at least 1 minute in the future"
+                : "Pick a valid date/time"}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Live preview */}
@@ -245,8 +430,12 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
           className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-400 hover:to-blue-500 text-white text-sm font-bold transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           data-testid="broadcast-send-button"
         >
-          <Send className="h-4 w-4" />
-          {cooldownActive ? `Cooldown ${Math.ceil(cooldownRemaining / 1000)}s` : "Send broadcast"}
+          {mode === "now" ? <Send className="h-4 w-4" /> : <CalendarClock className="h-4 w-4" />}
+          {mode === "now"
+            ? cooldownActive
+              ? `Cooldown ${Math.ceil(cooldownRemaining / 1000)}s`
+              : "Send broadcast"
+            : "Schedule broadcast"}
         </button>
         <button
           onClick={() => { setTitle(""); setBody(""); setUrl("/"); setRequireInteraction(false); }}
@@ -256,6 +445,26 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
         </button>
       </div>
 
+      {/* Scheduled list */}
+      {scheduledBroadcasts.length > 0 && (
+        <div className="border-t border-border pt-4 mt-2 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground/80">
+            <ListChecks className="h-3.5 w-3.5 text-purple-500" />
+            Scheduled & recent broadcasts
+          </div>
+          <div className="space-y-1.5 max-h-72 overflow-y-auto">
+            {scheduledBroadcasts.map((b) => (
+              <ScheduledBroadcastRow
+                key={b.id}
+                broadcast={b}
+                onCancel={() => cancelMutation.mutate(b.id)}
+                cancelling={cancelMutation.isPending && cancelMutation.variables === b.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Confirm modal */}
       <AnimatePresence>
         {confirmOpen && (
@@ -264,7 +473,7 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => !broadcastMutation.isPending && setConfirmOpen(false)}
+            onClick={() => !submitting && setConfirmOpen(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
@@ -278,16 +487,22 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-white" />
+                      {mode === "now" ? <AlertCircle className="h-5 w-5 text-white" /> : <CalendarClock className="h-5 w-5 text-white" />}
                     </div>
                     <div>
-                      <h3 className="font-bold text-foreground text-base">Confirm broadcast</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">This sends to every active subscriber</p>
+                      <h3 className="font-bold text-foreground text-base">
+                        {mode === "now" ? "Confirm broadcast" : "Confirm schedule"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {mode === "now"
+                          ? "This sends to every active subscriber"
+                          : `Will fire ${scheduleDate ? formatScheduledFor(scheduleDate.toISOString()) : ""}`}
+                      </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => !broadcastMutation.isPending && setConfirmOpen(false)}
-                    disabled={broadcastMutation.isPending}
+                    onClick={() => !submitting && setConfirmOpen(false)}
+                    disabled={submitting}
                     className="text-muted-foreground hover:text-foreground p-1 rounded disabled:opacity-30"
                   >
                     <X className="h-4 w-4" />
@@ -304,34 +519,35 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
                     {requireInteraction && <span className="ml-2 text-amber-600 dark:text-amber-300 font-medium">· sticky</span>}
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground flex items-start gap-1.5">
-                  <Clock className="h-3 w-3 mt-0.5 shrink-0" />
-                  <span>A 60-second cooldown for the same title + body prevents accidental duplicate sends.</span>
-                </div>
+                {mode === "now" && (
+                  <div className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                    <Clock className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>A 60-second cooldown for the same title + body prevents accidental duplicate sends.</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     onClick={() => setConfirmOpen(false)}
-                    disabled={broadcastMutation.isPending}
+                    disabled={submitting}
                     className="flex-1 px-4 py-2 rounded-lg bg-muted hover:bg-muted/70 text-foreground text-sm font-medium transition disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={() => broadcastMutation.mutate()}
-                    disabled={broadcastMutation.isPending}
+                    onClick={handleSubmit}
+                    disabled={submitting}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-400 hover:to-blue-500 text-white text-sm font-bold transition shadow-md disabled:opacity-60"
                     data-testid="broadcast-confirm-send"
                   >
-                    {broadcastMutation.isPending ? (
+                    {submitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending…
+                        {mode === "now" ? "Sending…" : "Scheduling…"}
                       </>
+                    ) : mode === "now" ? (
+                      <><Send className="h-4 w-4" />Send now</>
                     ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Send now
-                      </>
+                      <><CalendarClock className="h-4 w-4" />Schedule</>
                     )}
                   </button>
                 </div>
@@ -340,6 +556,64 @@ export function GenericBroadcastTile({ adminToken }: { adminToken: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function ScheduledBroadcastRow({
+  broadcast: b,
+  onCancel,
+  cancelling,
+}: {
+  broadcast: ScheduledBroadcast;
+  onCancel: () => void;
+  cancelling: boolean;
+}) {
+  const statusMeta = (() => {
+    switch (b.status) {
+      case "pending":
+        return { label: "Pending", icon: <Hourglass className="h-3 w-3" />, cls: "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30" };
+      case "processing":
+        return { label: "Sending…", icon: <Loader2 className="h-3 w-3 animate-spin" />, cls: "bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30" };
+      case "sent":
+        return { label: "Sent", icon: <CheckCircle2 className="h-3 w-3" />, cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30" };
+      case "failed":
+        return { label: "Failed", icon: <XCircle className="h-3 w-3" />, cls: "bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/30" };
+      case "cancelled":
+        return { label: "Cancelled", icon: <X className="h-3 w-3" />, cls: "bg-muted text-muted-foreground border-border" };
+    }
+  })();
+
+  return (
+    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40 text-xs">
+      <span className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${statusMeta.cls}`}>
+        {statusMeta.icon}
+        {statusMeta.label}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="font-medium text-foreground truncate">{b.title}</div>
+        <div className="text-[10px] text-muted-foreground truncate">
+          {b.status === "sent" && b.sent_at ? (
+            <>Sent {relativeTime(b.sent_at)} · {(b.sent_count ?? 0).toLocaleString()} delivered</>
+          ) : b.status === "failed" ? (
+            <>Failed: {b.error?.slice(0, 80) ?? "unknown error"}</>
+          ) : (
+            <>{formatScheduledFor(b.scheduled_for)} · {relativeTime(b.scheduled_for)}</>
+          )}
+        </div>
+      </div>
+      {b.status === "pending" && (
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={cancelling}
+          aria-label="Cancel scheduled broadcast"
+          className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+          data-testid={`broadcast-cancel-${b.id}`}
+        >
+          {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+        </button>
+      )}
     </div>
   );
 }

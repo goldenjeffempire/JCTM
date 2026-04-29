@@ -418,5 +418,39 @@ export async function runMigrations(): Promise<void> {
     WHERE status = 'active'
   `);
 
+  // ── Scheduled Broadcasts (delayed admin push notifications) ─────────────────
+  // Admin can compose a notification and schedule it for a future time. The
+  // per-minute cron tick polls this table for due rows (status='pending' AND
+  // scheduled_for <= now), claims them via UPDATE...RETURNING, dispatches via
+  // dispatchPushNotification, and marks them sent/failed. The claim step
+  // guarantees at-most-once delivery even if a second tick races.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS scheduled_broadcasts (
+      id serial PRIMARY KEY,
+      title text NOT NULL,
+      body text NOT NULL,
+      url text NOT NULL DEFAULT '/',
+      require_interaction boolean NOT NULL DEFAULT false,
+      scheduled_for timestamptz NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      sent_at timestamptz,
+      sent_count integer,
+      failed_count integer,
+      deactivated_count integer,
+      error text,
+      created_by text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS scheduled_broadcasts_due_idx
+    ON scheduled_broadcasts (scheduled_for)
+    WHERE status = 'pending'
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS scheduled_broadcasts_recent_idx
+    ON scheduled_broadcasts (created_at DESC)
+  `);
+
   logger.info("All migrations complete");
 }

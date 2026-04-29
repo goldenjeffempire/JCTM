@@ -487,6 +487,101 @@ function buildWarriCrusadeNotification(): NotificationPayload {
   };
 }
 
+// ─── Scheduled Broadcasts processor ──────────────────────────────────────────
+// Runs as part of the per-minute reminder cron tick. Polls the
+// `scheduled_broadcasts` table for rows whose `scheduled_for` has elapsed and
+// fires them via `dispatchPushNotification`. The "claim" step uses
+// UPDATE...RETURNING to atomically transition `pending` → `processing`,
+// guaranteeing at-most-once delivery across racing ticks. On dispatch
+// completion we mark the row `sent` (or `failed` if the dispatcher throws) and
+// record the delivery counts. Each row is also logged into `broadcast_events`
+// so the SSE relay surfaces it as an in-app toast for connected clients.
+
+async function processScheduledBroadcasts(log: Logger): Promise<void> {
+  // Claim up to 10 due rows in one transaction. UPDATE ... RETURNING is
+  // atomic, so two ticks running concurrently will partition the work
+  // instead of double-firing it.
+  const due = await pool.query<{
+    id: number;
+    title: string;
+    body: string;
+    url: string;
+    require_interaction: boolean;
+    scheduled_for: string;
+  }>(
+    `UPDATE scheduled_broadcasts
+        SET status = 'processing'
+      WHERE id IN (
+        SELECT id FROM scheduled_broadcasts
+         WHERE status = 'pending' AND scheduled_for <= now()
+         ORDER BY scheduled_for ASC
+         LIMIT 10
+         FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id, title, body, url, require_interaction, scheduled_for`,
+  );
+
+  if (due.rows.length === 0) return;
+
+  log.info({ count: due.rows.length }, "Processing scheduled broadcasts");
+
+  for (const row of due.rows) {
+    try {
+      // Log to broadcast_events so SSE/in-app toast picks it up
+      await pool.query(
+        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+        ["admin_broadcast", row.title, row.body, row.url],
+      );
+
+      const result = await dispatchPushNotification(
+        {
+          title: row.title,
+          body: row.body,
+          icon: "/icons/icon-192x192.png",
+          badge: "/icons/badge-72x72.png",
+          url: row.url,
+          tag: "admin-broadcast",
+          requireInteraction: row.require_interaction,
+          data: {
+            type: "admin_broadcast",
+            broadcastType: "admin_broadcast",
+            scheduledId: row.id,
+            timestamp: new Date().toISOString(),
+          },
+        },
+        log,
+        "admin_broadcast_scheduled",
+      );
+
+      await pool.query(
+        `UPDATE scheduled_broadcasts
+            SET status = 'sent',
+                sent_at = now(),
+                sent_count = $1,
+                failed_count = $2,
+                deactivated_count = $3
+          WHERE id = $4`,
+        [result.sent, result.failed, result.deactivated, row.id],
+      );
+      log.info(
+        { id: row.id, title: row.title, sent: result.sent, failed: result.failed },
+        "Scheduled broadcast delivered",
+      );
+    } catch (err) {
+      log.error({ err, id: row.id }, "Scheduled broadcast failed");
+      const message = err instanceof Error ? err.message : String(err);
+      await pool.query(
+        `UPDATE scheduled_broadcasts
+            SET status = 'failed',
+                error = $1,
+                sent_at = now()
+          WHERE id = $2`,
+        [message.slice(0, 500), row.id],
+      );
+    }
+  }
+}
+
 /**
  * Manual one-shot Warri Crusade broadcast trigger — used by the admin
  * "Send broadcast now" button. Idempotent within `cooldownMinutes` (default 5)
@@ -988,6 +1083,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndSendEventReminders(log);
       checkAndBroadcastWarriCrusadeHourly(log).catch(err =>
         log.warn({ err }, "Warri Crusade hourly broadcast tick error"),
+      );
+      processScheduledBroadcasts(log).catch(err =>
+        log.warn({ err }, "Scheduled broadcasts tick error"),
       );
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");

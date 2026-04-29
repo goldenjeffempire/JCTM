@@ -30,7 +30,7 @@ const CTA_LABEL = "Register / Join";
 
 const STORAGE_KEY = `jctm:${CAMPAIGN_SLUG}:dismissedAt`;
 const DISMISS_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours hard-cap
-const IDLE_REACTIVATE_MS = 90 * 1000; // 90 s of no interaction
+const IDLE_REACTIVATE_MS = 30 * 1000; // 30 s of no interaction
 const SCROLL_REACTIVATE_RATIO = 0.4; // 40 % of page scrolled
 
 function readDismissedAt(): number | null {
