@@ -2750,7 +2750,10 @@ function WarriCrusadeSection() {
                 <YouTubeEmbed
                   videoId={isLive ? LIVE_STREAM_VIDEO_ID : CRUSADE_YT}
                   title={isLive ? "Warri City Crusade 2026 — Live Broadcast" : "Warri City Crusade 2026 Promo"}
-                  mode={isLive ? "eager" : "facade"}
+                  mode="eager"
+                  autoplay={true}
+                  loop={!isLive}
+                  audioOnly={!isLive}
                   analyticsPage="/"
                 />
               </div>
@@ -3014,14 +3017,15 @@ function MinisterConferenceSection() {
                 ))}
               </div>
 
-              {/* Ministers Conference promo — facade so YouTube serves a
-                  pre-roll ad on user-initiated playback (muted autoplay loops
-                  earn nothing and weigh down LCP). */}
+              {/* Ministers Conference promo — eager autoplay loop */}
               <div className="rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(168,85,247,0.25)" }}>
                 <YouTubeEmbed
                   videoId={MCONF_YT}
                   title="Ministers Conference 2026"
-                  mode="facade"
+                  mode="eager"
+                  autoplay={true}
+                  loop={true}
+                  audioOnly={true}
                   analyticsPage="/"
                 />
               </div>
