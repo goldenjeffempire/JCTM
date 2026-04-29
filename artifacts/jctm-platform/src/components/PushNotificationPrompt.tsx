@@ -43,8 +43,8 @@ export function PushNotificationPrompt() {
     if (safeSessionGet(STORAGE_KEY)) return;
 
     // iOS Safari only supports web push when the site has been added to the
-    // Home Screen and launched in standalone mode. Avoid prompting in plain
-    // Safari — the InstallAppPrompt will guide them to install first.
+    // Home Screen and launched in standalone mode. Skip the prompt entirely
+    // in plain Safari — there's nothing actionable we can offer there.
     if (isIosSafari() && !isStandalone()) return;
 
     let timerId: ReturnType<typeof setTimeout> | null = null;
