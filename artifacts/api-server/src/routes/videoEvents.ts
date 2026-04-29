@@ -176,7 +176,9 @@ router.get(
           MAX(v.updated_at)          AS last_seen,
           MAX(s.title)               AS title,
           MAX(s.thumbnail_url)       AS thumbnail_url,
-          MAX(s.published_at)        AS published_at
+          MAX(s.published_at)        AS published_at,
+          MAX(s.pinned_at)           AS pinned_at,
+          (MAX(s.id) IS NOT NULL)    AS in_library
         FROM video_event_counts v
         LEFT JOIN sermon_data s ON s.video_id = v.video_id
         GROUP BY v.video_id

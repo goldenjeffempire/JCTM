@@ -724,6 +724,59 @@ router.get("/sermons/youtube-stats/:videoId", async (req, res): Promise<void> =>
 });
 
 // ──────────────────────────────────────────────────────
+// POST /sermons/:videoId/pin   — manually pin as featured (sermon-admin only)
+// DELETE /sermons/:videoId/pin — unpin (sermon-admin only)
+// Pinned videos take priority in /sermons/featured for 30 days. Pinning a new
+// video implicitly demotes the previously pinned one because the ORDER BY
+// uses MAX(pinned_at).
+// ──────────────────────────────────────────────────────
+router.post("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res): Promise<void> => {
+  const { videoId } = req.params;
+  if (!videoId || !/^[-_A-Za-z0-9]{6,32}$/.test(videoId)) {
+    res.status(400).json({ error: "Invalid videoId" });
+    return;
+  }
+  try {
+    const result = await db.execute(sql`
+      UPDATE sermon_data
+      SET pinned_at = NOW(), updated_at = NOW()
+      WHERE video_id = ${videoId}
+      RETURNING video_id, title, pinned_at;
+    `);
+    const rows = (result.rows ?? result) as Array<Record<string, unknown>>;
+    if (rows.length === 0) {
+      res.status(404).json({ error: "Sermon not found in library", videoId });
+      return;
+    }
+    req.log.info({ videoId }, "Sermon pinned as featured");
+    res.json({ ok: true, pinned: rows[0] });
+  } catch (err) {
+    req.log.error({ err, videoId }, "Failed to pin sermon");
+    res.status(500).json({ error: "Failed to pin sermon" });
+  }
+});
+
+router.delete("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res): Promise<void> => {
+  const { videoId } = req.params;
+  if (!videoId || !/^[-_A-Za-z0-9]{6,32}$/.test(videoId)) {
+    res.status(400).json({ error: "Invalid videoId" });
+    return;
+  }
+  try {
+    await db.execute(sql`
+      UPDATE sermon_data
+      SET pinned_at = NULL, updated_at = NOW()
+      WHERE video_id = ${videoId};
+    `);
+    req.log.info({ videoId }, "Sermon unpinned");
+    res.json({ ok: true, videoId });
+  } catch (err) {
+    req.log.error({ err, videoId }, "Failed to unpin sermon");
+    res.status(500).json({ error: "Failed to unpin sermon" });
+  }
+});
+
+// ──────────────────────────────────────────────────────
 // POST /sermons  — incremental sync (sermon-admin only)
 // POST /sermons?harvest=true  — full purge + repopulate
 // ──────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Radio, Tv2, RefreshCw, CheckCircle, AlertCircle, Clock,
   BarChart3, Zap, Calendar, PlayCircle, Settings, Activity,
-  ChevronRight, Eye, Users, MessageSquare, Check, Trash2, Download,
+  ChevronRight, Eye, Users, MessageSquare, Check, Trash2, Download, Pin, PinOff,
   BookOpen, Sparkles, X, Loader2, ShieldCheck, Wifi,
   Power, Repeat2, LayoutDashboard, Image, FileText,
   Shield, Menu, KeyRound, ImageOff, Bell, Send,
@@ -2682,6 +2682,8 @@ interface TopVideoRow {
   title:         string | null;
   thumbnail_url: string | null;
   published_at:  string | null;
+  pinned_at:     string | null;
+  in_library:    boolean | null;
 }
 
 interface TopVideoPageRow {
@@ -2885,6 +2887,21 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
 
   const trend = trendData?.trend ?? [];
 
+  const qc = useQueryClient();
+  const pinMutation = useMutation({
+    mutationFn: async ({ videoId, pin }: { videoId: string; pin: boolean }) => {
+      const res = await fetch(`${BASE}/api/sermons/${encodeURIComponent(videoId)}/pin`, {
+        method:  pin ? "POST" : "DELETE",
+        headers: authHeader,
+      });
+      if (res.status === 401) { auth.logout(); throw new Error("Auth expired"); }
+      return readApiJson<{ ok: boolean }>(res, pin ? "Failed to pin" : "Failed to unpin");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["video-events-top"] });
+    },
+  });
+
   const availableMonths = useMemo(() => {
     const fromApi = (monthsData?.months ?? []).map(m => m.month);
     const set = new Set<string>(fromApi);
@@ -3003,6 +3020,7 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
                 <th className="px-2 py-2 font-medium text-right">75%</th>
                 <th className="px-2 py-2 font-medium text-right">Done</th>
                 <th className="px-2 py-2 font-medium text-right">Done %</th>
+                <th className="px-2 py-2 font-medium text-center">Hero</th>
               </tr>
             </thead>
             <tbody>
@@ -3011,8 +3029,11 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
                 const plays = num(row.plays);
                 const completes = num(row.completes);
                 const thumb = row.thumbnail_url ?? `https://i.ytimg.com/vi/${row.video_id}/mqdefault.jpg`;
+                const inLibrary = row.in_library === true;
+                const isPinned  = !!row.pinned_at && (Date.now() - new Date(row.pinned_at).getTime()) < 30 * 86400_000;
+                const pinBusy   = pinMutation.isPending && pinMutation.variables?.videoId === row.video_id;
                 return (
-                  <tr key={row.video_id} className="border-t border-border/60 hover:bg-muted/30 transition-colors">
+                  <tr key={row.video_id} className={`border-t border-border/60 hover:bg-muted/30 transition-colors ${isPinned ? "bg-amber-500/5" : ""}`}>
                     <td className="px-2 py-2 text-muted-foreground tabular-nums">{i + 1}</td>
                     <td className="px-2 py-2">
                       <a
@@ -3031,8 +3052,13 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
                           }}
                         />
                         <div className="min-w-0">
-                          <div className="font-medium line-clamp-1 group-hover:text-primary transition-colors">
+                          <div className="font-medium line-clamp-1 group-hover:text-primary transition-colors flex items-center gap-1.5">
                             {row.title ?? row.video_id}
+                            {isPinned && (
+                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
+                                Pinned Hero
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-muted-foreground font-mono">{row.video_id}</div>
                         </div>
@@ -3046,6 +3072,33 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
                     <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{formatCount(num(row.q75))}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{formatCount(completes)}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-emerald-600 font-medium">{formatPct(completes, plays)}</td>
+                    <td className="px-2 py-2 text-center">
+                      {!inLibrary ? (
+                        <span
+                          className="text-[10px] text-muted-foreground cursor-help"
+                          title="Not in sermon library — only synced sermons can be pinned as the homepage hero."
+                        >
+                          —
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => pinMutation.mutate({ videoId: row.video_id, pin: !isPinned })}
+                          disabled={pinBusy}
+                          title={isPinned ? "Unpin from homepage hero" : "Pin as homepage hero (overrides auto-feature for 30 days)"}
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors disabled:opacity-50 ${
+                            isPinned
+                              ? "text-amber-600 dark:text-amber-400 bg-amber-500/15 hover:bg-amber-500/25"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {pinBusy
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : isPinned
+                              ? <PinOff className="w-3.5 h-3.5" />
+                              : <Pin className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
