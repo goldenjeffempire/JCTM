@@ -41,21 +41,38 @@ function serializeMember(member: typeof memberAuthTable.$inferSelect) {
   };
 }
 
+// ─── Shared input sanitisers ───────────────────────────────────────────────────
+
+function sanitizeString(v: unknown, maxLen = 200): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim().slice(0, maxLen);
+  return s.length > 0 ? s : null;
+}
+
+// RFC-5322 simplified — must have local@domain.tld with no spaces
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function sanitizeEmail(v: unknown): string | null {
+  const s = sanitizeString(v, 254);
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  return EMAIL_RE.test(lower) ? lower : null;
+}
+
 router.post("/auth/register", async (req, res): Promise<void> => {
-  const { firstName, lastName, email, password, phone } = req.body;
+  const firstName = sanitizeString(req.body?.firstName, 100);
+  const lastName  = sanitizeString(req.body?.lastName, 100);
+  const email     = sanitizeEmail(req.body?.email);
+  const password  = sanitizeString(req.body?.password, 128);
+  const phone     = sanitizeString(req.body?.phone, 30);
 
   if (!firstName || !lastName || !email || !password) {
-    res.status(400).json({ error: "First name, last name, email, and password are required." });
+    res.status(400).json({ error: "First name, last name, a valid email, and password are required." });
     return;
   }
 
-  if (typeof password !== "string" || password.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters." });
-    return;
-  }
-
-  if (typeof email !== "string" || !email.includes("@")) {
-    res.status(400).json({ error: "A valid email address is required." });
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters." });
     return;
   }
 
@@ -63,7 +80,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     const existing = await db
       .select()
       .from(memberAuthTable)
-      .where(eq(memberAuthTable.email, email.toLowerCase()))
+      .where(eq(memberAuthTable.email, email))
       .limit(1);
 
     if (existing.length > 0) {
@@ -77,9 +94,9 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     const [member] = await db
       .insert(memberAuthTable)
       .values({
-        email: email.toLowerCase(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        email,         // already lowercased + trimmed by sanitizeEmail
+        firstName,     // already trimmed by sanitizeString
+        lastName,
         passwordHash,
         token,
         phone: phone ?? null,
@@ -98,10 +115,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const { email, password } = req.body;
+  const email    = sanitizeEmail(req.body?.email);
+  const password = sanitizeString(req.body?.password, 128);
 
   if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required." });
+    res.status(400).json({ error: "A valid email and password are required." });
     return;
   }
 
@@ -109,10 +127,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     const [member] = await db
       .select()
       .from(memberAuthTable)
-      .where(eq(memberAuthTable.email, email.toLowerCase()))
+      .where(eq(memberAuthTable.email, email))
       .limit(1);
 
     if (!member || !verifyPassword(password, member.passwordHash)) {
+      // Always return the same error to prevent user-enumeration attacks
       res.status(401).json({ error: "Invalid email or password." });
       return;
     }

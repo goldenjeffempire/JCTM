@@ -51,7 +51,23 @@ const WARRI_CRUSADE_END_MS  = new Date("2026-05-01T21:00:00+01:00").getTime();
 const WARRI_CRUSADE_START_MS = new Date("2026-04-30T18:00:00+01:00").getTime();
 const WARRI_CRUSADE_TITLE   = "Warri Crusade 2026";
 const WARRI_CRUSADE_URL     = "/crusade";
-const WARRI_CRUSADE_BODY    = "Join the powerful move of God today";
+
+// Rotating messages — picked by UTC hour so each hour feels fresh and
+// urgent without any state or DB required for selection.
+const WARRI_CRUSADE_MESSAGES = [
+  "🔥 Join the powerful move of God in Warri — miracles are happening now!",
+  "⚡ Healings, deliverances, and salvation — Warri Crusade 2026 is live!",
+  "🙏 Don't miss the move of God in Warri City — join us today!",
+  "🌍 Thousands are gathering in Warri — be part of history. Join now!",
+  "🕊️ The Holy Spirit is moving in Warri — come experience the power of God!",
+  "📖 Prophet Amos Jeffemuodafe is preaching the Word in Warri — join us!",
+  "🔔 The Warri City Crusade is ongoing — share this with your family!",
+  "🙌 Miracles, signs and wonders in Warri — join the Crusade today!",
+  "🛐 Deliverance and salvation at the Warri Crusade — invite someone now!",
+  "✝️ Jesus Christ is Lord — Warri Crusade 2026 is happening. Be there!",
+  "🌟 Come be healed and set free at the Warri City Crusade 2026!",
+  "🔥 The fire of revival is burning in Warri! Join us right now!",
+] as const;
 
 // ─── State exports (for health endpoint) ──────────────────────────────────────
 
@@ -468,20 +484,36 @@ function hourBucketUTC(now: number = Date.now()): string {
   return `${y}-${m}-${day}-${h}`;
 }
 
-function buildWarriCrusadeNotification(): NotificationPayload {
+function buildWarriCrusadeNotification(hourBucket: string): NotificationPayload {
+  // Rotate through messages deterministically by hour so each push feels
+  // fresh and urgent without any external state or DB required.
+  const hourNum = parseInt(hourBucket.split("-")[3] ?? "0", 10);
+  const body = WARRI_CRUSADE_MESSAGES[hourNum % WARRI_CRUSADE_MESSAGES.length]!;
+
+  // Alternate notification title to avoid notification deduplication by OS
+  const now = Date.now();
+  const isLive = now >= WARRI_CRUSADE_START_MS && now < WARRI_CRUSADE_END_MS;
+  const title = isLive
+    ? "🔴 Warri Crusade 2026 — LIVE NOW"
+    : "🔥 Warri City Crusade 2026";
+
   return {
-    title: "🔥 Warri Crusade 2026 Update",
-    body: WARRI_CRUSADE_BODY,
+    title,
+    body,
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
     image: "/warri-crusade-flyer2.jpeg",
     url: WARRI_CRUSADE_URL,
     tag: "warri-crusade-2026",
-    requireInteraction: false,
-    actions: [{ action: "open", title: "Join Now" }],
+    requireInteraction: isLive, // demand interaction when actually live
+    actions: [
+      { action: "open", title: isLive ? "Join Live Now" : "Learn More" },
+      { action: "share", title: "Share" },
+    ],
     data: {
       type: "warri_crusade_promo",
-      broadcastType: "event_reminder", // reuses existing in-app yellow toast palette
+      broadcastType: "event_reminder",
+      isLive,
       timestamp: new Date().toISOString(),
     },
   };
@@ -628,7 +660,7 @@ export async function broadcastWarriCrusadeManual(
   );
 
   log.info({ triggeredBy }, "Warri Crusade manual broadcast — dispatching push + in-app toast");
-  const notif = buildWarriCrusadeNotification();
+  const notif = buildWarriCrusadeNotification(hourBucketUTC());
   const result = await dispatchPushNotification(notif, log, "warri_crusade_promo");
   log.info(
     { triggeredBy, sent: result.sent, failed: result.failed, deactivated: result.deactivated },
@@ -677,7 +709,7 @@ async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
       "Warri Crusade hourly broadcast — dispatching push + in-app toast",
     );
 
-    const notif = buildWarriCrusadeNotification();
+    const notif = buildWarriCrusadeNotification(bucket);
     const result = await dispatchPushNotification(notif, log, "warri_crusade_promo");
     log.info(
       { bucket, sent: result.sent, failed: result.failed, deactivated: result.deactivated },

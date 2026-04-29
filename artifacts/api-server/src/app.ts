@@ -6,6 +6,7 @@ import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import path from "path";
 import { fileURLToPath } from "url";
+import { randomUUID } from "node:crypto";
 import router from "./routes";
 import seoRouter from "./routes/seo";
 import { logger } from "./lib/logger";
@@ -38,7 +39,79 @@ app.use(
 
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    // CSP: allow YouTube embeds + Google AdSense + webfonts while blocking
+    // everything else. 'unsafe-inline' for scripts is required by AdSense.
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",          // Required by Google AdSense
+          "'unsafe-eval'",            // Required by some AdSense creatives
+          "https://www.youtube.com",
+          "https://s.ytimg.com",
+          "https://pagead2.googlesyndication.com",
+          "https://partner.googleadservices.com",
+          "https://adservice.google.com",
+          "https://tpc.googlesyndication.com",
+          "https://googleads.g.doubleclick.net",
+          "https://www.googletagservices.com",
+          "https://accounts.google.com",
+          "https://cdn.onesignal.com",
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",          // Tailwind & Radix inject inline styles
+          "https://fonts.googleapis.com",
+        ],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://i.ytimg.com",
+          "https://img.youtube.com",
+          "https://yt3.ggpht.com",
+          "https://yt3.googleusercontent.com",
+          "https://*.googlesyndication.com",
+          "https://*.doubleclick.net",
+          "https://lh3.googleusercontent.com",
+          "https://www.google.com",
+          "https://www.gstatic.com",
+        ],
+        // Allow YouTube player iframes + AdSense iframes
+        frameSrc: [
+          "https://www.youtube.com",
+          "https://youtube.com",
+          "https://tpc.googlesyndication.com",
+          "https://googleads.g.doubleclick.net",
+          "https://bid.g.doubleclick.net",
+        ],
+        connectSrc: [
+          "'self'",
+          "https://www.youtube.com",
+          "https://youtube.com",
+          "https://*.googlevideo.com",
+          "https://pagead2.googlesyndication.com",
+          "https://adservice.google.com",
+          "wss:",
+          "ws:",
+        ],
+        mediaSrc: [
+          "'self'",
+          "blob:",
+          "https://*.googlevideo.com",
+          "https://www.youtube.com",
+          "https://rr*.googlevideo.com",
+        ],
+        workerSrc: ["'self'", "blob:"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: [],
+      },
+    },
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
@@ -49,6 +122,14 @@ app.use(
     },
   }),
 );
+
+// X-Request-ID — surfaces a stable trace ID in every response so logs
+// and client error reports can be correlated without exposing internals.
+app.use((req, res, next) => {
+  const requestId = (req.headers["x-request-id"] as string) || randomUUID();
+  res.setHeader("X-Request-ID", requestId);
+  next();
+});
 
 // Permissions-Policy — explicitly deny browser features the platform never
 // uses, so a future XSS or third-party script cannot silently access them.

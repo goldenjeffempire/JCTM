@@ -401,3 +401,61 @@
   from { transform: scaleY(0.3); opacity: 0.5; }
   to   { transform: scaleY(1);   opacity: 1; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — prefers-reduced-motion
+   ═══════════════════════════════════════════════════════════════════════════
+   Respects the user's OS-level "reduce motion" setting. This stops all CSS
+   animations/transitions/marquees so vestibular-disorder users are not
+   affected by the heavy motion used across the platform. Framer Motion reads
+   the same media query internally and also skips animations automatically.
+   ─────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Stop all pulsing / glow / ping indicators */
+  .animate-ping,
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce,
+  .glow-dot,
+  .reel-card-enter {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERFORMANCE — Content-visibility for off-screen sections
+   ═══════════════════════════════════════════════════════════════════════════ */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Focus-visible ring (keyboard navigation)
+   ═══════════════════════════════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT — Strip decorative elements for clean print output
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media print {
+  nav, footer, .floating-cta, .sticky-banner, iframe {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
