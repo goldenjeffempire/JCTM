@@ -39,42 +39,30 @@ async function openVideo(videoId?: string | null, fallbackUrl?: string | null) {
 
 function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
   const { data } = useGetLivestreamStatus({ query: { refetchInterval: 30_000, staleTime: 15_000 } });
-  // The status endpoint now returns the full SSE-equivalent payload including rebroadcast data
   const status = data as {
     isLive?: boolean;
     title?: string | null;
     videoId?: string | null;
     streamUrl?: string | null;
-    rebroadcast?: { available?: boolean; videoId?: string | null; title?: string | null; mode?: string };
   } | undefined;
 
   const isLive = status?.isLive ?? false;
-  const isRebroadcast = !isLive && (status?.rebroadcast?.available ?? false);
+  if (!isLive) return null;
 
-  if (!isLive && !isRebroadcast) return null;
-
-  const bannerText = isLive
-    ? `🔴 ${status?.title ?? "Holy Spirit Sunday Service — Live"}`
-    : `📺 ${status?.rebroadcast?.mode === "scheduled" ? "Rebroadcast" : "Temple TV"} — ${status?.rebroadcast?.title ?? "Now Playing"}`;
+  const bannerText = `🔴 ${status?.title ?? "Holy Spirit Sunday Service — Live"}`;
   const liveUrl = status?.videoId
     ? `https://www.youtube.com/watch?v=${status.videoId}`
     : status?.streamUrl ?? `${BASE}/sermons`;
-  const rebroadcastUrl = status?.rebroadcast?.videoId
-    ? `https://www.youtube.com/watch?v=${status.rebroadcast.videoId}`
-    : `${BASE}/sermons`;
 
   return (
     <TouchableOpacity
-      style={[
-        styles.liveBanner,
-        { backgroundColor: isLive ? "#E53E3E" : isRebroadcast && status?.rebroadcast?.mode === "scheduled" ? "#D97706" : "#4F46E5" },
-      ]}
-      onPress={() => openVideo(isLive ? status?.videoId : status?.rebroadcast?.videoId, isLive ? liveUrl : rebroadcastUrl)}
+      style={[styles.liveBanner, { backgroundColor: "#E53E3E" }]}
+      onPress={() => openVideo(status?.videoId, liveUrl)}
       activeOpacity={0.85}
     >
-      <View style={[styles.liveDot, { backgroundColor: isLive ? "#fff" : "#fff" }]} />
+      <View style={styles.liveDot} />
       <Text style={styles.liveBannerText} numberOfLines={1}>{bannerText}</Text>
-      <Text style={styles.liveBannerSub}>{isLive ? "Watch Live →" : "Watch →"}</Text>
+      <Text style={styles.liveBannerSub}>Watch Live →</Text>
     </TouchableOpacity>
   );
 }
