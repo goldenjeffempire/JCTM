@@ -18,6 +18,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 import { EventPromotionPreview } from "@/components/event-promo/EventPromotionPreview";
 import { WarriCrusadeStatsTile } from "@/components/admin/WarriCrusadeStatsTile";
+import { GenericBroadcastTile } from "@/components/admin/GenericBroadcastTile";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Bar, ComposedChart, ResponsiveContainer,
@@ -1299,6 +1300,9 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
   return (
     <div className="space-y-5">
       <SectionHeader title="Broadcast Control" description="Hybrid manual + automated live stream and rebroadcast management" />
+
+      {/* Instant push broadcast — generic one-off notification */}
+      <GenericBroadcastTile adminToken={auth.adminToken} />
 
       {/* Current Status Banner */}
       <div className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${

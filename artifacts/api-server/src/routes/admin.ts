@@ -17,6 +17,7 @@ import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
 import { broadcastWarriCrusadeManual } from "../lib/cron.js";
+import { dispatchPushNotification, type NotificationPayload } from "../lib/push-manager.js";
 
 const router: IRouter = Router();
 const requireAnyRoleAdmin = requireAdminRole(["gallery", "sermon", "livestream"]);
@@ -465,6 +466,105 @@ router.patch(
       res.status(500).json({ error: "Failed to update member role" });
     }
   },
+);
+
+// ── POST /api/admin/broadcast/send — generic one-off push to all subscribers ─
+// In-memory cooldown lock keyed by exact title+body to prevent accidental
+// double-sends from rapid clicks. 60-second window — long enough to absorb a
+// burst, short enough to not block legitimate follow-up alerts.
+const recentBroadcastLock = new Map<string, number>();
+const BROADCAST_LOCK_MS = 60_000;
+
+router.post(
+  "/admin/broadcast/send",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as {
+      title?: string;
+      body?: string;
+      url?: string;
+      requireInteraction?: boolean;
+    };
+    const title = (body.title ?? "").trim();
+    const message = (body.body ?? "").trim();
+    const url = (body.url ?? "").trim() || "/";
+    const requireInteraction = !!body.requireInteraction;
+
+    if (!title || title.length > 80) {
+      res.status(400).json({ error: "title is required (max 80 chars)" });
+      return;
+    }
+    if (!message || message.length > 240) {
+      res.status(400).json({ error: "body is required (max 240 chars)" });
+      return;
+    }
+    if (!url.startsWith("/") && !url.startsWith("http")) {
+      res.status(400).json({ error: "url must start with / or http" });
+      return;
+    }
+
+    // Cooldown check — same title + body within the lock window
+    const lockKey = `${title}\u0000${message}`;
+    const now = Date.now();
+    const lastFiredAt = recentBroadcastLock.get(lockKey);
+    if (lastFiredAt && now - lastFiredAt < BROADCAST_LOCK_MS) {
+      const remainingMs = BROADCAST_LOCK_MS - (now - lastFiredAt);
+      res.status(429).json({
+        success: false,
+        error: "Cooldown active",
+        reason: `An identical broadcast was sent ${Math.round((now - lastFiredAt) / 1000)}s ago. Try again in ${Math.ceil(remainingMs / 1000)}s.`,
+        cooldownRemainingMs: remainingMs,
+      });
+      return;
+    }
+
+    // GC the lock map opportunistically
+    for (const [k, t] of recentBroadcastLock.entries()) {
+      if (now - t > BROADCAST_LOCK_MS) recentBroadcastLock.delete(k);
+    }
+    recentBroadcastLock.set(lockKey, now);
+
+    try {
+      const notif: NotificationPayload = {
+        title,
+        body: message,
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/badge-72x72.png",
+        url,
+        tag: "admin-broadcast",
+        requireInteraction,
+        data: {
+          type: "admin_broadcast",
+          broadcastType: "admin_broadcast",
+          timestamp: new Date(now).toISOString(),
+        },
+      };
+
+      // Log to broadcast_events so the SSE relay/missed-broadcast card sees it
+      await pool.query(
+        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+        ["admin_broadcast", title, message, url]
+      );
+
+      const result = await dispatchPushNotification(notif, req.log, "admin_broadcast");
+      req.log.info(
+        { title, sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+        "Generic admin broadcast complete"
+      );
+      res.json({
+        success: true,
+        sent: result.sent,
+        failed: result.failed,
+        deactivated: result.deactivated,
+        total: result.sent + result.failed + result.deactivated,
+      });
+    } catch (err) {
+      // On failure, release the lock so the admin can retry
+      recentBroadcastLock.delete(lockKey);
+      req.log.error({ err }, "Generic admin broadcast failed");
+      res.status(500).json({ error: "Failed to dispatch broadcast" });
+    }
+  }
 );
 
 // ── POST /api/admin/warri-crusade/broadcast-now ───────────────────────────────
