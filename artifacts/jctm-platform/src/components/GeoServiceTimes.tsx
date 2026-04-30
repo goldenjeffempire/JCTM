@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { Clock, Globe, MapPin, Radio, ChevronRight, Flame, AlertCircle } from "lucide-react";
+import { Clock, Globe, MapPin, Radio, ChevronRight, Flame, AlertCircle, Play } from "lucide-react";
 import { Link } from "wouter";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { useGeo } from "@/contexts/GeoContext";
+import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
 const SERVICES = [
   { day: "Sunday",    label: "Sunday Service",       timeWAT: { h: 8, m: 0 }, timeWATEnd: { h: 11, m: 0 }, type: "main",    pending: false },
@@ -89,6 +90,12 @@ export function GeoServiceTimes() {
   const [crusade, setCrusade] = useState(getCrusadeCountdown());
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
+
+  // Live-aware: when YouTube reports the broadcast is live, the nearby-service
+  // alert flips from "starting soon" into a live "Watch Live" call-to-action.
+  const liveStatus = useLivestreamStatus();
+  const isLive = liveStatus.isLive;
+  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 1";
 
   useEffect(() => {
     setTz(getBrowserTimezone());
@@ -204,8 +211,8 @@ export function GeoServiceTimes() {
         </motion.div>
       )}
 
-      {/* Nearby service alert */}
-      {nearService.isNear && nearService.service && (
+      {/* Nearby service alert — flips to "Live Now" with a watch CTA when broadcasting */}
+      {(isLive || (nearService.isNear && nearService.service)) && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -216,9 +223,19 @@ export function GeoServiceTimes() {
             <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
           </span>
           <Radio className="h-4 w-4 text-red-500" />
-          <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-            {nearService.service.label} is starting soon — join in Warri or tune in on Temple TV!
+          <span className="text-sm font-semibold text-red-600 dark:text-red-400 flex-1">
+            {isLive
+              ? `${liveTitle} is Live Now — join in Warri or watch the live broadcast on Temple TV!`
+              : `${nearService.service!.label} is starting soon — join in Warri or tune in on Temple TV!`}
           </span>
+          {isLive && (
+            <Link href="/sermons">
+              <button className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 shadow-sm transition-all hover:scale-105">
+                <Play className="h-3 w-3 fill-current" />
+                Watch Live
+              </button>
+            </Link>
+          )}
         </motion.div>
       )}
 
