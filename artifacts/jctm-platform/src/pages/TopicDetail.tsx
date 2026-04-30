@@ -334,7 +334,7 @@ export default function TopicDetail() {
         jsonLd={jsonLd}
       />
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-white">
 
         {/* Hero */}
         <div className={`bg-gradient-to-br ${topic.color} pt-24 pb-16 px-4`}>

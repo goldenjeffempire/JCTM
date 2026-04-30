@@ -21,7 +21,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const stored = safeLocalGet("jctm-theme") as Theme | null;
       if (stored === "dark" || stored === "light") return stored;
     } catch {}
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return "light";
   });
 
   useEffect(() => {

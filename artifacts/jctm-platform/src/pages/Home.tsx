@@ -2126,7 +2126,7 @@ function SermonSpotlight() {
   const broadcastAgo = broadcastEndedAt ? formatDistanceToNow(new Date(broadcastEndedAt), { addSuffix: true }) : null;
 
   return (
-    <section ref={ref} className="py-28 bg-background">
+    <section ref={ref} className="py-28 bg-white">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <motion.div variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"}>
@@ -2314,7 +2314,7 @@ function RecentSermonsCarousel() {
   }, []);
 
   return (
-    <section className="py-20 bg-secondary/30">
+    <section className="py-20 bg-[#F0F6FF]/60">
       <div className="container mx-auto px-4 mb-8">
         <div className="flex items-end justify-between">
           <div>
@@ -2364,7 +2364,7 @@ function MinistryPillars() {
   ];
 
   return (
-    <section className="py-28 bg-background">
+    <section className="py-28 bg-[#FAFBFF]">
       <div className="container mx-auto px-4">
         <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="text-center mb-16">
           <motion.span variants={fadeUp} className="text-accent text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mb-4">
@@ -3959,7 +3959,7 @@ function DailyDevotionSection() {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   return (
-    <section ref={ref} className="py-16 bg-background">
+    <section ref={ref} className="py-16 bg-white">
       <div className="container mx-auto px-4 max-w-2xl">
         <header className="mb-8">
           <p className="text-sm text-muted-foreground mb-1">Daily Devotion · {today}</p>

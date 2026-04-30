@@ -152,7 +152,7 @@ export default function Leadership() {
           }
         ]}
       />
-      <div className="min-h-screen bg-background pt-24 pb-16">
+      <div className="min-h-screen bg-white pt-24 pb-16">
 
         {/* Hero */}
         <section className="bg-gradient-to-b from-primary via-primary/90 to-background py-24 px-4">
