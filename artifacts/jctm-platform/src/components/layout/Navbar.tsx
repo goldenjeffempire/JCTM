@@ -147,13 +147,17 @@ export function Navbar() {
   const aboutActive = aboutHrefs.includes(location);
 
   // ── Nav data (re-evaluated every render so t() picks up language changes) ─
+  // Design hierarchy:
+  //   • `highlight`        → Gold campaign pill — reserved for the active crusade (one item)
+  //   • `featurePill`      → Subtle accent pill — quieter family for feature pages
+  //   • default            → Underline link — everything else
   const flatNavItems = [
     { href: "/", label: t("Home") },
     { href: "/sermons", label: t("Sermons") },
-    { href: "/moments", label: `🎬 ${t("Moments")}`, momentsHighlight: true },
-    { href: "/intro-videos", label: `📖 ${t("Intro")}`, momentsHighlight: true },
+    { href: "/moments", label: t("Moments"), featurePill: true },
+    { href: "/intro-videos", label: t("Intro"), featurePill: true },
     { href: "/crusade", label: `🔥 ${t("Crusade")}`, highlight: true },
-    { href: "/prayer", label: `✦ ${t("Prayer")}`, prayerHighlight: true },
+    { href: "/prayer", label: t("Prayer"), featurePill: true },
   ];
 
   const resourcesItems = [
@@ -217,51 +221,52 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-5">
-          {flatNavItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.highlight ? (
-                <div
-                  className="relative text-sm font-bold cursor-pointer px-3 py-1 rounded-full transition-all"
-                  style={{
-                    background: location === item.href ? "#D4A017" : "rgba(212,160,23,0.12)",
-                    color: location === item.href ? "#0a1a4a" : "#D4A017",
-                    border: "1px solid rgba(212,160,23,0.4)",
-                  }}
-                >
-                  {item.label}
-                </div>
-              ) : item.prayerHighlight ? (
-                <div
-                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
-                  style={{
-                    background: location === item.href ? "rgba(56,189,248,0.25)" : "rgba(56,189,248,0.08)",
-                    color: "hsl(var(--accent))",
-                    border: "1px solid rgba(56,189,248,0.3)",
-                  }}
-                >
-                  {item.label}
-                </div>
-              ) : item.momentsHighlight ? (
-                <div
-                  className="relative text-sm font-semibold cursor-pointer px-3 py-1 rounded-full transition-all"
-                  style={{
-                    background: location === item.href ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.08)",
-                    color: "#ef4444",
-                    border: "1px solid rgba(239,68,68,0.3)",
-                  }}
-                >
-                  {item.label}
-                </div>
-              ) : (
-                <div className={`relative text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 ${location === item.href ? "text-accent" : "text-primary/80"}`}>
-                  {item.label}
-                  {location === item.href && (
-                    <motion.div layoutId="nav-indicator" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full" />
-                  )}
-                </div>
-              )}
-            </Link>
-          ))}
+          {flatNavItems.map((item) => {
+            const isActive = location === item.href;
+            return (
+              <Link key={item.href} href={item.href}>
+                {item.highlight ? (
+                  // Gold campaign pill — reserved emphasis for the active crusade
+                  <div
+                    className="relative text-[13px] font-bold cursor-pointer px-3.5 py-1.5 rounded-full transition-all duration-200 hover:-translate-y-px"
+                    style={{
+                      background: isActive
+                        ? "linear-gradient(135deg, #D4A017 0%, #B88913 100%)"
+                        : "rgba(212,160,23,0.10)",
+                      color: isActive ? "#0a1a4a" : "#A8780F",
+                      border: "1px solid rgba(212,160,23,0.32)",
+                      boxShadow: isActive ? "0 4px 14px rgba(212,160,23,0.32)" : "none",
+                    }}
+                  >
+                    {item.label}
+                  </div>
+                ) : item.featurePill ? (
+                  // Subtle accent pill — unified treatment for feature pages (Moments / Intro / Prayer)
+                  <div
+                    className={`relative text-[13px] font-semibold cursor-pointer px-3 py-1.5 rounded-full transition-all duration-200 hover:-translate-y-px ${
+                      isActive
+                        ? "text-primary bg-accent/15 border border-accent/35"
+                        : "text-primary/75 bg-transparent border border-transparent hover:text-primary hover:bg-accent/8 hover:border-accent/20"
+                    }`}
+                  >
+                    {item.label}
+                  </div>
+                ) : (
+                  // Default underline link
+                  <div
+                    className={`relative text-sm font-medium transition-colors cursor-pointer py-1 ${
+                      isActive ? "text-accent" : "text-primary/75 hover:text-accent"
+                    }`}
+                  >
+                    {item.label}
+                    {isActive && (
+                      <motion.div layoutId="nav-indicator" className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-accent rounded-full" />
+                    )}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
 
           {/* Resources dropdown */}
           <div className="relative">
@@ -412,11 +417,11 @@ export function Navbar() {
                       className="text-sm font-medium transition-colors cursor-pointer py-3 px-3 rounded-lg"
                       style={
                         item.highlight
-                          ? { color: "#D4A017", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.3)", fontWeight: 700 }
-                          : item.prayerHighlight
-                          ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.25)" }
-                          : item.momentsHighlight
-                          ? { color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }
+                          ? { color: "#A8780F", background: "rgba(212,160,23,0.10)", border: "1px solid rgba(212,160,23,0.32)", fontWeight: 700 }
+                          : item.featurePill
+                          ? location === item.href
+                            ? { color: "hsl(var(--primary))", background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.32)" }
+                            : { color: "hsl(var(--primary) / 0.85)", background: "transparent", border: "1px solid transparent" }
                           : location === item.href
                           ? { color: "hsl(var(--accent))", background: "rgba(56,189,248,0.05)" }
                           : { color: "hsl(var(--primary))" }
