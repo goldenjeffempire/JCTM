@@ -1,0 +1,240 @@
+Admin Dashboard
+JCTM Platform Control
+
+1/3 active
+LIVE NOW
+Overview
+Broadcast
+Events
+Sermons
+Gallery
+Testimonies
+Platform
+Credentials
+Warri Crusade 2026 — Campaign Live
+Active
+Ends in 25h 20m · Hourly multi-channel push + in-app broadcast
+
+
+🔴 LIVE Alert
+
+Send broadcast now
+
+Active subscribers
+26
+36 total
+Broadcasts sent
+21
+last 25s ago
+Delivery rate
+21.1%
+115 of 546 delivered
+Click-through
+0
+0.0% CTR
+Next half-hourly broadcast scheduled in 20m · 20:00 WAT
+Last 24 hours · delivery vs. clicks
+Sent
+Failed
+Clicks
+13:00
+14:00
+15:00
+16:00
+17:00
+18:00
+19:00
+0
+35
+70
+105
+140
+19:00
+
+sent : 23
+failed : 107
+clicks : 0
+Recent broadcasts
+20 of last 20
+The Warri City Crusade has just started — join us for miracles, healing, and the move of God! [live-alert:2026-04-30T18:38:38.079Z:admin:10.198.21.5]
+26s ago
+Warri Crusade 2026 broadcast [manual:2026-04-30T18:38:30.035Z:admin:10.194.51.2]
+34s ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-18-30]
+8m ago
+Warri Crusade 2026 broadcast [manual:2026-04-30T18:16:20.797Z:admin:10.194.207.5]
+22m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-18-00]
+38m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-17-30]
+1h 9m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-17-00]
+1h 39m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-16-30]
+2h 9m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-16-00]
+2h 39m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-15-30]
+3h 8m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-15-00]
+3h 38m ago
+Warri Crusade 2026 broadcast [manual:2026-04-30T14:41:34.634Z:admin:10.196.76.3]
+3h 57m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-14-30]
+4h 8m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-14-00]
+4h 38m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-13-30]
+5h 8m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-13-00]
+5h 38m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-12-30]
+6h 8m ago
+Warri Crusade 2026 broadcast [slot:2026-04-30-12-00]
+6h 38m ago
+Join the powerful move of God today [hour:2026-04-29-15]
+1d ago
+Join the powerful move of God today [hour:2026-04-29-13]
+1d ago
+Event Promotions
+1 live · 0 upcoming · 0 ended
+
+Refresh
+New promotion
+Warri City Crusade 2026 — Prophet Amos Global Crusade
+live
+active
+Ends in 25h 21m
+Warri City Crusade 2026 — Prophet Amos Global Crusade
+warri-city-crusade-2026
+
+Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State
+
+4/30/2026, 6:00:00 PM → 5/1/2026, 9:00:00 PM
+Live push sent
+
+Sticky on
+
+Banner off
+
+Popup on
+Edit
+Delete
+Event Notification Scheduler
+Multi-channel reminders (push · email · live banner) dispatched at 24h / 12h / 6h / 1h before each upcoming event in the calendar. Runs every 30 minutes with idempotency + automatic retries.
+
+Email subscribers
+3
+
+Dispatches sent
+0
+
+Dispatches failed
+0
+
+Total deliveries
+0
+
+Pending
+0
+
+Last tick: 22m ago
+Next tick: 7m
+Idle
+SMTP not configured — email skipped
+Run scheduler now
+Send test email to
+you@example.com
+Send test
+Background worker & delivery queue
+Worker running
+Last poll: just now
+Polls every 10s
+Success rate
+100%
+
+Queue pending
+0
+
+Queue processing
+0
+
+Dead-letter (open)
+0
+
+Worker processed
+0
+
+Last scheduler tick
+Scanned 1 events · targeted 0 · enqueued 0 jobs
+Oldest pending: none · Next scheduled: —
+Last worker poll
+Claimed 0 · completed 0 · retried 0 · dead-lettered 0
+Lifetime: 0 ok · 0 retried · 0 dead-lettered
+Notification channel health
+Channel issue detected
+Checked just now
+Web Push (VAPID)
+ready
+Active subs: 26 · 10 inactive
+fp: BDzoxXFB…9poA00
+Expo (mobile)
+reachable
+Active tokens: 0
+Access token: not configured (anonymous tier)
+Email (SMTP)
+not configured
+Email channel will be skipped until SMTP_* env vars are set.
+Dead-letter queue
+0 unresolved · jobs that exhausted all retry attempts
+Empty — no permanently failed jobs.
+Upcoming events & milestone status
+1 event scanned
+Minister Conference 2026
+Fri, 8 May, 8:00 · Ebrumede Temple, JCTM Headquarters, Warri, Delta State
+starts 7d 12h
+−24h reminder
+Push
+—
+Email
+—
+Live banner
+—
+−6h reminder
+Push
+—
+Email
+—
+Live banner
+—
+−1h reminder
+Push
+—
+Email
+—
+Live banner
+—
+Notification config
+
+Notifications enabled
+Milestones (hours, comma-sep)
+24, 6, 1
+Pulse interval (min)
+off
+Pulse window (hours pre-event)
+off
+Pause until (local)
+
+mm/dd/yyyy, --:-- --
+Pause 1h
+Pause 24h
+Resume
+Save config
+Recent dispatches
+0 rows
+No dispatches yet. The scheduler will record activity here as events approach.
+
+
+
+
+140
