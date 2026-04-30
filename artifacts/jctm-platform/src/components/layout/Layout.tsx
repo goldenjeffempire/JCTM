@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { BackToTop } from "./BackToTop";
@@ -18,7 +19,18 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+const CRUSADE_LIVE_ROUTE_PREFIXES = ["/", "/crusade", "/warri-crusade", "/sermons", "/events"];
+
+function isCrusadeLiveRoute(path: string): boolean {
+  if (path === "/") return true;
+  return CRUSADE_LIVE_ROUTE_PREFIXES
+    .filter((p) => p !== "/")
+    .some((prefix) => path === prefix || path.startsWith(prefix + "/"));
+}
+
 export function Layout({ children }: LayoutProps) {
+  const [location] = useLocation();
+  const showLiveSignals = isCrusadeLiveRoute(location);
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground overflow-x-hidden">
       {/* Skip-to-content link — keyboard/screen-reader users can jump past nav */}
@@ -40,7 +52,7 @@ export function Layout({ children }: LayoutProps) {
 
       <WarriCrusadeStickyBanner />
       <EventStickyBar />
-      <LiveBanner />
+      {showLiveSignals && <LiveBanner />}
       <Navbar />
       <EventBanner />
       <main id="main-content" className="flex-1 w-full" tabIndex={-1}>
@@ -51,7 +63,7 @@ export function Layout({ children }: LayoutProps) {
       <TempleBots />
       <LanguageSuggestionBanner />
       <BackToTop />
-      <BroadcastStatusIndicator />
+      {showLiveSignals && <BroadcastStatusIndicator />}
       <EventLiveToast />
       <GlobalEventAdBanner />
       <FloatingJoinCrusadeCTA />
