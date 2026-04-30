@@ -1239,9 +1239,45 @@ interface LatestUpload {
   viewCount: number;
 }
 
+// Accepts a raw 11-char YouTube ID or any common YouTube URL
+// (watch?v=, youtu.be/, /live/, /shorts/, /embed/) and returns just the ID.
+function extractYouTubeId(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  // Already looks like a bare video ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  // Try URL parsing first
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    const host = url.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      if (id && /^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      const v = url.searchParams.get("v");
+      if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+      const parts = url.pathname.split("/").filter(Boolean);
+      // /live/<id>, /shorts/<id>, /embed/<id>
+      const idx = parts.findIndex(p => p === "live" || p === "shorts" || p === "embed");
+      if (idx !== -1 && parts[idx + 1] && /^[a-zA-Z0-9_-]{11}$/.test(parts[idx + 1]!)) {
+        return parts[idx + 1]!;
+      }
+    }
+  } catch {
+    // fall through to regex fallback
+  }
+  // Regex fallback for messy strings
+  const m = trimmed.match(/(?:v=|youtu\.be\/|\/live\/|\/shorts\/|\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return m && m[1] ? m[1] : trimmed;
+}
+
 function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof useLivestreamStatus>; auth: ReturnType<typeof useAdminAuth> }) {
   const qc = useQueryClient();
-  const [videoId, setVideoId] = useState("");
+  const [videoInput, setVideoInput] = useState("");
+  const videoId = extractYouTubeId(videoInput);
+  const looksLikeUrl = /^https?:\/\//i.test(videoInput.trim()) || /youtu/i.test(videoInput.trim());
+  const idResolved = /^[a-zA-Z0-9_-]{11}$/.test(videoId);
   const [validation, setValidation] = useState<VideoValidation | null>(null);
   const [validating, setValidating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -1253,14 +1289,14 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
 
   const isOverrideActive = liveStatus.manualOverride.live || liveStatus.manualOverride.rebroadcast;
 
-  // Debounced validation on video ID input
+  // Debounced validation on input — accepts a video ID or full YouTube URL
   const handleVideoIdChange = (val: string) => {
-    setVideoId(val);
+    setVideoInput(val);
     setValidation(null);
     if (validateTimerRef.current) clearTimeout(validateTimerRef.current);
-    const trimmed = val.trim();
-    if (!trimmed) return;
-    validateTimerRef.current = setTimeout(() => { validateVideo(trimmed); }, 600);
+    const id = extractYouTubeId(val);
+    if (!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) return;
+    validateTimerRef.current = setTimeout(() => { validateVideo(id); }, 600);
   };
 
   const validateVideo = async (id: string) => {
@@ -1283,8 +1319,8 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
   };
 
   const goLive = async () => {
-    const id = videoId.trim();
-    if (!id) return;
+    const id = videoId;
+    if (!id || !idResolved) return;
     if (validation && !validation.isLive) {
       toast.error("This video is not currently live. Use 'Set as Rebroadcast' instead.");
       return;
@@ -1350,7 +1386,7 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
   };
 
   const setRebroadcast = async (vid?: string, title?: string, thumbnailUrl?: string) => {
-    const id = vid ?? videoId.trim();
+    const id = vid ?? (idResolved ? videoId : "");
     setBusy("rebroadcast");
     try {
       const res = await fetch(`${BASE}/api/livestream/rebroadcast`, {
@@ -1487,11 +1523,11 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
             )}
           </AnimatePresence>
 
-          {/* Video ID Input + Validator */}
+          {/* YouTube Link / Video ID Input + Validator */}
           <Card>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-sm flex items-center gap-2">
-                <Settings className="w-4 h-4 text-primary" /> YouTube Video ID
+                <Settings className="w-4 h-4 text-primary" /> YouTube Link or Video ID
               </h3>
               <AdminBadge role="livestream" auth={auth} />
             </div>
@@ -1499,20 +1535,34 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
             <div className="space-y-3">
               <div className="flex gap-2">
                 <input
-                  value={videoId}
+                  value={videoInput}
                   onChange={e => handleVideoIdChange(e.target.value)}
-                  placeholder="Paste video ID (e.g. dQw4w9WgXcQ)"
+                  placeholder="Paste YouTube link (e.g. https://youtu.be/abc123XYZ_-) or video ID"
                   className="flex-1 px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono"
                 />
                 <button
-                  onClick={() => videoId.trim() && validateVideo(videoId.trim())}
-                  disabled={!videoId.trim() || validating}
+                  onClick={() => idResolved && validateVideo(videoId)}
+                  disabled={!idResolved || validating}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-semibold hover:bg-primary/20 disabled:opacity-50 transition-colors"
                 >
                   {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
                   Validate
                 </button>
               </div>
+
+              {/* Show extracted ID when admin pastes a full URL */}
+              {looksLikeUrl && idResolved && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <CheckCircle className="w-3 h-3 text-emerald-500" />
+                  Detected video ID: <span className="font-mono text-foreground">{videoId}</span>
+                </p>
+              )}
+              {videoInput.trim() && !idResolved && (
+                <p className="text-[11px] text-amber-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-3 h-3" />
+                  Could not detect a YouTube video ID — paste a full link or an 11-character ID.
+                </p>
+              )}
 
               {/* Validation Result */}
               <AnimatePresence mode="wait">
@@ -1573,7 +1623,7 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
               <Radio className="w-4 h-4 text-red-500" /> Live Stream
             </h3>
 
-            {validation && !validation.isLive && validation.valid && videoId.trim() && (
+            {validation && !validation.isLive && validation.valid && idResolved && (
               <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-400">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>This video is not currently live. You can still force it as live, or use it for rebroadcast below.</span>
@@ -1583,7 +1633,7 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={goLive}
-                disabled={!!busy || !videoId.trim() || (!!validation && !validation.valid)}
+                disabled={!!busy || !idResolved || (!!validation && !validation.valid)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
                   validation?.isLive
                     ? "bg-red-500 text-white hover:bg-red-600"
@@ -1640,12 +1690,12 @@ function BroadcastSection({ liveStatus, auth }: { liveStatus: ReturnType<typeof 
 
             <div className="flex flex-wrap gap-2 mb-3">
               <button
-                onClick={() => setRebroadcast(videoId.trim() || undefined)}
+                onClick={() => setRebroadcast(idResolved ? videoId : undefined)}
                 disabled={!!busy}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
               >
                 {busy === "rebroadcast" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat2 className="h-3.5 w-3.5" />}
-                {videoId.trim() ? "Set This Video" : "Auto-Select Latest"}
+                {idResolved ? "Set This Video" : "Auto-Select Latest"}
               </button>
 
               <button
