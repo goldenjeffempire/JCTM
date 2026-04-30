@@ -11,7 +11,7 @@ modules = ["nodejs-20", "web", "bash", "python-3.11", "postgresql-16"]
 
   [deployment]
   router = "application"
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 run = ["bash", "-c", "PORT=5000 node artifacts/api-server/dist/index.mjs"]
 build = ["bash", "-c", "pnpm --filter @workspace/jctm-platform run build && pnpm --filter @workspace/api-server run build"]
 

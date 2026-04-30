@@ -94,3 +94,30 @@ services:
     # HEALTH CHECK
     ###################################################################
     healthCheckPath: /api/health
+
+  #####################################################################
+  # KEEP-ALIVE CRON — pings the platform every 10 minutes so the free
+  # web service never spins down from inactivity (Always On behaviour).
+  #####################################################################
+  - type: cron
+    name: jctm-keepalive
+    runtime: node
+    region: oregon
+    plan: free
+    schedule: "*/10 * * * *"
+    buildCommand: echo "keep-alive ready"
+    startCommand: >
+      node -e "
+        const https = require('https');
+        const url = process.env.PLATFORM_URL || 'https://jctm.org.ng';
+        https.get(url + '/api/health', (res) => {
+          console.log('Keep-alive ping:', res.statusCode, new Date().toISOString());
+          res.resume();
+        }).on('error', (e) => {
+          console.error('Keep-alive failed:', e.message);
+          process.exit(1);
+        });
+      "
+    envVars:
+      - key: PLATFORM_URL
+        value: https://jctm.org.ng
