@@ -252,6 +252,58 @@ export async function sendWelcomeEmail(
   }
 }
 
+// ─── Test email ────────────────────────────────────────────────────────────────
+
+export async function sendTestEmail(
+  to: string,
+  log: Logger = logger,
+): Promise<{ ok: true; messageId?: string } | { ok: false; error: string }> {
+  const transporter = buildTransporter();
+  if (!transporter) {
+    return { ok: false, error: "SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASS missing)." };
+  }
+  const base = getPublicBaseUrl();
+  const sentAt = new Date().toISOString();
+  const subject = "JCTM SMTP test — delivery confirmed";
+  const text = [
+    "This is a test email from the JCTM Digital Sanctuary admin dashboard.",
+    "",
+    "If you received this, your SMTP configuration is working correctly and the platform can deliver",
+    "daily devotion emails, welcome emails, and event-reminder notifications to subscribers.",
+    "",
+    `Sent at: ${sentAt}`,
+    `From: ${defaultFrom()}`,
+    `Site: ${base}`,
+    "",
+    "— Jesus Christ Temple Ministry, Warri, Nigeria",
+  ].join("\n");
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;">
+    <table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;padding:32px;">
+      <tr><td>
+        <p style="margin:0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#0ea5e9;font-weight:700;">JCTM Digital Sanctuary · SMTP Test</p>
+        <h1 style="margin:8px 0 14px 0;font-size:22px;color:#0f172a;">Delivery confirmed</h1>
+        <p style="margin:0 0 12px 0;line-height:1.7;">This test email was sent from the admin dashboard to verify that the platform's SMTP configuration is working.</p>
+        <p style="margin:0 0 12px 0;line-height:1.7;">If you received it, the daily devotion email cron, the welcome email pipeline, and the event-reminder scheduler will all be able to deliver to subscribers.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;border-collapse:collapse;font-size:13px;color:#475569;">
+          <tr><td style="padding:4px 12px 4px 0;"><strong style="color:#0f172a;">Sent at:</strong></td><td style="padding:4px 0;">${escapeHtml(sentAt)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;"><strong style="color:#0f172a;">From:</strong></td><td style="padding:4px 0;">${escapeHtml(defaultFrom())}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;"><strong style="color:#0f172a;">Site:</strong></td><td style="padding:4px 0;"><a href="${escapeHtml(base)}" style="color:#0ea5e9;text-decoration:none;">${escapeHtml(base)}</a></td></tr>
+        </table>
+        <p style="margin:24px 0 0 0;font-size:12px;color:#6b7280;">Jesus Christ Temple Ministry · Warri, Nigeria</p>
+      </td></tr>
+    </table>
+  </body></html>`;
+  try {
+    const info = await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
+    log.info({ to, messageId: info.messageId }, "SMTP test email sent");
+    return { ok: true, messageId: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.warn({ err, to }, "SMTP test email failed");
+    return { ok: false, error: message };
+  }
+}
+
 // ─── Event-notification email ─────────────────────────────────────────────────
 
 interface EventForEmail {

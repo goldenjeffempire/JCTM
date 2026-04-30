@@ -9,7 +9,7 @@ import {
   Power, Repeat2, LayoutDashboard, Image, FileText,
   Shield, Menu, KeyRound, ImageOff, Bell, Send,
   TrendingUp, Globe, Monitor, Smartphone, Tablet, Signal,
-  Megaphone, MapPin, Save, Plus, Edit3,
+  Megaphone, MapPin, Save, Plus, Edit3, Mail,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -3015,6 +3015,7 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
   const qc = useQueryClient();
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.adminToken}` }), [auth.adminToken]);
   const [highlightedRowIds, setHighlightedRowIds] = useState<Set<number>>(new Set());
+  const [testEmailTo, setTestEmailTo] = useState("");
 
   const statsQuery = useQuery<NotifStats>({
     queryKey: ["admin-event-notif-stats"],
@@ -3088,6 +3089,22 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
       qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
     },
     onError: (err) => toast.error(formatAdminError(err, "Retry failed")),
+  });
+
+  const testEmailMutation = useMutation({
+    mutationFn: async (to: string) => {
+      const res = await fetch(`${BASE}/api/admin/email/test`, {
+        method: "POST",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ to }),
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ ok: true; to: string; messageId: string | null }>(res, "Test email failed");
+    },
+    onSuccess: (data) => {
+      toast.success(`Test email sent to ${data.to}${data.messageId ? ` · ${data.messageId}` : ""}`);
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Test email failed")),
   });
 
   const configMutation = useMutation({
@@ -3204,6 +3221,12 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
                 SMTP not configured — email skipped
               </span>
             )}
+            {stats && stats.emailDeliveryEnabled && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
+                <CheckCircle className="w-3 h-3" />
+                SMTP configured
+              </span>
+            )}
           </div>
 
           <button
@@ -3215,6 +3238,44 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
             Run scheduler now
           </button>
         </div>
+
+        <form
+          className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = testEmailTo.trim();
+            if (!trimmed) {
+              toast.error("Enter an email address to send the test to.");
+              return;
+            }
+            testEmailMutation.mutate(trimmed);
+          }}
+        >
+          <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+          <label htmlFor="smtp-test-to" className="text-sm text-slate-700 shrink-0">
+            Send test email to
+          </label>
+          <input
+            id="smtp-test-to"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={testEmailTo}
+            onChange={(e) => setTestEmailTo(e.target.value)}
+            disabled={testEmailMutation.isPending}
+            className="flex-1 min-w-[200px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={testEmailMutation.isPending || !stats?.emailDeliveryEnabled}
+            title={stats?.emailDeliveryEnabled ? "Send a test email via the configured SMTP server" : "SMTP not configured"}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {testEmailMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Send test
+          </button>
+        </form>
       </Card>
 
       {/* Upcoming events with milestone status */}

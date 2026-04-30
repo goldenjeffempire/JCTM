@@ -20,7 +20,7 @@ import { eq } from "drizzle-orm";
 import { db, eventNotificationSubscribersTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
-import { getPublicBaseUrl, isEmailConfigured } from "../lib/email-engine.js";
+import { getPublicBaseUrl, isEmailConfigured, sendTestEmail } from "../lib/email-engine.js";
 import {
   runEventNotificationTick,
   retryDispatchLogRow,
@@ -343,6 +343,30 @@ router.get(
       nextTickAt,
       emailDeliveryEnabled: isEmailConfigured(),
     });
+  },
+);
+
+router.post(
+  "/admin/email/test",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const rawTo = typeof req.body?.to === "string" ? req.body.to.trim().toLowerCase() : "";
+    if (!rawTo || !EMAIL_RE.test(rawTo) || rawTo.length > 254) {
+      res.status(400).json({ error: "Please enter a valid recipient email address." });
+      return;
+    }
+    if (!isEmailConfigured()) {
+      res.status(503).json({
+        error: "SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS, then restart the server.",
+      });
+      return;
+    }
+    const result = await sendTestEmail(rawTo, logger);
+    if (result.ok) {
+      res.json({ ok: true, to: rawTo, messageId: result.messageId ?? null });
+    } else {
+      res.status(502).json({ error: result.error });
+    }
   },
 );
 
