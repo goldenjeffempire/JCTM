@@ -16,6 +16,7 @@ import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.5
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import EventNotificationSubscribe from "@/components/EventNotificationSubscribe";
 
 function toICSDate(date: Date) {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -1074,6 +1075,11 @@ export default function Events() {
             </div>
           ))}
         </div>
+
+        {/* ─── Email reminder subscribe ──────────────────────────────────── */}
+        <section className="mb-14 rounded-2xl border border-border bg-card/60 p-5 sm:p-6">
+          <EventNotificationSubscribe source="events_page" />
+        </section>
 
         {/* Past Events */}
         {past.length > 0 && (

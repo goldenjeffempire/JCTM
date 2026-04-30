@@ -32,6 +32,7 @@ import clientErrorsRouter from "./clientErrors";
 import streamRouter from "./stream";
 import eventPromotionsRouter from "./eventPromotions";
 import videoEventsRouter from "./videoEvents";
+import eventNotificationsRouter from "./eventNotifications";
 
 const router: IRouter = Router();
 
@@ -70,6 +71,7 @@ router.use(clientErrorsRouter);
 router.use(streamRouter);
 router.use(eventPromotionsRouter);
 router.use(videoEventsRouter);
+router.use(eventNotificationsRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

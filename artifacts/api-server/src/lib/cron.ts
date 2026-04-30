@@ -3,6 +3,7 @@ import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
 import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification, type NotificationPayload } from "./push-manager.js";
+import { runEventNotificationTick, setEventNotificationIntervalMs } from "./event-notification-scheduler.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl } from "./email-engine.js";
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
@@ -25,6 +26,8 @@ let apiStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
 let dailyDevotionHandle: ReturnType<typeof setInterval> | null = null;
+let eventNotificationHandle: ReturnType<typeof setInterval> | null = null;
+let eventNotificationStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let lastFullSync: Date | null = null;
 
 let quotaPausedUntil: number | null = null;
@@ -1424,6 +1427,31 @@ export function startCron(log: Logger, websubUrl?: string): void {
     (midnightTimer as ReturnType<typeof setTimeout> & { unref(): void }).unref();
   }
 
+  // ── Event notification scheduler — every 30 minutes ─────────────────────────
+  // Scans `event_calendar` for upcoming events and dispatches multi-channel
+  // reminders (web push + Expo push + email + SSE) at 24h/12h/6h/1h milestones.
+  // Idempotent + retrying via `event_notification_dispatch_log` (see
+  // event-notification-scheduler.ts).
+  const EVENT_NOTIFICATION_INTERVAL_MS = 30 * 60 * 1000;
+  setEventNotificationIntervalMs(EVENT_NOTIFICATION_INTERVAL_MS);
+  eventNotificationStartupTimer = setTimeout(() => {
+    runEventNotificationTick(log).catch(err =>
+      log.warn({ err }, "Event notification scheduler initial tick error"),
+    );
+    eventNotificationHandle = setInterval(
+      () => runEventNotificationTick(log).catch(err =>
+        log.warn({ err }, "Event notification scheduler tick error"),
+      ),
+      EVENT_NOTIFICATION_INTERVAL_MS,
+    );
+    eventNotificationHandle.unref();
+    log.info(
+      { intervalMs: EVENT_NOTIFICATION_INTERVAL_MS },
+      "Event notification scheduler started (30-min interval)",
+    );
+  }, 30_000);
+  eventNotificationStartupTimer.unref();
+
   // ── Expo receipt checker — runs every 15 minutes ────────────────────────────
   // First run is delayed by 15 minutes so we don't check receipts that were
   // sent only seconds ago (Expo needs time to process them).
@@ -1438,9 +1466,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
 }
 
 export function stopCron(): void {
-  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle]
     .forEach(h => h && clearInterval(h));
-  [apiStartupTimer, metadataStartupTimer, midnightTimer]
+  [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]
     .forEach(h => h && clearTimeout(h));
   if (dailyDevotionHandle) clearInterval(dailyDevotionHandle);
   apiCronHandle = null;
@@ -1454,4 +1482,6 @@ export function stopCron(): void {
   metadataStartupTimer = null;
   midnightTimer = null;
   dailyDevotionHandle = null;
+  eventNotificationHandle = null;
+  eventNotificationStartupTimer = null;
 }

@@ -50,6 +50,31 @@ export type SSEEvent = {
     changedAt: string;
   };
 } | {
+  type: "event_notification_dispatched";
+  data: {
+    logId: number;
+    eventId: number;
+    eventTitle: string;
+    milestoneHours: number;
+    channel: "push" | "email" | "sse";
+    status: "pending" | "sent" | "failed" | "skipped";
+    attempts: number;
+    successCount: number;
+    failureCount: number;
+    recipientCount: number;
+    lastError?: string | null;
+    at: string;
+  };
+} | {
+  type: "event_notification_tick";
+  data: {
+    startedAt: string;
+    finishedAt: string;
+    eventsScanned: number;
+    dispatchesAttempted: number;
+    dispatchesSucceeded: number;
+  };
+} | {
   type: "ping";
   data: Record<string, never>;
 };

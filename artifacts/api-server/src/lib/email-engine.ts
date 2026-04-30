@@ -251,3 +251,139 @@ export async function sendWelcomeEmail(
     return false;
   }
 }
+
+// ─── Event-notification email ─────────────────────────────────────────────────
+
+interface EventForEmail {
+  id: number;
+  title: string;
+  description: string | null;
+  startDate: Date;
+  endDate: Date | null;
+  location: string | null;
+  imageUrl: string | null;
+  youtubeUrl: string | null;
+  eventType: string;
+}
+
+function humaniseLeadTime(hoursBefore: number): string {
+  if (hoursBefore <= 1) return "in about 1 hour";
+  if (hoursBefore < 24) return `in ${hoursBefore} hours`;
+  if (hoursBefore === 24) return "tomorrow";
+  const days = Math.round(hoursBefore / 24);
+  return `in ${days} day${days === 1 ? "" : "s"}`;
+}
+
+function formatEventDate(start: Date, end: Date | null): string {
+  const dateFmt = new Intl.DateTimeFormat("en-NG", {
+    timeZone: "Africa/Lagos",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const timeFmt = new Intl.DateTimeFormat("en-NG", {
+    timeZone: "Africa/Lagos",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  const date = dateFmt.format(start);
+  const startTime = timeFmt.format(start);
+  if (!end) return `${date} · ${startTime} (WAT)`;
+  const endTime = timeFmt.format(end);
+  return `${date} · ${startTime} – ${endTime} (WAT)`;
+}
+
+export function renderEventNotificationEmail(
+  event: EventForEmail,
+  hoursBefore: number,
+  unsubscribeUrl: string,
+): { subject: string; text: string; html: string } {
+  const base = getPublicBaseUrl();
+  const lead = humaniseLeadTime(hoursBefore);
+  const when = formatEventDate(event.startDate, event.endDate);
+  const subject = `${event.title} starts ${lead} — Jesus Christ Temple Ministry`;
+  const eventUrl = `${base}/events#event-${event.id}`;
+  const ctaLabel = event.youtubeUrl ? "Watch & RSVP" : "View event details";
+  const ctaUrl = event.youtubeUrl || eventUrl;
+
+  const locationLine = event.location
+    ? `\nLocation: ${event.location}`
+    : "";
+  const description = event.description?.trim() || "";
+
+  const text =
+    `${event.title}\n` +
+    `Starts ${lead}.\n\n` +
+    `When: ${when}${locationLine}\n\n` +
+    (description ? `${description}\n\n` : "") +
+    `${ctaLabel}: ${ctaUrl}\n\n` +
+    `Jesus Christ Temple Ministry · Warri, Nigeria\n` +
+    `Unsubscribe: ${unsubscribeUrl}\n`;
+
+  const safeTitle = escapeHtml(event.title);
+  const safeWhen = escapeHtml(when);
+  const safeLocation = event.location ? escapeHtml(event.location) : "";
+  const safeDescription = description ? paragraphs(description) : "";
+  const safeLead = escapeHtml(lead);
+  const safeCtaLabel = escapeHtml(ctaLabel);
+
+  const heroImage = event.imageUrl
+    ? `<tr><td style="padding:0"><img src="${escapeHtml(event.imageUrl)}" alt="" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" /></td></tr>`
+    : "";
+
+  const html = `<!doctype html>
+  <html><head><meta charset="utf-8"><title>${safeTitle}</title></head>
+  <body style="margin:0;padding:0;background:#f5f3ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f3ee;">
+      <tr><td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+          ${heroImage}
+          <tr><td style="padding:28px 28px 8px 28px;">
+            <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#0ea5e9;font-weight:700;">Upcoming at JCTM · Starts ${safeLead}</p>
+            <h1 style="margin:0;font-size:24px;line-height:1.25;color:#0f172a;font-weight:700;">${safeTitle}</h1>
+          </td></tr>
+          <tr><td style="padding:6px 28px 0 28px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px;border-collapse:collapse;">
+              <tr><td style="padding:6px 0;color:#475569;font-size:14px;"><strong style="color:#0f172a;">When:</strong> ${safeWhen}</td></tr>
+              ${safeLocation ? `<tr><td style="padding:6px 0;color:#475569;font-size:14px;"><strong style="color:#0f172a;">Where:</strong> ${safeLocation}</td></tr>` : ""}
+            </table>
+          </td></tr>
+          ${safeDescription ? `<tr><td style="padding:18px 28px 0 28px;">${safeDescription}</td></tr>` : ""}
+          <tr><td style="padding:22px 28px 28px 28px;">
+            <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:#003366;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-size:14px;font-weight:600;">${safeCtaLabel}</a>
+          </td></tr>
+          <tr><td style="padding:0 28px 24px 28px;border-top:1px solid #e5e7eb;">
+            <p style="margin:18px 0 6px 0;font-size:12px;color:#6b7280;line-height:1.6;">You're receiving this because you opted in to event reminders from Jesus Christ Temple Ministry.</p>
+            <p style="margin:0;font-size:12px;color:#6b7280;">Jesus Christ Temple Ministry · Warri, Nigeria · <a href="${escapeHtml(unsubscribeUrl)}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a></p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+
+  return { subject, text, html };
+}
+
+export async function sendEventNotificationEmail(
+  to: string,
+  event: EventForEmail,
+  hoursBefore: number,
+  unsubscribeUrl: string,
+  log: Logger = logger,
+): Promise<boolean> {
+  const transporter = buildTransporter();
+  if (!transporter) {
+    log.warn({ to, eventId: event.id }, "SMTP not configured — event notification email skipped");
+    return false;
+  }
+  const { subject, text, html } = renderEventNotificationEmail(event, hoursBefore, unsubscribeUrl);
+  try {
+    await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
+    return true;
+  } catch (err) {
+    log.warn({ err, to, eventId: event.id }, "Event notification email send failed");
+    return false;
+  }
+}

@@ -2577,6 +2577,408 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── Event Notification Scheduler — multi-channel reminder dispatch ──────────
+
+type NotifChannel = "push" | "email" | "sse";
+type NotifStatus = "pending" | "sent" | "failed" | "skipped";
+
+interface DispatchLogRow {
+  id: number;
+  eventId: number;
+  eventTitle: string;
+  milestoneHours: number;
+  channel: NotifChannel;
+  status: NotifStatus;
+  attempts: number;
+  recipientCount: number;
+  successCount: number;
+  failureCount: number;
+  lastError: string | null;
+  firstAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+interface NotifStats {
+  total: number;
+  sent: number;
+  failed: number;
+  pending: number;
+  skipped: number;
+  totalRecipients: number;
+  totalSuccessSends: number;
+  totalFailureSends: number;
+  activeSubscribers: number;
+  lastTickStartedAt: string | null;
+  lastTickFinishedAt: string | null;
+  lastTickResult: {
+    eventsScanned: number;
+    dispatchesAttempted: number;
+    dispatchesSucceeded: number;
+    dispatchesFailed: number;
+    durationMs: number;
+  } | null;
+  isRunning: boolean;
+  intervalMs: number;
+  nextTickAt: string | null;
+  emailDeliveryEnabled: boolean;
+}
+
+interface UpcomingMilestoneSummary {
+  hours: number;
+  dueAt: string;
+  isPast: boolean;
+  channels: Record<
+    NotifChannel,
+    { id: number; status: NotifStatus; attempts: number; successCount: number; failureCount: number; lastError: string | null } | null
+  >;
+}
+
+interface UpcomingEventSummary {
+  id: number;
+  title: string;
+  location: string | null;
+  startDate: string;
+  endDate: string | null;
+  eventType: string;
+  milestones: UpcomingMilestoneSummary[];
+}
+
+const CHANNEL_LABEL: Record<NotifChannel, string> = {
+  push: "Push",
+  email: "Email",
+  sse: "Live banner",
+};
+
+function statusBadgeClasses(status: NotifStatus): string {
+  if (status === "sent") return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+  if (status === "failed") return "bg-rose-100 text-rose-700 border border-rose-200";
+  if (status === "pending") return "bg-amber-100 text-amber-700 border border-amber-200";
+  return "bg-slate-100 text-slate-600 border border-slate-200";
+}
+
+function channelBadgeClasses(channel: NotifChannel): string {
+  if (channel === "push") return "bg-sky-50 text-sky-700 border border-sky-200";
+  if (channel === "email") return "bg-violet-50 text-violet-700 border border-violet-200";
+  return "bg-slate-50 text-slate-700 border border-slate-200";
+}
+
+function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
+  const qc = useQueryClient();
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.adminToken}` }), [auth.adminToken]);
+  const [highlightedRowIds, setHighlightedRowIds] = useState<Set<number>>(new Set());
+
+  const statsQuery = useQuery<NotifStats>({
+    queryKey: ["admin-event-notif-stats"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/stats`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<NotifStats>(res, "Unable to load notification stats");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 30_000,
+  });
+
+  const logQuery = useQuery<{ rows: DispatchLogRow[] }>({
+    queryKey: ["admin-event-notif-log"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/log?limit=50`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ rows: DispatchLogRow[] }>(res, "Unable to load dispatch log");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 30_000,
+  });
+
+  const upcomingQuery = useQuery<{ events: UpcomingEventSummary[] }>({
+    queryKey: ["admin-event-notif-upcoming"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/upcoming`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ events: UpcomingEventSummary[] }>(res, "Unable to load upcoming events");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 60_000,
+  });
+
+  const runNowMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/run-now`, {
+        method: "POST",
+        headers: authHeader,
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ result: { eventsScanned: number; dispatchesAttempted: number; dispatchesSucceeded: number } }>(
+        res,
+        "Tick failed",
+      );
+    },
+    onSuccess: (data) => {
+      toast.success(
+        `Scheduler tick complete · ${data.result.eventsScanned} events scanned, ${data.result.dispatchesSucceeded}/${data.result.dispatchesAttempted} dispatched`,
+      );
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-log"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Manual run failed")),
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/${id}/retry`, {
+        method: "POST",
+        headers: authHeader,
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Retry failed");
+    },
+    onSuccess: () => {
+      toast.success("Retry queued");
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-log"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Retry failed")),
+  });
+
+  // Live updates via SSE — highlight rows that change
+  useEffect(() => {
+    // Singleton sseBroadcaster — any registered SSE endpoint receives broadcasts.
+    // We piggy-back on /api/sermons/stream which is already widely used.
+    const evt = new EventSource(`${BASE}/api/sermons/stream`);
+    const onDispatch = (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { logId: number };
+        setHighlightedRowIds((prev) => {
+          const next = new Set(prev);
+          next.add(data.logId);
+          return next;
+        });
+        setTimeout(() => {
+          setHighlightedRowIds((prev) => {
+            const next = new Set(prev);
+            next.delete(data.logId);
+            return next;
+          });
+        }, 4000);
+        qc.invalidateQueries({ queryKey: ["admin-event-notif-log"] });
+        qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
+      } catch {
+        /* ignore parse errors */
+      }
+    };
+    const onTick = () => {
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-log"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
+    };
+    evt.addEventListener("event_notification_dispatched", onDispatch as EventListener);
+    evt.addEventListener("event_notification_tick", onTick as EventListener);
+    return () => {
+      evt.removeEventListener("event_notification_dispatched", onDispatch as EventListener);
+      evt.removeEventListener("event_notification_tick", onTick as EventListener);
+      evt.close();
+    };
+  }, [qc]);
+
+  const stats = statsQuery.data;
+  const logRows = logQuery.data?.rows ?? [];
+  const upcoming = upcomingQuery.data?.events ?? [];
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Event Notification Scheduler"
+        description="Multi-channel reminders (push · email · live banner) dispatched at 24h / 12h / 6h / 1h before each upcoming event in the calendar. Runs every 30 minutes with idempotency + automatic retries."
+      />
+
+      {/* Stat tiles + controls */}
+      <Card>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <MetricCard label="Email subscribers" value={stats?.activeSubscribers ?? "—"} icon={<Bell className="w-4 h-4" />} />
+          <MetricCard label="Dispatches sent" value={stats?.sent ?? "—"} icon={<CheckCircle className="w-4 h-4" />} />
+          <MetricCard label="Dispatches failed" value={stats?.failed ?? "—"} icon={<AlertCircle className="w-4 h-4" />} />
+          <MetricCard label="Total deliveries" value={stats?.totalSuccessSends ?? "—"} icon={<Send className="w-4 h-4" />} />
+          <MetricCard label="Pending" value={stats?.pending ?? "—"} icon={<Clock className="w-4 h-4" />} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-600">
+            <span className="inline-flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                Last tick:{" "}
+                <strong className="text-slate-800">
+                  {stats?.lastTickFinishedAt ? rel(stats.lastTickFinishedAt) : "not yet"}
+                </strong>
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                Next tick:{" "}
+                <strong className="text-slate-800">
+                  {stats?.nextTickAt ? countdown(stats.nextTickAt) : "—"}
+                </strong>
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${stats?.isRunning ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+              <span>{stats?.isRunning ? "Tick running…" : "Idle"}</span>
+            </span>
+            {stats && !stats.emailDeliveryEnabled && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs">
+                <AlertCircle className="w-3 h-3" />
+                SMTP not configured — email skipped
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={() => runNowMutation.mutate()}
+            disabled={runNowMutation.isPending || stats?.isRunning}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {runNowMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            Run scheduler now
+          </button>
+        </div>
+      </Card>
+
+      {/* Upcoming events with milestone status */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-800">Upcoming events &amp; milestone status</h3>
+          <span className="text-xs text-slate-500">{upcoming.length} event{upcoming.length === 1 ? "" : "s"} scanned</span>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="text-sm text-slate-500 italic">No upcoming events in the next 24+ hours.</p>
+        ) : (
+          <div className="space-y-3">
+            {upcoming.map((ev) => (
+              <div key={ev.id} className="rounded-lg border border-slate-200 p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">{ev.title}</div>
+                    <div className="text-xs text-slate-500">
+                      {new Date(ev.startDate).toLocaleString("en-NG", { timeZone: "Africa/Lagos", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      {ev.location ? ` · ${ev.location}` : ""}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">starts {countdown(ev.startDate)}</div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ev.milestones.map((m) => (
+                    <div key={m.hours} className={`rounded-md border p-2 text-xs ${m.isPast ? "border-slate-200 bg-slate-50" : "border-slate-200 bg-white"}`}>
+                      <div className="font-semibold text-slate-700 mb-1">−{m.hours}h reminder</div>
+                      <div className="space-y-1">
+                        {(["push", "email", "sse"] as const).map((ch) => {
+                          const r = m.channels[ch];
+                          const status: NotifStatus = r?.status ?? (m.isPast ? "skipped" : "pending");
+                          const label = r ? `${status} · ${r.successCount}/${r.successCount + r.failureCount}` : "—";
+                          return (
+                            <div key={ch} className="flex items-center justify-between gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${channelBadgeClasses(ch)}`}>{CHANNEL_LABEL[ch]}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusBadgeClasses(status)}`}>{label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Recent dispatch log */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-800">Recent dispatches</h3>
+          <span className="text-xs text-slate-500">{logRows.length} row{logRows.length === 1 ? "" : "s"}</span>
+        </div>
+        {logRows.length === 0 ? (
+          <p className="text-sm text-slate-500 italic">No dispatches yet. The scheduler will record activity here as events approach.</p>
+        ) : (
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                  <th className="px-3 py-2 font-medium">Event</th>
+                  <th className="px-3 py-2 font-medium">Milestone</th>
+                  <th className="px-3 py-2 font-medium">Channel</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Sent / Total</th>
+                  <th className="px-3 py-2 font-medium">Attempts</th>
+                  <th className="px-3 py-2 font-medium">When</th>
+                  <th className="px-3 py-2 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {logRows.map((row) => {
+                  const highlighted = highlightedRowIds.has(row.id);
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 transition-colors duration-700 ${highlighted ? "bg-amber-50" : "hover:bg-slate-50"}`}
+                    >
+                      <td className="px-3 py-2 text-slate-800">{row.eventTitle}</td>
+                      <td className="px-3 py-2 text-slate-600">−{row.milestoneHours}h</td>
+                      <td className="px-3 py-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${channelBadgeClasses(row.channel)}`}>{CHANNEL_LABEL[row.channel]}</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusBadgeClasses(row.status)}`}>{row.status}</span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 tabular-nums">
+                        {row.successCount}
+                        <span className="text-slate-400"> / {row.recipientCount}</span>
+                        {row.failureCount > 0 && <span className="text-rose-600"> ({row.failureCount} fail)</span>}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 tabular-nums">{row.attempts}</td>
+                      <td className="px-3 py-2 text-slate-500 text-xs">
+                        {row.completedAt ? rel(row.completedAt) : row.lastAttemptAt ? rel(row.lastAttemptAt) : rel(row.createdAt)}
+                      </td>
+                      <td className="px-3 py-2">
+                        {row.status === "failed" && (
+                          <button
+                            onClick={() => retryMutation.mutate(row.id)}
+                            disabled={retryMutation.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-50"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Retry
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {logRows.some((r) => r.lastError) && (
+              <details className="mt-2 px-3">
+                <summary className="text-xs text-slate-500 cursor-pointer">View errors</summary>
+                <div className="mt-2 space-y-1 text-xs">
+                  {logRows.filter((r) => r.lastError).map((r) => (
+                    <div key={`err-${r.id}`} className="text-rose-600">
+                      <strong>#{r.id}</strong> {r.eventTitle} — {CHANNEL_LABEL[r.channel]}: {r.lastError}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <label className={`block ${className}`}>
@@ -3474,7 +3876,12 @@ export default function Admin() {
             <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>
               {section === "overview"    && <OverviewSection liveStatus={liveStatus} adminAuth={livestreamAuth} />}
               {section === "broadcast"   && <BroadcastSection liveStatus={liveStatus} auth={livestreamAuth} />}
-              {section === "events"      && <EventPromotionsSection auth={livestreamAuth} />}
+              {section === "events"      && (
+                <div className="space-y-8">
+                  <EventPromotionsSection auth={livestreamAuth} />
+                  <EventNotificationsSection auth={livestreamAuth} />
+                </div>
+              )}
               {section === "sermons"     && <SermonsSection auth={sermonAuth} />}
               {section === "gallery"     && <GallerySection auth={galleryAuth} />}
               {section === "testimonies" && <TestimoniesSection auth={sermonAuth} />}
