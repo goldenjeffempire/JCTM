@@ -1018,6 +1018,236 @@ async function checkAndBroadcastWarriCrusadeHalfHourly(log: Logger): Promise<voi
   }
 }
 
+// ─── Generic Campaign Promotion Broadcast ─────────────────────────────────────
+// For any active row in `event_promotions` with `broadcast_enabled = true`,
+// the per-minute cron tick computes the current cadence slot, checks the
+// trigger window (the first ≤5 minutes of each slot), and dispatches a push
+// notification + in-app SSE toast. Idempotency comes from the
+// broadcast_events unique-by-(type,title,message) check, where the message
+// embeds both the slot bucket and the promotion id, so each promotion has its
+// own independent dedup namespace per slot. Stops automatically once
+// `end_at` has passed.
+//
+// Cadences:
+//   • half_hourly  → fires at :00 and :30 (UTC), bucket "YYYY-MM-DD-HH-MM"
+//   • hourly       → fires at :00 (UTC), bucket "YYYY-MM-DD-HH-00"
+//   • daily        → fires at 00:00 UTC, bucket "YYYY-MM-DD"
+//   • custom       → fires every N minutes (5–1440), bucket
+//                    "YYYY-MM-DD-HH-MM-i<N>" aligned to the slot start
+//
+// Coexists safely with the dedicated Warri Crusade hardcoded broadcaster:
+// they use different broadcast_events.type values ("campaign_promo" vs
+// "warri_crusade_promo"), and the new column defaults to false so existing
+// rows keep their current behaviour until an admin opts in.
+
+interface CampaignPromotionRow {
+  id: number;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  artworkUrl: string | null;
+  ctaUrl: string;
+  endAt: Date;
+  broadcastEnabled: boolean;
+  broadcastCadence: string;
+  broadcastIntervalMinutes: number | null;
+  broadcastMessages: string[];
+  broadcastTitleOverride: string | null;
+  broadcastImageUrl: string | null;
+}
+
+function computeBroadcastSlot(
+  now: Date,
+  cadence: string,
+  intervalMinutes: number | null,
+): { fire: boolean; bucket: string; slotIndex: number } {
+  const m = now.getUTCMinutes();
+  const h = now.getUTCHours();
+  const y = now.getUTCFullYear();
+  const mo = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
+  const hStr = String(h).padStart(2, "0");
+
+  switch (cadence) {
+    case "half_hourly": {
+      const inFirst = m < 5;
+      const inSecond = m >= 30 && m < 35;
+      const half = m < 30 ? "00" : "30";
+      const halfFlag = m < 30 ? 0 : 1;
+      // slotIndex = day-of-year * 48 + hour*2 + halfFlag (deterministic)
+      const slotIndex = h * 2 + halfFlag;
+      return { fire: inFirst || inSecond, bucket: `${y}-${mo}-${d}-${hStr}-${half}`, slotIndex };
+    }
+    case "hourly": {
+      return { fire: m < 5, bucket: `${y}-${mo}-${d}-${hStr}-00`, slotIndex: h };
+    }
+    case "daily": {
+      // Day-of-year-ish index: use UTC day number relative to epoch to keep
+      // the rotation rolling forward even across month/year boundaries.
+      const epochDay = Math.floor(now.getTime() / 86_400_000);
+      return { fire: h === 0 && m < 5, bucket: `${y}-${mo}-${d}`, slotIndex: epochDay };
+    }
+    case "custom": {
+      const interval = Math.max(5, Math.min(1440, intervalMinutes ?? 30));
+      const epochMin = Math.floor(now.getTime() / 60_000);
+      const slotIdx = Math.floor(epochMin / interval);
+      const minIntoSlot = epochMin - slotIdx * interval;
+      const fire = minIntoSlot < Math.min(5, interval);
+      const slotStart = new Date(slotIdx * interval * 60_000);
+      const sy = slotStart.getUTCFullYear();
+      const smo = String(slotStart.getUTCMonth() + 1).padStart(2, "0");
+      const sd = String(slotStart.getUTCDate()).padStart(2, "0");
+      const sh = String(slotStart.getUTCHours()).padStart(2, "0");
+      const sm = String(slotStart.getUTCMinutes()).padStart(2, "0");
+      return { fire, bucket: `${sy}-${smo}-${sd}-${sh}-${sm}-i${interval}`, slotIndex: slotIdx };
+    }
+    default:
+      return { fire: false, bucket: "", slotIndex: 0 };
+  }
+}
+
+function pickCampaignBody(row: CampaignPromotionRow, slotIndex: number): string {
+  const messages = Array.isArray(row.broadcastMessages) ? row.broadcastMessages.filter(s => typeof s === "string" && s.trim().length > 0) : [];
+  if (messages.length > 0) {
+    return messages[slotIndex % messages.length]!;
+  }
+  // Sensible default if the admin didn't supply any rotating messages.
+  if (row.subtitle && row.subtitle.trim().length > 0) return row.subtitle.trim();
+  return `${row.title} — don't miss it!`;
+}
+
+async function checkAndBroadcastCampaignPromotions(log: Logger): Promise<void> {
+  const now = new Date();
+
+  let rows: CampaignPromotionRow[];
+  try {
+    const result = await pool.query<{
+      id: number;
+      slug: string;
+      title: string;
+      subtitle: string | null;
+      artwork_url: string | null;
+      cta_url: string;
+      end_at: Date;
+      broadcast_enabled: boolean;
+      broadcast_cadence: string;
+      broadcast_interval_minutes: number | null;
+      broadcast_messages: string[] | null;
+      broadcast_title_override: string | null;
+      broadcast_image_url: string | null;
+    }>(
+      `SELECT id, slug, title, subtitle, artwork_url, cta_url, end_at,
+              broadcast_enabled, broadcast_cadence, broadcast_interval_minutes,
+              broadcast_messages, broadcast_title_override, broadcast_image_url
+         FROM event_promotions
+        WHERE status = 'active'
+          AND broadcast_enabled = true
+          AND end_at > now()`,
+    );
+    rows = result.rows.map(r => ({
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      subtitle: r.subtitle,
+      artworkUrl: r.artwork_url,
+      ctaUrl: r.cta_url,
+      endAt: r.end_at,
+      broadcastEnabled: r.broadcast_enabled,
+      broadcastCadence: r.broadcast_cadence,
+      broadcastIntervalMinutes: r.broadcast_interval_minutes,
+      broadcastMessages: Array.isArray(r.broadcast_messages) ? r.broadcast_messages : [],
+      broadcastTitleOverride: r.broadcast_title_override,
+      broadcastImageUrl: r.broadcast_image_url,
+    }));
+  } catch (err) {
+    log.warn({ err }, "Campaign promotion broadcast — query failed (non-fatal)");
+    return;
+  }
+
+  if (rows.length === 0) return;
+
+  for (const row of rows) {
+    const { fire, bucket, slotIndex } = computeBroadcastSlot(
+      now,
+      row.broadcastCadence,
+      row.broadcastIntervalMinutes,
+    );
+    if (!fire) continue;
+
+    const effectiveTitle = (row.broadcastTitleOverride && row.broadcastTitleOverride.trim().length > 0)
+      ? row.broadcastTitleOverride.trim()
+      : row.title;
+    const body = pickCampaignBody(row, slotIndex);
+    // Embed both bucket and promotion id so each promotion has its own dedup
+    // namespace per slot — two different campaigns can fire on the same slot.
+    const dedupMessage = `${body} [slot:${bucket}:promo${row.id}]`;
+
+    try {
+      const existing = await pool.query<{ id: number }>(
+        `SELECT id FROM broadcast_events
+          WHERE type = 'campaign_promo' AND title = $1 AND message = $2
+          LIMIT 1`,
+        [effectiveTitle, dedupMessage],
+      );
+      if (existing.rowCount && existing.rowCount > 0) continue;
+
+      // Acquire the lock row first; concurrent ticks short-circuit on the
+      // SELECT above. The unique-by-(type,title,message) idempotency check
+      // is the same pattern used by the Warri Crusade and event reminder
+      // broadcasters, so behaviour is consistent across the codebase.
+      await pool.query(
+        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+        ["campaign_promo", effectiveTitle, dedupMessage, row.ctaUrl],
+      );
+
+      const imageUrl = row.broadcastImageUrl ?? row.artworkUrl ?? undefined;
+      const notif: NotificationPayload = {
+        title: effectiveTitle,
+        body,
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/badge-72x72.png",
+        ...(imageUrl ? { image: imageUrl } : {}),
+        url: row.ctaUrl,
+        tag: `campaign-promo-${row.id}`,
+        data: {
+          type: "campaign_promo",
+          broadcastType: "campaign_promo",
+          promotionId: row.id,
+          slug: row.slug,
+          cadence: row.broadcastCadence,
+          slotBucket: bucket,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      log.info(
+        { promotionId: row.id, slug: row.slug, cadence: row.broadcastCadence, bucket },
+        "Campaign promotion broadcast — dispatching push + in-app toast",
+      );
+
+      const result = await dispatchPushNotification(notif, log, "campaign_promo");
+      const expoResult = await dispatchExpoPush(
+        effectiveTitle,
+        body,
+        { url: row.ctaUrl, type: "campaign_promo", promotionId: row.id, slug: row.slug },
+        log,
+      );
+
+      log.info(
+        {
+          promotionId: row.id,
+          bucket,
+          web: { sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+          expo: expoResult,
+        },
+        "Campaign promotion broadcast complete (web + expo)",
+      );
+    } catch (err) {
+      log.warn({ err, promotionId: row.id, bucket }, "Campaign promotion broadcast failed (non-fatal)");
+    }
+  }
+}
+
 // ─── Daily Devotion Email Broadcast ───────────────────────────────────────────
 // Sends today's devotion to all active subscribers between 6:00–6:14 AM WAT.
 // Runs at most once per UTC day (guarded by `devotionEmailBroadcastDate`).
@@ -1413,6 +1643,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndSendEventReminders(log);
       checkAndBroadcastWarriCrusadeHalfHourly(log).catch(err =>
         log.warn({ err }, "Warri Crusade half-hourly broadcast tick error"),
+      );
+      checkAndBroadcastCampaignPromotions(log).catch(err =>
+        log.warn({ err }, "Campaign promotion broadcast tick error"),
       );
       processScheduledBroadcasts(log).catch(err =>
         log.warn({ err }, "Scheduled broadcasts tick error"),

@@ -418,6 +418,26 @@ export async function runMigrations(): Promise<void> {
     WHERE status = 'active'
   `);
 
+  // ── Generic recurring broadcast columns (campaign promotion mode) ───────────
+  // Adds the columns needed for the per-promotion configurable broadcast
+  // cadence engine. All NOT NULL columns get safe defaults so existing rows
+  // (including the Warri Crusade row) are unaffected and remain disabled by
+  // default — admins must explicitly opt-in via the admin panel.
+  await pool.query(`
+    ALTER TABLE event_promotions
+      ADD COLUMN IF NOT EXISTS broadcast_enabled boolean NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS broadcast_cadence text NOT NULL DEFAULT 'half_hourly',
+      ADD COLUMN IF NOT EXISTS broadcast_interval_minutes integer,
+      ADD COLUMN IF NOT EXISTS broadcast_messages jsonb NOT NULL DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS broadcast_title_override text,
+      ADD COLUMN IF NOT EXISTS broadcast_image_url text
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS event_promotions_broadcast_enabled_idx
+    ON event_promotions (broadcast_enabled, end_at)
+    WHERE broadcast_enabled = true
+  `);
+
   // ── Scheduled Broadcasts (delayed admin push notifications) ─────────────────
   // Admin can compose a notification and schedule it for a future time. The
   // per-minute cron tick polls this table for due rows (status='pending' AND

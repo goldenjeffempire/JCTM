@@ -2192,6 +2192,8 @@ function TestimoniesSection({ auth }: { auth: AdminAuth }) {
 
 // ─── Event Promotions ────────────────────────────────────────────────────────
 
+type BroadcastCadence = "half_hourly" | "hourly" | "daily" | "custom";
+
 interface AdminEventPromotion {
   id: number;
   slug: string;
@@ -2207,6 +2209,12 @@ interface AdminEventPromotion {
   showBanner: boolean;
   showPopup: boolean;
   showStickyBar: boolean;
+  broadcastEnabled: boolean;
+  broadcastCadence: BroadcastCadence;
+  broadcastIntervalMinutes: number | null;
+  broadcastMessages: string[];
+  broadcastTitleOverride: string | null;
+  broadcastImageUrl: string | null;
   phase: "upcoming" | "live" | "ended";
   msUntilStart: number;
   msUntilEnd: number;
@@ -2229,6 +2237,12 @@ interface PromotionFormState {
   showBanner: boolean;
   showPopup: boolean;
   showStickyBar: boolean;
+  broadcastEnabled: boolean;
+  broadcastCadence: BroadcastCadence;
+  broadcastIntervalMinutes: string;
+  broadcastMessagesText: string;
+  broadcastTitleOverride: string;
+  broadcastImageUrl: string;
 }
 
 const EMPTY_PROMOTION_FORM: PromotionFormState = {
@@ -2246,7 +2260,29 @@ const EMPTY_PROMOTION_FORM: PromotionFormState = {
   showBanner: true,
   showPopup: true,
   showStickyBar: true,
+  broadcastEnabled: false,
+  broadcastCadence: "half_hourly",
+  broadcastIntervalMinutes: "",
+  broadcastMessagesText: "",
+  broadcastTitleOverride: "",
+  broadcastImageUrl: "",
 };
+
+const CADENCE_LABELS: Record<BroadcastCadence, string> = {
+  half_hourly: "Every 30 minutes (:00 and :30 UTC)",
+  hourly: "Hourly (top of each UTC hour)",
+  daily: "Daily (00:00 UTC)",
+  custom: "Custom interval (5 – 1440 minutes)",
+};
+
+function describeBroadcast(p: AdminEventPromotion): string {
+  if (!p.broadcastEnabled) return "Broadcast off";
+  if (p.broadcastCadence === "custom") {
+    const n = p.broadcastIntervalMinutes ?? 30;
+    return `Broadcast every ${n} min`;
+  }
+  return CADENCE_LABELS[p.broadcastCadence].split(" (")[0]!;
+}
 
 // Convert an ISO UTC string into the value format <input type="datetime-local">
 // expects (YYYY-MM-DDTHH:mm in the user's local TZ).
@@ -2298,6 +2334,15 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
 
   const upsertMutation = useMutation({
     mutationFn: async (payload: PromotionFormState) => {
+      const broadcastMessages = payload.broadcastMessagesText
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      const intervalNum = Number.parseInt(payload.broadcastIntervalMinutes, 10);
+      const broadcastIntervalMinutes =
+        payload.broadcastCadence === "custom" && Number.isFinite(intervalNum)
+          ? intervalNum
+          : null;
       const body = {
         slug: payload.slug.trim(),
         title: payload.title.trim(),
@@ -2312,6 +2357,12 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
         showBanner: payload.showBanner,
         showPopup: payload.showPopup,
         showStickyBar: payload.showStickyBar,
+        broadcastEnabled: payload.broadcastEnabled,
+        broadcastCadence: payload.broadcastCadence,
+        broadcastIntervalMinutes,
+        broadcastMessages,
+        broadcastTitleOverride: payload.broadcastTitleOverride.trim() || null,
+        broadcastImageUrl: payload.broadcastImageUrl.trim() || null,
       };
       const url = payload.id
         ? `${BASE}/api/admin/event-promotions/${payload.id}`
@@ -2382,6 +2433,12 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
       showBanner: p.showBanner,
       showPopup: p.showPopup,
       showStickyBar: p.showStickyBar,
+      broadcastEnabled: p.broadcastEnabled,
+      broadcastCadence: p.broadcastCadence,
+      broadcastIntervalMinutes: p.broadcastIntervalMinutes != null ? String(p.broadcastIntervalMinutes) : "",
+      broadcastMessagesText: (p.broadcastMessages ?? []).join("\n"),
+      broadcastTitleOverride: p.broadcastTitleOverride ?? "",
+      broadcastImageUrl: p.broadcastImageUrl ?? "",
     });
     setShowForm(true);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2520,6 +2577,87 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
                   onChange={v => setForm({ ...form, showBanner: v })} />
                 <ChannelToggle label="Popup Modal" value={form.showPopup}
                   onChange={v => setForm({ ...form, showPopup: v })} />
+              </div>
+
+              {/* ── Broadcast Cadence — recurring push/SSE notifications ─────── */}
+              <div className="pt-3 border-t border-border space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Megaphone className="w-4 h-4 text-primary" />
+                      Broadcast Cadence
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Automatically push reminders to all subscribers on a schedule until the event ends. Each broadcast goes to web push, mobile push, and the in-app live banner.
+                    </p>
+                  </div>
+                  <ChannelToggle
+                    label={form.broadcastEnabled ? "Enabled" : "Disabled"}
+                    value={form.broadcastEnabled}
+                    onChange={v => setForm({ ...form, broadcastEnabled: v })}
+                  />
+                </div>
+
+                {form.broadcastEnabled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <Field label="Cadence">
+                      <select
+                        value={form.broadcastCadence}
+                        onChange={e => setForm({ ...form, broadcastCadence: e.target.value as BroadcastCadence })}
+                        className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm"
+                        data-testid="event-promo-broadcast-cadence"
+                      >
+                        <option value="half_hourly">{CADENCE_LABELS.half_hourly}</option>
+                        <option value="hourly">{CADENCE_LABELS.hourly}</option>
+                        <option value="daily">{CADENCE_LABELS.daily}</option>
+                        <option value="custom">{CADENCE_LABELS.custom}</option>
+                      </select>
+                    </Field>
+                    {form.broadcastCadence === "custom" && (
+                      <Field label="Interval (minutes, 5–1440)">
+                        <input
+                          type="number"
+                          min={5}
+                          max={1440}
+                          value={form.broadcastIntervalMinutes}
+                          onChange={e => setForm({ ...form, broadcastIntervalMinutes: e.target.value })}
+                          placeholder="e.g. 90"
+                          className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm"
+                          data-testid="event-promo-broadcast-interval"
+                        />
+                      </Field>
+                    )}
+                    <Field label="Notification title (optional override)" className={form.broadcastCadence === "custom" ? "" : "sm:col-span-1"}>
+                      <input
+                        value={form.broadcastTitleOverride}
+                        onChange={e => setForm({ ...form, broadcastTitleOverride: e.target.value })}
+                        placeholder={form.title || "Defaults to the promotion title"}
+                        className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm"
+                      />
+                    </Field>
+                    <Field label="Notification image URL (optional)" className="sm:col-span-2">
+                      <input
+                        value={form.broadcastImageUrl}
+                        onChange={e => setForm({ ...form, broadcastImageUrl: e.target.value })}
+                        placeholder={form.artworkUrl || "Defaults to the promotion artwork"}
+                        className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm"
+                      />
+                    </Field>
+                    <Field label="Rotating message bodies (one per line, max 24)" className="sm:col-span-2">
+                      <textarea
+                        value={form.broadcastMessagesText}
+                        onChange={e => setForm({ ...form, broadcastMessagesText: e.target.value })}
+                        rows={5}
+                        placeholder={"🔥 Don't miss this — join us today!\n⚡ Be part of something powerful — happening now\n🙏 Mark your calendar — this is going to be special"}
+                        className="w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm font-mono leading-relaxed"
+                        data-testid="event-promo-broadcast-messages"
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Bodies rotate deterministically by slot. Leave empty to fall back to the subtitle (or the title if no subtitle is set).
+                      </p>
+                    </Field>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-border">
@@ -3306,6 +3444,14 @@ function PromotionRow({
             {p.pushSentAt && (
               <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <Bell className="w-3 h-3" /> Live push sent
+              </span>
+            )}
+            {p.broadcastEnabled && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                title={`${(p.broadcastMessages?.length ?? 0)} rotating message(s)`}
+              >
+                <Megaphone className="w-3 h-3" /> {describeBroadcast(p)}
               </span>
             )}
           </div>

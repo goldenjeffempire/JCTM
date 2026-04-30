@@ -20,9 +20,17 @@ interface PromotionInput {
   showBanner?: boolean;
   showPopup?: boolean;
   showStickyBar?: boolean;
+  // ── Generic recurring broadcast (campaign promotion mode) ───────────────────
+  broadcastEnabled?: boolean;
+  broadcastCadence?: "half_hourly" | "hourly" | "daily" | "custom";
+  broadcastIntervalMinutes?: number | null;
+  broadcastMessages?: string[];
+  broadcastTitleOverride?: string | null;
+  broadcastImageUrl?: string | null;
 }
 
 const STATUSES = new Set(["draft", "active", "archived"]);
+const CADENCES = new Set(["half_hourly", "hourly", "daily", "custom"]);
 
 function isIsoDateString(v: unknown): v is string {
   if (typeof v !== "string") return false;
@@ -72,8 +80,58 @@ function validatePromotion(body: unknown, partial = false): { ok: true; data: Pa
     optBool("showBanner"),
     optBool("showPopup"),
     optBool("showStickyBar"),
+    optBool("broadcastEnabled"),
+    optStr("broadcastTitleOverride", 200),
+    optStr("broadcastImageUrl", 2000),
   ]) {
     if (err) return { ok: false, error: err };
+  }
+
+  // ── Broadcast cadence & interval ───────────────────────────────────────────
+  if (b.broadcastCadence !== undefined) {
+    if (typeof b.broadcastCadence !== "string" || !CADENCES.has(b.broadcastCadence)) {
+      return { ok: false, error: "Invalid broadcastCadence — must be half_hourly|hourly|daily|custom" };
+    }
+    out.broadcastCadence = b.broadcastCadence as PromotionInput["broadcastCadence"];
+  }
+  if (b.broadcastIntervalMinutes !== undefined && b.broadcastIntervalMinutes !== null) {
+    const n = Number(b.broadcastIntervalMinutes);
+    if (!Number.isFinite(n) || n < 5 || n > 1440) {
+      return { ok: false, error: "broadcastIntervalMinutes must be between 5 and 1440" };
+    }
+    out.broadcastIntervalMinutes = Math.round(n);
+  } else if (b.broadcastIntervalMinutes === null) {
+    out.broadcastIntervalMinutes = null;
+  }
+  // Cross-field rule: cadence='custom' requires broadcastIntervalMinutes (when
+  // either is being set — full validation happens at insert time).
+  if (out.broadcastCadence === "custom" && out.broadcastIntervalMinutes === undefined) {
+    // tolerated on partial updates; the row's existing value stays in place
+  }
+
+  // ── Broadcast messages: array of non-empty strings, max 24 entries ─────────
+  if (b.broadcastMessages !== undefined) {
+    if (b.broadcastMessages === null) {
+      out.broadcastMessages = [];
+    } else if (!Array.isArray(b.broadcastMessages)) {
+      return { ok: false, error: "broadcastMessages must be an array of strings" };
+    } else {
+      const arr = b.broadcastMessages as unknown[];
+      if (arr.length > 24) return { ok: false, error: "broadcastMessages may contain at most 24 entries" };
+      const cleaned: string[] = [];
+      for (const item of arr) {
+        if (typeof item !== "string") {
+          return { ok: false, error: "broadcastMessages entries must be strings" };
+        }
+        const trimmed = item.trim();
+        if (trimmed.length === 0) continue;
+        if (trimmed.length > 240) {
+          return { ok: false, error: "Each broadcastMessages entry must be 240 characters or fewer" };
+        }
+        cleaned.push(trimmed);
+      }
+      out.broadcastMessages = cleaned;
+    }
   }
 
   if (b.startAt !== undefined) {
@@ -130,6 +188,12 @@ function serialize(row: typeof eventPromotionsTable.$inferSelect) {
     showBanner: row.showBanner,
     showPopup: row.showPopup,
     showStickyBar: row.showStickyBar,
+    broadcastEnabled: row.broadcastEnabled,
+    broadcastCadence: row.broadcastCadence,
+    broadcastIntervalMinutes: row.broadcastIntervalMinutes,
+    broadcastMessages: Array.isArray(row.broadcastMessages) ? row.broadcastMessages : [],
+    broadcastTitleOverride: row.broadcastTitleOverride,
+    broadcastImageUrl: row.broadcastImageUrl,
     phase,
     msUntilStart,
     msUntilEnd,
@@ -211,6 +275,11 @@ router.post(
       res.status(400).json({ error: "endAt must be after startAt" });
       return;
     }
+    // Cross-field rule on create: cadence='custom' requires an interval.
+    if (data.broadcastCadence === "custom" && (data.broadcastIntervalMinutes == null)) {
+      res.status(400).json({ error: "broadcastIntervalMinutes is required when broadcastCadence is 'custom'" });
+      return;
+    }
     try {
       const [row] = await db
         .insert(eventPromotionsTable)
@@ -228,6 +297,12 @@ router.post(
           showBanner: data.showBanner ?? true,
           showPopup: data.showPopup ?? true,
           showStickyBar: data.showStickyBar ?? true,
+          broadcastEnabled: data.broadcastEnabled ?? false,
+          broadcastCadence: data.broadcastCadence ?? "half_hourly",
+          broadcastIntervalMinutes: data.broadcastIntervalMinutes ?? null,
+          broadcastMessages: data.broadcastMessages ?? [],
+          broadcastTitleOverride: data.broadcastTitleOverride ?? null,
+          broadcastImageUrl: data.broadcastImageUrl ?? null,
         })
         .returning();
       res.status(201).json(serialize(row));
