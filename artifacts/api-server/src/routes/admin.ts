@@ -17,8 +17,17 @@ import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
 import { broadcastWarriCrusadeManual, broadcastWarriCrusadeLiveAlert } from "../lib/cron.js";
-import { dispatchPushNotification, type NotificationPayload } from "../lib/push-manager.js";
+import {
+  dispatchPushNotification,
+  cleanupStalePushSubscriptions,
+  type NotificationPayload,
+} from "../lib/push-manager.js";
 import webpush from "web-push";
+
+// Statuses that mean the subscription itself is permanently dead. Mirrors
+// PERMANENT_FAILURE_STATUSES inside push-manager so the admin test endpoint
+// retires endpoints under exactly the same conditions as the bulk dispatcher.
+const PERMANENT_PUSH_FAILURE_STATUSES = new Set<number>([400, 401, 403, 404, 410, 413]);
 
 const router: IRouter = Router();
 const requireAnyRoleAdmin = requireAdminRole(["gallery", "sermon", "livestream"]);
@@ -670,18 +679,76 @@ router.post(
       const status = (err as { statusCode?: number }).statusCode;
       // Release the cooldown on failure so the admin can retry immediately
       recentTestLock.delete(endpoint);
-      if (status === 410 || status === 404) {
+      if (status !== undefined && PERMANENT_PUSH_FAILURE_STATUSES.has(status)) {
         await pool.query(
-          `UPDATE push_subscriptions SET is_active = false WHERE endpoint = $1`,
-          [endpoint],
+          `UPDATE push_subscriptions
+              SET is_active = false,
+                  updated_at = now(),
+                  deactivated_reason = $2,
+                  last_failure_status = $3
+            WHERE endpoint = $1`,
+          [endpoint, `admin test: push service returned ${status}`, status],
         );
-        res.status(410).json({
-          error: "Subscription expired — re-enable notifications on this browser",
-        });
+        const detail =
+          status === 403
+            ? "VAPID key mismatch — the browser must re-subscribe under the current VAPID public key."
+            : status === 410 || status === 404
+            ? "Subscription expired — re-enable notifications on this browser."
+            : `Push service rejected this subscription (HTTP ${status}).`;
+        res.status(410).json({ error: detail, status });
         return;
       }
       req.log.error({ err, status }, "Admin test broadcast failed");
-      res.status(502).json({ error: "Push service rejected the test notification" });
+      res.status(502).json({ error: "Push service rejected the test notification", status });
+    }
+  },
+);
+
+// ── POST /admin/push-subscriptions/cleanup — bulk-retire dead endpoints ─────
+// Force a cleanup pass: deactivate any subscription that has crossed the
+// failure threshold but somehow is still flagged active, plus any sub that
+// hasn't successfully delivered in `staleDays` (default 60). Returns the
+// before/after active counts so the admin sees the impact in one round-trip.
+router.post(
+  "/admin/push-subscriptions/cleanup",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const staleDaysRaw = req.body?.staleDays;
+    const staleDays =
+      typeof staleDaysRaw === "number" && staleDaysRaw >= 1 && staleDaysRaw <= 365
+        ? Math.floor(staleDaysRaw)
+        : 60;
+    try {
+      const before = await pool.query<{ active: string; inactive: string }>(
+        `SELECT
+            count(*) FILTER (WHERE is_active = true)::text  AS active,
+            count(*) FILTER (WHERE is_active = false)::text AS inactive
+          FROM push_subscriptions`,
+      );
+      const result = await cleanupStalePushSubscriptions(staleDays, req.log);
+      const after = await pool.query<{ active: string; inactive: string }>(
+        `SELECT
+            count(*) FILTER (WHERE is_active = true)::text  AS active,
+            count(*) FILTER (WHERE is_active = false)::text AS inactive
+          FROM push_subscriptions`,
+      );
+      res.json({
+        success: true,
+        staleDays,
+        retiredFailing: result.retiredFailing,
+        retiredStale: result.retiredStale,
+        before: {
+          active: parseInt(before.rows[0]?.active ?? "0", 10),
+          inactive: parseInt(before.rows[0]?.inactive ?? "0", 10),
+        },
+        after: {
+          active: parseInt(after.rows[0]?.active ?? "0", 10),
+          inactive: parseInt(after.rows[0]?.inactive ?? "0", 10),
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, "push-subscriptions cleanup failed");
+      res.status(500).json({ error: "Cleanup failed" });
     }
   },
 );

@@ -5,7 +5,7 @@ import { altarSimInterval } from "./routes/altar.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { initSentry } from "./lib/sentry.js";
-import { initVapidKeys } from "./lib/push-manager.js";
+import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
 import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
 import { runMigrations } from "./lib/migrations.js";
@@ -69,6 +69,13 @@ const server = app.listen(port, async (err) => {
 
   // Initialize VAPID keys for push notifications
   initVapidKeys(logger);
+
+  // One-shot cleanup of stale push endpoints. Catches subscriptions left
+  // chronically failing by older dispatcher versions that didn't track per-sub
+  // health (the cause of the historical "21% delivery rate" problem).
+  void cleanupStalePushSubscriptions(60, logger).catch((err) =>
+    logger.warn({ err }, "Startup push cleanup failed"),
+  );
 
   // Start the 30-minute YouTube sync cron
   startCron(logger);

@@ -2958,8 +2958,20 @@ interface NotifHealth {
       accessTokenConfigured: boolean;
       error?: string;
     };
-    webSubscribers: { active: number; inactive: number };
+    webSubscribers: {
+      active: number;
+      inactive: number;
+      failing?: number;
+      neverDelivered?: number;
+    };
     expoTokens: { active: number; inactive: number };
+    recentDispatch?: {
+      sent: number;
+      failed: number;
+      deactivated: number;
+      deliveryRate: number;
+      dispatches: number;
+    };
   };
   email: {
     configured: boolean;
@@ -3394,6 +3406,33 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
     onError: (err) => toast.error(formatAdminError(err, "Test email failed")),
   });
 
+  const cleanupSubscribersMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/push-subscriptions/cleanup`, {
+        method: "POST",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{
+        ok: true;
+        retiredFailing: number;
+        retiredStale: number;
+        before: { active: number };
+        after: { active: number };
+      }>(res, "Subscriber cleanup failed");
+    },
+    onSuccess: (data) => {
+      const total = data.retiredFailing + data.retiredStale;
+      toast.success(
+        total > 0
+          ? `Retired ${total} dead subscribers (${data.retiredFailing} failing, ${data.retiredStale} stale). Active: ${data.before.active} → ${data.after.active}`
+          : "No dead subscribers to retire — all clean!",
+      );
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-health"] });
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Subscriber cleanup failed")),
+  });
+
   const configMutation = useMutation({
     mutationFn: async (vars: { id: number; patch: { enabled?: boolean; milestonesHours?: number[] | null; pulseMinutes?: number | null; pulseWindowHours?: number | null; pausedUntil?: string | null } }) => {
       const res = await fetch(`${BASE}/api/admin/event-notifications/event/${vars.id}/config`, {
@@ -3662,6 +3701,28 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
                   <span className="text-slate-400"> · {healthQuery.data.push.webSubscribers.inactive} inactive</span>
                 )}
               </div>
+              {(() => {
+                const failing = healthQuery.data.push.webSubscribers.failing ?? 0;
+                const never = healthQuery.data.push.webSubscribers.neverDelivered ?? 0;
+                if (failing === 0 && never === 0) return null;
+                return (
+                  <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                    {failing > 0 && <>⚠ {failing} failing</>}
+                    {failing > 0 && never > 0 && <span className="text-amber-400"> · </span>}
+                    {never > 0 && <>{never} never delivered</>}
+                  </div>
+                );
+              })()}
+              {healthQuery.data.push.recentDispatch && healthQuery.data.push.recentDispatch.dispatches > 0 && (() => {
+                const r = healthQuery.data.push.recentDispatch;
+                const pct = Math.round(r.deliveryRate * 100);
+                const tone = pct >= 80 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-rose-700";
+                return (
+                  <div className={`text-[11px] ${tone}`}>
+                    24 h delivery: {pct}% ({r.sent}/{r.sent + r.failed + r.deactivated})
+                  </div>
+                );
+              })()}
               {healthQuery.data.push.vapid.publicKeyFingerprint && (
                 <div className="text-[10px] text-slate-400 font-mono truncate" title={healthQuery.data.push.vapid.publicKeyFingerprint}>
                   fp: {healthQuery.data.push.vapid.publicKeyFingerprint}
@@ -3669,6 +3730,18 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
               )}
               {healthQuery.data.push.vapid.error && (
                 <div className="text-[11px] text-rose-600">{healthQuery.data.push.vapid.error}</div>
+              )}
+              {((healthQuery.data.push.webSubscribers.failing ?? 0) > 0 ||
+                (healthQuery.data.push.recentDispatch && healthQuery.data.push.recentDispatch.dispatches > 0 && healthQuery.data.push.recentDispatch.deliveryRate < 0.8)) && (
+                <button
+                  type="button"
+                  onClick={() => cleanupSubscribersMutation.mutate()}
+                  disabled={cleanupSubscribersMutation.isPending}
+                  className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-60"
+                  data-testid="button-push-cleanup"
+                >
+                  {cleanupSubscribersMutation.isPending ? "Cleaning…" : "Retire dead subscribers"}
+                </button>
               )}
             </div>
             <div className="rounded-md border border-slate-200 p-3 space-y-1.5">

@@ -275,6 +275,22 @@ export async function runMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS push_subscriptions_active_idx
     ON push_subscriptions (is_active) WHERE is_active = true
   `);
+  // Per-subscription delivery health tracking. These columns let the dispatch
+  // loop auto-retire endpoints that fail repeatedly (e.g. VAPID mismatch
+  // returning 403 forever, or browsers that silently lose their push channel).
+  await pool.query(`
+    ALTER TABLE push_subscriptions
+      ADD COLUMN IF NOT EXISTS consecutive_failures integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS last_failure_at      timestamptz,
+      ADD COLUMN IF NOT EXISTS last_failure_status  integer,
+      ADD COLUMN IF NOT EXISTS last_success_at      timestamptz,
+      ADD COLUMN IF NOT EXISTS deactivated_reason   text
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS push_subscriptions_health_idx
+    ON push_subscriptions (consecutive_failures)
+    WHERE is_active = true
+  `);
 
   // ── Broadcast Event History ─────────────────────────────────────────────────
   await pool.query(`
