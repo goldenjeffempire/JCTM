@@ -28,6 +28,7 @@ import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
+import DevotionShareDialog from "@/components/DevotionShareDialog";
 import { Helmet } from "react-helmet-async";
 import { SEO } from "@/components/SEO";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
@@ -4044,43 +4045,34 @@ interface Devotion {
 }
 
 function DevotionShareButton({ devotion }: { devotion: Devotion }) {
-  const [copied, setCopied] = useState(false);
-
-  const shareText = `Today's Word from JCTM — "${devotion.title}"\n\n"${devotion.scripture}" — ${devotion.reference}\n\nProphetic Word: ${devotion.propheticWord}\n\nDeclaration: "${devotion.declaration}"\n\nJesus Christ Temple Ministry · jctm.org.ng`;
-  const shareUrl = typeof window !== "undefined" ? window.location.origin : "https://jctm.org.ng";
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: devotion.title, text: shareText, url: shareUrl });
-        return;
-      } catch { /* user cancelled */ }
-    }
-    try {
-      await navigator.clipboard.writeText(shareText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2200);
-    } catch { /* noop */ }
-  };
+  const [open, setOpen] = useState(false);
 
   return (
-    <button
-      onClick={handleShare}
-      aria-label={copied ? "Copied to clipboard" : "Share today's devotion"}
-      className="cta-ghost group"
-    >
-      {copied ? (
-        <>
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-          Copied
-        </>
-      ) : (
-        <>
-          <Share2 className="h-3.5 w-3.5 text-accent transition-transform group-hover:scale-110" />
-          Share
-        </>
-      )}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label="Share today's devotion"
+        className="cta-ghost group"
+        data-testid="button-open-share-devotion"
+      >
+        <Share2 className="h-3.5 w-3.5 text-accent transition-transform group-hover:scale-110" />
+        Share
+      </button>
+      <DevotionShareDialog
+        open={open}
+        onOpenChange={setOpen}
+        devotion={{
+          title: devotion.title,
+          scripture: devotion.scripture,
+          reference: devotion.reference,
+          propheticWord: devotion.propheticWord,
+          declaration: devotion.declaration,
+        }}
+      />
+    </>
   );
 }
 
