@@ -1190,7 +1190,9 @@ function HeroSection() {
           <motion.div style={{ y: yContent }}>
             {/* Identity badge + LIVE */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex items-center justify-center gap-3 mb-7 flex-wrap">
-              <span className="inline-flex items-center gap-2 border border-primary/10 text-primary/60 px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-white/75 backdrop-blur-md shadow-sm" style={{ boxShadow: "0 0 0 1px rgba(56,189,248,0.1), 0 4px 16px rgba(0,51,102,0.06)" }}>
+              <span
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70 bg-white/75 backdrop-blur-md border border-primary/10 elev-1"
+              >
                 <Sparkles className="h-3 w-3 text-accent" />
                 Jesus Christ Temple Ministry · Warri, Nigeria
               </span>
@@ -1199,7 +1201,7 @@ function HeroSection() {
                   <motion.button
                     onClick={() => isLive ? setLivePlayerOpen(true) : setRebroadcastWidgetOpen(true)}
                     initial={{ opacity: 0, scale: 0.8, x: -10 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.8 }}
-                    className={`inline-flex items-center gap-1.5 ${isLive ? "bg-red-500 hover:bg-red-600 shadow-red-500/30" : "bg-accent hover:bg-accent/90 shadow-accent/30"} text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg transition-colors cursor-pointer`}
+                    className={`inline-flex items-center gap-1.5 ${isLive ? "bg-red-500 hover:bg-red-600 shadow-red-500/30" : "bg-accent hover:bg-accent/90 shadow-accent/30"} text-white px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.16em] shadow-lg transition-colors cursor-pointer`}
                   >
                     <span className="relative flex h-2 w-2">
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-white ${isLive ? "opacity-75" : "opacity-60"}`} />
@@ -1216,14 +1218,14 @@ function HeroSection() {
               { text: "Good News", gradient: true },
             ]} />
 
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.0 }} className="mb-3 h-9 flex items-center justify-center">
-              <span className="text-lg md:text-xl font-light text-primary/45">Restoring </span>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.0 }} className="mb-4 h-9 flex items-center justify-center">
+              <span className="text-lg md:text-xl font-light text-primary/65">Restoring </span>
               <span className="text-lg md:text-xl font-semibold text-accent ml-2 min-w-[210px] text-left">
                 {typeword}<span className="animate-[blink_1s_step-end_infinite] text-accent">|</span>
               </span>
             </motion.div>
 
-            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="text-base md:text-lg text-primary/45 mb-7 max-w-xl mx-auto font-light leading-relaxed">
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="text-base md:text-lg text-primary/70 mb-8 max-w-xl mx-auto leading-relaxed">
               Under the prophetic leadership of{" "}
               <span className="text-accent font-semibold">Prophet Amos Evomobor</span>
               {" "}— proclaiming the Good News from Warri to the world.
@@ -1256,7 +1258,7 @@ function HeroSection() {
                 ) : (
                   <RippleButton
                     onClick={() => setLivePlayerOpen(true)}
-                    className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base text-primary/70 hover:text-primary bg-white/65 hover:bg-white/90 border border-primary/10 backdrop-blur-md transition-all duration-300 shadow-md hover:-translate-y-1 min-h-[44px]"
+                    className="group inline-flex items-center justify-center h-14 px-10 rounded-full text-base font-medium text-primary hover:text-primary bg-white/85 hover:bg-white border border-primary/15 hover:border-primary/30 backdrop-blur-md transition-all duration-300 elev-2 hover:elev-3 hover:-translate-y-1 min-h-[44px]"
                   >
                     <Youtube className="h-4 w-4 mr-2 text-red-500" /> Watch Temple TV Here
                   </RippleButton>
@@ -1265,21 +1267,24 @@ function HeroSection() {
             </motion.div>
 
             {/* Metric pills */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }} className="flex flex-wrap justify-center gap-4 mb-10">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }} className="flex flex-wrap justify-center gap-3 mb-10">
               {metrics.map((m, i) => (
                 <motion.div key={i}
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3.5 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
-                  whileHover={{ scale: 1.08, y: -10 } as never}
-                  className="flex items-center gap-3 px-5 py-3 rounded-2xl cursor-default"
-                  style={{ background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(56,189,248,0.18)", boxShadow: "0 4px 24px rgba(0,51,102,0.08), inset 0 1px 0 rgba(255,255,255,0.9)" }}
+                  whileHover={{ scale: 1.05, y: -8 } as never}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-2xl cursor-default bg-white/85 backdrop-blur-md border border-primary/10 elev-2 hover:elev-3 transition-shadow"
                 >
-                  <div className="h-8 w-8 rounded-xl bg-primary/8 flex items-center justify-center">
+                  <div className="h-9 w-9 rounded-xl bg-accent/12 flex items-center justify-center shrink-0">
                     <m.icon className="h-4 w-4 text-accent" />
                   </div>
-                  <div>
-                    <span className="font-serif font-bold text-primary text-lg block leading-none"><AnimatedCounter target={m.value} suffix={m.suffix} /></span>
-                    <span className="text-muted-foreground text-[10px] font-medium">{m.label}</span>
+                  <div className="leading-tight">
+                    <span className="font-serif font-bold text-primary text-lg block leading-none tabular-nums">
+                      <AnimatedCounter target={m.value} suffix={m.suffix} />
+                    </span>
+                    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em] mt-0.5 block">
+                      {m.label}
+                    </span>
                   </div>
                 </motion.div>
               ))}
@@ -1287,7 +1292,7 @@ function HeroSection() {
 
             {/* ── Ministry Gallery Strip + Slideshow Controls ── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }} className="flex flex-col items-center gap-3">
-              <p className="text-primary/30 text-[10px] uppercase tracking-widest font-medium">Ministry Gallery</p>
+              <p className="text-primary/40 text-[10px] uppercase tracking-[0.18em] font-semibold">Ministry Gallery</p>
               <div className="flex items-center justify-center gap-2 flex-wrap">
               {HERO_IMAGES.map((img, i) => {
                 const isActive = i === activeSlide;
@@ -1446,8 +1451,8 @@ function HeroSection() {
 
       {/* Scroll indicator */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.0 }} className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-        <p className="text-primary/25 text-[10px] uppercase tracking-widest font-medium">Scroll to explore</p>
-        <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-5 h-8 rounded-full border-2 border-primary/15 flex justify-center pt-1.5" style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.4)" }}>
+        <p className="text-primary/40 text-[10px] uppercase tracking-[0.18em] font-semibold">Scroll to explore</p>
+        <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} className="w-5 h-8 rounded-full border-2 border-primary/20 flex justify-center pt-1.5" style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.5)" }}>
           <div className="w-1 h-2 rounded-full bg-accent" />
         </motion.div>
       </motion.div>

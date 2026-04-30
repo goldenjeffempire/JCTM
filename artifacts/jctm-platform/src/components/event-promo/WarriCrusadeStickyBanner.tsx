@@ -18,6 +18,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, MapPin, Calendar, ChevronRight, X, ChevronUp, Radio } from "lucide-react";
 import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
+import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
 const CAMPAIGN_SLUG = "warri-crusade-2026";
 const CAMPAIGN_START = new Date("2026-04-30T18:00:00+01:00");
@@ -113,11 +114,18 @@ export function WarriCrusadeStickyBanner() {
   const [mounted, setMounted] = useState(false);
   const lastInteractionRef = useRef<number>(Date.now());
 
-  // Defer to admin-controlled sticky bar if a DB promotion is also active
-  // to prevent two top bars stacking on top of each other.
+  // ── Top-bar precedence (we only ever show ONE promotional bar above the nav):
+  //     LiveBanner (live / scheduled rebroadcast)  >  EventStickyBar (admin DB)  >  this campaign banner
+  //     The first two have higher signal value (real-time service activity & admin-curated
+  //     active campaign), so we step aside when either is rendering.
   const { promotion } = useActiveEventPromotion();
   const adminBarActive = Boolean(
     promotion && promotion.showStickyBar && promotion.livePhase !== "ended",
+  );
+  const livestream = useLivestreamStatus();
+  const liveBarActive = Boolean(
+    livestream.isLive ||
+    (livestream.rebroadcast.available && livestream.rebroadcast.mode === "scheduled"),
   );
 
   useEffect(() => {
@@ -179,7 +187,8 @@ export function WarriCrusadeStickyBanner() {
   // ── Render gating ─────────────────────────────────────────────────────────
   if (!mounted) return null;
   if (countdown.phase === "ended") return null;
-  if (adminBarActive) return null; // defer to existing DB-driven sticky bar
+  if (liveBarActive) return null;  // defer to LiveBanner (highest signal)
+  if (adminBarActive) return null; // defer to admin-controlled sticky bar
   if (dismissedAt !== null) return null;
 
   const isLive = countdown.phase === "live";
