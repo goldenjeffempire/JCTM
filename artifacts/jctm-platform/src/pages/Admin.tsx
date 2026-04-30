@@ -939,7 +939,8 @@ function PushNotificationsCard() {
 
   const [customTitle, setCustomTitle] = useState("");
   const [customBody, setCustomBody] = useState("");
-  const [sending, setSending] = useState<"service" | "custom" | null>(null);
+  const [sending, setSending] = useState<"service" | "live" | "reminder" | "custom" | null>(null);
+  const [reminderMinutes, setReminderMinutes] = useState<15 | 30 | 60>(15);
 
   const sendServiceAlert = async () => {
     setSending("service");
@@ -958,6 +959,51 @@ function PushNotificationsCard() {
       }
     } catch {
       toast.error("Network error — could not send alert");
+    } finally {
+      setSending(null);
+    }
+  };
+
+  const sendLiveNowAlert = async () => {
+    setSending("live");
+    try {
+      const res = await fetch(`${BASE}/api/push/live-now`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`"Live Now" alert sent to ${data.sent ?? data.subscribers ?? 0} subscribers`);
+        refetch();
+        refetchLog();
+      } else {
+        toast.error(data.error ?? "Failed to send");
+      }
+    } catch {
+      toast.error("Network error — could not send alert");
+    } finally {
+      setSending(null);
+    }
+  };
+
+  const sendReminderAlert = async () => {
+    setSending("reminder");
+    try {
+      const res = await fetch(`${BASE}/api/push/service-reminder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ minutesBefore: reminderMinutes }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`"Live in ${reminderMinutes} min" reminder sent to ${data.sent ?? data.subscribers ?? 0} subscribers`);
+        refetch();
+        refetchLog();
+      } else {
+        toast.error(data.error ?? "Failed to send");
+      }
+    } catch {
+      toast.error("Network error — could not send reminder");
     } finally {
       setSending(null);
     }
@@ -1080,14 +1126,53 @@ function PushNotificationsCard() {
           {/* Send service alert */}
           <div>
             <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Warri Crusade Day 1)</p>
-            <button
-              onClick={sendServiceAlert}
-              disabled={sending !== null}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-50 cursor-pointer"
-            >
-              {sending === "service" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-              Send "Begins Soon" Alert Now
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={sendServiceAlert}
+                disabled={sending !== null}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-50 cursor-pointer"
+              >
+                {sending === "service" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                Send "Begins Soon" Alert Now
+              </button>
+
+              <button
+                onClick={sendLiveNowAlert}
+                disabled={sending !== null}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 py-2.5 text-sm font-semibold text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-50 cursor-pointer"
+              >
+                {sending === "live" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
+                Send "Live Now" Alert
+              </button>
+
+              {/* Reminder pill — choose minutes-before, then send */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-xl border border-border bg-muted/40 p-1">
+                  {([15, 30, 60] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setReminderMinutes(m)}
+                      disabled={sending !== null}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
+                        reminderMinutes === m
+                          ? "bg-primary/20 text-primary border border-primary/30"
+                          : "text-muted-foreground hover:text-primary"
+                      }`}
+                    >
+                      {m}m
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={sendReminderAlert}
+                  disabled={sending !== null}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 py-2.5 text-sm font-semibold text-sky-400 transition-colors hover:bg-sky-500/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {sending === "reminder" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                  Send "Live in {reminderMinutes} min" Reminder
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Custom broadcast */}

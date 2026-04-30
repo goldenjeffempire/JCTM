@@ -16,6 +16,7 @@ import {
   getSubscriberCount,
   dispatchPushNotification,
   buildLiveServiceNotification,
+  buildServiceReminderNotification,
   buildUpcomingServiceNotification,
 } from "../lib/push-manager.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
@@ -238,6 +239,37 @@ router.post("/push/upcoming-service", requireAdminRole("livestream"), async (req
   const result = await dispatchPushNotification(notification, req.log, "service_alert");
   const subscribers = await getSubscriberCount();
   res.json({ success: true, subscribers, ...result });
+});
+
+// ─── POST /push/live-now — Admin: manually fire the "Live Now" alert ─────────
+// Used when the broadcast is already live (or about to be) and the admin wants
+// to nudge subscribers directly. Accepts an optional title override; falls back
+// to "Warri Crusade Day 1" via the notification builder.
+
+router.post("/push/live-now", requireAdminRole("livestream"), async (req, res): Promise<void> => {
+  const { title } = (req.body ?? {}) as { title?: string };
+  const safeTitle = typeof title === "string" ? title.trim().slice(0, 120) : "";
+  const notification = buildLiveServiceNotification(safeTitle);
+  const result = await dispatchPushNotification(notification, req.log, "live_alert");
+  const subscribers = await getSubscriberCount();
+  req.log.info({ title: safeTitle || "Warri Crusade Day 1" }, "Manual Live Now alert dispatched by admin");
+  res.json({ success: true, subscribers, ...result });
+});
+
+// ─── POST /push/service-reminder — Admin: manually fire a countdown reminder ─
+// Sends a "Live in N minutes" reminder. `minutesBefore` defaults to 15 and is
+// clamped to a sane 1–180 minute window so accidental admin input cannot send
+// a confusing payload.
+
+router.post("/push/service-reminder", requireAdminRole("livestream"), async (req, res): Promise<void> => {
+  const { minutesBefore } = (req.body ?? {}) as { minutesBefore?: number };
+  const raw = Number(minutesBefore);
+  const minutes = Number.isFinite(raw) ? Math.min(180, Math.max(1, Math.round(raw))) : 15;
+  const notification = buildServiceReminderNotification(minutes);
+  const result = await dispatchPushNotification(notification, req.log, "service_reminder");
+  const subscribers = await getSubscriberCount();
+  req.log.info({ minutesBefore: minutes }, "Manual service reminder dispatched by admin");
+  res.json({ success: true, subscribers, minutesBefore: minutes, ...result });
 });
 
 // ─── POST /push/expo-register — Store an Expo Push Token from a mobile device ─
