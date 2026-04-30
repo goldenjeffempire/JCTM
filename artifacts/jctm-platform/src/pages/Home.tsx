@@ -4210,7 +4210,6 @@ export default function Home() {
           }
         ]}
       />
-      <RebroadcastBanner />
       <HeroSection />
       {/* Live-priority hoist: when crusade is broadcasting, the Warri Crusade
           block becomes the primary featured content directly under the hero. */}
