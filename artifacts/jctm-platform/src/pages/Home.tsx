@@ -313,7 +313,7 @@ function BroadcastStatusNotification({
                     <span className="relative inline-flex rounded-full h-full w-full bg-amber-300" />
                   </span>
                   <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 whitespace-nowrap">
-                    Holy Spirit Sunday
+                    Warri Crusade Day 1
                   </span>
                 </div>
                 <span className="rounded-full bg-white/12 px-2 py-1 text-[9px] font-black text-white tabular-nums border border-white/10">
@@ -322,7 +322,7 @@ function BroadcastStatusNotification({
               </div>
               <div>
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug">
-                  Holy Spirit Sunday Service Begins Soon
+                  Warri Crusade Day 1 Begins Soon
                 </p>
                 <p className="text-white/55 text-[9px] sm:text-[10px] mt-0.5 font-medium">
                   Join us live at 8:00 AM (WAT)
@@ -386,7 +386,7 @@ function BroadcastStatusNotification({
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
-                  {liveTitle ?? "Holy Spirit Sunday Service — Live"}
+                  {liveTitle ?? "Warri Crusade Day 1"}
                 </p>
                 <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
@@ -939,7 +939,7 @@ function HeroSection() {
                     dashManifestUrl={liveStatus.stream?.dashManifestUrl ?? null}
                     youtubeVideoId={liveVideoId ?? LIVE_STREAM_VIDEO_ID}
                     isLive={true}
-                    title="Holy Spirit Sunday Service — Live"
+                    title={liveTitle ?? "Warri Crusade Day 1"}
                     autoPlay={true}
                     onLoad={() => { if (!playerError) setPlayerLoading(false); }}
                     onError={() => { setPlayerError(true); setPlayerLoading(false); }}
@@ -3193,7 +3193,7 @@ function SundayServiceCard() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-full w-full bg-red-500" />
                   </span>
-                  <span className="text-white font-bold text-sm">Holy Spirit Sunday Service — Live</span>
+                  <span className="text-white font-bold text-sm">{liveStatus.title ?? "Warri Crusade Day 1"}</span>
                 </div>
                 <button
                   onClick={() => setShowEmbed(false)}
@@ -3205,7 +3205,7 @@ function SundayServiceCard() {
               <YouTubeEmbed
                 key={videoId}
                 videoId={videoId}
-                title="Holy Spirit Sunday Service — Live"
+                title={liveStatus.title ?? "Warri Crusade Day 1"}
                 mode="eager"
                 analyticsPage="/"
               />
@@ -3367,7 +3367,7 @@ function SundayServiceCard() {
                         transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                         className="bg-amber-500/15 rounded-2xl p-3.5 border border-amber-400/25 text-center"
                       >
-                        <p className="text-amber-300 text-[11px] uppercase tracking-widest font-bold">⏳ Holy Spirit Sunday Service — Live</p>
+                        <p className="text-amber-300 text-[11px] uppercase tracking-widest font-bold">⏳ Warri Crusade Day 1</p>
                         <p className="text-white/45 text-[9px] mt-1">Stream will begin shortly — stay tuned</p>
                       </motion.div>
                     </motion.div>
@@ -3385,7 +3385,7 @@ function SundayServiceCard() {
                         className="bg-red-500/20 rounded-2xl p-3.5 border border-red-400/30 text-center"
                       >
                         <p className="text-red-300 text-[11px] uppercase tracking-widest font-bold">📡 Live Broadcast in Progress</p>
-                        <p className="text-white/45 text-[9px] mt-1">Holy Spirit Sunday Service — Live</p>
+                        <p className="text-white/45 text-[9px] mt-1">{liveStatus.title ?? "Warri Crusade Day 1"}</p>
                       </motion.div>
                     </motion.div>
                   )}

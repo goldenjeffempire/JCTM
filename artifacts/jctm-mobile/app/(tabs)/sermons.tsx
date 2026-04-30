@@ -217,7 +217,7 @@ export default function SermonsScreen() {
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff", opacity: 0.9 }} />
           <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13, flex: 1 }} numberOfLines={1}>
             {isLive
-              ? `🔴 Live — ${liveStatus?.title ?? "Holy Spirit Sunday Service"}`
+              ? `🔴 Live — ${liveStatus?.title ?? "Warri Crusade Day 1"}`
               : `📺 ${liveStatus?.rebroadcast?.mode === "scheduled" ? "Rebroadcast" : "Now Playing"} — ${liveStatus?.rebroadcast?.title ?? "Temple TV"}`}
           </Text>
           <Text style={{ color: "#fff", fontWeight: "600", fontSize: 12, opacity: 0.85 }}>

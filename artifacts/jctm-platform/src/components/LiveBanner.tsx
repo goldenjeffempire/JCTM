@@ -80,7 +80,7 @@ export function LiveBanner() {
           </div>
           <div className="h-4 w-px bg-destructive-foreground/30 hidden sm:block shrink-0" />
           <span className="text-xs sm:text-sm font-medium hidden sm:block truncate max-w-xs md:max-w-sm lg:max-w-md">
-            {status.title || "Holy Spirit Sunday Service — Live"}
+            {status.title || "Warri Crusade Day 1"}
           </span>
           <span className="ml-auto sm:ml-2 bg-white/20 text-white text-[10px] font-bold px-2.5 py-1 sm:px-3 rounded-full shrink-0 select-none">
             See indicator →

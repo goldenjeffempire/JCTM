@@ -1079,7 +1079,7 @@ function PushNotificationsCard() {
         <div className="space-y-4">
           {/* Send service alert */}
           <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Holy Spirit Sunday Service)</p>
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Warri Crusade Day 1)</p>
             <button
               onClick={sendServiceAlert}
               disabled={sending !== null}

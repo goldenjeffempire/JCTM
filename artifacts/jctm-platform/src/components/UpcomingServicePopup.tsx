@@ -64,7 +64,7 @@ export function UpcomingServicePopup() {
                 </span>
               </div>
               <h3 className="font-serif text-lg font-black leading-tight text-white">
-                Holy Spirit Sunday Service Begins Soon
+                Warri Crusade Day 1 Begins Soon
               </h3>
               <p className="mt-1 text-sm font-semibold text-amber-100">
                 Join us live at 8:00 AM (WAT)

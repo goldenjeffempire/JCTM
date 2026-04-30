@@ -164,7 +164,7 @@ function UnifiedPlayerModal({
     : rebroadcastQueue[queueIndex]?.videoId ?? rebroadcastVideoId ?? "f7TOxaM2Mq4";
 
   const currentTitle = isLive
-    ? (liveTitle ?? "Holy Spirit Sunday Service — Live")
+    ? (liveTitle ?? "Warri Crusade Day 1")
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
   const activeHls = liveHlsManifestUrl ?? rebroadcastQueue[queueIndex]?.hlsManifestUrl ?? null;
@@ -421,7 +421,7 @@ export function BroadcastStatusIndicator() {
           exit={{ opacity: 0, x: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => setDismissed(false)}
-          aria-label={status.isLive ? "Rejoin Holy Spirit Sunday Service — Live" : "Reopen player"}
+          aria-label={status.isLive ? `Rejoin ${status.title ?? "Warri Crusade Day 1"} — Live` : "Reopen player"}
           className={[
             "fixed top-[4.5rem] right-0 z-[200]",
             "flex items-center gap-1.5 pl-3 pr-2 py-2",
@@ -497,14 +497,14 @@ export function BroadcastStatusIndicator() {
               <button
                 onClick={() => setShowPlayer(true)}
                 className="flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer touch-manipulation"
-                aria-label="Watch Holy Spirit Sunday Service — Live"
+                aria-label={`Watch ${status.title ?? "Warri Crusade Day 1"} — Live`}
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-70" />
                   <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                 </span>
                 <span className="text-white text-[11px] sm:text-xs font-bold tracking-widest uppercase leading-none whitespace-nowrap">
-                  🔴 Holy Spirit Sunday Service — Live
+                  🔴 {status.title ?? "Warri Crusade Day 1"} — Live
                 </span>
                 {viewerCount > 0 && (
                   <span className="hidden sm:flex items-center gap-1 text-white/70 text-[10px] font-semibold">

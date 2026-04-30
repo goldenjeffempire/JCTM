@@ -49,7 +49,7 @@ function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
   const isLive = status?.isLive ?? false;
   if (!isLive) return null;
 
-  const bannerText = `🔴 ${status?.title ?? "Holy Spirit Sunday Service — Live"}`;
+  const bannerText = `🔴 ${status?.title ?? "Warri Crusade Day 1"}`;
   const liveUrl = status?.videoId
     ? `https://www.youtube.com/watch?v=${status.videoId}`
     : status?.streamUrl ?? `${BASE}/sermons`;

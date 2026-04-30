@@ -67,7 +67,7 @@ function ReengagementBanner({ event, onDismiss }: ReengagementBannerProps) {
     : <Tv className="h-4 w-4 shrink-0" />;
 
   const label = isLiveBanner ? "Live Now" : "Rebroadcast";
-  const title = event.title ?? (isLiveBanner ? "Holy Spirit Sunday Service" : "Temple TV");
+  const title = event.title ?? (isLiveBanner ? "Warri Crusade Day 1" : "Temple TV");
   const actionLabel = isLiveBanner ? "Watch Live" : "Watch Now";
 
   const navigate = () => {
@@ -169,7 +169,7 @@ export function BroadcastEngagementSystem() {
   // 2. SSE live-start → in-app toast (fires the moment isLive flips true)
   useEffect(() => {
     if (liveStatus.isLive && !prevIsLive.current && !isOptedOut()) {
-      const title = liveStatus.title ?? "Holy Spirit Sunday Service";
+      const title = liveStatus.title ?? "Warri Crusade Day 1";
       toast.custom(
         (id) => (
           <div

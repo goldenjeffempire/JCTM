@@ -137,7 +137,7 @@ export interface NotificationPayload {
 
 export function buildLiveServiceNotification(title: string): NotificationPayload {
   return {
-    title: "🔴 Holy Spirit Sunday Service — Live",
+    title: `🔴 ${title || "Warri Crusade Day 1"} — Live`,
     body: title ? `${title} — Join now and experience the presence of God.` : "Now Streaming Live — Join us now",
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
@@ -165,7 +165,7 @@ export function buildRebroadcastNotification(sermonTitle: string): NotificationP
 
 export function buildServiceReminderNotification(minutesBefore: number): NotificationPayload {
   return {
-    title: "⏰ Holy Spirit Sunday Service — Live",
+    title: "⏰ Warri Crusade Day 1 — Live",
     body: `Live Broadcast in Progress begins in ${minutesBefore} minutes. Prepare your heart and join us!`,
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
@@ -177,7 +177,7 @@ export function buildServiceReminderNotification(minutesBefore: number): Notific
 
 export function buildUpcomingServiceNotification(): NotificationPayload {
   return {
-    title: "Holy Spirit Sunday Service Begins Soon",
+    title: "Warri Crusade Day 1 Begins Soon",
     body: "Join us live at 8:00 AM (WAT). Prepare your heart and connect to the presence of God.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",

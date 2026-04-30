@@ -69,7 +69,7 @@ router.post("/push/subscribe", async (req, res): Promise<void> => {
     res.status(isNew ? 201 : 200).json({
       success: true,
       id,
-      message: isNew ? "Subscribed to Holy Spirit Sunday Service — Live alerts" : "Subscription refreshed",
+      message: isNew ? "Subscribed to Warri Crusade Day 1 alerts" : "Subscription refreshed",
     });
   } catch (err) {
     req.log.error({ err }, "Failed to store push subscription");
