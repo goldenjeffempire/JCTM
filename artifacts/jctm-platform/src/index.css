@@ -221,6 +221,22 @@
 .container-narrow { max-width: 56rem; margin-inline: auto; }
 .container-wide { max-width: 80rem; margin-inline: auto; }
 
+/* ─── Devotion prose — editorial drop-cap on opening paragraph ─── */
+.devotion-prose > p:first-of-type::first-letter {
+  font-family: Georgia, serif;
+  font-weight: 700;
+  font-size: 3.5rem;
+  line-height: 0.9;
+  float: left;
+  padding: 0.35rem 0.65rem 0 0;
+  margin-top: 0.15rem;
+  color: hsl(var(--accent));
+  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 /* ─── Glassmorphism — refined, single source of truth ─── */
 .glass-panel {
   background: rgba(255, 254, 248, 0.72);

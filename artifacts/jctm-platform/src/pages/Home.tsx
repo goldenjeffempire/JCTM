@@ -3931,9 +3931,36 @@ function DevotionShareButton({ devotion }: { devotion: Devotion }) {
   };
 
   return (
-    <button onClick={handleShare} className="text-primary underline text-sm">
-      {copied ? "Copied to clipboard" : "Share devotion"}
+    <button
+      onClick={handleShare}
+      aria-label={copied ? "Copied to clipboard" : "Share today's devotion"}
+      className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-border/70 text-primary text-sm font-medium hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2 transition-all duration-200"
+    >
+      {copied ? (
+        <>
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+          Copied
+        </>
+      ) : (
+        <>
+          <Share2 className="h-3.5 w-3.5 text-accent" />
+          Share
+        </>
+      )}
     </button>
+  );
+}
+
+function DevotionSectionLabel({ icon: Icon, label, n }: { icon: React.ComponentType<{ className?: string }>; label: string; n: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-accent/10 text-accent shrink-0">
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/40 tabular-nums">{n}</span>
+      <span className="h-px flex-1 bg-gradient-to-r from-border via-border/40 to-transparent" />
+      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">{label}</span>
+    </div>
   );
 }
 
@@ -3961,91 +3988,197 @@ function DailyDevotionSection() {
     return () => { cancelled = true; };
   }, []);
 
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const todayParts = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }).split(", ");
+  const weekday = todayParts[0] ?? "";
+  const monthDay = todayParts[1] ?? "";
+
+  const reflectionWords = devotion ? devotion.reflection.split(/\s+/).filter(Boolean).length : 0;
+  const totalWords = devotion ? reflectionWords + devotion.scripture.split(/\s+/).length + (devotion.propheticWord?.split(/\s+/).length ?? 0) + devotion.prayerFocus.split(/\s+/).length + devotion.declaration.split(/\s+/).length : 0;
+  const readMinutes = Math.max(2, Math.round(totalWords / 220));
 
   return (
-    <section ref={ref} className="py-16 bg-white">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <header className="mb-8">
-          <p className="text-sm text-muted-foreground mb-1">Daily Devotion · {today}</p>
-          <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary">
-            Today's Word for You
-          </h2>
-        </header>
+    <section
+      ref={ref}
+      className="relative overflow-hidden py-24 md:py-32"
+      style={{
+        background: "linear-gradient(180deg, #FFFEF8 0%, #FAF7EE 50%, #FFFEF8 100%)",
+      }}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none opacity-[0.45]"
+        style={{
+          background: "radial-gradient(ellipse 60% 45% at 50% 0%, rgba(56,189,248,0.10) 0%, transparent 65%), radial-gradient(ellipse 50% 35% at 50% 100%, rgba(0,51,102,0.06) 0%, transparent 70%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none opacity-[0.025]"
+        style={{
+          backgroundImage: "radial-gradient(circle, #003366 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+        }}
+      />
 
-        {loading && (
-          <p className="text-muted-foreground text-sm">Loading today's devotion…</p>
-        )}
+      <div className="container mx-auto px-4 relative">
+        <div className="max-w-3xl mx-auto">
+          {/* ── Section header ── */}
+          <motion.header
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-15% 0px" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="text-center mb-14"
+          >
+            <div className="inline-flex items-center gap-2.5 h-8 px-4 rounded-full bg-white/80 border border-border/60 elev-1 mb-6">
+              <Calendar className="h-3.5 w-3.5 text-accent" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/70 tabular-nums">{weekday}<span className="text-primary/30 mx-1.5">·</span>{monthDay}</span>
+            </div>
+            <span className="block text-accent text-[11px] font-semibold uppercase tracking-[0.22em] mb-3">Daily Devotion</span>
+            <h2 className="heading-xl text-primary mb-4">Today's Word for You</h2>
+            <p className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-xl mx-auto">
+              A fresh portion from the Father's heart — meditate, receive, and walk in it today.
+            </p>
+          </motion.header>
 
-        {error && !loading && (
-          <p className="text-muted-foreground text-sm italic">
-            "Thy word is a lamp unto my feet, and a light unto my path." — Psalm 119:105
-          </p>
-        )}
-
-        {devotion && !loading && (
-          <article className="space-y-6 text-foreground">
-            <h3 className="text-xl md:text-2xl font-serif font-bold text-primary">
-              {devotion.title}
-            </h3>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Scripture
-              </p>
-              <p className="leading-relaxed">"{devotion.scripture}"</p>
-              <p className="mt-1 text-sm text-muted-foreground">— {devotion.reference}</p>
-            </section>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Reflection
-              </p>
-              <div className="space-y-3">
-                {devotion.reflection.split(/\n+/).filter(Boolean).map((para, i) => (
-                  <p key={i} className="leading-relaxed">{para}</p>
-                ))}
+          {/* ── Loading state ── */}
+          {loading && (
+            <div className="rounded-3xl bg-white/70 border border-border/60 p-10 elev-2 backdrop-blur-sm">
+              <div className="flex items-center justify-center gap-3 text-primary/50 text-sm">
+                <span className="inline-flex h-2 w-2 rounded-full bg-accent animate-pulse" />
+                <span className="inline-flex h-2 w-2 rounded-full bg-accent/70 animate-pulse" style={{ animationDelay: "150ms" }} />
+                <span className="inline-flex h-2 w-2 rounded-full bg-accent/40 animate-pulse" style={{ animationDelay: "300ms" }} />
+                <span className="ml-2 italic font-serif">Drawing today's word from the well…</span>
               </div>
-            </section>
-
-            {devotion.propheticWord && (
-              <section>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Prophetic Word
-                </p>
-                <p className="leading-relaxed">{devotion.propheticWord}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  — Through Prophet Amos Evomobor · JCTM
-                </p>
-              </section>
-            )}
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Prayer Focus
-              </p>
-              <p className="leading-relaxed">{devotion.prayerFocus}</p>
-            </section>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Declaration
-              </p>
-              <p className="leading-relaxed font-medium">"{devotion.declaration}"</p>
-            </section>
-
-            <div className="pt-4 border-t border-border flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              <Link href="/devotion" className="text-primary underline">Read full devotion</Link>
-              <Link href="/prayer" className="text-primary underline">Generate a prayer</Link>
-              <Link href="/sermons" className="text-primary underline">Watch today's sermon</Link>
-              <DevotionShareButton devotion={devotion} />
             </div>
+          )}
 
-            <div className="mt-6 pt-5 border-t border-border">
-              <DevotionEmailSubscribe source="home-daily-devotion" variant="compact" />
+          {/* ── Error state ── */}
+          {error && !loading && (
+            <div className="rounded-3xl bg-white/80 border border-border/60 p-10 md:p-14 text-center elev-2 backdrop-blur-sm">
+              <BookOpen className="h-8 w-8 text-accent/60 mx-auto mb-5" />
+              <p className="text-primary/80 text-xl md:text-2xl font-serif italic leading-relaxed mb-3 text-balance">
+                "Thy word is a lamp unto my feet, and a light unto my path."
+              </p>
+              <p className="text-accent text-xs font-semibold uppercase tracking-[0.18em]">Psalm 119:105</p>
+              <p className="text-muted-foreground text-sm mt-6">A fresh devotion will be available shortly.</p>
             </div>
-          </article>
-        )}
+          )}
+
+          {/* ── Devotion article ── */}
+          {devotion && !loading && (
+            <motion.article
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-10% 0px" }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="rounded-3xl bg-white/85 border border-border/60 elev-3 backdrop-blur-sm overflow-hidden"
+            >
+              {/* Article header */}
+              <div className="px-6 md:px-12 pt-10 md:pt-14 pb-2">
+                <div className="flex items-center gap-3 text-[11px] text-primary/50 mb-4">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Clock className="h-3 w-3" />
+                    <span className="tabular-nums">{readMinutes} min read</span>
+                  </span>
+                  <span className="h-1 w-1 rounded-full bg-primary/20" />
+                  <span className="font-medium">Reflective</span>
+                </div>
+                <h3 className="heading-lg text-primary text-balance">
+                  {devotion.title}
+                </h3>
+              </div>
+
+              <div className="px-6 md:px-12 py-8 md:py-10 space-y-12">
+                {/* ── 01. Scripture — anchored pull-quote ── */}
+                <section>
+                  <DevotionSectionLabel icon={BookOpen} label="Scripture" n="01" />
+                  <figure className="relative pl-6 md:pl-8 border-l-2 border-accent/40">
+                    <span aria-hidden className="absolute -left-2 -top-3 text-accent/20 font-serif text-6xl leading-none select-none">"</span>
+                    <blockquote className="text-primary/90 text-xl md:text-2xl font-serif italic leading-relaxed text-balance">
+                      {devotion.scripture}
+                    </blockquote>
+                    <figcaption className="mt-4 text-accent text-xs font-semibold uppercase tracking-[0.18em]">
+                      {devotion.reference}
+                    </figcaption>
+                  </figure>
+                </section>
+
+                {/* ── 02. Reflection — long-form with drop cap ── */}
+                <section>
+                  <DevotionSectionLabel icon={Sparkles} label="Reflection" n="02" />
+                  <div className="space-y-5 text-primary/80 text-base md:text-[17px] leading-[1.75] devotion-prose">
+                    {devotion.reflection.split(/\n+/).filter(Boolean).map((para, i) => (
+                      <p key={i}>{para}</p>
+                    ))}
+                  </div>
+                </section>
+
+                {/* ── 03. Prophetic Word — framed callout ── */}
+                {devotion.propheticWord && (
+                  <section>
+                    <DevotionSectionLabel icon={Mic2} label="Prophetic Word" n="03" />
+                    <div className="rounded-2xl bg-gradient-to-br from-[#F0F6FF] via-white to-[#EEF4FF] border border-accent/15 p-6 md:p-7 elev-1 relative overflow-hidden">
+                      <div aria-hidden className="absolute top-0 right-0 w-32 h-32 opacity-[0.08]" style={{ background: "radial-gradient(circle, #003366 0%, transparent 70%)" }} />
+                      <p className="text-primary/90 text-base md:text-lg leading-relaxed relative z-10">
+                        {devotion.propheticWord}
+                      </p>
+                      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent relative z-10">
+                        — Through Prophet Amos Evomobor · JCTM
+                      </p>
+                    </div>
+                  </section>
+                )}
+
+                {/* ── 04. Prayer Focus ── */}
+                <section>
+                  <DevotionSectionLabel icon={Heart} label="Prayer Focus" n="04" />
+                  <p className="text-primary/80 text-base md:text-[17px] leading-[1.75]">
+                    {devotion.prayerFocus}
+                  </p>
+                </section>
+
+                {/* ── 05. Declaration — sacred callout ── */}
+                <section>
+                  <DevotionSectionLabel icon={Flame} label="Declaration" n="05" />
+                  <div className="rounded-2xl bg-gradient-to-br from-primary to-[#001a40] p-7 md:p-9 elev-3 relative overflow-hidden">
+                    <div aria-hidden className="absolute inset-0 opacity-10" style={{ background: "radial-gradient(circle at 80% 20%, #38BDF8 0%, transparent 55%)" }} />
+                    <p className="text-accent text-[10px] font-semibold uppercase tracking-[0.22em] mb-3 relative z-10">Speak this aloud</p>
+                    <blockquote className="text-white text-xl md:text-2xl font-serif leading-relaxed font-medium text-balance relative z-10">
+                      "{devotion.declaration}"
+                    </blockquote>
+                  </div>
+                </section>
+              </div>
+
+              {/* ── Action bar ── */}
+              <div className="px-6 md:px-12 py-7 border-t border-border/50 bg-gradient-to-b from-transparent to-[#FAF7EE]/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/50 mb-4">Carry this further</p>
+                <div className="flex flex-wrap gap-2.5">
+                  <Link href="/devotion" className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 elev-1 hover:elev-2 transition-all duration-200">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Read full devotion
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                  <Link href="/prayer" className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-border/70 text-primary text-sm font-medium hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2 transition-all duration-200">
+                    <Heart className="h-3.5 w-3.5 text-accent" />
+                    Generate a prayer
+                  </Link>
+                  <Link href="/sermons" className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-border/70 text-primary text-sm font-medium hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2 transition-all duration-200">
+                    <Play className="h-3.5 w-3.5 fill-accent text-accent" />
+                    Today's sermon
+                  </Link>
+                  <DevotionShareButton devotion={devotion} />
+                </div>
+              </div>
+
+              {/* ── Email subscribe ── */}
+              <div className="px-6 md:px-12 py-8 border-t border-border/50 bg-[#FAF7EE]/60">
+                <DevotionEmailSubscribe source="home-daily-devotion" variant="compact" />
+              </div>
+            </motion.article>
+          )}
+        </div>
       </div>
     </section>
   );
