@@ -38,10 +38,16 @@ export default function EventNotificationSubscribe({
     if (!trimmed) return;
     setStatus({ kind: "submitting" });
     try {
+      let timezone: string | undefined;
+      try {
+        timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+      } catch {
+        timezone = undefined;
+      }
       const res = await fetch(`${BASE}/api/event-notifications/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed, source }),
+        body: JSON.stringify({ email: trimmed, source, timezone }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

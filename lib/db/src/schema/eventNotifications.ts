@@ -24,6 +24,8 @@ export const eventNotificationSubscribersTable = pgTable(
     unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
     lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
     sourcePage: text("source_page"),
+    /** IANA tz string (e.g. "Africa/Lagos", "Europe/London"). */
+    timezone: text("timezone").notNull().default("Africa/Lagos"),
   },
   (t) => ({
     activeIdx: index("event_notif_subscribers_active_idx").on(t.isActive),
@@ -50,7 +52,17 @@ export const eventNotificationDispatchLogTable = pgTable(
     id: serial("id").primaryKey(),
     eventId: integer("event_id").notNull(),
     eventTitle: text("event_title").notNull(),
+    /**
+     * Informational — for milestone rows this is the milestone hours (24/12/6/1).
+     * For pulse rows this is 0. The unique key is `bucket_key`, not this column.
+     */
     milestoneHours: integer("milestone_hours").notNull(),
+    /**
+     * Idempotency key. `milestone_<N>h` for milestone fires, or
+     * `pulse_<UTC ISO slot>` for pulse fires. Replaces milestone_hours in the
+     * unique index so pulses can coexist with milestones for the same event.
+     */
+    bucketKey: text("bucket_key").notNull().default(""),
     channel: text("channel").notNull(), // 'push' | 'email' | 'sse'
     status: text("status").notNull().default("pending"), // 'pending' | 'sent' | 'failed' | 'skipped'
     attempts: integer("attempts").notNull().default(0),
@@ -64,9 +76,9 @@ export const eventNotificationDispatchLogTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    uniqMilestoneChannel: uniqueIndex(
-      "event_notif_dispatch_event_milestone_channel_uniq",
-    ).on(t.eventId, t.milestoneHours, t.channel),
+    uniqBucketChannel: uniqueIndex(
+      "event_notif_dispatch_event_bucket_channel_uniq",
+    ).on(t.eventId, t.bucketKey, t.channel),
     statusIdx: index("event_notif_dispatch_status_idx").on(t.status),
     eventIdx: index("event_notif_dispatch_event_idx").on(t.eventId),
     createdIdx: index("event_notif_dispatch_created_idx").on(t.createdAt),

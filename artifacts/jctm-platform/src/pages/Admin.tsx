@@ -2635,6 +2635,33 @@ interface UpcomingMilestoneSummary {
   >;
 }
 
+interface UpcomingEventConfig {
+  enabled: boolean;
+  paused: boolean;
+  pausedUntil: string | null;
+  milestonesHours: number[];
+  pulseMinutes: number | null;
+  pulseWindowHours: number | null;
+}
+
+interface UpcomingPulseChannelStatus {
+  status: NotifStatus;
+  bucketKey: string;
+  sent: number;
+  failed: number;
+}
+
+interface UpcomingPulseSummary {
+  lastSlotIso: string | null;
+  totalPulseRows: number;
+  sentPulseRows: number;
+  lastByChannel: {
+    push: UpcomingPulseChannelStatus | null;
+    email: UpcomingPulseChannelStatus | null;
+    sse: UpcomingPulseChannelStatus | null;
+  };
+}
+
 interface UpcomingEventSummary {
   id: number;
   title: string;
@@ -2643,6 +2670,8 @@ interface UpcomingEventSummary {
   endDate: string | null;
   eventType: string;
   milestones: UpcomingMilestoneSummary[];
+  config: UpcomingEventConfig;
+  pulse: UpcomingPulseSummary;
 }
 
 const CHANNEL_LABEL: Record<NotifChannel, string> = {
@@ -2662,6 +2691,186 @@ function channelBadgeClasses(channel: NotifChannel): string {
   if (channel === "push") return "bg-sky-50 text-sky-700 border border-sky-200";
   if (channel === "email") return "bg-violet-50 text-violet-700 border border-violet-200";
   return "bg-slate-50 text-slate-700 border border-slate-200";
+}
+
+function EventConfigForm({
+  ev,
+  onSubmit,
+  isPending,
+}: {
+  ev: UpcomingEventSummary;
+  onSubmit: (patch: { enabled?: boolean; milestonesHours?: number[] | null; pulseMinutes?: number | null; pulseWindowHours?: number | null; pausedUntil?: string | null }) => void;
+  isPending: boolean;
+}) {
+  const [enabled, setEnabled] = useState(ev.config.enabled);
+  const [milestonesText, setMilestonesText] = useState(ev.config.milestonesHours.join(", "));
+  const [pulseMinutes, setPulseMinutes] = useState<string>(ev.config.pulseMinutes?.toString() ?? "");
+  const [pulseWindowHours, setPulseWindowHours] = useState<string>(ev.config.pulseWindowHours?.toString() ?? "");
+  const [pausedUntilLocal, setPausedUntilLocal] = useState<string>(() => {
+    if (!ev.config.pausedUntil) return "";
+    const d = new Date(ev.config.pausedUntil);
+    if (Number.isNaN(d.getTime())) return "";
+    const tzOffsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  });
+
+  const handleSave = () => {
+    const milestones = milestonesText
+      .split(/[,\s]+/)
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const pm = pulseMinutes.trim() === "" ? null : Number(pulseMinutes);
+    const pw = pulseWindowHours.trim() === "" ? null : Number(pulseWindowHours);
+    if (pm !== null && (!Number.isFinite(pm) || pm < 5 || pm > 1440)) {
+      toast.error("Pulse minutes must be between 5 and 1440");
+      return;
+    }
+    if (pw !== null && (!Number.isFinite(pw) || pw < 1 || pw > 24 * 14)) {
+      toast.error("Pulse window must be between 1 and 336 hours");
+      return;
+    }
+    if (milestones.length > 12) {
+      toast.error("Maximum 12 milestones");
+      return;
+    }
+    let pausedIso: string | null = null;
+    if (pausedUntilLocal.trim() !== "") {
+      const d = new Date(pausedUntilLocal);
+      if (Number.isNaN(d.getTime())) {
+        toast.error("Invalid pause date");
+        return;
+      }
+      pausedIso = d.toISOString();
+    }
+    onSubmit({
+      enabled,
+      milestonesHours: milestones.length === 0 ? null : milestones,
+      pulseMinutes: pm,
+      pulseWindowHours: pw,
+      pausedUntil: pausedIso,
+    });
+  };
+
+  const pauseFor = (hours: number) => {
+    const ms = Date.now() + hours * 3600_000;
+    onSubmit({ pausedUntil: new Date(ms).toISOString() });
+  };
+
+  const isPaused = ev.config.pausedUntil && new Date(ev.config.pausedUntil).getTime() > Date.now();
+
+  return (
+    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Notification config</h4>
+        <div className="flex items-center gap-2">
+          {isPaused && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+              Paused until {new Date(ev.config.pausedUntil!).toLocaleString()}
+            </span>
+          )}
+          {!ev.config.enabled && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">
+              Disabled
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="rounded" />
+          <span className="text-slate-700">Notifications enabled</span>
+        </label>
+
+        <label className="block sm:col-span-2 lg:col-span-1">
+          <span className="block text-slate-600 mb-1">Milestones (hours, comma-sep)</span>
+          <input
+            type="text"
+            value={milestonesText}
+            onChange={(e) => setMilestonesText(e.target.value)}
+            placeholder="24, 12, 6, 1"
+            className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-slate-600 mb-1">Pulse interval (min)</span>
+          <input
+            type="number"
+            min={5}
+            max={1440}
+            value={pulseMinutes}
+            onChange={(e) => setPulseMinutes(e.target.value)}
+            placeholder="off"
+            className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+          />
+        </label>
+
+        <label className="block">
+          <span className="block text-slate-600 mb-1">Pulse window (hours pre-event)</span>
+          <input
+            type="number"
+            min={1}
+            max={336}
+            value={pulseWindowHours}
+            onChange={(e) => setPulseWindowHours(e.target.value)}
+            placeholder="off"
+            className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+          />
+        </label>
+
+        <label className="block sm:col-span-2 lg:col-span-2">
+          <span className="block text-slate-600 mb-1">Pause until (local)</span>
+          <input
+            type="datetime-local"
+            value={pausedUntilLocal}
+            onChange={(e) => setPausedUntilLocal(e.target.value)}
+            className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={() => pauseFor(1)} disabled={isPending} className="px-2 py-1 rounded border border-slate-300 bg-white text-[11px] hover:bg-slate-100">Pause 1h</button>
+          <button onClick={() => pauseFor(24)} disabled={isPending} className="px-2 py-1 rounded border border-slate-300 bg-white text-[11px] hover:bg-slate-100">Pause 24h</button>
+          <button onClick={() => onSubmit({ pausedUntil: null })} disabled={isPending || !isPaused} className="px-2 py-1 rounded border border-slate-300 bg-white text-[11px] hover:bg-slate-100 disabled:opacity-40">Resume</button>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={isPending}
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-slate-900 text-white text-xs font-medium hover:bg-slate-700 disabled:opacity-50"
+        >
+          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+          Save config
+        </button>
+      </div>
+
+      {(ev.pulse.totalPulseRows > 0 || ev.pulse.lastSlotIso) && (
+        <div className="border-t border-slate-200 pt-2 text-[11px] text-slate-600">
+          <div className="font-semibold text-slate-700 mb-1">Pulse activity</div>
+          <div>
+            Last slot: {ev.pulse.lastSlotIso ? new Date(ev.pulse.lastSlotIso).toLocaleString() : "—"} ·{" "}
+            sent {ev.pulse.sentPulseRows}/{ev.pulse.totalPulseRows} rows
+          </div>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {(["push", "email", "sse"] as const).map((ch) => {
+              const r = ev.pulse.lastByChannel[ch];
+              if (!r) return null;
+              return (
+                <span key={ch} className="inline-flex items-center gap-1">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${channelBadgeClasses(ch)}`}>{CHANNEL_LABEL[ch]}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusBadgeClasses(r.status)}`}>
+                    {r.status} · {r.sent}/{r.sent + r.failed}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
@@ -2741,6 +2950,29 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
       qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
     },
     onError: (err) => toast.error(formatAdminError(err, "Retry failed")),
+  });
+
+  const configMutation = useMutation({
+    mutationFn: async (vars: { id: number; patch: { enabled?: boolean; milestonesHours?: number[] | null; pulseMinutes?: number | null; pulseWindowHours?: number | null; pausedUntil?: string | null } }) => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/event/${vars.id}/config`, {
+        method: "PATCH",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: vars.patch.enabled,
+          milestonesHours: vars.patch.milestonesHours,
+          pulseMinutes: vars.patch.pulseMinutes,
+          pulseWindowHours: vars.patch.pulseWindowHours,
+          pausedUntil: vars.patch.pausedUntil,
+        }),
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson(res, "Config update failed");
+    },
+    onSuccess: () => {
+      toast.success("Notification config saved");
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Config update failed")),
   });
 
   // Live updates via SSE — highlight rows that change
@@ -2889,6 +3121,11 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
                     </div>
                   ))}
                 </div>
+                <EventConfigForm
+                  ev={ev}
+                  onSubmit={(patch) => configMutation.mutate({ id: ev.id, patch })}
+                  isPending={configMutation.isPending}
+                />
               </div>
             ))}
           </div>

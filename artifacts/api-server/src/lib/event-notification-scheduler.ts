@@ -2,27 +2,32 @@
  * event-notification-scheduler.ts — Multi-channel reminder dispatcher for
  * upcoming events in `event_calendar`.
  *
- * Runs every 30 minutes (registered from cron.ts). For each upcoming event in
- * the next 25 hours, fires a reminder across all enabled channels (web push,
- * Expo push, email, SSE) at four lead-time milestones: 24h, 12h, 6h, 1h.
+ * Runs every 30 minutes (registered from cron.ts).
+ *
+ * Two firing modes per event (configurable in the admin panel):
+ *   1) MILESTONES — discrete lead-time fires at e.g. [24, 12, 6, 1] hours
+ *      before start. Default is the global DEFAULT_MILESTONES_HOURS, but each
+ *      event row can override via `event_calendar.notification_milestones`.
+ *   2) PULSE — every N minutes during the last M hours before start
+ *      (`notification_pulse_minutes` + `notification_pulse_window_hours`).
+ *      Slots are snapped to a UTC grid so a restart never re-fires the same slot.
  *
  * Idempotency:
  *   `event_notification_dispatch_log` has a unique index on
- *   (event_id, milestone_hours, channel). We INSERT … ON CONFLICT DO NOTHING
- *   to claim a slot, then mark sent/failed.
+ *   (event_id, bucket_key, channel). bucket_key is `milestone_<N>h` for
+ *   milestone fires or `pulse_<UTC ISO slot>` for pulses. We INSERT … ON
+ *   CONFLICT DO NOTHING to claim a slot, then mark sent/failed.
  *
  * Retries:
  *   Failed dispatches are retried up to MAX_ATTEMPTS times on subsequent ticks.
- *   Once exhausted, the row stays in status='failed' and won't be retried
- *   automatically (admin can trigger a manual retry).
+ *   Once exhausted, admin can trigger a manual retry from the dashboard.
  *
- * Catch-up:
- *   A milestone is considered "due" if `now` is within
- *   [start - milestoneHours - CATCHUP_HOURS, start - milestoneHours + buffer].
- *   With a 30-min cron we use a 1h catch-up so brief outages don't drop reminders.
+ * Pause / disable:
+ *   Skip events where `notification_enabled = false` OR
+ *   `notification_paused_until > now`.
  */
 
-import { and, desc, eq, gt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import {
   db,
   pool,
@@ -41,8 +46,6 @@ import {
 import { sendEventNotificationEmail, getPublicBaseUrl } from "./email-engine.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 
-// Local minimal type — Expo SDK is not a direct dependency; we hit the HTTP
-// endpoint with a hand-built payload (matches the pattern used in cron.ts).
 interface ExpoPushMessage {
   to: string;
   title: string;
@@ -54,11 +57,15 @@ interface ExpoPushMessage {
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-export const MILESTONES_HOURS = [24, 12, 6, 1] as const;
+export const DEFAULT_MILESTONES_HOURS = [24, 12, 6, 1] as const;
 export const MAX_ATTEMPTS = 3;
-const CATCHUP_HOURS = 1; // 30-min cron + a little slack
+const CATCHUP_HOURS = 1;
 const SCAN_HORIZON_HOURS = 25; // a hair over the largest milestone
+const PULSE_SCAN_HORIZON_HOURS = 24 * 14; // pulses can be configured up to 14d out
 const EMAIL_BATCH_SIZE = 50;
+
+// Backwards-compat alias (unchanged surface for other modules).
+export const MILESTONES_HOURS = DEFAULT_MILESTONES_HOURS;
 
 export type EventNotificationChannel = "push" | "email" | "sse";
 const CHANNELS: EventNotificationChannel[] = ["push", "email", "sse"];
@@ -90,14 +97,33 @@ const state: TickState = {
 export function getEventNotificationState(): TickState {
   return { ...state };
 }
-
 export function setEventNotificationIntervalMs(ms: number): void {
   state.intervalMs = ms;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function humaniseLeadTime(hoursBefore: number): string {
+function effectiveMilestones(event: Event): number[] {
+  const raw = event.notificationMilestones;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return [...raw].filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => b - a);
+  }
+  return [...DEFAULT_MILESTONES_HOURS];
+}
+
+function isEventEnabled(event: Event, now: Date): boolean {
+  if (event.notificationEnabled === false) return false;
+  if (event.notificationPausedUntil && event.notificationPausedUntil.getTime() > now.getTime()) {
+    return false;
+  }
+  return true;
+}
+
+function humaniseLeadTime(hoursBefore: number, minutesBefore?: number): string {
+  if (minutesBefore !== undefined && minutesBefore < 60) {
+    if (minutesBefore <= 5) return "starting any moment now";
+    return `in about ${minutesBefore} minutes`;
+  }
   if (hoursBefore <= 1) return "in about 1 hour";
   if (hoursBefore < 24) return `in ${hoursBefore} hours`;
   if (hoursBefore === 24) return "tomorrow";
@@ -105,8 +131,7 @@ function humaniseLeadTime(hoursBefore: number): string {
   return `in ${days} day${days === 1 ? "" : "s"}`;
 }
 
-function buildPushPayload(event: Event, hoursBefore: number): NotificationPayload {
-  const lead = humaniseLeadTime(hoursBefore);
+function buildPushPayload(event: Event, lead: string, bucketKey: string): NotificationPayload {
   const base = getPublicBaseUrl();
   const url = event.youtubeUrl || `${base}/events#event-${event.id}`;
   return {
@@ -117,11 +142,11 @@ function buildPushPayload(event: Event, hoursBefore: number): NotificationPayloa
     icon: "/icons/icon-192x192.png",
     badge: "/icons/badge-72x72.png",
     url,
-    tag: `event-notif-${event.id}-${hoursBefore}h`,
+    tag: `event-notif-${event.id}-${bucketKey}`,
     data: {
       type: "event_notification",
       eventId: event.id,
-      milestoneHours: hoursBefore,
+      bucketKey,
       timestamp: new Date().toISOString(),
     },
   };
@@ -129,7 +154,8 @@ function buildPushPayload(event: Event, hoursBefore: number): NotificationPayloa
 
 async function dispatchExpoForEvent(
   event: Event,
-  hoursBefore: number,
+  lead: string,
+  bucketKey: string,
   log: Logger,
 ): Promise<{ sent: number; failed: number }> {
   let sent = 0;
@@ -140,7 +166,6 @@ async function dispatchExpoForEvent(
     );
     if (result.rows.length === 0) return { sent: 0, failed: 0 };
 
-    const lead = humaniseLeadTime(hoursBefore);
     const title = `⏰ ${event.title} — starts ${lead}`;
     const body = event.location
       ? `${event.location} · Tap for details and to set a reminder.`
@@ -153,11 +178,7 @@ async function dispatchExpoForEvent(
         to: token,
         title,
         body,
-        data: {
-          type: "event_notification",
-          eventId: event.id,
-          milestoneHours: hoursBefore,
-        },
+        data: { type: "event_notification", eventId: event.id, bucketKey },
         sound: "default",
         priority: "high",
       }));
@@ -195,9 +216,9 @@ async function dispatchExpoForEvent(
 
 // ─── Dispatch log helpers ────────────────────────────────────────────────────
 
-async function findLogRow(
+async function findLogRowByBucket(
   eventId: number,
-  milestoneHours: number,
+  bucketKey: string,
   channel: EventNotificationChannel,
 ): Promise<EventNotificationDispatchLog | null> {
   const rows = await db
@@ -206,7 +227,7 @@ async function findLogRow(
     .where(
       and(
         eq(eventNotificationDispatchLogTable.eventId, eventId),
-        eq(eventNotificationDispatchLogTable.milestoneHours, milestoneHours),
+        eq(eventNotificationDispatchLogTable.bucketKey, bucketKey),
         eq(eventNotificationDispatchLogTable.channel, channel),
       ),
     )
@@ -216,17 +237,17 @@ async function findLogRow(
 
 async function claimOrAdvanceLogRow(
   event: Event,
-  milestoneHours: number,
+  target: DispatchTarget,
   channel: EventNotificationChannel,
 ): Promise<EventNotificationDispatchLog | null> {
   const now = new Date();
-  // Try to insert; if it exists, increment attempts in place.
   const inserted = await db
     .insert(eventNotificationDispatchLogTable)
     .values({
       eventId: event.id,
       eventTitle: event.title,
-      milestoneHours,
+      milestoneHours: target.milestoneHours,
+      bucketKey: target.bucketKey,
       channel,
       status: "pending",
       attempts: 1,
@@ -236,7 +257,7 @@ async function claimOrAdvanceLogRow(
     .onConflictDoNothing({
       target: [
         eventNotificationDispatchLogTable.eventId,
-        eventNotificationDispatchLogTable.milestoneHours,
+        eventNotificationDispatchLogTable.bucketKey,
         eventNotificationDispatchLogTable.channel,
       ],
     })
@@ -244,18 +265,14 @@ async function claimOrAdvanceLogRow(
 
   if (inserted[0]) return inserted[0];
 
-  const existing = await findLogRow(event.id, milestoneHours, channel);
+  const existing = await findLogRowByBucket(event.id, target.bucketKey, channel);
   if (!existing) return null;
-  if (existing.status === "sent") return existing; // nothing to do
-  if (existing.attempts >= MAX_ATTEMPTS) return existing; // exhausted
+  if (existing.status === "sent") return existing;
+  if (existing.attempts >= MAX_ATTEMPTS) return existing;
 
   const updated = await db
     .update(eventNotificationDispatchLogTable)
-    .set({
-      status: "pending",
-      attempts: existing.attempts + 1,
-      lastAttemptAt: now,
-    })
+    .set({ status: "pending", attempts: existing.attempts + 1, lastAttemptAt: now })
     .where(eq(eventNotificationDispatchLogTable.id, existing.id))
     .returning();
   return updated[0] ?? existing;
@@ -312,14 +329,14 @@ function emitDispatchSse(row: EventNotificationDispatchLog): void {
 
 async function dispatchPushChannel(
   event: Event,
-  milestoneHours: number,
+  target: DispatchTarget,
   log: Logger,
 ): Promise<{ status: "sent" | "failed"; sent: number; failed: number; recipients: number; error?: string }> {
   try {
-    const webPayload = buildPushPayload(event, milestoneHours);
+    const webPayload = buildPushPayload(event, target.leadLabel, target.bucketKey);
     const [webResult, expoResult] = await Promise.all([
       dispatchPushNotification(webPayload, log, "event_notification"),
-      dispatchExpoForEvent(event, milestoneHours, log),
+      dispatchExpoForEvent(event, target.leadLabel, target.bucketKey, log),
     ]);
     const sent = webResult.sent + expoResult.sent;
     const failed = webResult.failed + expoResult.failed + webResult.deactivated;
@@ -341,7 +358,7 @@ async function dispatchPushChannel(
 
 async function dispatchEmailChannel(
   event: Event,
-  milestoneHours: number,
+  target: DispatchTarget,
   log: Logger,
 ): Promise<{ status: "sent" | "failed" | "skipped"; sent: number; failed: number; recipients: number; error?: string }> {
   try {
@@ -350,6 +367,7 @@ async function dispatchEmailChannel(
         id: eventNotificationSubscribersTable.id,
         email: eventNotificationSubscribersTable.email,
         unsubscribeToken: eventNotificationSubscribersTable.unsubscribeToken,
+        timezone: eventNotificationSubscribersTable.timezone,
       })
       .from(eventNotificationSubscribersTable)
       .where(eq(eventNotificationSubscribersTable.isActive, true));
@@ -381,9 +399,10 @@ async function dispatchEmailChannel(
           const ok = await sendEventNotificationEmail(
             s.email,
             eventForEmail,
-            milestoneHours,
+            target.milestoneHours,
             unsubscribeUrl,
             log,
+            { timezone: s.timezone, leadLabel: target.leadLabel, isPulse: target.kind === "pulse" },
           );
           return { ok, id: s.id };
         }),
@@ -399,9 +418,7 @@ async function dispatchEmailChannel(
         await db
           .update(eventNotificationSubscribersTable)
           .set({ lastNotifiedAt: new Date() })
-          .where(
-            sql`${eventNotificationSubscribersTable.id} = ANY(${okIds}::int[])`,
-          );
+          .where(inArray(eventNotificationSubscribersTable.id, okIds));
       }
     }
 
@@ -420,23 +437,70 @@ async function dispatchEmailChannel(
   }
 }
 
-function dispatchSseChannel(
-  event: Event,
-  milestoneHours: number,
-): { status: "sent"; sent: number; failed: number; recipients: number } {
+function dispatchSseChannel(): { status: "sent"; sent: number; failed: number; recipients: number } {
   const recipients = sseBroadcaster.size();
-  // The dispatch SSE event itself reaches connected admin clients; we also
-  // broadcast a user-facing "event_notification_dispatched" of type:'sse'
-  // which the website can listen for to surface a banner. The standard
-  // channel-emit happens in markAndEmit below, so here we just count clients.
   return { status: "sent", sent: recipients, failed: 0, recipients };
 }
 
-// ─── Milestone dispatch orchestration ────────────────────────────────────────
+// ─── Target generation (milestones + pulses) ─────────────────────────────────
 
-async function dispatchMilestone(
+interface DispatchTarget {
+  bucketKey: string;
+  milestoneHours: number; // informational; 0 for pulses
+  leadLabel: string;
+  kind: "milestone" | "pulse";
+}
+
+function findDueTargets(event: Event, now: Date): DispatchTarget[] {
+  const targets: DispatchTarget[] = [];
+  const startMs = event.startDate.getTime();
+  const nowMs = now.getTime();
+  if (startMs <= nowMs) return targets;
+
+  // ── Milestones ─────────────────────────────────────────────────────────────
+  const milestones = effectiveMilestones(event);
+  const catchupMs = CATCHUP_HOURS * 60 * 60 * 1000;
+  for (const m of milestones) {
+    const milestoneAtMs = startMs - m * 60 * 60 * 1000;
+    if (nowMs >= milestoneAtMs - 60_000 && nowMs <= milestoneAtMs + catchupMs) {
+      targets.push({
+        bucketKey: `milestone_${m}h`,
+        milestoneHours: m,
+        leadLabel: humaniseLeadTime(m),
+        kind: "milestone",
+      });
+    }
+  }
+
+  // ── Pulse ──────────────────────────────────────────────────────────────────
+  const pulseMin = event.notificationPulseMinutes ?? null;
+  const pulseWindowH = event.notificationPulseWindowHours ?? null;
+  if (pulseMin && pulseMin > 0 && pulseWindowH && pulseWindowH > 0) {
+    const pulseMs = pulseMin * 60 * 1000;
+    const windowStartMs = startMs - pulseWindowH * 60 * 60 * 1000;
+    // snap nowMs to slot grid (UTC, anchored at unix epoch)
+    const slotMs = Math.floor(nowMs / pulseMs) * pulseMs;
+    if (slotMs >= windowStartMs && slotMs < startMs) {
+      const slotIso = new Date(slotMs).toISOString();
+      const minutesUntilStart = Math.max(1, Math.round((startMs - slotMs) / 60_000));
+      const hoursUntilStart = Math.max(1, Math.round((startMs - slotMs) / (60 * 60 * 1000)));
+      targets.push({
+        bucketKey: `pulse_${slotIso}`,
+        milestoneHours: 0,
+        leadLabel: humaniseLeadTime(hoursUntilStart, minutesUntilStart),
+        kind: "pulse",
+      });
+    }
+  }
+
+  return targets;
+}
+
+// ─── Per-target dispatch orchestration ───────────────────────────────────────
+
+async function dispatchTarget(
   event: Event,
-  milestoneHours: number,
+  target: DispatchTarget,
   log: Logger,
 ): Promise<{ attempted: number; succeeded: number; failed: number }> {
   let attempted = 0;
@@ -444,22 +508,17 @@ async function dispatchMilestone(
   let failed = 0;
 
   for (const channel of CHANNELS) {
-    const claim = await claimOrAdvanceLogRow(event, milestoneHours, channel);
+    const claim = await claimOrAdvanceLogRow(event, target, channel);
     if (!claim) continue;
     if (claim.status === "sent" || claim.status === "skipped") continue;
     if (claim.attempts > MAX_ATTEMPTS) continue;
 
     attempted++;
-
     try {
       let result;
-      if (channel === "push") {
-        result = await dispatchPushChannel(event, milestoneHours, log);
-      } else if (channel === "email") {
-        result = await dispatchEmailChannel(event, milestoneHours, log);
-      } else {
-        result = dispatchSseChannel(event, milestoneHours);
-      }
+      if (channel === "push") result = await dispatchPushChannel(event, target, log);
+      else if (channel === "email") result = await dispatchEmailChannel(event, target, log);
+      else result = dispatchSseChannel();
 
       const updated = await markLogResult(claim.id, {
         status: result.status,
@@ -477,7 +536,8 @@ async function dispatchMilestone(
       log.info(
         {
           eventId: event.id,
-          milestoneHours,
+          bucketKey: target.bucketKey,
+          kind: target.kind,
           channel,
           status: result.status,
           sent: result.sent,
@@ -488,14 +548,11 @@ async function dispatchMilestone(
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const updated = await markLogResult(claim.id, {
-        status: "failed",
-        lastError: msg,
-      });
+      const updated = await markLogResult(claim.id, { status: "failed", lastError: msg });
       if (updated) emitDispatchSse(updated);
       failed++;
       log.error(
-        { err, eventId: event.id, milestoneHours, channel },
+        { err, eventId: event.id, bucketKey: target.bucketKey, channel },
         "Event notification channel dispatch threw",
       );
     }
@@ -505,30 +562,6 @@ async function dispatchMilestone(
 }
 
 // ─── Tick orchestration ──────────────────────────────────────────────────────
-
-interface DueMilestone {
-  event: Event;
-  milestoneHours: number;
-}
-
-function findDueMilestones(events: Event[], now: Date): DueMilestone[] {
-  const due: DueMilestone[] = [];
-  for (const event of events) {
-    const startMs = event.startDate.getTime();
-    const nowMs = now.getTime();
-    if (startMs <= nowMs) continue; // event already started/past
-    for (const m of MILESTONES_HOURS) {
-      const milestoneAtMs = startMs - m * 60 * 60 * 1000;
-      const catchupMs = CATCHUP_HOURS * 60 * 60 * 1000;
-      // due if we're at-or-after the milestone moment, within catchup window,
-      // and still before the event start.
-      if (nowMs >= milestoneAtMs - 60_000 && nowMs <= milestoneAtMs + catchupMs) {
-        due.push({ event, milestoneHours: m });
-      }
-    }
-  }
-  return due;
-}
 
 export async function runEventNotificationTick(
   log: Logger = logger,
@@ -561,37 +594,38 @@ export async function runEventNotificationTick(
   let dispatchesFailed = 0;
 
   try {
-    const horizonAt = new Date(startedAt.getTime() + SCAN_HORIZON_HOURS * 60 * 60 * 1000);
+    // Scan a wider horizon than the largest milestone so we also catch pulses.
+    const horizonAt = new Date(
+      startedAt.getTime() + Math.max(SCAN_HORIZON_HOURS, PULSE_SCAN_HORIZON_HOURS) * 60 * 60 * 1000,
+    );
     const events = await db
       .select()
       .from(eventsTable)
-      .where(
-        and(
-          gt(eventsTable.startDate, startedAt),
-          lte(eventsTable.startDate, horizonAt),
-        ),
-      );
+      .where(and(gt(eventsTable.startDate, startedAt), lte(eventsTable.startDate, horizonAt)));
     eventsScanned = events.length;
 
-    const due = findDueMilestones(events, startedAt);
+    let totalDue = 0;
+    for (const event of events) {
+      if (!isEventEnabled(event, startedAt)) continue;
+      const targets = findDueTargets(event, startedAt);
+      totalDue += targets.length;
+      for (const target of targets) {
+        const result = await dispatchTarget(event, target, log);
+        dispatchesAttempted += result.attempted;
+        dispatchesSucceeded += result.succeeded;
+        dispatchesFailed += result.failed;
+      }
+    }
+
     log.info(
-      { eventsScanned, dueCount: due.length },
+      { eventsScanned, dueCount: totalDue },
       "Event notification tick — scanning",
     );
 
-    for (const { event, milestoneHours } of due) {
-      const result = await dispatchMilestone(event, milestoneHours, log);
-      dispatchesAttempted += result.attempted;
-      dispatchesSucceeded += result.succeeded;
-      dispatchesFailed += result.failed;
-    }
-
-    // Retry pass: any failed rows for upcoming events with attempts<MAX
-    await retryFailedDispatches(events, log).then((r) => {
-      dispatchesAttempted += r.attempted;
-      dispatchesSucceeded += r.succeeded;
-      dispatchesFailed += r.failed;
-    });
+    const r = await retryFailedDispatches(events, log);
+    dispatchesAttempted += r.attempted;
+    dispatchesSucceeded += r.succeeded;
+    dispatchesFailed += r.failed;
   } catch (err) {
     log.error({ err }, "Event notification tick failed");
   } finally {
@@ -641,15 +675,21 @@ async function retryFailedDispatches(
       and(
         eq(eventNotificationDispatchLogTable.status, "failed"),
         sql`${eventNotificationDispatchLogTable.attempts} < ${MAX_ATTEMPTS}`,
-        sql`${eventNotificationDispatchLogTable.eventId} = ANY(${eventIds}::int[])`,
+        inArray(eventNotificationDispatchLogTable.eventId, eventIds),
       ),
     );
 
   for (const row of failedRows) {
     const event = eventById.get(row.eventId);
     if (!event) continue;
+    if (!isEventEnabled(event, new Date())) continue;
     log.info(
-      { eventId: row.eventId, milestoneHours: row.milestoneHours, channel: row.channel, attempts: row.attempts },
+      {
+        eventId: row.eventId,
+        bucketKey: row.bucketKey,
+        channel: row.channel,
+        attempts: row.attempts,
+      },
       "Retrying failed event notification",
     );
     const result = await retryLogRow(row, event, log);
@@ -659,6 +699,20 @@ async function retryFailedDispatches(
   }
 
   return { attempted, succeeded, failed };
+}
+
+function targetForRow(row: EventNotificationDispatchLog): DispatchTarget {
+  const isPulse = row.bucketKey.startsWith("pulse_");
+  // Best-effort lead label from stored milestoneHours; pulses just say "soon".
+  const leadLabel = isPulse
+    ? "very soon"
+    : humaniseLeadTime(row.milestoneHours || 1);
+  return {
+    bucketKey: row.bucketKey || `milestone_${row.milestoneHours}h`,
+    milestoneHours: row.milestoneHours,
+    leadLabel,
+    kind: isPulse ? "pulse" : "milestone",
+  };
 }
 
 async function retryLogRow(
@@ -677,10 +731,11 @@ async function retryLogRow(
     })
     .where(eq(eventNotificationDispatchLogTable.id, row.id));
 
+  const target = targetForRow(row);
   let result;
-  if (channel === "push") result = await dispatchPushChannel(event, row.milestoneHours, log);
-  else if (channel === "email") result = await dispatchEmailChannel(event, row.milestoneHours, log);
-  else result = dispatchSseChannel(event, row.milestoneHours);
+  if (channel === "push") result = await dispatchPushChannel(event, target, log);
+  else if (channel === "email") result = await dispatchEmailChannel(event, target, log);
+  else result = dispatchSseChannel();
 
   const updated = await markLogResult(row.id, {
     status: result.status,
@@ -718,7 +773,7 @@ export async function retryDispatchLogRow(
   }
 
   await retryLogRow(row, event, log);
-  return findLogRow(row.eventId, row.milestoneHours, row.channel as EventNotificationChannel);
+  return findLogRowByBucket(row.eventId, row.bucketKey, row.channel as EventNotificationChannel);
 }
 
 /** Recent dispatch log for the admin panel. */
@@ -734,6 +789,14 @@ export async function getRecentDispatchLog(limit = 50): Promise<EventNotificatio
 export async function getUpcomingWithMilestoneStatus(): Promise<
   Array<{
     event: Event;
+    config: {
+      enabled: boolean;
+      paused: boolean;
+      pausedUntil: string | null;
+      milestonesHours: number[];
+      pulseMinutes: number | null;
+      pulseWindowHours: number | null;
+    };
     milestones: Array<{
       hours: number;
       dueAt: string;
@@ -743,19 +806,21 @@ export async function getUpcomingWithMilestoneStatus(): Promise<
         Pick<EventNotificationDispatchLog, "id" | "status" | "attempts" | "successCount" | "failureCount" | "lastError"> | null
       >;
     }>;
+    pulse: {
+      lastSlotIso: string | null;
+      lastChannelStatus: Record<EventNotificationChannel, EventNotificationDispatchLog | null>;
+      totalPulseRows: number;
+      sentPulseRows: number;
+    };
   }>
 > {
   const now = new Date();
-  const horizonAt = new Date(now.getTime() + (Math.max(...MILESTONES_HOURS) + 24) * 60 * 60 * 1000);
+  // Show events up to 14 days out so admins can preconfigure pulses.
+  const horizonAt = new Date(now.getTime() + PULSE_SCAN_HORIZON_HOURS * 60 * 60 * 1000);
   const events = await db
     .select()
     .from(eventsTable)
-    .where(
-      and(
-        gt(eventsTable.startDate, now),
-        lte(eventsTable.startDate, horizonAt),
-      ),
-    );
+    .where(and(gt(eventsTable.startDate, now), lte(eventsTable.startDate, horizonAt)));
 
   if (events.length === 0) return [];
 
@@ -763,25 +828,33 @@ export async function getUpcomingWithMilestoneStatus(): Promise<
   const logRows = await db
     .select()
     .from(eventNotificationDispatchLogTable)
-    .where(sql`${eventNotificationDispatchLogTable.eventId} = ANY(${eventIds}::int[])`);
+    .where(inArray(eventNotificationDispatchLogTable.eventId, eventIds));
 
-  const byKey = new Map<string, EventNotificationDispatchLog>();
+  const milestoneMap = new Map<string, EventNotificationDispatchLog>();
+  const pulseRowsByEvent = new Map<number, EventNotificationDispatchLog[]>();
   for (const r of logRows) {
-    byKey.set(`${r.eventId}-${r.milestoneHours}-${r.channel}`, r);
+    if (r.bucketKey.startsWith("pulse_")) {
+      const arr = pulseRowsByEvent.get(r.eventId) ?? [];
+      arr.push(r);
+      pulseRowsByEvent.set(r.eventId, arr);
+    } else {
+      milestoneMap.set(`${r.eventId}-${r.bucketKey}-${r.channel}`, r);
+    }
   }
 
   return events
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-    .map((event) => ({
-      event,
-      milestones: MILESTONES_HOURS.map((hours) => {
+    .map((event) => {
+      const milestonesH = effectiveMilestones(event);
+      const milestones = milestonesH.map((hours) => {
         const dueAt = new Date(event.startDate.getTime() - hours * 60 * 60 * 1000);
         const channels = {} as Record<
           EventNotificationChannel,
           Pick<EventNotificationDispatchLog, "id" | "status" | "attempts" | "successCount" | "failureCount" | "lastError"> | null
         >;
+        const bucket = `milestone_${hours}h`;
         for (const ch of CHANNELS) {
-          const r = byKey.get(`${event.id}-${hours}-${ch}`);
+          const r = milestoneMap.get(`${event.id}-${bucket}-${ch}`);
           channels[ch] = r
             ? {
                 id: r.id,
@@ -793,14 +866,47 @@ export async function getUpcomingWithMilestoneStatus(): Promise<
               }
             : null;
         }
-        return {
-          hours,
-          dueAt: dueAt.toISOString(),
-          isPast: dueAt.getTime() <= now.getTime(),
-          channels,
-        };
-      }),
-    }));
+        return { hours, dueAt: dueAt.toISOString(), isPast: dueAt.getTime() <= now.getTime(), channels };
+      });
+
+      const pulseRows = pulseRowsByEvent.get(event.id) ?? [];
+      pulseRows.sort((a, b) => (a.bucketKey > b.bucketKey ? -1 : 1)); // newest slot first
+      const lastByChannel: Record<EventNotificationChannel, EventNotificationDispatchLog | null> = {
+        push: null,
+        email: null,
+        sse: null,
+      };
+      let lastSlot: string | null = null;
+      for (const r of pulseRows) {
+        const ch = r.channel as EventNotificationChannel;
+        if (!lastByChannel[ch]) lastByChannel[ch] = r;
+        if (!lastSlot) lastSlot = r.bucketKey.replace(/^pulse_/, "");
+      }
+
+      return {
+        event,
+        config: {
+          enabled: event.notificationEnabled !== false,
+          paused: Boolean(
+            event.notificationPausedUntil &&
+              event.notificationPausedUntil.getTime() > now.getTime(),
+          ),
+          pausedUntil: event.notificationPausedUntil
+            ? event.notificationPausedUntil.toISOString()
+            : null,
+          milestonesHours: milestonesH,
+          pulseMinutes: event.notificationPulseMinutes ?? null,
+          pulseWindowHours: event.notificationPulseWindowHours ?? null,
+        },
+        milestones,
+        pulse: {
+          lastSlotIso: lastSlot,
+          lastChannelStatus: lastByChannel,
+          totalPulseRows: pulseRows.length,
+          sentPulseRows: pulseRows.filter((r) => r.status === "sent").length,
+        },
+      };
+    });
 }
 
 /** Aggregate stats for the admin dashboard. */
@@ -844,4 +950,49 @@ export async function getDispatchStats(): Promise<{
     totalFailureSends: statsRow?.totalFailureSends ?? 0,
     activeSubscribers: subsRow?.activeSubscribers ?? 0,
   };
+}
+
+// ─── Per-event config admin API ──────────────────────────────────────────────
+
+export interface EventNotificationConfigPatch {
+  enabled?: boolean;
+  milestonesHours?: number[] | null;
+  pulseMinutes?: number | null;
+  pulseWindowHours?: number | null;
+  pausedUntil?: string | null;
+}
+
+export async function updateEventNotificationConfig(
+  eventId: number,
+  patch: EventNotificationConfigPatch,
+): Promise<Event | null> {
+  const update: Partial<Event> = {};
+  if (typeof patch.enabled === "boolean") update.notificationEnabled = patch.enabled;
+  if (patch.milestonesHours !== undefined) {
+    update.notificationMilestones = patch.milestonesHours === null
+      ? null
+      : patch.milestonesHours.filter((n) => Number.isFinite(n) && n > 0);
+  }
+  if (patch.pulseMinutes !== undefined) update.notificationPulseMinutes = patch.pulseMinutes;
+  if (patch.pulseWindowHours !== undefined)
+    update.notificationPulseWindowHours = patch.pulseWindowHours;
+  if (patch.pausedUntil !== undefined) {
+    update.notificationPausedUntil = patch.pausedUntil ? new Date(patch.pausedUntil) : null;
+  }
+
+  if (Object.keys(update).length === 0) {
+    const [row] = await db
+      .select()
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  const [row] = await db
+    .update(eventsTable)
+    .set(update)
+    .where(eq(eventsTable.id, eventId))
+    .returning();
+  return row ?? null;
 }

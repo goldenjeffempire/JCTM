@@ -28,6 +28,8 @@ import {
   getUpcomingWithMilestoneStatus,
   getDispatchStats,
   getEventNotificationState,
+  updateEventNotificationConfig,
+  type EventNotificationConfigPatch,
 } from "../lib/event-notification-scheduler.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,6 +49,8 @@ router.post(
       typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const sourcePage =
       typeof req.body?.source === "string" ? req.body.source.slice(0, 64) : null;
+    const tzRaw = typeof req.body?.timezone === "string" ? req.body.timezone.slice(0, 64) : "";
+    const timezone = sanitizeTimezone(tzRaw);
 
     if (!rawEmail || !EMAIL_RE.test(rawEmail) || rawEmail.length > 254) {
       res.status(400).json({ error: "Please enter a valid email address." });
@@ -71,9 +75,16 @@ router.post(
               unsubscribedAt: null,
               subscribedAt: new Date(),
               sourcePage: sourcePage ?? existing[0].sourcePage,
+              timezone: timezone ?? existing[0].timezone,
             })
             .where(eq(eventNotificationSubscribersTable.id, existing[0].id));
           isNew = true;
+        } else if (timezone && timezone !== existing[0].timezone) {
+          // Re-subscribe with a fresher timezone — silently update.
+          await db
+            .update(eventNotificationSubscribersTable)
+            .set({ timezone })
+            .where(eq(eventNotificationSubscribersTable.id, existing[0].id));
         }
       } else {
         const token = randomBytes(24).toString("hex");
@@ -81,6 +92,7 @@ router.post(
           email: rawEmail,
           unsubscribeToken: token,
           sourcePage,
+          ...(timezone ? { timezone } : {}),
         });
         isNew = true;
       }
@@ -169,7 +181,7 @@ router.get(
   async (_req: Request, res: Response): Promise<void> => {
     const data = await getUpcomingWithMilestoneStatus();
     res.json({
-      events: data.map(({ event, milestones }) => ({
+      events: data.map(({ event, milestones, config, pulse }) => ({
         id: event.id,
         title: event.title,
         location: event.location,
@@ -177,8 +189,136 @@ router.get(
         endDate: event.endDate?.toISOString() ?? null,
         eventType: event.eventType,
         milestones,
+        config,
+        pulse: {
+          lastSlotIso: pulse.lastSlotIso,
+          totalPulseRows: pulse.totalPulseRows,
+          sentPulseRows: pulse.sentPulseRows,
+          lastByChannel: {
+            push: pulse.lastChannelStatus.push
+              ? {
+                  status: pulse.lastChannelStatus.push.status,
+                  bucketKey: pulse.lastChannelStatus.push.bucketKey,
+                  sent: pulse.lastChannelStatus.push.successCount,
+                  failed: pulse.lastChannelStatus.push.failureCount,
+                }
+              : null,
+            email: pulse.lastChannelStatus.email
+              ? {
+                  status: pulse.lastChannelStatus.email.status,
+                  bucketKey: pulse.lastChannelStatus.email.bucketKey,
+                  sent: pulse.lastChannelStatus.email.successCount,
+                  failed: pulse.lastChannelStatus.email.failureCount,
+                }
+              : null,
+            sse: pulse.lastChannelStatus.sse
+              ? {
+                  status: pulse.lastChannelStatus.sse.status,
+                  bucketKey: pulse.lastChannelStatus.sse.bucketKey,
+                  sent: pulse.lastChannelStatus.sse.successCount,
+                  failed: pulse.lastChannelStatus.sse.failureCount,
+                }
+              : null,
+          },
+        },
       })),
     });
+  },
+);
+
+// PATCH per-event notification config
+router.patch(
+  "/admin/event-notifications/event/:id/config",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid event id" });
+      return;
+    }
+    const body = req.body ?? {};
+    const patch: EventNotificationConfigPatch = {};
+
+    if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
+
+    if (body.milestonesHours !== undefined) {
+      if (body.milestonesHours === null) patch.milestonesHours = null;
+      else if (Array.isArray(body.milestonesHours)) {
+        const filtered = body.milestonesHours
+          .map((n: unknown) => Number(n))
+          .filter((n: number) => Number.isFinite(n) && n > 0 && n <= 24 * 14);
+        if (filtered.length > 12) {
+          res.status(400).json({ error: "Maximum 12 milestone hours allowed" });
+          return;
+        }
+        patch.milestonesHours = filtered;
+      } else {
+        res.status(400).json({ error: "milestonesHours must be an array of positive integers" });
+        return;
+      }
+    }
+
+    if (body.pulseMinutes !== undefined) {
+      if (body.pulseMinutes === null) patch.pulseMinutes = null;
+      else {
+        const n = Number(body.pulseMinutes);
+        if (!Number.isFinite(n) || n < 5 || n > 24 * 60) {
+          res.status(400).json({ error: "pulseMinutes must be between 5 and 1440 (or null)" });
+          return;
+        }
+        patch.pulseMinutes = Math.round(n);
+      }
+    }
+
+    if (body.pulseWindowHours !== undefined) {
+      if (body.pulseWindowHours === null) patch.pulseWindowHours = null;
+      else {
+        const n = Number(body.pulseWindowHours);
+        if (!Number.isFinite(n) || n < 1 || n > 24 * 14) {
+          res.status(400).json({ error: "pulseWindowHours must be between 1 and 336 (or null)" });
+          return;
+        }
+        patch.pulseWindowHours = Math.round(n);
+      }
+    }
+
+    if (body.pausedUntil !== undefined) {
+      if (body.pausedUntil === null) patch.pausedUntil = null;
+      else if (typeof body.pausedUntil === "string") {
+        const d = new Date(body.pausedUntil);
+        if (Number.isNaN(d.getTime())) {
+          res.status(400).json({ error: "pausedUntil must be an ISO timestamp or null" });
+          return;
+        }
+        patch.pausedUntil = d.toISOString();
+      } else {
+        res.status(400).json({ error: "pausedUntil must be an ISO string or null" });
+        return;
+      }
+    }
+
+    try {
+      const event = await updateEventNotificationConfig(id, patch);
+      if (!event) {
+        res.status(404).json({ error: "Event not found" });
+        return;
+      }
+      res.json({
+        ok: true,
+        event: {
+          id: event.id,
+          title: event.title,
+          notificationEnabled: event.notificationEnabled,
+          notificationMilestones: event.notificationMilestones,
+          notificationPulseMinutes: event.notificationPulseMinutes,
+          notificationPulseWindowHours: event.notificationPulseWindowHours,
+          notificationPausedUntil: event.notificationPausedUntil?.toISOString() ?? null,
+        },
+      });
+    } catch (err) {
+      logger.warn({ err, id }, "update event notification config failed");
+      res.status(500).json({ error: "Update failed" });
+    }
   },
 );
 
@@ -256,6 +396,19 @@ router.post(
 );
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function sanitizeTimezone(raw: string): string | null {
+  const v = raw.trim();
+  if (!v || v.length > 64) return null;
+  // Light validation: must be a recognised IANA name like "Africa/Lagos" or
+  // a region the runtime can format to. Anything else falls back to default.
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: v }).format(new Date());
+    return v;
+  } catch {
+    return null;
+  }
+}
 
 function buildUnsubscribePage(message: string, success: boolean): string {
   const colour = success ? "#0f766e" : "#991b1b";

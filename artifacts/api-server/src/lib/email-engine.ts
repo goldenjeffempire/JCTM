@@ -274,36 +274,80 @@ function humaniseLeadTime(hoursBefore: number): string {
   return `in ${days} day${days === 1 ? "" : "s"}`;
 }
 
-function formatEventDate(start: Date, end: Date | null): string {
-  const dateFmt = new Intl.DateTimeFormat("en-NG", {
-    timeZone: "Africa/Lagos",
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const timeFmt = new Intl.DateTimeFormat("en-NG", {
-    timeZone: "Africa/Lagos",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function tzAbbreviation(timezone: string, ref: Date): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "short",
+    }).formatToParts(ref);
+    return parts.find((p) => p.type === "timeZoneName")?.value || "";
+  } catch {
+    return "";
+  }
+}
+
+function formatEventDate(start: Date, end: Date | null, timezone = "Africa/Lagos"): string {
+  let tz = timezone;
+  let dateFmt: Intl.DateTimeFormat;
+  let timeFmt: Intl.DateTimeFormat;
+  try {
+    dateFmt = new Intl.DateTimeFormat("en-NG", {
+      timeZone: tz,
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    timeFmt = new Intl.DateTimeFormat("en-NG", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    tz = "Africa/Lagos";
+    dateFmt = new Intl.DateTimeFormat("en-NG", {
+      timeZone: tz,
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    timeFmt = new Intl.DateTimeFormat("en-NG", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+  const abbrev = tzAbbreviation(tz, start) || tz;
   const date = dateFmt.format(start);
   const startTime = timeFmt.format(start);
-  if (!end) return `${date} · ${startTime} (WAT)`;
+  if (!end) return `${date} · ${startTime} (${abbrev})`;
   const endTime = timeFmt.format(end);
-  return `${date} · ${startTime} – ${endTime} (WAT)`;
+  return `${date} · ${startTime} – ${endTime} (${abbrev})`;
+}
+
+export interface EventNotificationEmailOptions {
+  /** IANA timezone for date/time formatting. Defaults to "Africa/Lagos". */
+  timezone?: string;
+  /** Override lead-time phrase (e.g. "in about 30 minutes"). Falls back to humanised hours. */
+  leadLabel?: string;
+  /** True when this fire is part of the per-30-min pulse window. Adjusts subject prefix. */
+  isPulse?: boolean;
 }
 
 export function renderEventNotificationEmail(
   event: EventForEmail,
   hoursBefore: number,
   unsubscribeUrl: string,
+  opts: EventNotificationEmailOptions = {},
 ): { subject: string; text: string; html: string } {
   const base = getPublicBaseUrl();
-  const lead = humaniseLeadTime(hoursBefore);
-  const when = formatEventDate(event.startDate, event.endDate);
-  const subject = `${event.title} starts ${lead} — Jesus Christ Temple Ministry`;
+  const lead = opts.leadLabel || humaniseLeadTime(hoursBefore);
+  const when = formatEventDate(event.startDate, event.endDate, opts.timezone);
+  const subjectPrefix = opts.isPulse ? "Reminder · " : "";
+  const subject = `${subjectPrefix}${event.title} starts ${lead} — Jesus Christ Temple Ministry`;
   const eventUrl = `${base}/events#event-${event.id}`;
   const ctaLabel = event.youtubeUrl ? "Watch & RSVP" : "View event details";
   const ctaUrl = event.youtubeUrl || eventUrl;
@@ -372,13 +416,14 @@ export async function sendEventNotificationEmail(
   hoursBefore: number,
   unsubscribeUrl: string,
   log: Logger = logger,
+  opts: EventNotificationEmailOptions = {},
 ): Promise<boolean> {
   const transporter = buildTransporter();
   if (!transporter) {
     log.warn({ to, eventId: event.id }, "SMTP not configured — event notification email skipped");
     return false;
   }
-  const { subject, text, html } = renderEventNotificationEmail(event, hoursBefore, unsubscribeUrl);
+  const { subject, text, html } = renderEventNotificationEmail(event, hoursBefore, unsubscribeUrl, opts);
   try {
     await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
     return true;
