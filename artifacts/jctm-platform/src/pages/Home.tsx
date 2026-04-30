@@ -235,20 +235,15 @@ function BroadcastStatusNotification({
   isUpcoming,
   liveTitle,
   onJoin,
-  rebroadcast,
-  onWatchRebroadcast,
 }: {
   isLive: boolean;
   isUpcoming: boolean;
   liveTitle: string | null;
   onJoin: () => void;
-  rebroadcast: { videoId: string; title?: string | null } | null;
-  onWatchRebroadcast: () => void;
 }) {
-  const AUTO_DISMISS_MS = 12000;
   const [now, setNow] = useState(() => new Date());
   const [dismissed, setDismissed] = useState(false);
-  const prevPhase = useRef<"service-soon" | "live" | "rebroadcast" | null>(null);
+  const prevPhase = useRef<"service-soon" | "live" | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -258,10 +253,9 @@ function BroadcastStatusNotification({
 
   const serviceWindow = getSundayServiceWindow(now);
   const countdown = formatCountdown(serviceWindow.diff);
-  const phase: "service-soon" | "live" | "rebroadcast" | null = (() => {
+  const phase: "service-soon" | "live" | null = (() => {
     if (serviceWindow.isCountdownWindow && !isLive) return "service-soon";
     if (isLive) return "live";
-    if (rebroadcast) return "rebroadcast";
     return null;
   })();
 
@@ -270,9 +264,6 @@ function BroadcastStatusNotification({
     prevPhase.current = phase;
     setDismissed(false);
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-    if (phase === "rebroadcast") {
-      dismissTimerRef.current = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
-    }
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
@@ -409,67 +400,6 @@ function BroadcastStatusNotification({
                 </motion.div>
               </div>
             </div>
-          </motion.div>
-        ) : phase === "rebroadcast" ? (
-          <motion.div
-            key="rebroadcast"
-            initial={{ opacity: 0, x: 40, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 40, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="relative"
-          >
-            <div
-              className="absolute -inset-3 rounded-[2rem] blur-xl opacity-35"
-              style={{ background: "radial-gradient(circle, rgba(14,165,233,0.3), rgba(0,51,102,0.15))" }}
-            />
-            <button
-              onClick={onWatchRebroadcast}
-              className="relative flex flex-col gap-1.5 sm:gap-2 w-[152px] sm:w-[178px] md:w-[198px] rounded-[1.25rem] sm:rounded-[1.5rem] px-3 sm:px-4 pt-3.5 sm:pt-4 pb-3 text-left cursor-pointer group"
-              style={{
-                background: "linear-gradient(145deg, rgba(0,30,60,0.93) 0%, rgba(2,132,199,0.18) 100%)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                border: "1px solid rgba(14,165,233,0.3)",
-                boxShadow: "0 0 0 1px rgba(14,165,233,0.12), 0 12px 40px rgba(0,51,102,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-              }}
-            >
-              <button
-                onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-                className="absolute top-2 right-2 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-              >
-                <X className="h-2.5 w-2.5 text-white/40" />
-              </button>
-              <div className="flex items-center gap-1.5 pr-5">
-                <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
-                  <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-full w-full bg-sky-400" />
-                </span>
-                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-sky-400 whitespace-nowrap">Rebroadcast</span>
-              </div>
-              <div className="pr-1">
-                <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
-                  {rebroadcast?.title ?? "Watch Today's Service"}
-                </p>
-                <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
-              </div>
-              <div
-                className="mt-0.5 flex items-center justify-between rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-200 group-hover:opacity-90"
-                style={{ background: "linear-gradient(90deg, rgba(14,165,233,0.85), rgba(2,132,199,0.75))" }}
-              >
-                <span className="text-white font-bold text-[10px] sm:text-[11px] uppercase tracking-widest whitespace-nowrap">Watch Now</span>
-                <Play className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white fill-white" />
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-[1.25rem] sm:rounded-b-[1.5rem] overflow-hidden bg-sky-400/10">
-                <motion.div
-                  key="rebroadcast-bar"
-                  className="h-full bg-sky-400/40 origin-left"
-                  initial={{ scaleX: 1 }}
-                  animate={{ scaleX: 0 }}
-                  transition={{ duration: AUTO_DISMISS_MS / 1000, ease: "linear" }}
-                />
-              </div>
-            </button>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -1446,8 +1376,6 @@ function HeroSection() {
         isUpcoming={isUpcoming}
         liveTitle={liveTitle}
         onJoin={() => setLivePlayerOpen(true)}
-        rebroadcast={rebroadcastForWidget}
-        onWatchRebroadcast={() => setRebroadcastWidgetOpen(true)}
       />
 
       {/* Scroll indicator */}
