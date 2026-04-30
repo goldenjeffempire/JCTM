@@ -1472,26 +1472,28 @@ function PlatformBar() {
     { icon: Globe, label: "40+ Nations", sub: "Global Audience", color: "#38BDF8", href: "#", stat: "International" },
   ];
   return (
-    <section className="py-0 border-y border-border/60 bg-white/95 backdrop-blur-sm sticky top-0 z-20 shadow-sm">
+    <section className="border-y border-border/50 bg-white/85 backdrop-blur-md">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 md:divide-x divide-border/60">
+        <div className="grid grid-cols-2 md:grid-cols-4 md:divide-x divide-border/50">
           {platforms.map((p, i) => (
             <motion.a key={i} href={p.href} target={p.href !== "#" ? "_blank" : undefined} rel="noopener noreferrer"
-              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4 }}
-              className="group flex items-center gap-3 px-5 py-4 hover:bg-primary/[0.03] transition-colors duration-200"
+              initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4 }}
+              className="group flex items-center gap-3 px-4 sm:px-5 py-3.5 sm:py-4 min-h-[60px] hover:bg-primary/[0.03] focus-visible:bg-primary/[0.04] transition-colors duration-200"
+              aria-label={`${p.label} — ${p.sub}`}
             >
               <motion.div
-                whileHover={{ scale: 1.12, rotate: 4 } as never}
-                className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${p.color}15` }}
+                whileHover={{ scale: 1.08 } as never}
+                whileTap={{ scale: 0.96 } as never}
+                className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-transform"
+                style={{ background: `${p.color}14` }}
               >
                 <p.icon className="h-4 w-4" style={{ color: p.color }} />
               </motion.div>
               <div className="min-w-0 flex-1">
-                <p className="text-primary font-semibold text-sm leading-tight">{p.label}</p>
-                <p className="text-muted-foreground text-[10px] truncate">{p.sub}</p>
+                <p className="text-primary font-semibold text-[13px] sm:text-sm leading-tight tracking-tight">{p.label}</p>
+                <p className="text-muted-foreground text-[10px] sm:text-[11px] truncate mt-0.5">{p.sub}</p>
               </div>
-              <span className="ml-auto text-[10px] font-bold hidden xl:block tabular-nums" style={{ color: p.color }}>{p.stat}</span>
+              <span className="ml-auto text-[10px] font-bold hidden xl:block tabular-nums opacity-80 group-hover:opacity-100 transition-opacity" style={{ color: p.color }}>{p.stat}</span>
             </motion.a>
           ))}
         </div>
@@ -1533,14 +1535,14 @@ function BentoGrid() {
   const pw = PROPHETIC_WORDS[wordIdx];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-[#F9FAFB] to-white">
+    <section className="home-section ambient-ivory">
       <div className="container mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 80 }} className="mb-12 max-w-2xl">
+        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-10% 0px" }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className="section-header start max-w-2xl">
           <span className="inline-flex items-center gap-2 text-accent text-[11px] font-semibold uppercase tracking-[0.18em] mb-3">
             <span className="h-px w-7 bg-accent inline-block" /> Knowledge Hub
           </span>
-          <h2 className="heading-lg text-primary mb-2">Today's Highlights</h2>
-          <p className="text-muted-foreground text-base leading-relaxed">Live feeds, scripture, and ministry news — all in one place.</p>
+          <h2 className="heading-lg text-primary mb-2.5">Today's Highlights</h2>
+          <p className="lede">Live feeds, scripture, and ministry news — all in one place.</p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-auto">
@@ -1798,7 +1800,7 @@ function TestimoniesMarquee() {
   const row2 = [...testimonies.slice().reverse(), ...testimonies.slice().reverse()];
 
   return (
-    <section className="py-24 bg-gradient-to-b from-[#F0F6FF]/70 via-white to-[#F0F6FF]/50 overflow-hidden">
+    <section className="home-section bg-gradient-to-b from-[#F0F6FF]/70 via-white to-[#F0F6FF]/50 overflow-hidden">
       <div className="container mx-auto px-4 mb-14">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -2131,7 +2133,7 @@ function SermonSpotlight() {
   const broadcastAgo = broadcastEndedAt ? formatDistanceToNow(new Date(broadcastEndedAt), { addSuffix: true }) : null;
 
   return (
-    <section ref={ref} className="py-28 bg-white">
+    <section ref={ref} className="home-section bg-white">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <motion.div variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"}>
@@ -2319,7 +2321,7 @@ function RecentSermonsCarousel() {
   }, []);
 
   return (
-    <section className="py-20 bg-[#F0F6FF]/60">
+    <section className="home-section bg-[#F0F6FF]/60">
       <div className="container mx-auto px-4 mb-8">
         <div className="flex items-end justify-between">
           <div>
@@ -2369,7 +2371,7 @@ function MinistryPillars() {
   ];
 
   return (
-    <section className="py-28 bg-[#FAFBFF]">
+    <section className="home-section bg-[#FAFBFF]">
       <div className="container mx-auto px-4">
         <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="text-center mb-16">
           <motion.span variants={fadeUp} className="text-accent text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mb-4">
@@ -3413,7 +3415,7 @@ function SundayServiceCard() {
 function EventsSection() {
   const { data: events, isLoading } = useGetUpcomingEvents({ query: { queryKey: getGetUpcomingEventsQueryKey() } });
   return (
-    <section className="py-28 bg-gradient-to-b from-[#f0f6ff] to-white">
+    <section className="home-section bg-gradient-to-b from-[#f0f6ff] to-white">
       <div className="container mx-auto px-4">
         {/* Section header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-14 gap-6">
@@ -3772,7 +3774,7 @@ function NewcomerSection() {
   ];
 
   return (
-    <section ref={ref} className="py-28 bg-white">
+    <section ref={ref} className="home-section bg-white">
       <div className="container mx-auto px-4">
         <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="text-center max-w-2xl mx-auto mb-16">
           <motion.span variants={fadeUp} className="text-accent text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mb-4">
@@ -3815,7 +3817,7 @@ function ConnectSection() {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-white to-[#f0f6ff]/50">
+    <section className="home-section bg-gradient-to-b from-white to-[#f0f6ff]/50">
       <div className="container mx-auto px-4">
         <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="text-center mb-12">
           <motion.span variants={fadeUp} className="text-accent text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
@@ -3934,7 +3936,7 @@ function DevotionShareButton({ devotion }: { devotion: Devotion }) {
     <button
       onClick={handleShare}
       aria-label={copied ? "Copied to clipboard" : "Share today's devotion"}
-      className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-border/70 text-primary text-sm font-medium hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2 transition-all duration-200"
+      className="cta-ghost group"
     >
       {copied ? (
         <>
@@ -3943,7 +3945,7 @@ function DevotionShareButton({ devotion }: { devotion: Devotion }) {
         </>
       ) : (
         <>
-          <Share2 className="h-3.5 w-3.5 text-accent" />
+          <Share2 className="h-3.5 w-3.5 text-accent transition-transform group-hover:scale-110" />
           Share
         </>
       )}
@@ -3999,24 +4001,15 @@ function DailyDevotionSection() {
   return (
     <section
       ref={ref}
-      className="relative overflow-hidden py-24 md:py-32"
-      style={{
-        background: "linear-gradient(180deg, #FFFEF8 0%, #FAF7EE 50%, #FFFEF8 100%)",
-      }}
+      id="daily-devotion"
+      className="home-section ambient-ivory relative overflow-hidden"
     >
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none opacity-[0.45]"
-        style={{
-          background: "radial-gradient(ellipse 60% 45% at 50% 0%, rgba(56,189,248,0.10) 0%, transparent 65%), radial-gradient(ellipse 50% 35% at 50% 100%, rgba(0,51,102,0.06) 0%, transparent 70%)",
-        }}
-      />
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none opacity-[0.025]"
         style={{
           backgroundImage: "radial-gradient(circle, #003366 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+          backgroundSize: "28px 28px",
         }}
       />
 
@@ -4024,11 +4017,11 @@ function DailyDevotionSection() {
         <div className="max-w-3xl mx-auto">
           {/* ── Section header ── */}
           <motion.header
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-15% 0px" }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="text-center mb-14"
+            className="section-header"
           >
             <div className="inline-flex items-center gap-2.5 h-8 px-4 rounded-full bg-white/80 border border-border/60 elev-1 mb-6">
               <Calendar className="h-3.5 w-3.5 text-accent" />
@@ -4036,7 +4029,7 @@ function DailyDevotionSection() {
             </div>
             <span className="block text-accent text-[11px] font-semibold uppercase tracking-[0.22em] mb-3">Daily Devotion</span>
             <h2 className="heading-xl text-primary mb-4">Today's Word for You</h2>
-            <p className="text-muted-foreground text-base md:text-lg leading-relaxed max-w-xl mx-auto">
+            <p className="lede mx-auto">
               A fresh portion from the Father's heart — meditate, receive, and walk in it today.
             </p>
           </motion.header>
@@ -4155,17 +4148,17 @@ function DailyDevotionSection() {
               <div className="px-6 md:px-12 py-7 border-t border-border/50 bg-gradient-to-b from-transparent to-[#FAF7EE]/40">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/50 mb-4">Carry this further</p>
                 <div className="flex flex-wrap gap-2.5">
-                  <Link href="/devotion" className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 elev-1 hover:elev-2 transition-all duration-200">
+                  <Link href="/devotion" className="cta-primary group">
                     <BookOpen className="h-3.5 w-3.5" />
                     Read full devotion
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                  <Link href="/prayer" className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-border/70 text-primary text-sm font-medium hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2 transition-all duration-200">
-                    <Heart className="h-3.5 w-3.5 text-accent" />
+                  <Link href="/prayer" className="cta-ghost group">
+                    <Heart className="h-3.5 w-3.5 text-accent transition-transform group-hover:scale-110" />
                     Generate a prayer
                   </Link>
-                  <Link href="/sermons" className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-border/70 text-primary text-sm font-medium hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2 transition-all duration-200">
-                    <Play className="h-3.5 w-3.5 fill-accent text-accent" />
+                  <Link href="/sermons" className="cta-ghost group">
+                    <Play className="h-3.5 w-3.5 fill-accent text-accent transition-transform group-hover:scale-110" />
                     Today's sermon
                   </Link>
                   <DevotionShareButton devotion={devotion} />
