@@ -6,7 +6,7 @@ services:
     name: jctm-platform
     runtime: node
     region: oregon
-    plan: standard
+    plan: free
 
     autoDeploy: true
 
@@ -81,12 +81,7 @@ services:
       npm install -g pnpm@10 &&
       pnpm install --frozen-lockfile &&
       NODE_ENV=production pnpm --filter @workspace/jctm-platform run build &&
-      NODE_ENV=production pnpm --filter @workspace/api-server run build
-
-    ###################################################################
-    # DATABASE MIGRATIONS
-    ###################################################################
-    preDeployCommand: >
+      NODE_ENV=production pnpm --filter @workspace/api-server run build &&
       node artifacts/api-server/dist/migrate.mjs
 
     ###################################################################
@@ -99,11 +94,3 @@ services:
     # HEALTH CHECK
     ###################################################################
     healthCheckPath: /api/health
-
-    ###################################################################
-    # AUTOSCALING (VALID CONFIG)
-    ###################################################################
-    scaling:
-      minInstances: 1
-      maxInstances: 2
-      targetCPUPercent: 60
