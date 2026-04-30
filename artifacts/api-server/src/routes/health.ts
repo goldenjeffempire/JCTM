@@ -168,6 +168,19 @@ async function healthHandler(_req: Request, res: Response) {
 router.get("/healthz", healthHandler);
 router.get("/health", healthHandler);
 
+// ─── Ultra-light ping ─────────────────────────────────────────────────────────
+// Zero-allocation 200 OK for upstream keep-alive checkers (Render health probe,
+// Cloudflare worker, UptimeRobot, etc.). Does NOT touch DB/Redis/cron — its job
+// is purely to prove the Node event loop is responsive. Sub-millisecond response.
+router.get("/ping", (_req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.status(200).type("text/plain").send("ok");
+});
+router.head("/ping", (_req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.status(200).end();
+});
+
 // ─── Neon DB quota: dedicated admin endpoint ──────────────────────────────────
 // Visible only to authenticated admins (any role). Returns the latest watcher
 // state plus a short, human-readable summary suitable for an admin dashboard.

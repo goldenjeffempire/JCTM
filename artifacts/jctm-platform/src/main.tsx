@@ -53,6 +53,52 @@ createRoot(document.getElementById("root")!).render(
   </RootErrorBoundary>
 );
 
+// ─── Hide instant app shell once React has mounted ────────────────────────────
+// The shell is rendered synchronously by index.html so users never see a blank
+// white page during JS download/parse. Once React commits its first paint we
+// fade it out (CSS transition handles the visual blend).
+function hideAppShell() {
+  const el = document.getElementById("app-shell");
+  if (!el) return;
+  el.classList.add("app-shell--hide");
+  setTimeout(() => el.parentNode?.removeChild(el), 400);
+}
+if (typeof requestAnimationFrame === "function") {
+  requestAnimationFrame(() => requestAnimationFrame(hideAppShell));
+} else {
+  hideAppShell();
+}
+
+// ─── Idle-time route prefetching ──────────────────────────────────────────────
+// After first paint, warm up the chunks for the most-trafficked pages so when
+// the user navigates the click feels instant (no Suspense fallback flash).
+// Runs only on `requestIdleCallback` so it never competes with user interaction
+// or first contentful paint. Skipped on slow connections (Save-Data / 2g).
+type NavigatorWithSaveData = Navigator & {
+  connection?: { saveData?: boolean; effectiveType?: string };
+};
+function prefetchCriticalRoutes() {
+  const conn = (navigator as NavigatorWithSaveData).connection;
+  if (conn?.saveData) return;
+  if (conn?.effectiveType && /^(slow-)?2g$/.test(conn.effectiveType)) return;
+  // Each import() returns a promise we don't await — Vite/rollup will fetch
+  // the chunk and the browser cache will hold it for instant route navigation.
+  void import("@/pages/Home");
+  void import("@/pages/Sermons");
+  void import("@/pages/Crusade");
+  void import("@/pages/Events");
+  void import("@/pages/Devotion");
+}
+type WindowWithIdleCallback = Window & {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
+};
+const idleWin = window as WindowWithIdleCallback;
+if (typeof idleWin.requestIdleCallback === "function") {
+  idleWin.requestIdleCallback(prefetchCriticalRoutes, { timeout: 4000 });
+} else {
+  setTimeout(prefetchCriticalRoutes, 2500);
+}
+
 window.addEventListener("error", (event) => {
   if (isChunkLoadError(event.error ?? event.message)) {
     recoverFromChunkLoadError(event.error ?? event.message);

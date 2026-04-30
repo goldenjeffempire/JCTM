@@ -6,6 +6,12 @@ services:
     name: jctm-platform
     runtime: node
     region: oregon
+    # NOTE: `free` instances spin down after ~15 min of inactivity, which causes
+    # cold-start latency on the first request. For true always-on / enterprise
+    # behaviour upgrade to `starter` (or higher) in the Render dashboard — that
+    # alone removes the platform-level cold start. The in-process self-warm
+    # pinger and the keep-alive cron below are best-effort mitigations that work
+    # on the free tier but cannot fully replace a paid always-on instance.
     plan: free
 
     autoDeploy: true
@@ -110,7 +116,9 @@ services:
       node -e "
         const https = require('https');
         const url = process.env.PLATFORM_URL || 'https://jctm.org.ng';
-        https.get(url + '/api/health', (res) => {
+        // /api/ping is sub-millisecond and avoids running the full health
+        // check (DB/Redis/cron) on every keep-alive — much lighter on the box.
+        https.get(url + '/api/ping', (res) => {
           console.log('Keep-alive ping:', res.statusCode, new Date().toISOString());
           res.resume();
         }).on('error', (e) => {

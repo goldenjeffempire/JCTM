@@ -190,6 +190,7 @@ async function dispatchExpoPush(
 const RECEIPT_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const RECEIPT_MIN_AGE_MS        = 15 * 60 * 1000; // only check receipts > 15 min old
 let receiptCheckerHandle: ReturnType<typeof setInterval> | null = null;
+let selfWarmHandle: ReturnType<typeof setInterval> | null = null;
 
 async function checkExpoPushReceipts(log: Logger): Promise<void> {
   try {
@@ -1711,11 +1712,34 @@ export function startCron(log: Logger, websubUrl?: string): void {
   receiptCheckerHandle.unref();
   log.info({ intervalMs: RECEIPT_CHECK_INTERVAL_MS }, "Expo push receipt checker started (15-min interval)");
 
-  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker");
+  // ── Self-warm pinger — keeps the Node event loop, V8 caches, and DB pool ────
+  // hot between external requests. Hits the local /api/ping every 4 minutes so
+  // even if the platform reaches an idle window the server never goes "cold".
+  // The endpoint is sub-millisecond and allocation-free, so the overhead is nil.
+  const SELF_WARM_INTERVAL_MS = 4 * 60 * 1000;
+  const selfWarmPort = process.env.PORT || "8080";
+  const selfWarmUrl = `http://127.0.0.1:${selfWarmPort}/api/ping`;
+  selfWarmHandle = setInterval(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+    fetch(selfWarmUrl, { signal: controller.signal, headers: { "x-self-warm": "1" } })
+      .then((r) => {
+        if (!r.ok) log.warn({ status: r.status, url: selfWarmUrl }, "Self-warm ping returned non-200");
+      })
+      .catch((err) => {
+        // Swallow — failure here is best-effort; main health checks are elsewhere.
+        log.debug({ err: String(err) }, "Self-warm ping skipped");
+      })
+      .finally(() => clearTimeout(timeout));
+  }, SELF_WARM_INTERVAL_MS);
+  selfWarmHandle.unref();
+  log.info({ intervalMs: SELF_WARM_INTERVAL_MS, target: selfWarmUrl }, "Self-warm pinger started — keeps process hot between requests");
+
+  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Self-warm");
 }
 
 export function stopCron(): void {
-  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]
     .forEach(h => h && clearTimeout(h));
