@@ -1462,6 +1462,137 @@ function HeroSection() {
 
 
 // ═══════════════════════════════════════════════════════════════════════════
+// TODAY STRIP — at-a-glance daily strip (greeting · date · scripture · jumps)
+// ═══════════════════════════════════════════════════════════════════════════
+function getWatGreeting(hourWat: number) {
+  if (hourWat < 12) return "Good morning";
+  if (hourWat < 17) return "Good afternoon";
+  if (hourWat < 21) return "Good evening";
+  return "Peace tonight";
+}
+
+function TodayStrip() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const wat = getWatParts(now);
+  const greeting = getWatGreeting(wat.hour);
+  const dateLabel = new Intl.DateTimeFormat("en-NG", {
+    timeZone: WAT_TIME_ZONE,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(now);
+
+  const scripture = getDailyScripture();
+
+  // Soften & shorten the scripture for a single-line marquee read
+  const shortVerse = scripture.verse.length > 140
+    ? scripture.verse.slice(0, 140).replace(/\s+\S*$/, "") + "…"
+    : scripture.verse;
+
+  return (
+    <section
+      aria-labelledby="today-strip-heading"
+      className="relative ambient-sky border-y border-border/50"
+    >
+      <h2 id="today-strip-heading" className="sr-only">
+        Your sanctuary today
+      </h2>
+      <div className="container mx-auto px-4">
+        <div className="py-5 md:py-6 grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-5 lg:gap-8 items-center">
+          {/* ── Greeting + date ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-3 lg:border-r lg:border-border/50 lg:pr-8 min-w-0"
+          >
+            <span
+              aria-hidden
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent shrink-0"
+            >
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-primary font-serif font-semibold text-sm sm:text-[15px] leading-tight tracking-tight">
+                {greeting}
+              </p>
+              <p className="text-muted-foreground text-[11px] sm:text-xs mt-0.5 tabular-nums truncate">
+                {dateLabel} · WAT
+              </p>
+            </div>
+          </motion.div>
+
+          {/* ── Scripture of the day ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-start gap-3 min-w-0"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-accent mt-1.5 shrink-0 hidden sm:inline-block" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent mb-1">
+                Today's Word
+              </p>
+              <p className="text-primary/90 font-serif italic text-sm sm:text-[15px] leading-snug text-balance line-clamp-2 lg:line-clamp-1">
+                <span aria-hidden className="text-accent/40 mr-0.5">“</span>
+                {shortVerse}
+                <span aria-hidden className="text-accent/40 ml-0.5">”</span>
+                <span className="not-italic font-sans font-semibold text-primary/55 text-[11px] sm:text-xs ml-2 whitespace-nowrap">
+                  — {scripture.ref}
+                </span>
+              </p>
+            </div>
+          </motion.div>
+
+          {/* ── Quick jumps ── */}
+          <motion.nav
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            aria-label="Quick links for today"
+            className="flex items-center gap-2 flex-wrap lg:flex-nowrap lg:border-l lg:border-border/50 lg:pl-8"
+          >
+            <a
+              href="#daily-devotion"
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById("daily-devotion");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="group inline-flex items-center gap-2 h-10 px-4 rounded-full bg-primary text-white text-[13px] font-semibold tracking-tight transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 elev-1 hover:elev-2"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Devotion</span>
+              <ChevronDown className="h-3 w-3 transition-transform group-hover:translate-y-0.5" />
+            </a>
+            <Link
+              href="/prayer"
+              className="group inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white text-primary text-[13px] font-semibold tracking-tight border border-border/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2"
+            >
+              <Heart className="h-3.5 w-3.5 text-accent transition-transform group-hover:scale-110" />
+              <span>Pray</span>
+            </Link>
+            <Link
+              href="/sermons"
+              className="group inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white text-primary text-[13px] font-semibold tracking-tight border border-border/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent/5 elev-1 hover:elev-2"
+            >
+              <Play className="h-3.5 w-3.5 fill-accent text-accent transition-transform group-hover:scale-110" />
+              <span>Watch</span>
+            </Link>
+          </motion.nav>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PLATFORM BAR — Social proof strip with live counters
 // ═══════════════════════════════════════════════════════════════════════════
 function PlatformBar() {
@@ -4349,6 +4480,7 @@ export default function Home() {
       <div className="container mx-auto px-4 py-4">
         <AdSlot slot={ADSENSE_SLOTS.homeHero} minHeight={120} className="mx-auto max-w-5xl" lazy={false} />
       </div>
+      <TodayStrip />
       <PlatformBar />
       <DailyDevotionSection />
       <BentoGrid />
