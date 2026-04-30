@@ -2829,7 +2829,21 @@ interface NotifHealth {
   email: {
     configured: boolean;
     host: string | null;
+    port: number;
+    secure: boolean;
     from: string | null;
+    replyTo: string | null;
+    poolMax: number;
+    rateLimit: number;
+    lastVerifyAt: string | null;
+    lastVerifyOk: boolean | null;
+    lastVerifyError: string | null;
+    lastSendAt: string | null;
+    lastSendOk: boolean | null;
+    lastSendError: string | null;
+    totalSent: number;
+    totalFailed: number;
+    totalRetried: number;
   };
 }
 
@@ -3545,15 +3559,54 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
             <div className="rounded-md border border-slate-200 p-3 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-slate-700">Email (SMTP)</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${healthQuery.data.email.configured ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                  {healthQuery.data.email.configured ? "configured" : "not configured"}
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  !healthQuery.data.email.configured
+                    ? "bg-amber-100 text-amber-700"
+                    : healthQuery.data.email.lastVerifyOk === false
+                      ? "bg-rose-100 text-rose-700"
+                      : healthQuery.data.email.lastVerifyOk
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                }`}>
+                  {!healthQuery.data.email.configured
+                    ? "not configured"
+                    : healthQuery.data.email.lastVerifyOk === false
+                      ? "verify failed"
+                      : healthQuery.data.email.lastVerifyOk
+                        ? "verified"
+                        : "unverified"}
                 </span>
               </div>
               {healthQuery.data.email.host && (
-                <div className="text-slate-600">Host: <strong className="text-slate-800">{healthQuery.data.email.host}</strong></div>
+                <div className="text-slate-600">
+                  Host: <strong className="text-slate-800">{healthQuery.data.email.host}:{healthQuery.data.email.port}</strong>
+                  <span className="text-slate-400"> · {healthQuery.data.email.secure ? "TLS" : "STARTTLS"}</span>
+                </div>
               )}
               {healthQuery.data.email.from && (
-                <div className="text-slate-600 truncate">From: <strong className="text-slate-800">{healthQuery.data.email.from}</strong></div>
+                <div className="text-slate-600 truncate" title={healthQuery.data.email.from}>From: <strong className="text-slate-800">{healthQuery.data.email.from}</strong></div>
+              )}
+              {healthQuery.data.email.configured && (
+                <div className="text-[11px] text-slate-500">
+                  Pool: {healthQuery.data.email.poolMax} conns · {healthQuery.data.email.rateLimit}/s ·
+                  Sent {healthQuery.data.email.totalSent} · Failed {healthQuery.data.email.totalFailed}
+                  {healthQuery.data.email.totalRetried > 0 && <> · {healthQuery.data.email.totalRetried} retried</>}
+                </div>
+              )}
+              {healthQuery.data.email.lastVerifyAt && (
+                <div className="text-[11px] text-slate-500">
+                  Last verified {rel(healthQuery.data.email.lastVerifyAt)}
+                </div>
+              )}
+              {healthQuery.data.email.lastVerifyError && (
+                <div className="text-[11px] text-rose-600 break-words" title={healthQuery.data.email.lastVerifyError}>
+                  {healthQuery.data.email.lastVerifyError}
+                </div>
+              )}
+              {healthQuery.data.email.lastSendError && (
+                <div className="text-[11px] text-amber-700 break-words" title={healthQuery.data.email.lastSendError}>
+                  Last send error: {healthQuery.data.email.lastSendError}
+                </div>
               )}
               {!healthQuery.data.email.configured && (
                 <div className="text-[11px] text-amber-700">Email channel will be skipped until SMTP_* env vars are set.</div>

@@ -1,30 +1,69 @@
 /**
  * email-engine.ts — SMTP transport and email rendering for the JCTM
- * Daily Devotion email subscription.
+ * Daily Devotion email subscription and event notifications.
  *
  * Configuration via env vars:
- *   SMTP_HOST           — e.g. smtp.gmail.com
+ *   SMTP_HOST           — e.g. mail.jctm.org.ng
  *   SMTP_PORT           — e.g. 587 (defaults to 587)
- *   SMTP_SECURE         — "true" forces TLS (port 465); otherwise STARTTLS
- *   SMTP_USER           — SMTP username
+ *   SMTP_SECURE         — "true" forces TLS-on-connect (port 465);
+ *                         otherwise STARTTLS is required on port 587.
+ *   SMTP_USER           — SMTP username (typically the From mailbox)
  *   SMTP_PASS           — SMTP password / app password / API key
- *   SMTP_FROM           — Header From address, e.g. "JCTM Devotions <devotions@jctm.org.ng>"
- *   PUBLIC_BASE_URL     — Public web app origin used in unsubscribe links,
- *                         e.g. https://jctm.org.ng (no trailing slash).
- *                         Falls back to REPLIT_DEV_DOMAIN, then localhost:5000.
+ *   SMTP_FROM           — Header From address, e.g.
+ *                         "Jesus Christ Temple Ministry <info@jctm.org.ng>"
+ *   SMTP_REPLY_TO       — Optional Reply-To header
+ *   SMTP_POOL_MAX       — Max simultaneous SMTP connections (default 3)
+ *   SMTP_RATE_LIMIT     — Max messages per second per connection (default 5)
+ *   SMTP_TLS_REJECT_UNAUTHORIZED — "false" to accept self-signed certs (NOT
+ *                         recommended; defaults to true).
+ *   PUBLIC_BASE_URL     — Public web app origin used in unsubscribe links.
+ *
+ * Production hardening:
+ *   • Connection pooling + per-connection rate limiting.
+ *   • Aggressive socket / connection / greeting timeouts so a hung server
+ *     never blocks the worker.
+ *   • Retry-with-backoff on transient SMTP errors (4xx codes, ETIMEDOUT,
+ *     ECONNRESET, ECONNREFUSED, EAI_AGAIN, EPIPE, EHOSTUNREACH).
+ *   • Startup verify() that records lastVerifyOk/lastError for the admin
+ *     health dashboard.
+ *   • Send counters (sent / failed / retried / lastError) exposed via
+ *     getEmailHealth() for monitoring.
  *
  * If SMTP_HOST/USER/PASS are missing the engine becomes a no-op: subscribers
- * are still recorded, the daily cron logs a warning, and no mail is dispatched.
- * This keeps the feature deployable before credentials are configured.
+ * are still recorded, callers log a warning, and no mail is dispatched.
  */
 
-import nodemailer, { type Transporter } from "nodemailer";
+import nodemailer, { type Transporter, type SendMailOptions } from "nodemailer";
 import { logger } from "./logger.js";
 import type { Logger } from "pino";
 import type { DailyDevotion } from "@workspace/db";
 
 let cachedTransporter: Transporter | null = null;
 let cachedConfigured: boolean | null = null;
+
+interface EmailHealthState {
+  lastVerifyAt: string | null;
+  lastVerifyOk: boolean | null;
+  lastVerifyError: string | null;
+  lastSendAt: string | null;
+  lastSendOk: boolean | null;
+  lastSendError: string | null;
+  totalSent: number;
+  totalFailed: number;
+  totalRetried: number;
+}
+
+const health: EmailHealthState = {
+  lastVerifyAt: null,
+  lastVerifyOk: null,
+  lastVerifyError: null,
+  lastSendAt: null,
+  lastSendOk: null,
+  lastSendError: null,
+  totalSent: 0,
+  totalFailed: 0,
+  totalRetried: 0,
+};
 
 export function isEmailConfigured(): boolean {
   if (cachedConfigured !== null) return cachedConfigured;
@@ -34,24 +73,221 @@ export function isEmailConfigured(): boolean {
   return cachedConfigured;
 }
 
+/**
+ * Reset cached transporter + configuration flag. Call after env var changes
+ * (e.g. when an admin updates SMTP secrets without restarting the process).
+ */
+export function resetEmailTransport(): void {
+  if (cachedTransporter) {
+    try { cachedTransporter.close(); } catch { /* ignore */ }
+  }
+  cachedTransporter = null;
+  cachedConfigured = null;
+}
+
 function buildTransporter(): Transporter | null {
   if (!isEmailConfigured()) return null;
   if (cachedTransporter) return cachedTransporter;
 
   const port = Number(process.env.SMTP_PORT) || 587;
   const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const poolMax = Math.max(1, Math.min(20, Number(process.env.SMTP_POOL_MAX) || 3));
+  const rateLimit = Math.max(1, Math.min(50, Number(process.env.SMTP_RATE_LIMIT) || 5));
+  const rejectUnauthorized = process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== "false";
 
   cachedTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST!,
     port,
     secure,
+    requireTLS: !secure, // STARTTLS required on 587 — never send plaintext auth.
     auth: {
       user: process.env.SMTP_USER!,
       pass: process.env.SMTP_PASS!,
     },
+    pool: true,
+    maxConnections: poolMax,
+    maxMessages: 100,
+    rateLimit,
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 30_000,
+    tls: {
+      minVersion: "TLSv1.2",
+      rejectUnauthorized,
+      servername: process.env.SMTP_HOST!,
+    },
+  });
+
+  cachedTransporter.on("error", (err) => {
+    logger.warn({ err }, "SMTP transporter error");
+    health.lastSendError = err instanceof Error ? err.message : String(err);
   });
 
   return cachedTransporter;
+}
+
+const TRANSIENT_CODES = new Set([
+  "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EAI_AGAIN",
+  "EPIPE", "EHOSTUNREACH", "ENOTFOUND", "ESOCKET",
+]);
+
+function isTransientSmtpError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: string; responseCode?: number; command?: string };
+  if (e.code && TRANSIENT_CODES.has(e.code)) return true;
+  // 4xx SMTP responses are transient per RFC 5321; 5xx are permanent.
+  if (typeof e.responseCode === "number" && e.responseCode >= 400 && e.responseCode < 500) return true;
+  return false;
+}
+
+const SEND_RETRY_BACKOFF_MS = [500, 2_000, 8_000];
+
+/**
+ * Send a message with bounded retries on transient errors. Returns the
+ * messageId on success or throws the last error on permanent failure /
+ * exhausted retries. All errors are recorded in the health state.
+ */
+async function sendWithRetry(
+  options: SendMailOptions,
+  log: Logger,
+  attemptLabel = "email",
+): Promise<string | undefined> {
+  const transporter = buildTransporter();
+  if (!transporter) throw new Error("SMTP not configured");
+
+  let lastErr: unknown = null;
+  const maxAttempts = SEND_RETRY_BACKOFF_MS.length + 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const info = await transporter.sendMail(options);
+      health.lastSendAt = new Date().toISOString();
+      health.lastSendOk = true;
+      health.lastSendError = null;
+      health.totalSent += 1;
+      if (attempt > 1) health.totalRetried += attempt - 1;
+      return info.messageId;
+    } catch (err) {
+      lastErr = err;
+      const transient = isTransientSmtpError(err);
+      log.warn(
+        {
+          err,
+          attempt,
+          maxAttempts,
+          transient,
+          to: options.to,
+          subject: options.subject,
+          label: attemptLabel,
+        },
+        "SMTP send failed",
+      );
+      if (!transient || attempt === maxAttempts) break;
+      const delay = SEND_RETRY_BACKOFF_MS[attempt - 1];
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  health.lastSendAt = new Date().toISOString();
+  health.lastSendOk = false;
+  health.lastSendError = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  health.totalFailed += 1;
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+/**
+ * Verify the SMTP connection (auth + TLS handshake). Safe to call on boot.
+ * Result is recorded in the health state for the admin dashboard.
+ */
+export async function verifyEmailTransport(log: Logger = logger): Promise<{ ok: boolean; error?: string }> {
+  if (!isEmailConfigured()) {
+    health.lastVerifyAt = new Date().toISOString();
+    health.lastVerifyOk = false;
+    health.lastVerifyError = "SMTP not configured";
+    return { ok: false, error: "SMTP not configured" };
+  }
+  const transporter = buildTransporter();
+  if (!transporter) {
+    health.lastVerifyAt = new Date().toISOString();
+    health.lastVerifyOk = false;
+    health.lastVerifyError = "Transporter unavailable";
+    return { ok: false, error: "Transporter unavailable" };
+  }
+  try {
+    await transporter.verify();
+    health.lastVerifyAt = new Date().toISOString();
+    health.lastVerifyOk = true;
+    health.lastVerifyError = null;
+    log.info(
+      { host: process.env.SMTP_HOST, port: process.env.SMTP_PORT ?? "587" },
+      "SMTP transport verified — email delivery ready",
+    );
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    health.lastVerifyAt = new Date().toISOString();
+    health.lastVerifyOk = false;
+    health.lastVerifyError = message;
+    log.warn({ err, host: process.env.SMTP_HOST }, "SMTP verify failed");
+    return { ok: false, error: message };
+  }
+}
+
+export interface EmailHealth {
+  configured: boolean;
+  host: string | null;
+  port: number;
+  secure: boolean;
+  from: string | null;
+  replyTo: string | null;
+  poolMax: number;
+  rateLimit: number;
+  lastVerifyAt: string | null;
+  lastVerifyOk: boolean | null;
+  lastVerifyError: string | null;
+  lastSendAt: string | null;
+  lastSendOk: boolean | null;
+  lastSendError: string | null;
+  totalSent: number;
+  totalFailed: number;
+  totalRetried: number;
+}
+
+export function getEmailHealth(): EmailHealth {
+  const port = Number(process.env.SMTP_PORT) || 587;
+  return {
+    configured: isEmailConfigured(),
+    host: process.env.SMTP_HOST ?? null,
+    port,
+    secure: process.env.SMTP_SECURE === "true" || port === 465,
+    from: process.env.SMTP_FROM ?? null,
+    replyTo: process.env.SMTP_REPLY_TO ?? null,
+    poolMax: Math.max(1, Math.min(20, Number(process.env.SMTP_POOL_MAX) || 3)),
+    rateLimit: Math.max(1, Math.min(50, Number(process.env.SMTP_RATE_LIMIT) || 5)),
+    lastVerifyAt: health.lastVerifyAt,
+    lastVerifyOk: health.lastVerifyOk,
+    lastVerifyError: health.lastVerifyError,
+    lastSendAt: health.lastSendAt,
+    lastSendOk: health.lastSendOk,
+    lastSendError: health.lastSendError,
+    totalSent: health.totalSent,
+    totalFailed: health.totalFailed,
+    totalRetried: health.totalRetried,
+  };
+}
+
+function commonHeaders(unsubscribeUrl?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "X-Mailer": "JCTM Digital Sanctuary",
+  };
+  if (unsubscribeUrl) {
+    headers["List-Unsubscribe"] = `<${unsubscribeUrl}>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
+  return headers;
+}
+
+function replyToOption(): { replyTo?: string } {
+  return process.env.SMTP_REPLY_TO ? { replyTo: process.env.SMTP_REPLY_TO } : {};
 }
 
 export function getPublicBaseUrl(): string {
@@ -217,17 +453,28 @@ export async function sendDevotionEmail(
   unsubscribeUrl: string,
   log: Logger = logger,
 ): Promise<boolean> {
-  const transporter = buildTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     log.warn({ to }, "SMTP not configured — devotion email skipped");
     return false;
   }
   const { subject, text, html } = renderDevotionEmail(devotion, unsubscribeUrl);
   try {
-    await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
+    await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        headers: commonHeaders(unsubscribeUrl),
+        ...replyToOption(),
+      },
+      log,
+      "devotion",
+    );
     return true;
   } catch (err) {
-    log.warn({ err, to }, "Devotion email send failed");
+    log.warn({ err, to }, "Devotion email send failed (after retries)");
     return false;
   }
 }
@@ -237,17 +484,28 @@ export async function sendWelcomeEmail(
   unsubscribeUrl: string,
   log: Logger = logger,
 ): Promise<boolean> {
-  const transporter = buildTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     log.info({ to }, "SMTP not configured — welcome email skipped (subscriber still saved)");
     return false;
   }
   const { subject, text, html } = renderWelcomeEmail(unsubscribeUrl);
   try {
-    await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
+    await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        headers: commonHeaders(unsubscribeUrl),
+        ...replyToOption(),
+      },
+      log,
+      "welcome",
+    );
     return true;
   } catch (err) {
-    log.warn({ err, to }, "Welcome email send failed");
+    log.warn({ err, to }, "Welcome email send failed (after retries)");
     return false;
   }
 }
@@ -294,12 +552,24 @@ export async function sendTestEmail(
     </table>
   </body></html>`;
   try {
-    const info = await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
-    log.info({ to, messageId: info.messageId }, "SMTP test email sent");
-    return { ok: true, messageId: info.messageId };
+    const messageId = await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        headers: commonHeaders(),
+        ...replyToOption(),
+      },
+      log,
+      "smtp-test",
+    );
+    log.info({ to, messageId }, "SMTP test email sent");
+    return { ok: true, messageId };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    log.warn({ err, to }, "SMTP test email failed");
+    log.warn({ err, to }, "SMTP test email failed (after retries)");
     return { ok: false, error: message };
   }
 }
@@ -470,17 +740,28 @@ export async function sendEventNotificationEmail(
   log: Logger = logger,
   opts: EventNotificationEmailOptions = {},
 ): Promise<boolean> {
-  const transporter = buildTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     log.warn({ to, eventId: event.id }, "SMTP not configured — event notification email skipped");
     return false;
   }
   const { subject, text, html } = renderEventNotificationEmail(event, hoursBefore, unsubscribeUrl, opts);
   try {
-    await transporter.sendMail({ from: defaultFrom(), to, subject, text, html });
+    await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        headers: commonHeaders(unsubscribeUrl),
+        ...replyToOption(),
+      },
+      log,
+      `event-notif:${event.id}`,
+    );
     return true;
   } catch (err) {
-    log.warn({ err, to, eventId: event.id }, "Event notification email send failed");
+    log.warn({ err, to, eventId: event.id }, "Event notification email send failed (after retries)");
     return false;
   }
 }

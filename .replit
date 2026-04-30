@@ -91,6 +91,13 @@ PRIVATE_OBJECT_DIR = "/jctm-uploads/.private"
 OBJECT_STORAGE_DRIVER = "database"
 ALLOW_REPLIT_ORIGINS = "true"
 SMTP_FROM = "Jesus Christ Temple Ministry <info@jctm.org.ng>"
+SMTP_HOST = "mail.jctm.org.ng"
+SMTP_PORT = "587"
+SMTP_SECURE = "false"
+SMTP_USER = "info@jctm.org.ng"
+SMTP_REPLY_TO = "info@jctm.org.ng"
+SMTP_POOL_MAX = "3"
+SMTP_RATE_LIMIT = "5"
 
 [[ports]]
 localPort = 5000

@@ -20,7 +20,7 @@ import { eq } from "drizzle-orm";
 import { db, eventNotificationSubscribersTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
-import { getPublicBaseUrl, isEmailConfigured, sendTestEmail } from "../lib/email-engine.js";
+import { getEmailHealth, getPublicBaseUrl, isEmailConfigured, sendTestEmail, verifyEmailTransport } from "../lib/email-engine.js";
 import {
   runEventNotificationTick,
   retryDispatchLogRow,
@@ -527,20 +527,22 @@ router.get(
   requireAdminRole("livestream"),
   async (_req: Request, res: Response): Promise<void> => {
     const push = await validatePushCredentials(logger);
-    const emailConfigured = isEmailConfigured();
+    // Re-verify the SMTP transport on demand so the dashboard can detect
+    // password rotations / outages without waiting for the next send attempt.
+    if (isEmailConfigured()) {
+      await verifyEmailTransport(logger);
+    }
+    const email = getEmailHealth();
     const overallHealthy =
       push.vapid.initialized &&
       push.expo.reachable &&
-      emailConfigured;
+      email.configured &&
+      email.lastVerifyOk !== false;
     res.json({
       overallHealthy,
       checkedAt: new Date().toISOString(),
       push,
-      email: {
-        configured: emailConfigured,
-        host: process.env.SMTP_HOST ?? null,
-        from: process.env.SMTP_FROM ?? null,
-      },
+      email,
     });
   },
 );

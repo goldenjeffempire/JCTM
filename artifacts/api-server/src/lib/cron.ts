@@ -6,7 +6,7 @@ import { dispatchPushNotification, buildServiceReminderNotification, buildDailyD
 import { runEventNotificationTick, setEventNotificationIntervalMs } from "./event-notification-scheduler.js";
 import { startEventNotificationWorker, stopEventNotificationWorker } from "./event-notification-worker.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
-import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl } from "./email-engine.js";
+import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl, verifyEmailTransport } from "./email-engine.js";
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
 import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
@@ -1705,6 +1705,17 @@ export function startCron(log: Logger, websubUrl?: string): void {
     // Polls every 10s, claims a batch atomically, dispatches with
     // exponential-backoff retries and dead-letter handling.
     startEventNotificationWorker(log);
+
+    // Verify SMTP credentials & TLS handshake on boot so the admin dashboard
+    // shows a green/red light immediately. Fire-and-forget — verify failures
+    // never block server startup or notification delivery.
+    if (isEmailConfigured()) {
+      verifyEmailTransport(log).catch(err =>
+        log.warn({ err }, "Initial SMTP verify threw — will retry on first send"),
+      );
+    } else {
+      log.warn("SMTP not configured — devotion + event-reminder emails will be skipped");
+    }
   }, 30_000);
   eventNotificationStartupTimer.unref();
 
