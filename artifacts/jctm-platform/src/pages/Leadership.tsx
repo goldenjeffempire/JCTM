@@ -5,6 +5,8 @@ import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Shield, BookOpen, Globe, Award, Star, Mic2, ChevronRight, CheckCircle2, Youtube, ExternalLink } from "lucide-react";
+import { VenueMap } from "@/components/VenueMap";
+import { CHURCH_HQ_VENUE } from "@/constants/venues";
 import { Link } from "wouter";
 
 const fadeUp = {
@@ -399,17 +401,17 @@ export default function Leadership() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl overflow-hidden border border-border">
-                <iframe
-                  title="Ebrumede Temple Location"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3973.5!2d5.75!3d5.52!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2sWarri%2C+Delta+State%2C+Nigeria!5e0!3m2!1sen!2sng!4v1"
-                  width="100%"
-                  height="280"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                />
-              </div>
+              <VenueMap
+                venue={CHURCH_HQ_VENUE}
+                headerTitle="Ebrumede Temple Location"
+                height={280}
+                theme={{
+                  headerBg: "rgba(2,6,23,0.85)",
+                  headerBorder: "rgba(56,189,248,0.25)",
+                  accentText: "text-sky-400",
+                  footerBg: "rgba(2,6,23,0.85)",
+                }}
+              />
             </div>
           </motion.section>
 

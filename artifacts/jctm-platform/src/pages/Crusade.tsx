@@ -14,9 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { safeLocalGet, safeLocalRemove, safeLocalSet } from "@/lib/utils";
+import { VenueMap } from "@/components/VenueMap";
+import { WARRI_CRUSADE_VENUE } from "@/constants/venues";
 
 const CRUSADE_START = new Date("2026-04-30T18:00:00+01:00");
 const CRUSADE_END = new Date("2026-05-01T21:00:00+01:00");
+
 const LOCATION = "Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State";
 const CONTACT = "+234(0)8081313111";
 const EVENT_TITLE = "Warri City Crusade 2026 — Prophet Amos Global Crusade";
@@ -1423,39 +1426,18 @@ export default function Crusade() {
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.4 }}
-              className="rounded-3xl overflow-hidden"
-              style={{ border: "1px solid rgba(212,160,23,0.25)" }}
             >
-              <div className="p-4 flex items-center gap-2" style={{ background: "rgba(10,26,74,0.8)", borderBottom: "1px solid rgba(212,160,23,0.15)" }}>
-                <MapPin className="h-4 w-4 text-yellow-400" />
-                <span className="text-white text-sm font-semibold">Live Location Map</span>
-                <a
-                  href="https://maps.google.com/?q=Ighogbadu+Primary+School+Okumagba+Avenue+Warri+Delta+State+Nigeria"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto text-xs text-yellow-400/70 hover:text-yellow-400 flex items-center gap-1"
-                >
-                  Open in Maps <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-              <div className="relative" style={{ height: "400px" }}>
-                <iframe
-                  title="Warri City Crusade 2026 Venue Location"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3975.7!2d5.737!3d5.517!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1041efa0c6e75a3f%3A0x5de0c3b00c66e8a4!2sIghogbadu%20Primary%20School%2C%20Okumagba%20Ave%2C%20Warri%2C%20Delta%20State%2C%20Nigeria!5e0!3m2!1sen!2sng!4v1700000000000!5m2!1sen!2sng"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              </div>
-              <div className="p-4" style={{ background: "rgba(10,26,74,0.8)" }}>
-                <p className="text-white/70 text-xs flex items-start gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-yellow-400 shrink-0 mt-0.5" />
-                  {LOCATION}
-                </p>
-              </div>
+              <VenueMap
+                venue={WARRI_CRUSADE_VENUE}
+                headerTitle="Live Location Map"
+                height={400}
+                theme={{
+                  headerBg: "rgba(10,26,74,0.8)",
+                  headerBorder: "rgba(212,160,23,0.25)",
+                  accentText: "text-yellow-400",
+                  footerBg: "rgba(10,26,74,0.8)",
+                }}
+              />
             </motion.div>
           </div>
 

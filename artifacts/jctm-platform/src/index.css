@@ -663,3 +663,35 @@
     padding: 0 !important;
   }
 }
+
+/* ── Leaflet venue map polish ───────────────────────────────────────────────
+   Override default popup styles so they read nicely on the dark site palette
+   and match the app's typography. The map container itself stays neutral so
+   tiles render without unwanted recolouring.
+   ────────────────────────────────────────────────────────────────────────── */
+.leaflet-container {
+  font-family: inherit;
+  background: #0f172a;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.leaflet-popup-content {
+  margin: 10px 14px;
+  font-family: inherit;
+  line-height: 1.45;
+}
+.leaflet-popup-tip {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.venue-pin-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+/* Touch-friendly attribution control */
+.leaflet-control-attribution {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.85) !important;
+}

@@ -13,6 +13,8 @@ import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { VenueMap } from "@/components/VenueMap";
+import { CONFERENCE_VENUE } from "@/constants/venues";
 import { toast } from "sonner";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 
@@ -1519,36 +1521,17 @@ export default function ConferenceRegistration() {
               className="rounded-3xl overflow-hidden"
               style={{ border: "1px solid rgba(168,85,247,0.25)" }}
             >
-              <div className="p-4 flex items-center gap-2" style={{ background: "rgba(45,15,61,0.8)", borderBottom: "1px solid rgba(168,85,247,0.15)" }}>
-                <MapPin className="h-4 w-4 text-purple-400" />
-                <span className="text-white text-sm font-semibold">Live Location Map</span>
-                <a
-                  href="https://maps.google.com/?q=Church+Auditorium+Ebrumede+Roundabout+Effurun+Uvwie+Delta+State+Nigeria"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto text-xs text-purple-400/70 hover:text-purple-400 flex items-center gap-1"
-                >
-                  Open in Maps <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-              <div className="relative h-[260px] sm:h-[320px] lg:h-[400px]">
-                <iframe
-                  title="Ministers Conference 2026 Venue Location"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3975.8!2d5.773!3d5.548!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1041efa0b9d1c8e7%3A0xa3f1e0f0c0e0b0c0!2sEbrumede+Roundabout%2C+Effurun%2C+Delta+State%2C+Nigeria!5e0!3m2!1sen!2sng!4v1700000000001!5m2!1sen!2sng"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              </div>
-              <div className="p-3 sm:p-4" style={{ background: "rgba(45,15,61,0.8)" }}>
-                <p className="text-white/70 text-xs flex items-start gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
-                  {CONF_LOCATION}
-                </p>
-              </div>
+              <VenueMap
+                venue={CONFERENCE_VENUE}
+                headerTitle="Live Location Map"
+                height={320}
+                theme={{
+                  headerBg: "rgba(45,15,61,0.8)",
+                  headerBorder: "rgba(168,85,247,0.25)",
+                  accentText: "text-purple-400",
+                  footerBg: "rgba(45,15,61,0.8)",
+                }}
+              />
             </motion.div>
           </div>
 
