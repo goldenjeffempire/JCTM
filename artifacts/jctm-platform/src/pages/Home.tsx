@@ -2859,33 +2859,18 @@ function WarriCrusadeSection() {
                     </motion.button>
                   )}
                 </Link>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link href="/crusade" className="flex-1">
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      className="w-full py-3 rounded-2xl font-serif font-bold text-base tracking-wide"
-                      style={{
-                        background: isLive
-                          ? "linear-gradient(135deg,#7a0c0c,#a91515)"
-                          : "linear-gradient(135deg,#1d4ed8,#3b82f6)",
-                        color: "#fff"
-                      }}>
-                      {isLive ? "Open Live Page" : "View Crusade Details"}
-                    </motion.button>
-                  </Link>
-                  <a
-                    href={isLive
-                      ? `https://www.youtube.com/watch?v=${LIVE_STREAM_VIDEO_ID}`
-                      : `https://youtu.be/${CRUSADE_YT}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1"
-                  >
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      className="w-full py-3 rounded-2xl font-serif font-bold text-base tracking-wide flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white">
-                      <Youtube className="h-5 w-5" /> {isLive ? "Watch Live on YouTube" : "Watch on YouTube"}
-                    </motion.button>
-                  </a>
-                </div>
+                <Link href="/crusade">
+                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    className="w-full py-3 rounded-2xl font-serif font-bold text-base tracking-wide"
+                    style={{
+                      background: isLive
+                        ? "linear-gradient(135deg,#7a0c0c,#a91515)"
+                        : "linear-gradient(135deg,#1d4ed8,#3b82f6)",
+                      color: "#fff"
+                    }}>
+                    {isLive ? "Open Live Page" : "View Crusade Details"}
+                  </motion.button>
+                </Link>
               </div>
             </motion.div>
           </div>
