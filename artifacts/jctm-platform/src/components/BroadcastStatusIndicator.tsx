@@ -31,6 +31,23 @@ function formatTimeRemaining(expiresAt: string): string {
   return `${minutes}m`;
 }
 
+const UPCOMING_WINDOW_MS = 60 * 60 * 1000;
+
+function getMinutesUntil(scheduledStartTime: string | null): number | null {
+  if (!scheduledStartTime) return null;
+  const ms = new Date(scheduledStartTime).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  return Math.ceil(ms / 60_000);
+}
+
+function formatCountdown(minutes: number): string {
+  if (minutes <= 1) return "<1 min";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
 function parseYouTubeMessage(data: unknown): { event?: string; info?: number | { playerState?: number } } | null {
   if (typeof data === "object" && data !== null) {
     return data as { event?: string; info?: number | { playerState?: number } };
@@ -347,25 +364,48 @@ export function BroadcastStatusIndicator() {
   const [showPlayer, setShowPlayer] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [timeDisplay, setTimeDisplay] = useState("");
-  const prevRef = useRef({ isLive: false, mode: undefined as string | undefined });
+  const [upcomingMinutes, setUpcomingMinutes] = useState<number | null>(() =>
+    getMinutesUntil(status.scheduledStartTime)
+  );
+  const prevRef = useRef({ isLive: false, mode: undefined as string | undefined, upcoming: false });
   const viewerCount = useLiveViewerCount(showPlayer && status.isLive);
 
   const { rebroadcast } = status;
   const isContinuous = rebroadcast.available && rebroadcast.mode === "continuous";
   const isScheduled  = rebroadcast.available && rebroadcast.mode === "scheduled";
   const isActive = status.isLive || rebroadcast.available;
+  const showUpcoming =
+    !isActive &&
+    status.isUpcoming &&
+    upcomingMinutes !== null &&
+    upcomingMinutes > 0 &&
+    upcomingMinutes * 60_000 <= UPCOMING_WINDOW_MS;
 
   // Dismiss logic:
   //   • Live starts          → always re-show (critical event)
   //   • Scheduled activates  → re-show (post-service window opens)
+  //   • Upcoming starts      → re-show (countdown window enters last hour)
   //   • Continuous changes   → do NOT re-show (always-on ambient; user may have dismissed)
   useEffect(() => {
     const prev = prevRef.current;
     const wentLive = !prev.isLive && status.isLive;
     const becameScheduled = prev.mode !== "scheduled" && isScheduled;
-    if (wentLive || becameScheduled) setDismissed(false);
-    prevRef.current = { isLive: status.isLive, mode: rebroadcast.mode };
-  }, [status.isLive, isScheduled, rebroadcast.mode]);
+    const becameUpcoming = !prev.upcoming && showUpcoming;
+    if (wentLive || becameScheduled || becameUpcoming) setDismissed(false);
+    prevRef.current = { isLive: status.isLive, mode: rebroadcast.mode, upcoming: showUpcoming };
+  }, [status.isLive, isScheduled, rebroadcast.mode, showUpcoming]);
+
+  // Upcoming countdown ticker — refreshes the "Live in N min" label every 30s
+  useEffect(() => {
+    if (!status.isUpcoming || !status.scheduledStartTime) {
+      setUpcomingMinutes(null);
+      return;
+    }
+    const update = () => setUpcomingMinutes(getMinutesUntil(status.scheduledStartTime));
+    update();
+    const timer = setInterval(update, 30_000);
+    return () => clearInterval(timer);
+  }, [status.isUpcoming, status.scheduledStartTime]);
 
   // Close modal if nothing is playing at all
   useEffect(() => {
@@ -387,6 +427,39 @@ export function BroadcastStatusIndicator() {
   const rebroadcastVideoId = rebroadcast.videoId;
   const liveHlsManifestUrl = status.stream?.hlsManifestUrl ?? null;
   const liveDashManifestUrl = status.stream?.dashManifestUrl ?? null;
+
+  // ── UPCOMING: Live in N min countdown pill ────────────────────────────────
+  if (showUpcoming && !dismissed && upcomingMinutes !== null) {
+    const label = formatCountdown(upcomingMinutes);
+    const eventTitle = status.title ?? "Warri Crusade Day 1";
+    return (
+      <motion.div
+        key="upcoming-indicator"
+        initial={{ opacity: 0, scale: 0.85, x: 24 }}
+        animate={{ opacity: 1, scale: 1, x: 0 }}
+        exit={{ opacity: 0, scale: 0.85, x: 24 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        className="fixed top-[4.5rem] right-3 sm:right-4 z-[200] flex items-center gap-0 rounded-full shadow-xl overflow-hidden border border-amber-400/40 bg-amber-600 max-w-[min(calc(100vw-1.5rem),320px)]"
+      >
+        <div
+          className="flex items-center gap-2 pl-3 pr-2 py-2"
+          aria-label={`${eventTitle} starts in ${label}`}
+        >
+          <Clock className="h-3.5 w-3.5 shrink-0 text-white" />
+          <span className="text-white text-[11px] sm:text-xs font-bold tracking-widest uppercase leading-none whitespace-nowrap">
+            Live in {label}
+          </span>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss countdown"
+          className="h-9 w-9 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </motion.div>
+    );
+  }
 
   // ── IDLE: library is empty or not yet loaded ──────────────────────────────
   if (!isActive) {
