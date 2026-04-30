@@ -337,3 +337,127 @@ export async function dispatchPushNotification(
 
   return { sent, failed, deactivated };
 }
+
+// ─── Credential Health Check ─────────────────────────────────────────────────
+
+export interface PushCredentialsHealth {
+  vapid: {
+    configured: boolean;
+    initialized: boolean;
+    publicKeyFingerprint: string | null;
+    error?: string;
+  };
+  expo: {
+    reachable: boolean;
+    accessTokenConfigured: boolean;
+    error?: string;
+  };
+  webSubscribers: {
+    active: number;
+    inactive: number;
+  };
+  expoTokens: {
+    active: number;
+    inactive: number;
+  };
+}
+
+/**
+ * Validate push credentials end-to-end for the admin health dashboard.
+ * Returns a structured report — never throws. Each check is independent so
+ * a failure in one doesn't mask another.
+ *
+ *   • VAPID — verifies env vars are present AND that init succeeded.
+ *   • Expo  — performs a HEAD-style ping to the Expo Push API endpoint.
+ *   • Subscriber counts — separates active vs inactive across both
+ *     channels so admins can see the reach of each notification.
+ */
+export async function validatePushCredentials(
+  log?: Logger,
+): Promise<PushCredentialsHealth> {
+  // ── VAPID ──
+  const vapidConfigured = Boolean(
+    process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY,
+  );
+  const fingerprint = process.env.VAPID_PUBLIC_KEY
+    ? `${process.env.VAPID_PUBLIC_KEY.slice(0, 8)}…${process.env.VAPID_PUBLIC_KEY.slice(-6)}`
+    : null;
+  const vapidReport: PushCredentialsHealth["vapid"] = {
+    configured: vapidConfigured,
+    initialized: vapidInitialized,
+    publicKeyFingerprint: fingerprint,
+  };
+  if (!vapidConfigured) vapidReport.error = "VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY missing";
+  else if (!vapidInitialized) vapidReport.error = "VAPID configured but not initialized";
+
+  // ── Expo Push API reachability ──
+  const expoReport: PushCredentialsHealth["expo"] = {
+    reachable: false,
+    accessTokenConfigured: Boolean(process.env.EXPO_ACCESS_TOKEN),
+  };
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    // Send an empty array — Expo returns 200 with `{ data: [] }`.
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    if (process.env.EXPO_ACCESS_TOKEN) {
+      headers.Authorization = `Bearer ${process.env.EXPO_ACCESS_TOKEN}`;
+    }
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers,
+      body: "[]",
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      expoReport.reachable = true;
+    } else {
+      const text = await res.text().catch(() => "");
+      expoReport.error = `Expo returned ${res.status}: ${text.slice(0, 120)}`;
+    }
+  } catch (err) {
+    expoReport.error = err instanceof Error ? err.message : String(err);
+    log?.warn({ err }, "Expo Push API health check failed");
+  }
+
+  // ── Subscriber counts ──
+  let webActive = 0;
+  let webInactive = 0;
+  let expoActive = 0;
+  let expoInactive = 0;
+  try {
+    const r = await pool.query<{ active: string; inactive: string }>(
+      `SELECT
+         count(*) FILTER (WHERE is_active = true)::text AS active,
+         count(*) FILTER (WHERE is_active = false)::text AS inactive
+       FROM push_subscriptions`,
+    );
+    webActive = parseInt(r.rows[0]?.active ?? "0", 10);
+    webInactive = parseInt(r.rows[0]?.inactive ?? "0", 10);
+  } catch (err) {
+    log?.warn({ err }, "push_subscriptions count query failed");
+  }
+  try {
+    const r = await pool.query<{ active: string; inactive: string }>(
+      `SELECT
+         count(*) FILTER (WHERE is_active = true)::text AS active,
+         count(*) FILTER (WHERE is_active = false)::text AS inactive
+       FROM expo_push_tokens`,
+    );
+    expoActive = parseInt(r.rows[0]?.active ?? "0", 10);
+    expoInactive = parseInt(r.rows[0]?.inactive ?? "0", 10);
+  } catch (err) {
+    log?.warn({ err }, "expo_push_tokens count query failed");
+  }
+
+  return {
+    vapid: vapidReport,
+    expo: expoReport,
+    webSubscribers: { active: webActive, inactive: webInactive },
+    expoTokens: { active: expoActive, inactive: expoInactive },
+  };
+}

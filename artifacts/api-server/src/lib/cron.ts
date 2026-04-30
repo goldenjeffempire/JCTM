@@ -4,6 +4,7 @@ import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
 import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification, type NotificationPayload } from "./push-manager.js";
 import { runEventNotificationTick, setEventNotificationIntervalMs } from "./event-notification-scheduler.js";
+import { startEventNotificationWorker, stopEventNotificationWorker } from "./event-notification-worker.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl } from "./email-engine.js";
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
@@ -1699,6 +1700,11 @@ export function startCron(log: Logger, websubUrl?: string): void {
       { intervalMs: EVENT_NOTIFICATION_INTERVAL_MS },
       "Event notification scheduler started (30-min interval)",
     );
+
+    // Start the queue worker that drains enqueued jobs in the background.
+    // Polls every 10s, claims a batch atomically, dispatches with
+    // exponential-backoff retries and dead-letter handling.
+    startEventNotificationWorker(log);
   }, 30_000);
   eventNotificationStartupTimer.unref();
 
@@ -1739,6 +1745,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
 }
 
 export function stopCron(): void {
+  stopEventNotificationWorker();
   [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]

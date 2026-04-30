@@ -75,6 +75,15 @@ export type SSEEvent = {
     dispatchesSucceeded: number;
   };
 } | {
+  type: "event_notification_worker_tick";
+  data: {
+    at: string;
+    claimed: number;
+    completed: number;
+    retried: number;
+    deadLettered: number;
+  };
+} | {
   type: "ping";
   data: Record<string, never>;
 };

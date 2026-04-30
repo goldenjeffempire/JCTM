@@ -2748,19 +2748,89 @@ interface NotifStats {
   totalSuccessSends: number;
   totalFailureSends: number;
   activeSubscribers: number;
+  successRate: number;
   lastTickStartedAt: string | null;
   lastTickFinishedAt: string | null;
   lastTickResult: {
     eventsScanned: number;
-    dispatchesAttempted: number;
-    dispatchesSucceeded: number;
-    dispatchesFailed: number;
+    targetsFound?: number;
+    jobsEnqueued?: number;
+    dispatchesAttempted?: number;
+    dispatchesSucceeded?: number;
+    dispatchesFailed?: number;
     durationMs: number;
   } | null;
   isRunning: boolean;
   intervalMs: number;
   nextTickAt: string | null;
   emailDeliveryEnabled: boolean;
+  queue: {
+    pending: number;
+    processing: number;
+    completed: number;
+    dead: number;
+    oldestPendingAt: string | null;
+    nextScheduledAt: string | null;
+    deadLetterUnresolved: number;
+    successRate: number;
+  };
+  worker: {
+    isRunning: boolean;
+    startedAt: string | null;
+    lastTickAt: string | null;
+    lastTickClaimed: number;
+    lastTickCompleted: number;
+    lastTickRetried: number;
+    lastTickDeadLettered: number;
+    totalProcessed: number;
+    totalCompleted: number;
+    totalRetried: number;
+    totalDeadLettered: number;
+    pollIntervalMs: number;
+  };
+}
+
+interface DeadLetterRow {
+  id: number;
+  queueId: number | null;
+  eventId: number;
+  eventTitle: string;
+  bucketKey: string;
+  milestoneHours: number;
+  channel: NotifChannel;
+  kind: "milestone" | "pulse" | "live_pulse";
+  leadLabel: string;
+  attempts: number;
+  lastError: string | null;
+  firstFailedAt: string | null;
+  movedAt: string;
+  resolvedAt: string | null;
+  resolution: string | null;
+}
+
+interface NotifHealth {
+  overallHealthy: boolean;
+  checkedAt: string;
+  push: {
+    vapid: {
+      configured: boolean;
+      initialized: boolean;
+      publicKeyFingerprint: string | null;
+      error?: string;
+    };
+    expo: {
+      reachable: boolean;
+      accessTokenConfigured: boolean;
+      error?: string;
+    };
+    webSubscribers: { active: number; inactive: number };
+    expoTokens: { active: number; inactive: number };
+  };
+  email: {
+    configured: boolean;
+    host: string | null;
+    from: string | null;
+  };
 }
 
 interface UpcomingMilestoneSummary {
@@ -3050,6 +3120,63 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
     refetchInterval: 60_000,
   });
 
+  const dlqQuery = useQuery<{ rows: DeadLetterRow[] }>({
+    queryKey: ["admin-event-notif-dlq"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/dead-letter?limit=50`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ rows: DeadLetterRow[] }>(res, "Unable to load dead-letter queue");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 30_000,
+  });
+
+  const healthQuery = useQuery<NotifHealth>({
+    queryKey: ["admin-event-notif-health"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/health`, { headers: authHeader });
+      if (res.status === 401) auth.logout();
+      return readApiJson<NotifHealth>(res, "Unable to load health");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 60_000,
+  });
+
+  const dlqRequeueMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/dead-letter/${id}/requeue`, {
+        method: "POST",
+        headers: authHeader,
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ ok: true; queueId: number; scheduledAt: string }>(res, "Requeue failed");
+    },
+    onSuccess: () => {
+      toast.success("Re-queued — worker will pick it up shortly");
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-dlq"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-log"] });
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Requeue failed")),
+  });
+
+  const dlqDiscardMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/event-notifications/dead-letter/${id}/discard`, {
+        method: "POST",
+        headers: authHeader,
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ ok: true; resolvedAt: string }>(res, "Discard failed");
+    },
+    onSuccess: () => {
+      toast.success("Discarded");
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-dlq"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
+    },
+    onError: (err) => toast.error(formatAdminError(err, "Discard failed")),
+  });
+
   const runNowMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`${BASE}/api/admin/event-notifications/run-now`, {
@@ -3057,18 +3184,29 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
         headers: authHeader,
       });
       if (res.status === 401) auth.logout();
-      return readApiJson<{ result: { eventsScanned: number; dispatchesAttempted: number; dispatchesSucceeded: number } }>(
-        res,
-        "Tick failed",
-      );
+      return readApiJson<{
+        result: {
+          eventsScanned: number;
+          targetsFound: number;
+          jobsEnqueued: number;
+          dispatchesAttempted: number;
+          dispatchesSucceeded: number;
+          dispatchesRetried: number;
+          dispatchesDeadLettered: number;
+        };
+      }>(res, "Tick failed");
     },
     onSuccess: (data) => {
+      const r = data.result;
       toast.success(
-        `Scheduler tick complete · ${data.result.eventsScanned} events scanned, ${data.result.dispatchesSucceeded}/${data.result.dispatchesAttempted} dispatched`,
+        `Scanned ${r.eventsScanned} events · enqueued ${r.jobsEnqueued} jobs · drained ${r.dispatchesSucceeded}/${r.dispatchesAttempted}` +
+          (r.dispatchesRetried ? ` · ${r.dispatchesRetried} retried` : "") +
+          (r.dispatchesDeadLettered ? ` · ${r.dispatchesDeadLettered} dead-lettered` : ""),
       );
       qc.invalidateQueries({ queryKey: ["admin-event-notif-stats"] });
       qc.invalidateQueries({ queryKey: ["admin-event-notif-log"] });
       qc.invalidateQueries({ queryKey: ["admin-event-notif-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["admin-event-notif-dlq"] });
     },
     onError: (err) => toast.error(formatAdminError(err, "Manual run failed")),
   });
@@ -3276,6 +3414,231 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
             Send test
           </button>
         </form>
+      </Card>
+
+      {/* Worker & Queue */}
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-semibold text-slate-800">Background worker &amp; delivery queue</h3>
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${stats?.worker.isRunning ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${stats?.worker.isRunning ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+              Worker {stats?.worker.isRunning ? "running" : "stopped"}
+            </span>
+            {stats?.worker.lastTickAt && (
+              <span className="text-slate-500">
+                Last poll: <strong className="text-slate-700">{rel(stats.worker.lastTickAt)}</strong>
+              </span>
+            )}
+            <span className="text-slate-500">
+              Polls every {Math.round((stats?.worker.pollIntervalMs ?? 10000) / 1000)}s
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <MetricCard
+            label="Success rate"
+            value={stats ? `${Math.round(stats.successRate * 100)}%` : "—"}
+            icon={<CheckCircle className="w-4 h-4" />}
+          />
+          <MetricCard label="Queue pending" value={stats?.queue.pending ?? "—"} icon={<Clock className="w-4 h-4" />} />
+          <MetricCard label="Queue processing" value={stats?.queue.processing ?? "—"} icon={<Activity className="w-4 h-4" />} />
+          <MetricCard label="Dead-letter (open)" value={stats?.queue.deadLetterUnresolved ?? "—"} icon={<AlertCircle className="w-4 h-4" />} />
+          <MetricCard label="Worker processed" value={stats?.worker.totalProcessed ?? "—"} icon={<Send className="w-4 h-4" />} />
+        </div>
+
+        {stats && (
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="font-semibold text-slate-700 mb-1">Last scheduler tick</div>
+              <div>
+                Scanned <strong className="text-slate-800">{stats.lastTickResult?.eventsScanned ?? 0}</strong> events ·
+                {" "}targeted <strong className="text-slate-800">{stats.lastTickResult?.targetsFound ?? 0}</strong> ·
+                {" "}enqueued <strong className="text-slate-800">{stats.lastTickResult?.jobsEnqueued ?? 0}</strong> jobs
+              </div>
+              <div className="mt-1">
+                Oldest pending: <strong className="text-slate-800">{stats.queue.oldestPendingAt ? rel(stats.queue.oldestPendingAt) : "none"}</strong> ·
+                {" "}Next scheduled: <strong className="text-slate-800">{stats.queue.nextScheduledAt ? rel(stats.queue.nextScheduledAt) : "—"}</strong>
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="font-semibold text-slate-700 mb-1">Last worker poll</div>
+              <div>
+                Claimed <strong className="text-slate-800">{stats.worker.lastTickClaimed}</strong> ·
+                {" "}completed <strong className="text-emerald-700">{stats.worker.lastTickCompleted}</strong> ·
+                {" "}retried <strong className="text-amber-700">{stats.worker.lastTickRetried}</strong> ·
+                {" "}dead-lettered <strong className="text-rose-700">{stats.worker.lastTickDeadLettered}</strong>
+              </div>
+              <div className="mt-1">
+                Lifetime: <strong className="text-emerald-700">{stats.worker.totalCompleted}</strong> ok ·
+                {" "}<strong className="text-amber-700">{stats.worker.totalRetried}</strong> retried ·
+                {" "}<strong className="text-rose-700">{stats.worker.totalDeadLettered}</strong> dead-lettered
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* System health */}
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-semibold text-slate-800">Notification channel health</h3>
+          <div className="flex items-center gap-2 text-xs">
+            {healthQuery.data && (
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${healthQuery.data.overallHealthy ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
+                {healthQuery.data.overallHealthy ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                {healthQuery.data.overallHealthy ? "All channels healthy" : "Channel issue detected"}
+              </span>
+            )}
+            {healthQuery.data?.checkedAt && (
+              <span className="text-slate-500">Checked {rel(healthQuery.data.checkedAt)}</span>
+            )}
+          </div>
+        </div>
+        {!healthQuery.data ? (
+          <p className="text-sm text-slate-500 italic">Loading channel diagnostics…</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-md border border-slate-200 p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">Web Push (VAPID)</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${healthQuery.data.push.vapid.initialized ? "bg-emerald-100 text-emerald-700" : healthQuery.data.push.vapid.configured ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>
+                  {healthQuery.data.push.vapid.initialized ? "ready" : healthQuery.data.push.vapid.configured ? "configured" : "missing"}
+                </span>
+              </div>
+              <div className="text-slate-600">
+                Active subs: <strong className="text-slate-800">{healthQuery.data.push.webSubscribers.active}</strong>
+                {healthQuery.data.push.webSubscribers.inactive > 0 && (
+                  <span className="text-slate-400"> · {healthQuery.data.push.webSubscribers.inactive} inactive</span>
+                )}
+              </div>
+              {healthQuery.data.push.vapid.publicKeyFingerprint && (
+                <div className="text-[10px] text-slate-400 font-mono truncate" title={healthQuery.data.push.vapid.publicKeyFingerprint}>
+                  fp: {healthQuery.data.push.vapid.publicKeyFingerprint}
+                </div>
+              )}
+              {healthQuery.data.push.vapid.error && (
+                <div className="text-[11px] text-rose-600">{healthQuery.data.push.vapid.error}</div>
+              )}
+            </div>
+            <div className="rounded-md border border-slate-200 p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">Expo (mobile)</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${healthQuery.data.push.expo.reachable ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                  {healthQuery.data.push.expo.reachable ? "reachable" : "unreachable"}
+                </span>
+              </div>
+              <div className="text-slate-600">
+                Active tokens: <strong className="text-slate-800">{healthQuery.data.push.expoTokens.active}</strong>
+                {healthQuery.data.push.expoTokens.inactive > 0 && (
+                  <span className="text-slate-400"> · {healthQuery.data.push.expoTokens.inactive} inactive</span>
+                )}
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Access token: {healthQuery.data.push.expo.accessTokenConfigured ? "configured (enhanced limits)" : "not configured (anonymous tier)"}
+              </div>
+              {healthQuery.data.push.expo.error && (
+                <div className="text-[11px] text-rose-600">{healthQuery.data.push.expo.error}</div>
+              )}
+            </div>
+            <div className="rounded-md border border-slate-200 p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">Email (SMTP)</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${healthQuery.data.email.configured ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                  {healthQuery.data.email.configured ? "configured" : "not configured"}
+                </span>
+              </div>
+              {healthQuery.data.email.host && (
+                <div className="text-slate-600">Host: <strong className="text-slate-800">{healthQuery.data.email.host}</strong></div>
+              )}
+              {healthQuery.data.email.from && (
+                <div className="text-slate-600 truncate">From: <strong className="text-slate-800">{healthQuery.data.email.from}</strong></div>
+              )}
+              {!healthQuery.data.email.configured && (
+                <div className="text-[11px] text-amber-700">Email channel will be skipped until SMTP_* env vars are set.</div>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Dead-letter queue */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-800">Dead-letter queue</h3>
+          <span className="text-xs text-slate-500">
+            {dlqQuery.data?.rows.length ?? 0} unresolved · jobs that exhausted all retry attempts
+          </span>
+        </div>
+        {!dlqQuery.data ? (
+          <p className="text-sm text-slate-500 italic">Loading…</p>
+        ) : dlqQuery.data.rows.length === 0 ? (
+          <p className="text-sm text-emerald-700 inline-flex items-center gap-1.5">
+            <CheckCircle className="w-4 h-4" /> Empty — no permanently failed jobs.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+              <thead className="text-left text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th className="py-1.5 pr-3 font-medium">Event</th>
+                  <th className="py-1.5 pr-3 font-medium">Channel</th>
+                  <th className="py-1.5 pr-3 font-medium">Bucket</th>
+                  <th className="py-1.5 pr-3 font-medium">Attempts</th>
+                  <th className="py-1.5 pr-3 font-medium">Failed</th>
+                  <th className="py-1.5 pr-3 font-medium">Last error</th>
+                  <th className="py-1.5 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {dlqQuery.data.rows.map((row) => (
+                  <tr key={row.id} className="align-top">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium text-slate-800 truncate max-w-[260px]" title={row.eventTitle}>{row.eventTitle}</div>
+                      <div className="text-[10px] text-slate-400">#{row.eventId}</div>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${channelBadgeClasses(row.channel)}`}>{CHANNEL_LABEL[row.channel]}</span>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600">
+                      <div>{row.leadLabel}</div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate max-w-[140px]" title={row.bucketKey}>{row.bucketKey}</div>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-700">{row.attempts}</td>
+                    <td className="py-2 pr-3 text-slate-500">{rel(row.movedAt)}</td>
+                    <td className="py-2 pr-3 text-rose-700 max-w-[280px]">
+                      <div className="line-clamp-2" title={row.lastError ?? ""}>{row.lastError ?? "—"}</div>
+                    </td>
+                    <td className="py-2 text-right">
+                      <div className="inline-flex gap-1">
+                        <button
+                          onClick={() => dlqRequeueMutation.mutate(row.id)}
+                          disabled={dlqRequeueMutation.isPending}
+                          className="px-2 py-1 rounded border border-sky-300 bg-sky-50 text-sky-700 text-[11px] hover:bg-sky-100 disabled:opacity-50"
+                          title="Reset attempts and re-enqueue for the worker"
+                        >
+                          Re-queue
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Discard dead-letter entry for "${row.eventTitle}" (${CHANNEL_LABEL[row.channel]})?`)) {
+                              dlqDiscardMutation.mutate(row.id);
+                            }
+                          }}
+                          disabled={dlqDiscardMutation.isPending}
+                          className="px-2 py-1 rounded border border-slate-300 bg-white text-slate-600 text-[11px] hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          Discard
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       {/* Upcoming events with milestone status */}

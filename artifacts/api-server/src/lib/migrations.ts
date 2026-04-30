@@ -602,5 +602,79 @@ export async function runMigrations(): Promise<void> {
     ON expo_push_receipts (sent_at) WHERE status = 'pending'
   `);
 
+  // ── Event Notification Queue ────────────────────────────────────────────────
+  // FIFO work queue for the event-notification worker. The 30-min scheduler
+  // ENQUEUES one row per (event × bucket × channel); the worker drains the
+  // queue, performs the actual dispatch, and either marks the row completed,
+  // schedules an exponential-backoff retry, or moves it to the dead-letter
+  // queue once max_attempts is reached.
+  //
+  // The unique (event_id, bucket_key, channel) constraint is the dedup lock —
+  // calling enqueue() repeatedly for the same slot is safe.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS event_notification_queue (
+      id               bigserial   PRIMARY KEY,
+      event_id         integer     NOT NULL,
+      event_title      text        NOT NULL,
+      bucket_key       text        NOT NULL,
+      milestone_hours  integer     NOT NULL DEFAULT 0,
+      channel          text        NOT NULL,
+      kind             text        NOT NULL DEFAULT 'milestone',
+      lead_label       text        NOT NULL DEFAULT '',
+      status           text        NOT NULL DEFAULT 'pending',
+      attempts         integer     NOT NULL DEFAULT 0,
+      max_attempts     integer     NOT NULL DEFAULT 5,
+      scheduled_at     timestamptz NOT NULL DEFAULT now(),
+      claimed_at       timestamptz,
+      completed_at     timestamptz,
+      last_error       text,
+      recipient_count  integer     NOT NULL DEFAULT 0,
+      success_count    integer     NOT NULL DEFAULT 0,
+      failure_count    integer     NOT NULL DEFAULT 0,
+      created_at       timestamptz NOT NULL DEFAULT now(),
+      CONSTRAINT event_notif_queue_uniq UNIQUE (event_id, bucket_key, channel)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS event_notif_queue_pending_idx
+    ON event_notification_queue (scheduled_at) WHERE status = 'pending'
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS event_notif_queue_event_idx
+    ON event_notification_queue (event_id)
+  `);
+
+  // ── Event Notification Dead-Letter Queue ────────────────────────────────────
+  // Terminal failures land here after exhausting max_attempts. Admins can
+  // requeue a row (resets attempts and re-inserts into the live queue) or
+  // discard it (audit trail only).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS event_notification_dead_letter (
+      id               bigserial   PRIMARY KEY,
+      queue_id         bigint,
+      event_id         integer     NOT NULL,
+      event_title      text        NOT NULL,
+      bucket_key       text        NOT NULL,
+      milestone_hours  integer     NOT NULL DEFAULT 0,
+      channel          text        NOT NULL,
+      kind             text        NOT NULL DEFAULT 'milestone',
+      lead_label       text        NOT NULL DEFAULT '',
+      attempts         integer     NOT NULL DEFAULT 0,
+      last_error       text,
+      first_failed_at  timestamptz,
+      moved_at         timestamptz NOT NULL DEFAULT now(),
+      resolved_at      timestamptz,
+      resolution       text
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS event_notif_dlq_unresolved_idx
+    ON event_notification_dead_letter (moved_at DESC) WHERE resolved_at IS NULL
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS event_notif_dlq_event_idx
+    ON event_notification_dead_letter (event_id)
+  `);
+
   logger.info("All migrations complete");
 }

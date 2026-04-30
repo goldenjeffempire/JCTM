@@ -31,6 +31,22 @@ import {
   updateEventNotificationConfig,
   type EventNotificationConfigPatch,
 } from "../lib/event-notification-scheduler.js";
+import {
+  getQueueStats,
+  listQueueRows,
+  listDeadLetter,
+  getDeadLetterRow,
+  markDeadLetterResolved,
+  resetJobToPending,
+  type QueueChannel,
+  type QueueKind,
+  type QueueStatus,
+} from "../lib/event-notification-queue.js";
+import {
+  getEventNotificationWorkerState,
+  processQueueOnce,
+} from "../lib/event-notification-worker.js";
+import { validatePushCredentials } from "../lib/push-manager.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -326,9 +342,11 @@ router.get(
   "/admin/event-notifications/stats",
   requireAdminRole("livestream"),
   async (_req: Request, res: Response): Promise<void> => {
-    const [stats, state] = await Promise.all([
+    const [stats, state, queue, worker] = await Promise.all([
       getDispatchStats(),
       Promise.resolve(getEventNotificationState()),
+      getQueueStats(),
+      Promise.resolve(getEventNotificationWorkerState()),
     ]);
     const nextTickAt = state.lastTickFinishedAt
       ? new Date(new Date(state.lastTickFinishedAt).getTime() + state.intervalMs).toISOString()
@@ -342,6 +360,187 @@ router.get(
       intervalMs: state.intervalMs,
       nextTickAt,
       emailDeliveryEnabled: isEmailConfigured(),
+      queue,
+      worker: {
+        isRunning: worker.isRunning,
+        startedAt: worker.startedAt,
+        lastTickAt: worker.lastTickAt,
+        lastTickClaimed: worker.lastTickClaimed,
+        lastTickCompleted: worker.lastTickCompleted,
+        lastTickRetried: worker.lastTickRetried,
+        lastTickDeadLettered: worker.lastTickDeadLettered,
+        totalProcessed: worker.totalProcessed,
+        totalCompleted: worker.totalCompleted,
+        totalRetried: worker.totalRetried,
+        totalDeadLettered: worker.totalDeadLettered,
+        pollIntervalMs: worker.pollIntervalMs,
+      },
+    });
+  },
+);
+
+// ─── Queue inspection ────────────────────────────────────────────────────────
+
+router.get(
+  "/admin/event-notifications/queue",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const status = (typeof req.query.status === "string" ? req.query.status : "all") as
+      | QueueStatus
+      | "all";
+    const allowed: Array<QueueStatus | "all"> = [
+      "all",
+      "pending",
+      "processing",
+      "completed",
+      "dead",
+    ];
+    if (!allowed.includes(status)) {
+      res.status(400).json({ error: "Invalid status filter" });
+      return;
+    }
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const rows = await listQueueRows(status, limit);
+    res.json({
+      rows: rows.map((r) => ({
+        id: r.id,
+        eventId: r.eventId,
+        eventTitle: r.eventTitle,
+        bucketKey: r.bucketKey,
+        milestoneHours: r.milestoneHours,
+        channel: r.channel,
+        kind: r.kind,
+        leadLabel: r.leadLabel,
+        status: r.status,
+        attempts: r.attempts,
+        maxAttempts: r.maxAttempts,
+        scheduledAt: r.scheduledAt.toISOString(),
+        claimedAt: r.claimedAt?.toISOString() ?? null,
+        completedAt: r.completedAt?.toISOString() ?? null,
+        lastError: r.lastError,
+        recipientCount: r.recipientCount,
+        successCount: r.successCount,
+        failureCount: r.failureCount,
+        createdAt: r.createdAt.toISOString(),
+      })),
+    });
+  },
+);
+
+// ─── Dead-letter queue ───────────────────────────────────────────────────────
+
+router.get(
+  "/admin/event-notifications/dead-letter",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const includeResolved = req.query.includeResolved === "1" || req.query.includeResolved === "true";
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const rows = await listDeadLetter(!includeResolved, limit);
+    res.json({
+      rows: rows.map((r) => ({
+        id: r.id,
+        queueId: r.queueId,
+        eventId: r.eventId,
+        eventTitle: r.eventTitle,
+        bucketKey: r.bucketKey,
+        milestoneHours: r.milestoneHours,
+        channel: r.channel,
+        kind: r.kind,
+        leadLabel: r.leadLabel,
+        attempts: r.attempts,
+        lastError: r.lastError,
+        firstFailedAt: r.firstFailedAt?.toISOString() ?? null,
+        movedAt: r.movedAt.toISOString(),
+        resolvedAt: r.resolvedAt?.toISOString() ?? null,
+        resolution: r.resolution,
+      })),
+    });
+  },
+);
+
+router.post(
+  "/admin/event-notifications/dead-letter/:id/requeue",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const dlqRow = await getDeadLetterRow(id);
+    if (!dlqRow) {
+      res.status(404).json({ error: "Dead-letter row not found" });
+      return;
+    }
+    if (dlqRow.resolvedAt) {
+      res.status(409).json({ error: "Already resolved" });
+      return;
+    }
+    const queueRow = await resetJobToPending(
+      dlqRow.eventId,
+      dlqRow.bucketKey,
+      dlqRow.channel as QueueChannel,
+      {
+        eventTitle: dlqRow.eventTitle,
+        milestoneHours: dlqRow.milestoneHours,
+        kind: dlqRow.kind as QueueKind,
+        leadLabel: dlqRow.leadLabel,
+      },
+      logger,
+    );
+    if (!queueRow) {
+      res.status(500).json({ error: "Could not requeue" });
+      return;
+    }
+    await markDeadLetterResolved(id, "requeued");
+    res.json({ ok: true, queueId: queueRow.id, scheduledAt: queueRow.scheduledAt.toISOString() });
+  },
+);
+
+router.post(
+  "/admin/event-notifications/dead-letter/:id/discard",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const dlqRow = await getDeadLetterRow(id);
+    if (!dlqRow) {
+      res.status(404).json({ error: "Dead-letter row not found" });
+      return;
+    }
+    if (dlqRow.resolvedAt) {
+      res.status(409).json({ error: "Already resolved" });
+      return;
+    }
+    const updated = await markDeadLetterResolved(id, "discarded");
+    res.json({ ok: true, resolvedAt: updated?.resolvedAt?.toISOString() ?? new Date().toISOString() });
+  },
+);
+
+// ─── Credential / delivery health ────────────────────────────────────────────
+
+router.get(
+  "/admin/event-notifications/health",
+  requireAdminRole("livestream"),
+  async (_req: Request, res: Response): Promise<void> => {
+    const push = await validatePushCredentials(logger);
+    const emailConfigured = isEmailConfigured();
+    const overallHealthy =
+      push.vapid.initialized &&
+      push.expo.reachable &&
+      emailConfigured;
+    res.json({
+      overallHealthy,
+      checkedAt: new Date().toISOString(),
+      push,
+      email: {
+        configured: emailConfigured,
+        host: process.env.SMTP_HOST ?? null,
+        from: process.env.SMTP_FROM ?? null,
+      },
     });
   },
 );
@@ -375,8 +574,25 @@ router.post(
   requireAdminRole("livestream"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
-      const result = await runEventNotificationTick(logger);
-      res.json({ ok: true, result });
+      const tickResult = await runEventNotificationTick(logger);
+      // Drain the queue once immediately so the admin sees results without
+      // waiting for the next worker poll. Larger batch than the normal poll
+      // because this is an explicit user action.
+      const drainResult = await processQueueOnce(logger, 100);
+      res.json({
+        ok: true,
+        result: {
+          eventsScanned: tickResult.eventsScanned,
+          targetsFound: tickResult.targetsFound,
+          jobsEnqueued: tickResult.jobsEnqueued,
+          // Legacy field names retained for the existing admin UI.
+          dispatchesAttempted: drainResult.claimed,
+          dispatchesSucceeded: drainResult.completed,
+          dispatchesRetried: drainResult.retried,
+          dispatchesDeadLettered: drainResult.deadLettered,
+          durationMs: tickResult.durationMs,
+        },
+      });
     } catch (err) {
       logger.warn({ err }, "Manual event-notification tick failed");
       res.status(500).json({
