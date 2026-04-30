@@ -4151,7 +4151,7 @@ function DailyDevotionSection() {
                 {/* ── 02. Reflection — long-form with drop cap ── */}
                 <section>
                   <DevotionSectionLabel icon={Sparkles} label="Reflection" n="02" />
-                  <div className="space-y-5 text-primary/80 text-base md:text-[17px] leading-[1.75] devotion-prose">
+                  <div className="space-y-6 text-primary/85 text-[17px] md:text-[19px] leading-[1.85] font-medium devotion-prose">
                     {devotion.reflection.split(/\n+/).filter(Boolean).map((para, i) => (
                       <p key={i}>{para}</p>
                     ))}

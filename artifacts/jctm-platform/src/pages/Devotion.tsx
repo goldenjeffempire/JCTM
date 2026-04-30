@@ -66,139 +66,185 @@ export default function Devotion() {
         path="/devotion"
       />
 
-      <article className="max-w-2xl mx-auto px-4 pt-28 pb-20 text-foreground">
-        <header className="mb-10">
-          <p className="text-sm text-muted-foreground mb-2">{dateLabel}</p>
-          <h1 className="text-3xl md:text-4xl font-bold text-primary">Daily Devotion</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+      <article className="max-w-2xl mx-auto px-5 sm:px-6 pt-24 sm:pt-28 pb-20 text-foreground">
+        <header className="mb-12 sm:mb-14">
+          <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-accent mb-3">
+            {dateLabel}
+          </p>
+          <h1 className="font-serif text-4xl sm:text-5xl font-bold text-primary leading-tight tracking-tight">
+            Daily Devotion
+          </h1>
+          <p className="mt-3 text-sm sm:text-[15px] text-primary/60">
             Jesus Christ Temple Ministry · Warri, Nigeria
           </p>
+          <div className="mt-6 h-px w-16 bg-accent/60" aria-hidden />
         </header>
 
         {error && (
-          <div className="mb-8 text-sm">
-            <p className="text-red-700">{error}</p>
-            <button onClick={load} className="mt-2 underline text-primary">
+          <div className="mb-10 rounded-lg border border-red-200 bg-red-50/60 px-4 py-3">
+            <p className="text-[15px] text-red-800 font-medium">{error}</p>
+            <button
+              onClick={load}
+              className="mt-2 text-sm font-semibold text-primary underline underline-offset-2 hover:text-accent transition-colors"
+            >
               Try again
             </button>
           </div>
         )}
 
         {isLoading && !error && (
-          <p className="text-muted-foreground text-sm">Loading today's devotion…</p>
+          <p className="text-primary/60 text-base italic font-serif">
+            Drawing today's word from the well…
+          </p>
         )}
 
         {devotion && !isLoading && (
-          <div className="space-y-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-primary leading-snug">
+          <div className="space-y-12 sm:space-y-14">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-primary leading-[1.15] tracking-tight text-balance">
               {devotion.title}
             </h2>
 
             <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
                 Scripture
               </p>
-              <p className="leading-relaxed text-[15px]">"{devotion.scripture}"</p>
-              <p className="mt-2 text-sm text-muted-foreground">— {devotion.reference}</p>
+              <figure className="relative pl-6 sm:pl-7 border-l-2 border-accent/50">
+                <span
+                  aria-hidden
+                  className="absolute -left-2 -top-3 text-accent/25 font-serif text-5xl leading-none select-none"
+                >
+                  &ldquo;
+                </span>
+                <blockquote className="font-serif italic text-xl sm:text-2xl leading-[1.55] text-primary/90 text-balance">
+                  {devotion.scripture}
+                </blockquote>
+                <figcaption className="mt-4 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+                  {devotion.reference}
+                </figcaption>
+              </figure>
             </section>
 
             <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
                 Reflection
               </p>
-              <div className="space-y-3">
+              <div className="space-y-5 text-[17px] sm:text-[18px] leading-[1.8] text-primary/85 font-medium devotion-prose">
                 {devotion.reflection
                   .split(/\n+/)
                   .filter(Boolean)
                   .map((p, i) => (
-                    <p key={i} className="leading-relaxed text-[15px]">
-                      {p}
-                    </p>
+                    <p key={i}>{p}</p>
                   ))}
               </div>
             </section>
 
             <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
                 Prophetic Word
               </p>
-              <p className="leading-relaxed text-[15px]">{devotion.propheticWord}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                — Through Prophet Amos Evomobor, JCTM
+              <p className="text-[17px] sm:text-[18px] leading-[1.75] text-primary/90 font-medium">
+                {devotion.propheticWord}
+              </p>
+              <p className="mt-3 text-xs sm:text-sm font-semibold uppercase tracking-[0.16em] text-primary/55">
+                — Through Prophet Amos Evomobor · JCTM
               </p>
             </section>
 
             <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
                 Prayer Focus
               </p>
-              <p className="leading-relaxed text-[15px]">{devotion.prayerFocus}</p>
+              <p className="text-[17px] sm:text-[18px] leading-[1.8] text-primary/85 font-medium">
+                {devotion.prayerFocus}
+              </p>
             </section>
 
             <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
                 Declaration
               </p>
-              <p className="leading-relaxed text-[15px] font-medium">"{devotion.declaration}"</p>
+              <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-6 sm:px-7 py-6 sm:py-7">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent mb-3">
+                  Speak this aloud
+                </p>
+                <blockquote className="font-serif text-xl sm:text-2xl leading-[1.5] font-semibold text-primary text-balance">
+                  &ldquo;{devotion.declaration}&rdquo;
+                </blockquote>
+              </div>
             </section>
 
-            <div className="pt-4 border-t border-border flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              <a href="/scripture-study" className="text-primary underline">
+            <div className="pt-6 border-t border-border/70 flex flex-wrap gap-x-6 gap-y-3 text-[15px] font-semibold">
+              <a
+                href="/scripture-study"
+                className="text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors"
+              >
                 Study this scripture
               </a>
-              <a href="/prayer" className="text-primary underline">
+              <a
+                href="/prayer"
+                className="text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors"
+              >
                 Generate a prayer
               </a>
-              <button onClick={load} className="text-muted-foreground underline">
+              <button
+                onClick={load}
+                className="text-primary/60 underline underline-offset-4 decoration-primary/30 hover:text-primary hover:decoration-primary/60 transition-colors"
+              >
                 Reload
               </button>
             </div>
 
-            <section className="mt-8 pt-6 border-t border-border">
+            <section className="mt-10 pt-8 border-t border-border/70">
               <DevotionEmailSubscribe source="devotion-page" />
             </section>
           </div>
         )}
 
         {history.length > 0 && (
-          <section className="mt-16 pt-8 border-t border-border">
-            <h2 className="text-lg font-semibold text-primary mb-4">Past Devotions</h2>
-            <ul className="space-y-4">
+          <section className="mt-20 pt-10 border-t border-border/70">
+            <h2 className="font-serif text-2xl font-bold text-primary mb-6 tracking-tight">
+              Past Devotions
+            </h2>
+            <ul className="space-y-5">
               {history.map((past) => {
                 const isOpen = expandedHistory === past.date;
                 const pastLabel = format(new Date(past.date + "T00:00:00Z"), "EEEE, MMMM d");
                 return (
-                  <li key={past.date} className="border-b border-border pb-4">
+                  <li key={past.date} className="border-b border-border/60 pb-5">
                     <button
                       onClick={() => setExpandedHistory(isOpen ? null : past.date)}
-                      className="w-full text-left"
+                      className="w-full text-left group"
                     >
-                      <p className="text-xs text-muted-foreground">{pastLabel}</p>
-                      <p className="font-medium text-primary mt-1">{past.title}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">{past.reference}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+                        {pastLabel}
+                      </p>
+                      <p className="font-serif font-bold text-lg text-primary mt-1.5 group-hover:text-accent transition-colors">
+                        {past.title}
+                      </p>
+                      <p className="text-sm text-primary/55 mt-1 font-medium">{past.reference}</p>
                     </button>
                     {isOpen && (
-                      <div className="mt-3 pl-3 border-l border-border space-y-3 text-sm">
-                        <p>"{past.scripture}"</p>
-                        <p className="text-muted-foreground">— {past.reference}</p>
+                      <div className="mt-4 pl-4 border-l-2 border-accent/30 space-y-3 text-[15px] leading-[1.7] text-primary/80">
+                        <p className="font-serif italic text-primary/90">&ldquo;{past.scripture}&rdquo;</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+                          {past.reference}
+                        </p>
                         {past.reflection
                           .split(/\n+/)
                           .filter(Boolean)
                           .map((p, i) => (
-                            <p key={i} className="leading-relaxed">
-                              {p}
-                            </p>
+                            <p key={i}>{p}</p>
                           ))}
                         <p>
-                          <span className="font-semibold">Prophetic Word: </span>
+                          <span className="font-bold text-primary">Prophetic Word: </span>
                           {past.propheticWord}
                         </p>
                         <p>
-                          <span className="font-semibold">Prayer Focus: </span>
+                          <span className="font-bold text-primary">Prayer Focus: </span>
                           {past.prayerFocus}
                         </p>
-                        <p className="font-medium">
-                          Declaration: "{past.declaration}"
+                        <p className="font-serif italic font-semibold text-primary">
+                          Declaration: &ldquo;{past.declaration}&rdquo;
                         </p>
                       </div>
                     )}
