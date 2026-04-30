@@ -1474,24 +1474,24 @@ function PlatformBar() {
   return (
     <section className="py-0 border-y border-border/60 bg-white/95 backdrop-blur-sm sticky top-0 z-20 shadow-sm">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 md:divide-x divide-border/60">
           {platforms.map((p, i) => (
             <motion.a key={i} href={p.href} target={p.href !== "#" ? "_blank" : undefined} rel="noopener noreferrer"
               initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.4 }}
-              className="group flex items-center gap-3 px-5 py-4 border-r last:border-r-0 border-border/60 hover:bg-primary/[0.025] transition-all duration-200"
+              className="group flex items-center gap-3 px-5 py-4 hover:bg-primary/[0.03] transition-colors duration-200"
             >
               <motion.div
-                whileHover={{ scale: 1.15, rotate: 5 } as never}
+                whileHover={{ scale: 1.12, rotate: 4 } as never}
                 className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: `${p.color}15` }}
               >
                 <p.icon className="h-4 w-4" style={{ color: p.color }} />
               </motion.div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-primary font-semibold text-sm leading-tight">{p.label}</p>
                 <p className="text-muted-foreground text-[10px] truncate">{p.sub}</p>
               </div>
-              <span className="ml-auto text-[10px] font-bold hidden xl:block" style={{ color: p.color }}>{p.stat}</span>
+              <span className="ml-auto text-[10px] font-bold hidden xl:block tabular-nums" style={{ color: p.color }}>{p.stat}</span>
             </motion.a>
           ))}
         </div>
@@ -1535,12 +1535,12 @@ function BentoGrid() {
   return (
     <section className="py-20 bg-gradient-to-b from-[#F9FAFB] to-white">
       <div className="container mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 80 }} className="mb-12">
-          <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
-            <span className="h-px w-6 bg-accent inline-block" /> Knowledge Hub
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 80 }} className="mb-12 max-w-2xl">
+          <span className="inline-flex items-center gap-2 text-accent text-[11px] font-semibold uppercase tracking-[0.18em] mb-3">
+            <span className="h-px w-7 bg-accent inline-block" /> Knowledge Hub
           </span>
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Today's Highlights</h2>
-          <p className="text-muted-foreground mt-1 text-sm max-w-md">Live feeds, scripture, and ministry news — all in one place.</p>
+          <h2 className="heading-lg text-primary mb-2">Today's Highlights</h2>
+          <p className="text-muted-foreground text-base leading-relaxed">Live feeds, scripture, and ministry news — all in one place.</p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-auto">
@@ -1625,11 +1625,11 @@ function BentoGrid() {
             <TiltCard className="h-full">
               <div className="rounded-3xl border border-border bg-gradient-to-br from-[#EEF4FF] via-[#F0F6FF] to-white p-6 shadow-sm hover:shadow-xl transition-all duration-500 h-full flex flex-col relative overflow-hidden min-h-[180px]">
                 <div className="absolute top-0 right-0 w-40 h-40 opacity-[0.06]" style={{ background: "radial-gradient(circle, #003366 0%, transparent 70%)" }} />
-                <div className="flex items-center gap-2 mb-4 relative z-10">
-                  <div className="h-8 w-8 rounded-xl bg-accent/15 flex items-center justify-center">
+                <div className="flex items-center gap-2.5 mb-4 relative z-10">
+                  <div className="h-8 w-8 rounded-xl bg-accent/15 flex items-center justify-center shrink-0">
                     <BookOpen className="h-4 w-4 text-accent" />
                   </div>
-                  <p className="text-primary text-xs font-bold uppercase tracking-widest">Today's Prophetic Word</p>
+                  <p className="text-primary/80 text-[11px] font-semibold uppercase tracking-[0.16em]">Today's Prophetic Word</p>
                 </div>
                 <div className="flex-1 relative z-10 overflow-hidden">
                   <AnimatePresence mode="wait">
@@ -1697,10 +1697,10 @@ function BentoGrid() {
             transition={{ type: "spring", stiffness: 70, damping: 18, delay: 0.26 }}
             className="md:col-span-2"
           >
-            <div className="rounded-3xl border border-border bg-white p-5 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full min-h-[160px]">
+            <div className="rounded-3xl border border-border bg-white p-5 elev-2 hover:elev-3 transition-all duration-300 flex flex-col h-full min-h-[160px]">
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center"><Clock className="h-3.5 w-3.5 text-accent" /></div>
-                <p className="text-primary text-[10px] font-bold uppercase tracking-widest">Next Service</p>
+                <div className="h-7 w-7 rounded-lg bg-accent/12 flex items-center justify-center shrink-0"><Clock className="h-3.5 w-3.5 text-accent" /></div>
+                <p className="text-primary/80 text-[11px] font-semibold uppercase tracking-[0.16em]">Next Service</p>
               </div>
               <div className="grid grid-cols-2 gap-1.5 flex-1">
                 {[{ v: countdown.days, l: "D" }, { v: countdown.hours, l: "H" }, { v: countdown.minutes, l: "M" }, { v: countdown.seconds, l: "S" }].map(({ v, l }) => (
@@ -1726,7 +1726,7 @@ function BentoGrid() {
             transition={{ type: "spring", stiffness: 70, damping: 18, delay: 0.32 }}
             className="md:col-span-12"
           >
-            <div className="rounded-3xl border border-border bg-gradient-to-r from-[#F9FAFB] via-white to-[#F9FAFB] p-5 shadow-sm">
+            <div className="rounded-3xl border border-border bg-gradient-to-r from-[#F9FAFB] via-white to-[#F9FAFB] p-6 elev-2">
               <div className="grid grid-cols-3 md:grid-cols-6 gap-4 divide-x divide-border">
                 {[
                   { v: stats?.total ?? 479, s: "+", l: "Sermons", icon: Mic2 },
@@ -1737,9 +1737,9 @@ function BentoGrid() {
                   { v: 8, s: "+", l: "Ministry Units", icon: Users },
                 ].map(({ v, s, l, icon: Icon }, i) => (
                   <div key={i} className="text-center px-4 first:pl-0 last:pr-0">
-                    <Icon className="h-4 w-4 text-accent mx-auto mb-1.5" />
-                    <div className="text-xl font-serif font-bold text-primary"><AnimatedCounter target={v} suffix={s} /></div>
-                    <div className="text-[10px] text-muted-foreground leading-tight">{l}</div>
+                    <Icon className="h-4 w-4 text-accent mx-auto mb-2" />
+                    <div className="text-xl font-serif font-bold text-primary tabular-nums leading-none"><AnimatedCounter target={v} suffix={s} /></div>
+                    <div className="text-[10px] text-muted-foreground leading-tight mt-1.5 font-medium">{l}</div>
                   </div>
                 ))}
               </div>
@@ -1760,10 +1760,10 @@ function TestimonyCard({ t, reverse = false }: { t: { name?: string; content?: s
     ? "from-primary to-[#0284C7]"
     : "from-accent to-[#003366]";
   return (
-    <div className="shrink-0 w-[340px] md:w-[400px] testimony-card bg-white/90 border border-border/60 rounded-3xl p-7 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col gap-4">
+    <div className="shrink-0 w-[340px] md:w-[400px] testimony-card bg-white/95 border border-border/60 rounded-3xl p-7 elev-2 hover:elev-4 hover:-translate-y-1 transition-all duration-300 flex flex-col gap-4">
       {/* Large decorative quote */}
       <div className="text-accent/15 font-serif text-7xl leading-none select-none -mb-4">"</div>
-      {/* Quote text — large professional typography */}
+      {/* Quote text */}
       <p className="text-primary/80 text-base md:text-lg leading-relaxed font-serif italic line-clamp-4 flex-1">
         {t.content}
       </p>
@@ -1772,13 +1772,13 @@ function TestimonyCard({ t, reverse = false }: { t: { name?: string; content?: s
         {[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
       </div>
       {/* Author */}
-      <div className="flex items-center gap-3 pt-2 border-t border-border/40">
-        <div className={`h-11 w-11 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 text-white font-bold text-sm shadow-md`}>
+      <div className="flex items-center gap-3 pt-3 border-t border-border/40">
+        <div className={`h-11 w-11 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 text-white font-bold text-sm elev-2`}>
           {initials}
         </div>
-        <div>
-          <p className="text-primary font-bold text-sm leading-tight">{t.name}</p>
-          <Badge variant="secondary" className="text-[10px] rounded-full mt-0.5 bg-accent/8 text-accent border-accent/15">{t.category}</Badge>
+        <div className="min-w-0">
+          <p className="text-primary font-semibold text-sm leading-tight truncate">{t.name}</p>
+          <Badge variant="secondary" className="text-[10px] rounded-full mt-1 bg-accent/10 text-accent border-accent/20 font-semibold">{t.category}</Badge>
         </div>
       </div>
     </div>
@@ -1807,10 +1807,10 @@ function TestimoniesMarquee() {
           transition={{ type: "spring", stiffness: 70 }}
           className="text-center"
         >
-          <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
+          <span className="inline-flex items-center justify-center gap-2 text-accent text-[11px] font-semibold uppercase tracking-[0.18em] mb-4">
             <span className="h-px w-8 bg-accent inline-block" /> Testimony Vault <span className="h-px w-8 bg-accent inline-block" />
           </span>
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3">God Is Faithful</h2>
+          <h2 className="heading-xl text-primary mb-4">God Is Faithful</h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
             Real stories of transformation, healing, and revelation from our global community.
           </p>
