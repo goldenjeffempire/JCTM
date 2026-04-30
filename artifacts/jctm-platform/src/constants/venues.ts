@@ -70,7 +70,7 @@ export const WARRI_CRUSADE_VENUE: Venue = {
   lng: 5.7500,
   address:
     "Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State, Nigeria",
-  whenLabel: "Fri 1 – Sun 3 May 2026 · 4 PM daily",
+  whenLabel: "Thursday 30th April & Friday 1st May, 2026 · 6:00 PM Daily (WAT)",
   accent: "#facc15", // tailwind yellow-400 — matches Crusade page palette
   zoom: 16,
 };
