@@ -1081,13 +1081,20 @@ router.get(
       }
       const timeline = Array.from(timelineMap.values()).sort((a, b) => a.hour.localeCompare(b.hour));
 
-      // Compute next scheduled hour bucket (UTC top-of-hour)
+      // Compute next scheduled half-hour slot (UTC). Slots fall on :00 and :30
+      // — match the half-hour grid used by checkAndBroadcastWarriCrusadeHalfHourly.
       const now = new Date();
       const campaignEnd = new Date(CAMPAIGN_END_ISO);
-      const nextHour = new Date(now);
-      nextHour.setUTCMinutes(0, 0, 0);
-      nextHour.setUTCHours(nextHour.getUTCHours() + 1);
-      const nextScheduledAt = nextHour.getTime() <= campaignEnd.getTime() ? nextHour.toISOString() : null;
+      const nextSlot = new Date(now);
+      nextSlot.setUTCSeconds(0, 0);
+      const minute = nextSlot.getUTCMinutes();
+      if (minute < 30) {
+        nextSlot.setUTCMinutes(30);
+      } else {
+        nextSlot.setUTCMinutes(0);
+        nextSlot.setUTCHours(nextSlot.getUTCHours() + 1);
+      }
+      const nextScheduledAt = nextSlot.getTime() <= campaignEnd.getTime() ? nextSlot.toISOString() : null;
       const campaignActive = now.getTime() < campaignEnd.getTime();
 
       res.json({

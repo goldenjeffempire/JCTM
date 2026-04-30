@@ -339,7 +339,7 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
                 </div>
                 <div className="text-[11px] text-white/50 flex items-start gap-1.5">
                   <Clock className="h-3 w-3 mt-0.5 shrink-0" />
-                  <span>A 5-minute cooldown prevents accidental double-sends. Hourly auto-broadcasts continue independently.</span>
+                  <span>A 5-minute cooldown prevents accidental double-sends. Half-hourly auto-broadcasts (every 30 minutes) continue independently.</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <button
@@ -498,7 +498,7 @@ export function WarriCrusadeStatsTile({ adminToken }: { adminToken: string }) {
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs mb-5">
           <Clock className="h-3.5 w-3.5 shrink-0" />
           <span>
-            Next hourly broadcast scheduled <strong className="text-amber-100">{untilTime(campaign.nextScheduledAt)}</strong>
+            Next half-hourly broadcast scheduled <strong className="text-amber-100">{untilTime(campaign.nextScheduledAt)}</strong>
             <span className="text-amber-200/60"> · {fmtHour(campaign.nextScheduledAt)} WAT</span>
           </span>
         </div>
