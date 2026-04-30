@@ -90,6 +90,7 @@ PUBLIC_OBJECT_SEARCH_PATHS = "/jctm-uploads/public"
 PRIVATE_OBJECT_DIR = "/jctm-uploads/.private"
 OBJECT_STORAGE_DRIVER = "database"
 ALLOW_REPLIT_ORIGINS = "true"
+SMTP_FROM = "Jesus Christ Temple Ministry <info@jctm.org.ng>"
 
 [[ports]]
 localPort = 5000
