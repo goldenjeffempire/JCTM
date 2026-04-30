@@ -275,7 +275,19 @@ app.use("/api", router);
 if (process.env.NODE_ENV === "production") {
   const staticDir = path.resolve(__dirname, "../../jctm-platform/dist/public");
 
-  // Hashed JS/CSS/image assets — cache forever, vary for encoding
+  // ─── Edge-cache layering strategy ──────────────────────────────────────────
+  // We set THREE families of cache headers on every static response:
+  //   • Cache-Control               — what the user's browser does
+  //   • CDN-Cache-Control           — RFC 9213 standard for any CDN edge
+  //   • Cloudflare-CDN-Cache-Control — vendor-specific override for Cloudflare
+  // CDNs honour the most-specific header they recognise, so layering is safe:
+  // a request that hits Cloudflare uses CF-CDN-Cache-Control, then any other
+  // CDN uses the standard CDN-Cache-Control, and finally the browser uses
+  // Cache-Control. This lets us cache aggressively at the edge while keeping
+  // browsers honest about revalidation, so deploys go live almost instantly.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // Hashed JS/CSS/image assets — cache forever everywhere (filename changes on rebuild)
   app.use(
     "/assets",
     express.static(path.join(staticDir, "assets"), {
@@ -284,6 +296,8 @@ if (process.env.NODE_ENV === "production") {
       etag: false,
       setHeaders(res) {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("CDN-Cache-Control", "public, max-age=31536000, immutable");
+        res.setHeader("Cloudflare-CDN-Cache-Control", "public, max-age=31536000, immutable");
         res.setHeader("Vary", "Accept-Encoding");
       },
     }),
@@ -297,17 +311,37 @@ if (process.env.NODE_ENV === "production") {
       lastModified: true,
       index: false,
       setHeaders(res, filePath) {
-        if (filePath.endsWith(".html") || filePath.endsWith("sw.js")) {
+        if (filePath.endsWith("sw.js")) {
+          // Service worker MUST always revalidate so users get new versions.
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          res.setHeader("CDN-Cache-Control", "no-store");
+          res.setHeader("Cloudflare-CDN-Cache-Control", "no-store");
           res.setHeader("Pragma", "no-cache");
           res.setHeader("Expires", "0");
+        } else if (filePath.endsWith(".html")) {
+          // Browser must revalidate so deploys go live; CDN edge keeps a copy
+          // for 60s with 10-min stale-while-revalidate window — invisible to
+          // users but eliminates origin hits during traffic spikes.
+          res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+          res.setHeader("CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+          res.setHeader("Cloudflare-CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+          res.setHeader("Vary", "Accept-Encoding");
         } else if (/\.(png|jpe?g|webp|avif|svg|ico|gif)$/i.test(filePath)) {
+          // Browsers cache 7d, edge caches 30d (images rarely change in place).
           res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+          res.setHeader("CDN-Cache-Control", "public, max-age=2592000, stale-while-revalidate=604800");
+          res.setHeader("Cloudflare-CDN-Cache-Control", "public, max-age=2592000, stale-while-revalidate=604800");
           res.setHeader("Vary", "Accept-Encoding");
         } else if (/\.(woff2?|ttf|otf|eot)$/i.test(filePath)) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        } else if (/\.(json|xml|txt)$/i.test(filePath)) {
+          res.setHeader("CDN-Cache-Control", "public, max-age=31536000, immutable");
+          res.setHeader("Cloudflare-CDN-Cache-Control", "public, max-age=31536000, immutable");
+        } else if (/\.(json|xml|txt|webmanifest)$/i.test(filePath)) {
+          // Manifest, robots, sitemaps — short browser cache, longer edge cache.
           res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=300");
+          res.setHeader("CDN-Cache-Control", "public, max-age=86400, stale-while-revalidate=3600");
+          res.setHeader("Cloudflare-CDN-Cache-Control", "public, max-age=86400, stale-while-revalidate=3600");
+          res.setHeader("Vary", "Accept-Encoding");
         }
       },
     }),
@@ -315,8 +349,13 @@ if (process.env.NODE_ENV === "production") {
 
   // Express 5: "/*splat" requires ≥1 character after the slash, so GET /
   // falls through.  Use "/{*splat}" (optional group) to also match the root.
+  // SPA fallback also gets the layered cache strategy so the homepage benefits
+  // from edge caching exactly like every other HTML response above.
   app.get("/{*splat}", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+    res.setHeader("CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+    res.setHeader("Cloudflare-CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+    res.setHeader("Vary", "Accept-Encoding");
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }
