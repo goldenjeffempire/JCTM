@@ -10,6 +10,7 @@ import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
 import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
+import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -884,8 +885,50 @@ function ConferenceAdCopySection() {
 const CONF_YT_VIDEO = "hQFA1Y9NAcY";
 
 function ConferenceVideoLoop() {
-  const videoShareText = encodeURIComponent(
-    `🙏 Watch the official Ministers Conference 2026 promo!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026 · 8AM Daily\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\nhttps://youtu.be/${CONF_YT_VIDEO}\n\n#MinistersConference2026 #JCTM #ProphetAmos`
+  // Hot-swap the promo embed for the actual live broadcast the moment YouTube
+  // reports the conference stream is live. Falls back to the official ad video
+  // any other time so this slot is never empty.
+  const liveStatus = useLivestreamStatus();
+  const isLive = liveStatus.isLive && !!liveStatus.videoId;
+  const activeVideoId = isLive ? liveStatus.videoId! : CONF_YT_VIDEO;
+  const liveTitle = liveStatus.title?.trim() || "Ministers Conference 2026";
+
+  const headerTitle = isLive
+    ? `${liveTitle} — Broadcasting Live`
+    : "Ministers Conference 2026 — YouTube Ad (Running Now)";
+
+  const headerCaption = isLive
+    ? "The conference is broadcasting live right now. Tune in to receive impartation, watch, worship, and share the link so other ministers can join."
+    : "The official conference video uploaded to YouTube. Playing as a continuous ad — watch, share, and amplify the reach across all platforms.";
+
+  const headerPill = isLive ? (
+    <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-extrabold uppercase tracking-widest">
+      <span className="h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.8)]" />
+      Live Now
+    </span>
+  ) : (
+    <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-bold uppercase tracking-widest">
+      <span className="h-2 w-2 bg-red-400 rounded-full animate-pulse" /> Live Promo
+    </span>
+  );
+
+  const embedTitle = isLive ? `${liveTitle} — Live on YouTube` : "Ministers Conference 2026 — Official Promo Video";
+  const embedDescription = isLive
+    ? `Live broadcast of ${liveTitle} hosted by Jesus Christ Temple Ministry.`
+    : "Official promo video for the Ministers Conference 2026 hosted by Jesus Christ Temple Ministry.";
+
+  // Share content adapts: when live, drive viewers straight to the live stream;
+  // otherwise share the promo video as before.
+  const shareYtUrl = `https://youtu.be/${activeVideoId}`;
+  const shareWhatsappText = encodeURIComponent(
+    isLive
+      ? `🔴 LIVE NOW — ${liveTitle}!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\nJoin live: ${shareYtUrl}\n\n#MinistersConference2026 #JCTM #ProphetAmos`
+      : `🙏 Watch the official Ministers Conference 2026 promo!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026 · 8AM Daily\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n${shareYtUrl}\n\n#MinistersConference2026 #JCTM #ProphetAmos`
+  );
+  const shareTweetText = encodeURIComponent(
+    isLive
+      ? `🔴 LIVE NOW — ${liveTitle}! "An Apostolic Gathering of Ministers" — Join us live from Effurun. #MinistersConference2026 #JCTM`
+      : `🙏 "An Apostolic Gathering of Ministers" — Watch the Ministers Conference 2026 promo! May 8–10, Effurun. #MinistersConference2026`
   );
 
   return (
@@ -893,27 +936,27 @@ function ConferenceVideoLoop() {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.4 }}
-      className="mb-10 rounded-3xl overflow-hidden border border-purple-400/20"
+      className={`mb-10 rounded-3xl overflow-hidden border ${isLive ? "border-red-500/40 ring-2 ring-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.15)]" : "border-purple-400/20"}`}
       style={{ background: "rgba(15,5,30,0.7)" }}
     >
-      <div className="p-6 border-b border-purple-400/10">
+      <div className={`p-6 border-b ${isLive ? "border-red-500/20" : "border-purple-400/10"}`}>
         <div className="flex items-center gap-3 mb-1">
-          <Youtube className="h-5 w-5 text-red-500" />
-          <h3 className="font-serif font-bold text-white text-xl">Ministers Conference 2026 — YouTube Ad (Running Now)</h3>
-          <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-bold uppercase tracking-widest">
-            <span className="h-2 w-2 bg-red-400 rounded-full animate-pulse" /> Live Promo
-          </span>
+          <Youtube className={`h-5 w-5 ${isLive ? "text-red-500 animate-pulse" : "text-red-500"}`} />
+          <h3 className="font-serif font-bold text-white text-xl">{headerTitle}</h3>
+          {headerPill}
         </div>
-        <p className="text-white/60 text-sm">The official conference video uploaded to YouTube. Playing as a continuous ad — watch, share, and amplify the reach across all platforms.</p>
+        <p className="text-white/60 text-sm">{headerCaption}</p>
       </div>
       <div className="p-4">
         <YouTubeEmbed
-          videoId={CONF_YT_VIDEO}
-          title="Ministers Conference 2026 — Official Promo Video"
+          key={activeVideoId}
+          videoId={activeVideoId}
+          title={embedTitle}
           mode="facade"
+          autoplay={isLive}
           emitSchema
           schema={{
-            description: "Official promo video for the Ministers Conference 2026 hosted by Jesus Christ Temple Ministry.",
+            description: embedDescription,
             publisherName: "Jesus Christ Temple Ministry (JCTM)",
             publisherUrl: "https://jctm.org.ng",
           }}
@@ -922,16 +965,16 @@ function ConferenceVideoLoop() {
         />
         <div className="flex flex-wrap gap-3 mt-5 justify-center">
           <a
-            href={`https://wa.me/?text=${videoShareText}`}
+            href={`https://wa.me/?text=${shareWhatsappText}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
             style={{ background: "#25D366" }}
           >
-            💬 Share on WhatsApp
+            💬 {isLive ? "Share Live Link" : "Share on WhatsApp"}
           </a>
           <a
-            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://youtu.be/${CONF_YT_VIDEO}`)}`}
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareYtUrl)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
@@ -940,7 +983,7 @@ function ConferenceVideoLoop() {
             👍 Share on Facebook
           </a>
           <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`🙏 "An Apostolic Gathering of Ministers" — Watch the Ministers Conference 2026 promo! May 8–10, Effurun. #MinistersConference2026`)}&url=https://youtu.be/${CONF_YT_VIDEO}`}
+            href={`https://twitter.com/intent/tweet?text=${shareTweetText}&url=${encodeURIComponent(shareYtUrl)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-black hover:bg-gray-900 transition-all hover:scale-105 shadow-lg"
