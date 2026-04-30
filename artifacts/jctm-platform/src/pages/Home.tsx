@@ -46,7 +46,7 @@ const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => 
 const MinistrySlideshow = lazy(() => import("@/components/MinistrySlideshow").then(m => ({ default: m.MinistrySlideshow })));
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const LIVE_STREAM_VIDEO_ID = "8ZHL2W6Wckc";
+const LIVE_STREAM_VIDEO_ID = "mOgPT4UT0qQ";
 const WAT_TIME_ZONE = "Africa/Lagos";
 
 const SCRIPTURES = [
