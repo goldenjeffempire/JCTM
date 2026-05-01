@@ -29,6 +29,16 @@ const LAST_SEEN_KEY = "jctm_last_seen_broadcast_id";
 const OPT_OUT_KEY = "jctm_inapp_notif_optout";
 const REENGAGEMENT_DELAY_MS = 2500;
 
+// Session-scoped dedup: prevents re-firing on every page load while stream is live.
+// Key is based on videoId so a new stream always re-triggers.
+const LIVE_TOAST_SESSION_KEY = (videoId: string) => `jctm:live-toast:${videoId}`;
+function hasShownLiveToast(videoId: string): boolean {
+  try { return sessionStorage.getItem(LIVE_TOAST_SESSION_KEY(videoId)) === "1"; } catch { return false; }
+}
+function markLiveToastShown(videoId: string) {
+  try { sessionStorage.setItem(LIVE_TOAST_SESSION_KEY(videoId), "1"); } catch {}
+}
+
 interface BroadcastEvent {
   id: number;
   type: "live_start" | "rebroadcast_start" | string;
@@ -67,7 +77,7 @@ function ReengagementBanner({ event, onDismiss }: ReengagementBannerProps) {
     : <Tv className="h-4 w-4 shrink-0" />;
 
   const label = isLiveBanner ? "Live Now" : "Rebroadcast";
-  const title = event.title ?? (isLiveBanner ? "Warri Crusade Day 1" : "Temple TV");
+  const title = event.title ?? (isLiveBanner ? "Warri Crusade Day 2" : "Temple TV");
   const actionLabel = isLiveBanner ? "Watch Live" : "Watch Now";
 
   const navigate = () => {
@@ -168,32 +178,59 @@ export function BroadcastEngagementSystem() {
 
   // 2. SSE live-start → in-app toast (fires the moment isLive flips true)
   useEffect(() => {
-    if (liveStatus.isLive && !prevIsLive.current && !isOptedOut()) {
-      const title = liveStatus.title ?? "Warri Crusade Day 1";
-      toast.custom(
-        (id) => (
-          <div
-            className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-black/90 px-4 py-3 shadow-2xl backdrop-blur-xl cursor-pointer"
-            onClick={() => {
-              toast.dismiss(id);
-              window.location.href = `${BASE}/sermons`;
-            }}
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/20">
-              <Radio className="h-4 w-4 animate-pulse text-red-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wider text-red-400">Live Now</p>
-              <p className="truncate text-sm font-semibold text-white">{title}</p>
-            </div>
-            <span className="ml-auto shrink-0 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">Watch</span>
-          </div>
-        ),
-        { duration: 12000, position: "top-center" }
-      );
+    if (!liveStatus.isLive) {
+      prevIsLive.current = false;
+      return;
     }
-    prevIsLive.current = liveStatus.isLive;
-  }, [liveStatus.isLive, liveStatus.title]);
+
+    const videoId = liveStatus.videoId ?? "live";
+    const justWentLive = !prevIsLive.current;
+    prevIsLive.current = true;
+
+    if (isOptedOut()) return;
+
+    // Only fire once per stream session — prevents re-firing on every page load
+    // while the stream is live. A new videoId always gets a fresh toast.
+    if (!justWentLive && hasShownLiveToast(videoId)) return;
+    if (hasShownLiveToast(videoId)) return;
+    markLiveToastShown(videoId);
+
+    const title = liveStatus.title ?? "Warri Crusade Day 2";
+    const streamUrl = liveStatus.streamUrl
+      ? liveStatus.streamUrl
+      : `${BASE}/sermons`;
+
+    toast.custom(
+      (id) => (
+        <div
+          className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-black/90 px-4 py-3 shadow-2xl backdrop-blur-xl cursor-pointer"
+          onClick={() => {
+            toast.dismiss(id);
+            window.location.href = streamUrl;
+          }}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/20">
+            <Radio className="h-4 w-4 animate-pulse text-red-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-red-400">🔴 Live Now</p>
+            <p className="text-sm font-semibold text-white leading-snug line-clamp-2 mt-0.5">{title}</p>
+          </div>
+          <div className="flex items-center gap-2 ml-2 shrink-0">
+            <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white whitespace-nowrap">Watch Live</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); toast.dismiss(id); }}
+              className="text-white/30 hover:text-white/70 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 15000, position: "top-center" }
+    );
+  }, [liveStatus.isLive, liveStatus.videoId, liveStatus.title, liveStatus.streamUrl]);
 
   // 3. SW push relay → in-app toast when push fires to an open page client
   useEffect(() => {
