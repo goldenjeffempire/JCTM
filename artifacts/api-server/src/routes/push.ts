@@ -70,7 +70,7 @@ router.post("/push/subscribe", async (req, res): Promise<void> => {
     res.status(isNew ? 201 : 200).json({
       success: true,
       id,
-      message: isNew ? "Subscribed to Warri Crusade Day 1 alerts" : "Subscription refreshed",
+      message: isNew ? "Subscribed to Warri Crusade Day 2 alerts" : "Subscription refreshed",
     });
   } catch (err) {
     req.log.error({ err }, "Failed to store push subscription");
@@ -244,7 +244,7 @@ router.post("/push/upcoming-service", requireAdminRole("livestream"), async (req
 // ─── POST /push/live-now — Admin: manually fire the "Live Now" alert ─────────
 // Used when the broadcast is already live (or about to be) and the admin wants
 // to nudge subscribers directly. Accepts an optional title override; falls back
-// to "Warri Crusade Day 1" via the notification builder.
+// to "Warri Crusade Day 2" via the notification builder.
 
 router.post("/push/live-now", requireAdminRole("livestream"), async (req, res): Promise<void> => {
   const { title } = (req.body ?? {}) as { title?: string };
@@ -252,7 +252,7 @@ router.post("/push/live-now", requireAdminRole("livestream"), async (req, res): 
   const notification = buildLiveServiceNotification(safeTitle);
   const result = await dispatchPushNotification(notification, req.log, "live_alert");
   const subscribers = await getSubscriberCount();
-  req.log.info({ title: safeTitle || "Warri Crusade Day 1" }, "Manual Live Now alert dispatched by admin");
+  req.log.info({ title: safeTitle || "Warri Crusade Day 2" }, "Manual Live Now alert dispatched by admin");
   res.json({ success: true, subscribers, ...result });
 });
 

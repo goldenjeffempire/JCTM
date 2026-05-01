@@ -676,7 +676,7 @@ async function checkYouTubeLive(): Promise<YouTubeCheckResult> {
       const result: YouTubeCheckResult = {
         isLive: true,
         isUpcoming: false,
-        title: liveItem.snippet?.title ?? "Warri Crusade Day 1",
+        title: liveItem.snippet?.title ?? "Warri Crusade Day 2",
         videoId: liveItem.id ?? null,
         scheduledStartTime: null,
       };
@@ -770,7 +770,7 @@ async function pollAndBroadcast(): Promise<void> {
 
       // Send push notification to all subscribers on live→online transition
       if (!wasLive) {
-        const liveTitle = ytStatus.title ?? "Warri Crusade Day 1";
+        const liveTitle = ytStatus.title ?? "Warri Crusade Day 2";
         dispatchPushNotification(buildLiveServiceNotification(liveTitle))
           .then(result => {
             pool.query(
