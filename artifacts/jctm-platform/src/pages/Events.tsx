@@ -1010,7 +1010,7 @@ export default function Events() {
                   <span className="text-xs font-bold text-red-600 uppercase tracking-widest">YouTube Live</span>
                   <span className="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse" />
                 </div>
-                <h3 className="font-serif font-bold text-primary">Warri Crusade Day 1</h3>
+                <h3 className="font-serif font-bold text-primary">Warri Crusade Day 2</h3>
                 <p className="text-sm text-muted-foreground">Now Streaming Live directly on this website</p>
               </div>
             </div>
@@ -1030,7 +1030,7 @@ export default function Events() {
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-6 overflow-hidden">
               <YouTubeEmbed
                 videoId={YOUTUBE_LIVE_ID}
-                title="Warri Crusade Day 1"
+                title="Warri Crusade Day 2"
                 mode="facade"
                 analyticsPage="/events"
                 className="rounded-xl shadow-xl"

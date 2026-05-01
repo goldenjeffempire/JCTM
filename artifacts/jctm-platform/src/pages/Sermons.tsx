@@ -375,7 +375,7 @@ export default function Sermons() {
                   </span>
                   <Radio className="h-4 w-4 text-red-500 shrink-0" />
                   <span className="text-sm font-semibold text-red-600 dark:text-red-400 truncate">
-                    🔴 Now Streaming Live{liveTitle ? ` — ${liveTitle}` : " — Warri Crusade Day 1"}
+                    🔴 Now Streaming Live{liveTitle ? ` — ${liveTitle}` : " — Warri Crusade Day 2"}
                   </span>
                   <Button
                     size="sm"
@@ -394,7 +394,7 @@ export default function Sermons() {
                       youtubeVideoId={liveVideoId}
                       isLive={true}
                       autoPlay={true}
-                      title={liveTitle ?? "Warri Crusade Day 1"}
+                      title={liveTitle ?? "Warri Crusade Day 2"}
                     />
                   </div>
                 )}

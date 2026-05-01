@@ -61,7 +61,7 @@ function usePushNotifications() {
         body: JSON.stringify({ subscription: subJson, deviceType: "web" }),
       });
       setSubscribed(true);
-      toast.success("Warri Crusade Day 1 alerts enabled!");
+      toast.success("Warri Crusade Day 2 alerts enabled!");
     } catch (err) {
       toast.error("Failed to enable notifications");
     } finally {
@@ -307,8 +307,8 @@ export function Navbar() {
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
               disabled={pushLoading}
-              aria-label={subscribed ? "Unsubscribe from Warri Crusade Day 1 alerts" : "Subscribe to Warri Crusade Day 1 alerts"}
-              title={subscribed ? "Click to disable live alerts" : "Get notified when Warri Crusade Day 1 is live"}
+              aria-label={subscribed ? "Unsubscribe from Warri Crusade Day 2 alerts" : "Subscribe to Warri Crusade Day 2 alerts"}
+              title={subscribed ? "Click to disable live alerts" : "Get notified when Warri Crusade Day 2 is live"}
               className="flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-300 cursor-pointer disabled:opacity-50"
               style={{
                 background: subscribed

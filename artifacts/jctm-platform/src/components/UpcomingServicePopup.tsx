@@ -14,7 +14,7 @@ export function UpcomingServicePopup() {
   // can jump straight into the live stream.
   const liveStatus = useLivestreamStatus();
   const isLive = liveStatus.isLive;
-  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 1";
+  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 2";
 
   useEffect(() => {
     let dismissedAt = 0;
@@ -78,7 +78,7 @@ export function UpcomingServicePopup() {
                 </span>
               </div>
               <h3 className="font-serif text-lg font-black leading-tight text-white">
-                {isLive ? `${liveTitle} — Live Now` : "Warri Crusade Day 1 Begins Soon"}
+                {isLive ? `${liveTitle} — Live Now` : "Warri Crusade Day 2 Begins Soon"}
               </h3>
               <p className={`mt-1 text-sm font-semibold ${isLive ? "text-red-100" : "text-amber-100"}`}>
                 {isLive ? "The crusade is broadcasting live right now" : "Join us live at 8:00 AM (WAT)"}

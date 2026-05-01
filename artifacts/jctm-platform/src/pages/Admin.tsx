@@ -1125,7 +1125,7 @@ function PushNotificationsCard() {
         <div className="space-y-4">
           {/* Send service alert */}
           <div>
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Warri Crusade Day 1)</p>
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Service Alert (Warri Crusade Day 2)</p>
             <div className="space-y-2">
               <button
                 onClick={sendServiceAlert}

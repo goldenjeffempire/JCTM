@@ -95,7 +95,7 @@ export function GeoServiceTimes() {
   // alert flips from "starting soon" into a live "Watch Live" call-to-action.
   const liveStatus = useLivestreamStatus();
   const isLive = liveStatus.isLive;
-  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 1";
+  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 2";
 
   useEffect(() => {
     setTz(getBrowserTimezone());

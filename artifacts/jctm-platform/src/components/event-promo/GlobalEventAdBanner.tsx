@@ -45,15 +45,15 @@ const SESSION_HIDE_KEY = "warri_banner_hidden";
 
 const FALLBACK_EVENT = {
   enabled: true,
-  slug: "warri-crusade-2026",
+  slug: "warri-crusade-2026-day2",
   artwork: "/warri-crusade-flyer2.jpeg",
-  title: "Warri City Crusade 2026",
+  title: "Warri Crusade Day 2 — LIVE TONIGHT",
   subtitle: "Be Ready For Rapture: Tribulation Is Coming!",
-  dateLabel: "Apr 30 – May 1, 2026 · 6:00 PM (WAT)",
+  dateLabel: "May 1, 2026 · 6:00 PM (WAT)",
   location: "Ighogbadu Primary School, Warri",
-  ctaLabel: "Register to Attend",
+  ctaLabel: "Join Tonight",
   ctaHref: "/crusade",
-  startAtIso: "2026-04-30T18:00:00+01:00",
+  startAtIso: "2026-05-01T17:00:00+01:00",
   endAtIso: "2026-05-02T00:00:00+01:00",
 };
 

@@ -313,7 +313,7 @@ function BroadcastStatusNotification({
                     <span className="relative inline-flex rounded-full h-full w-full bg-amber-300" />
                   </span>
                   <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 whitespace-nowrap">
-                    Warri Crusade Day 1
+                    Warri Crusade Day 2
                   </span>
                 </div>
                 <span className="rounded-full bg-white/12 px-2 py-1 text-[9px] font-black text-white tabular-nums border border-white/10">
@@ -322,7 +322,7 @@ function BroadcastStatusNotification({
               </div>
               <div>
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug">
-                  Warri Crusade Day 1 Begins Soon
+                  Warri Crusade Day 2 Begins Soon
                 </p>
                 <p className="text-white/55 text-[9px] sm:text-[10px] mt-0.5 font-medium">
                   Join us live at 8:00 AM (WAT)
@@ -386,7 +386,7 @@ function BroadcastStatusNotification({
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
-                  {liveTitle ?? "Warri Crusade Day 1"}
+                  {liveTitle ?? "Warri Crusade Day 2"}
                 </p>
                 <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
@@ -939,7 +939,7 @@ function HeroSection() {
                     dashManifestUrl={liveStatus.stream?.dashManifestUrl ?? null}
                     youtubeVideoId={liveVideoId ?? LIVE_STREAM_VIDEO_ID}
                     isLive={true}
-                    title={liveTitle ?? "Warri Crusade Day 1"}
+                    title={liveTitle ?? "Warri Crusade Day 2"}
                     autoPlay={true}
                     onLoad={() => { if (!playerError) setPlayerLoading(false); }}
                     onError={() => { setPlayerError(true); setPlayerLoading(false); }}

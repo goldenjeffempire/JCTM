@@ -223,7 +223,7 @@ function CrusadeVideoLoop() {
   const liveStatus = useLivestreamStatus();
   const isLive = liveStatus.isLive && !!liveStatus.videoId;
   const activeVideoId = isLive ? liveStatus.videoId! : CRUSADE_YT_VIDEO;
-  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 1";
+  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 2";
 
   const headerTitle = isLive
     ? `${liveTitle} — Broadcasting Live`

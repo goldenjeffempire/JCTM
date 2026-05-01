@@ -53,7 +53,7 @@ let devotionEmailBroadcastDate: string | null = null;   // ISO date string (YYYY
 // down to avoid spamming devotion subscribers.
 const WARRI_CRUSADE_END_MS  = new Date("2026-05-01T21:00:00+01:00").getTime();
 const WARRI_CRUSADE_START_MS = new Date("2026-04-30T18:00:00+01:00").getTime();
-const WARRI_CRUSADE_TITLE   = "Warri Crusade 2026";
+const WARRI_CRUSADE_TITLE   = "Warri Crusade Day 2";
 const WARRI_CRUSADE_URL     = "/crusade";
 // Stable body string used as the dedup-key prefix in `broadcast_events.message`.
 // It is intentionally short and constant so the unique-by-(type,title,message)
@@ -662,13 +662,13 @@ function checkEventPromotionTransitions(log: Logger): void {
     .catch(err => log.warn({ err }, "Event 30-min reminder scan failed (non-fatal)"));
 }
 
-// ─── Warri Crusade half-hourly multi-channel broadcast ────────────────────────
-// Each half-hour bucket is identified by `YYYY-MM-DD-HH-MM` (UTC) where MM is
-// either `00` or `30`. Idempotency is enforced by an exact-match check against
-// `broadcast_events` (type + title + message), so a process restart inside the
-// same 30-min slot will NOT re-send. Stops automatically once the event window
-// ends. Inserts the broadcast_events row FIRST (acts as the lock) so concurrent
-// ticks across multiple processes can never both fire for the same slot.
+// ─── Warri Crusade Day 2 hourly multi-channel broadcast ───────────────────────
+// Each hour bucket is identified by `YYYY-MM-DD-HH-00` (UTC). Idempotency is
+// enforced by an exact-match check against `broadcast_events`
+// (type + title + message), so a process restart inside the same hour will
+// NOT re-send. Stops automatically once the event window ends. Inserts the
+// broadcast_events row FIRST (acts as the lock) so concurrent ticks across
+// multiple processes can never both fire for the same slot.
 
 function halfHourBucketUTC(now: number = Date.now()): string {
   const d = new Date(now);
@@ -680,22 +680,28 @@ function halfHourBucketUTC(now: number = Date.now()): string {
   return `${y}-${m}-${day}-${h}-${half}`;
 }
 
+function hourBucketUTC(now: number = Date.now()): string {
+  const d = new Date(now);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const h = String(d.getUTCHours()).padStart(2, "0");
+  return `${y}-${m}-${day}-${h}-00`;
+}
+
 function buildWarriCrusadeNotification(slotBucket: string): NotificationPayload {
-  // Rotate through messages deterministically by half-hour slot so each push
-  // feels fresh — `(hour * 2 + halfFlag)` gives 48 distinct daily indices
-  // (versus 24 for hourly) so two consecutive sends never reuse the same body.
+  // Rotate through messages deterministically by hourly slot so each push
+  // feels fresh. Hour index gives 24 distinct daily slots.
   const parts = slotBucket.split("-");
   const hourNum = parseInt(parts[3] ?? "0", 10);
-  const halfFlag = parts[4] === "30" ? 1 : 0;
-  const slotIdx = hourNum * 2 + halfFlag;
-  const body = WARRI_CRUSADE_MESSAGES[slotIdx % WARRI_CRUSADE_MESSAGES.length]!;
+  const body = WARRI_CRUSADE_MESSAGES[hourNum % WARRI_CRUSADE_MESSAGES.length]!;
 
-  // Alternate notification title to avoid notification deduplication by OS
+  // Phase-aware title so users know whether Day 2 is live or upcoming
   const now = Date.now();
   const isLive = now >= WARRI_CRUSADE_START_MS && now < WARRI_CRUSADE_END_MS;
   const title = isLive
-    ? "🔴 Warri Crusade 2026 — LIVE NOW"
-    : "🔥 Warri City Crusade 2026";
+    ? "🔴 Warri Crusade Day 2 — LIVE NOW"
+    : "🔥 Warri City Crusade — Day 2 Tonight";
 
   return {
     title,
@@ -859,8 +865,8 @@ export async function broadcastWarriCrusadeManual(
     ["warri_crusade_promo", WARRI_CRUSADE_TITLE, manualMessage, WARRI_CRUSADE_URL],
   );
 
-  log.info({ triggeredBy }, "Warri Crusade manual broadcast — dispatching push + in-app toast");
-  const notif = buildWarriCrusadeNotification(halfHourBucketUTC());
+  log.info({ triggeredBy }, "Warri Crusade Day 2 manual broadcast — dispatching push + in-app toast");
+  const notif = buildWarriCrusadeNotification(hourBucketUTC());
   const result = await dispatchPushNotification(notif, log, "warri_crusade_promo");
   log.info(
     { triggeredBy, sent: result.sent, failed: result.failed, deactivated: result.deactivated },
@@ -957,21 +963,17 @@ export async function broadcastWarriCrusadeLiveAlert(
   };
 }
 
-async function checkAndBroadcastWarriCrusadeHalfHourly(log: Logger): Promise<void> {
+async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
   const now = Date.now();
   if (now >= WARRI_CRUSADE_END_MS) return; // event finished — nothing to do
 
-  // Only broadcast in the first ~5 minutes of each half-hour slot (minutes
-  // 0–4 and 30–34 UTC) to avoid drift / duplicate firings across the per-
-  // minute scheduler tick. The dedup row guards against multiple ticks within
-  // the same window, but constraining the trigger to the slot edge keeps the
-  // log clean and aligned with the half-hour grid.
+  // Only broadcast in the first 5 minutes of each hour (minutes 0–4 UTC) to
+  // avoid drift / duplicate firings across the per-minute scheduler tick. The
+  // dedup row guards against multiple ticks within the same window.
   const minutePastHour = new Date(now).getUTCMinutes();
-  const inFirstHalfWindow = minutePastHour < 5;
-  const inSecondHalfWindow = minutePastHour >= 30 && minutePastHour < 35;
-  if (!inFirstHalfWindow && !inSecondHalfWindow) return;
+  if (minutePastHour >= 5) return;
 
-  const bucket = halfHourBucketUTC(now);
+  const bucket = hourBucketUTC(now);
   const dedupMessage = `${WARRI_CRUSADE_BODY} [slot:${bucket}]`;
 
   try {
@@ -993,7 +995,7 @@ async function checkAndBroadcastWarriCrusadeHalfHourly(log: Logger): Promise<voi
 
     log.info(
       { bucket, isLive: now >= WARRI_CRUSADE_START_MS },
-      "Warri Crusade half-hourly broadcast — dispatching push + in-app toast",
+      "Warri Crusade Day 2 hourly broadcast — dispatching push + in-app toast",
     );
 
     const notif = buildWarriCrusadeNotification(bucket);
@@ -1013,10 +1015,10 @@ async function checkAndBroadcastWarriCrusadeHalfHourly(log: Logger): Promise<voi
         web: { sent: result.sent, failed: result.failed, deactivated: result.deactivated },
         expo: expoResult,
       },
-      "Warri Crusade half-hourly broadcast complete (web + expo)",
+      "Warri Crusade Day 2 hourly broadcast complete (web + expo)",
     );
   } catch (err) {
-    log.warn({ err, bucket }, "Warri Crusade half-hourly broadcast failed (non-fatal)");
+    log.warn({ err, bucket }, "Warri Crusade Day 2 hourly broadcast failed (non-fatal)");
   }
 }
 
@@ -1643,8 +1645,8 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndBroadcastDevotionEmail(log);
       checkEventPromotionTransitions(log);
       checkAndSendEventReminders(log);
-      checkAndBroadcastWarriCrusadeHalfHourly(log).catch(err =>
-        log.warn({ err }, "Warri Crusade half-hourly broadcast tick error"),
+      checkAndBroadcastWarriCrusadeHourly(log).catch(err =>
+        log.warn({ err }, "Warri Crusade Day 2 hourly broadcast tick error"),
       );
       checkAndBroadcastCampaignPromotions(log).catch(err =>
         log.warn({ err }, "Campaign promotion broadcast tick error"),
