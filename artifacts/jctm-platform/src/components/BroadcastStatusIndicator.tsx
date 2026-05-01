@@ -181,7 +181,7 @@ function UnifiedPlayerModal({
     : rebroadcastQueue[queueIndex]?.videoId ?? rebroadcastVideoId ?? "f7TOxaM2Mq4";
 
   const currentTitle = isLive
-    ? (liveTitle ?? "Warri Crusade Day 1")
+    ? (liveTitle ?? "Warri Crusade Day 2")
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
   const activeHls = liveHlsManifestUrl ?? rebroadcastQueue[queueIndex]?.hlsManifestUrl ?? null;
@@ -431,7 +431,7 @@ export function BroadcastStatusIndicator() {
   // ── UPCOMING: Live in N min countdown pill ────────────────────────────────
   if (showUpcoming && !dismissed && upcomingMinutes !== null) {
     const label = formatCountdown(upcomingMinutes);
-    const eventTitle = status.title ?? "Warri Crusade Day 1";
+    const eventTitle = status.title ?? "Warri Crusade Day 2";
     return (
       <motion.div
         key="upcoming-indicator"
@@ -494,7 +494,7 @@ export function BroadcastStatusIndicator() {
           exit={{ opacity: 0, x: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => setDismissed(false)}
-          aria-label={status.isLive ? `Rejoin ${status.title ?? "Warri Crusade Day 1"} — Live` : "Reopen player"}
+          aria-label={status.isLive ? `Rejoin ${status.title ?? "Warri Crusade Day 2"} — Live` : "Reopen player"}
           className={[
             "fixed top-[4.5rem] right-0 z-[200]",
             "flex items-center gap-1.5 pl-3 pr-2 py-2",
@@ -570,14 +570,14 @@ export function BroadcastStatusIndicator() {
               <button
                 onClick={() => setShowPlayer(true)}
                 className="flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer touch-manipulation"
-                aria-label={`Watch ${status.title ?? "Warri Crusade Day 1"} — Live`}
+                aria-label={`Watch ${status.title ?? "Warri Crusade Day 2"} — Live`}
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-70" />
                   <span className="relative inline-flex rounded-full h-full w-full bg-white" />
                 </span>
                 <span className="text-white text-[11px] sm:text-xs font-bold tracking-widest uppercase leading-none whitespace-nowrap">
-                  🔴 {status.title ?? "Warri Crusade Day 1"} — Live
+                  🔴 Live Now
                 </span>
                 {viewerCount > 0 && (
                   <span className="hidden sm:flex items-center gap-1 text-white/70 text-[10px] font-semibold">
@@ -590,7 +590,7 @@ export function BroadcastStatusIndicator() {
                 onClick={() => setShowPlayer(true)}
                 className="bg-white text-red-600 text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-2 hover:bg-red-50 active:scale-95 transition-all touch-manipulation whitespace-nowrap leading-none"
               >
-                Live Now
+                Watch
               </button>
               <button
                 onClick={() => setDismissed(true)}
@@ -604,9 +604,9 @@ export function BroadcastStatusIndicator() {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-black/70 backdrop-blur-md border border-white/10 rounded-xl px-3 py-1.5 max-w-full"
+                className="bg-black/80 backdrop-blur-md border border-red-400/20 rounded-xl px-3 py-2 max-w-full shadow-lg"
               >
-                <p className="text-white/80 text-[10px] sm:text-[11px] font-medium truncate leading-snug">
+                <p className="text-white text-[11px] sm:text-xs font-semibold leading-snug line-clamp-2">
                   {status.title}
                 </p>
               </motion.div>

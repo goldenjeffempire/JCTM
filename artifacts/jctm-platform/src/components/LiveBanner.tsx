@@ -74,15 +74,18 @@ export function LiveBanner() {
           transition={{ type: "spring", stiffness: 400, damping: 35 }}
           className="bg-destructive text-destructive-foreground w-full py-2 px-3 sm:px-4 flex items-center justify-center gap-2 sm:gap-3 shadow-md z-[60] relative"
         >
-          <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse shrink-0">
-            <Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="font-bold text-xs sm:text-sm tracking-wide">🔴 Now Streaming Live</span>
+          <div className="flex flex-col items-start min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse">
+              <Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span className="font-bold text-xs sm:text-sm tracking-wide whitespace-nowrap">🔴 LIVE NOW</span>
+            </div>
+            {status.title && (
+              <span className="text-[11px] sm:text-xs font-medium text-destructive-foreground/90 truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md leading-tight mt-0.5">
+                {status.title}
+              </span>
+            )}
           </div>
-          <div className="h-4 w-px bg-destructive-foreground/30 hidden sm:block shrink-0" />
-          <span className="text-xs sm:text-sm font-medium hidden sm:block truncate max-w-xs md:max-w-sm lg:max-w-md">
-            {status.title || "Warri Crusade Day 1"}
-          </span>
-          <span className="ml-auto sm:ml-2 bg-white/20 text-white text-[10px] font-bold px-2.5 py-1 sm:px-3 rounded-full shrink-0 select-none">
+          <span className="ml-2 bg-white/20 text-white text-[10px] font-bold px-2.5 py-1 sm:px-3 rounded-full shrink-0 select-none">
             See indicator →
           </span>
           <button
