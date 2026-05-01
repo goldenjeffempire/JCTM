@@ -47,14 +47,16 @@ const FALLBACK_EVENT = {
   enabled: true,
   slug: "warri-crusade-2026-day2",
   artwork: "/warri-crusade-flyer2.jpeg",
-  title: "Warri Crusade Day 2 — LIVE TONIGHT",
-  subtitle: "Be Ready For Rapture: Tribulation Is Coming!",
+  title: "Warri City Crusade 2026 — Day 2",
+  subtitle: "Starting at 6:00 PM WAT Tonight — Be Ready For Rapture",
   dateLabel: "May 1, 2026 · 6:00 PM (WAT)",
   location: "Ighogbadu Primary School, Warri",
-  ctaLabel: "Join Tonight",
+  ctaLabel: "Get Crusade Details",
   ctaHref: "/crusade",
-  startAtIso: "2026-05-01T17:00:00+01:00",
-  endAtIso: "2026-05-02T00:00:00+01:00",
+  // 2026-05-01T17:00:00Z = 6:00 PM WAT (WAT is UTC+1, so 6 PM WAT = 17:00 UTC)
+  startAtIso: "2026-05-01T17:00:00Z",
+  // 2026-05-01T23:00:00Z = midnight WAT
+  endAtIso: "2026-05-01T23:00:00Z",
 };
 
 // ── Static styles (allocated once at module scope) ─────────────────────────

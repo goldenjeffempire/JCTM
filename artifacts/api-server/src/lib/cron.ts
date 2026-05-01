@@ -45,38 +45,51 @@ let serviceReminderSentAt: number | null = null;
 let devotionNotificationSentDate: string | null = null; // ISO date string (YYYY-MM-DD)
 let devotionEmailBroadcastDate: string | null = null;   // ISO date string (YYYY-MM-DD)
 
-// ── Warri Crusade 2026 half-hourly campaign broadcast ────────────────────────
-// Fires every 30 minutes from "now" up to CAMPAIGN_END. Sends web push +
-// inserts a broadcast_events row (which the in-app SSE relay turns into a
-// toast for connected clients). Email is intentionally NOT sent here — we
-// already send a separate, less-frequent crusade email (daily max) further
-// down to avoid spamming devotion subscribers.
-const WARRI_CRUSADE_END_MS  = new Date("2026-05-01T21:00:00+01:00").getTime();
-const WARRI_CRUSADE_START_MS = new Date("2026-04-30T18:00:00+01:00").getTime();
-const WARRI_CRUSADE_TITLE   = "Warri Crusade Day 2";
-const WARRI_CRUSADE_URL     = "/crusade";
+// ── Warri Crusade Day 2 hourly campaign broadcast ────────────────────────────
+// Day 2 starts at 6:00 PM WAT (17:00 UTC) on May 1, 2026. The hourly cron
+// fires throughout the day: "Starting Soon" messages before 6 PM and
+// "LIVE NOW" messages once the event begins. Sends web push + inserts a
+// broadcast_events row (SSE relay turns it into an in-app toast). Email is
+// NOT sent here — handled by a separate daily devotion email path.
+const WARRI_CRUSADE_START_MS = new Date("2026-05-01T17:00:00Z").getTime(); // 6 PM WAT
+const WARRI_CRUSADE_END_MS   = new Date("2026-05-01T23:00:00Z").getTime(); // midnight WAT
+const WARRI_CRUSADE_TITLE    = "Warri Crusade Day 2";
+const WARRI_CRUSADE_URL      = "/crusade";
 // Stable body string used as the dedup-key prefix in `broadcast_events.message`.
 // It is intentionally short and constant so the unique-by-(type,title,message)
 // idempotency check stays deterministic across process restarts.
 const WARRI_CRUSADE_BODY    = "Warri Crusade 2026 broadcast";
 
-// Rotating messages — picked by UTC half-hour slot index so each push feels
-// fresh and urgent without any state or DB required for selection. With 24
-// distinct slots per day and 12 messages, every message surfaces twice/day
-// at different clock times.
+// Pre-event "Starting Soon" messages — sent hourly before 6 PM WAT
+const WARRI_CRUSADE_UPCOMING_MESSAGES = [
+  "⏰ Warri Crusade Day 2 starts at 6 PM WAT tonight — get ready!",
+  "🔔 Day 2 of the Warri Crusade is TONIGHT at 6 PM — don't miss it!",
+  "🙏 Prepare your heart — Warri Crusade Day 2 begins tonight at 6 PM!",
+  "🌍 Prophet Amos returns tonight for Day 2 of the Warri Crusade — be there!",
+  "🕊️ Day 2 of the Warri City Crusade is tonight — Ighogbadu Primary School!",
+  "📖 Join us at 6 PM WAT for Day 2 of the Crusade with Prophet Amos!",
+  "🔥 Tonight at 6 PM — Day 2 of the most powerful crusade in Warri 2026!",
+  "🙌 Invite someone to Day 2 of the Warri Crusade tonight — it starts at 6 PM!",
+  "🛐 Come for healing and deliverance — Warri Crusade Day 2 starts at 6 PM!",
+  "✝️ Jesus Christ is Lord — join Warri Crusade Day 2 at 6 PM tonight!",
+  "🌟 Warri Crusade Day 2 is TONIGHT — Ighogbadu Primary School, 6 PM WAT!",
+  "🔥 The move of God continues tonight at 6 PM — Day 2 of the Warri Crusade!",
+] as const;
+
+// Live event messages — sent hourly once the event is underway
 const WARRI_CRUSADE_MESSAGES = [
   "🔥 Join the powerful move of God in Warri — miracles are happening now!",
-  "⚡ Healings, deliverances, and salvation — Warri Crusade 2026 is live!",
-  "🙏 Don't miss the move of God in Warri City — join us today!",
-  "🌍 Thousands are gathering in Warri — be part of history. Join now!",
+  "⚡ Healings, deliverances, and salvation — Warri Crusade Day 2 is live!",
+  "🙏 Don't miss the move of God in Warri City — join us now!",
+  "🌍 Thousands are gathered in Warri — be part of history. Join now!",
   "🕊️ The Holy Spirit is moving in Warri — come experience the power of God!",
   "📖 Prophet Amos Jeffemuodafe is preaching the Word in Warri — join us!",
-  "🔔 The Warri City Crusade is ongoing — share this with your family!",
-  "🙌 Miracles, signs and wonders in Warri — join the Crusade today!",
-  "🛐 Deliverance and salvation at the Warri Crusade — invite someone now!",
-  "✝️ Jesus Christ is Lord — Warri Crusade 2026 is happening. Be there!",
-  "🌟 Come be healed and set free at the Warri City Crusade 2026!",
-  "🔥 The fire of revival is burning in Warri! Join us right now!",
+  "🔔 Warri Crusade Day 2 is ongoing — share this with your family!",
+  "🙌 Miracles, signs and wonders on Day 2 — join the Crusade now!",
+  "🛐 Deliverance and salvation at Warri Crusade Day 2 — invite someone now!",
+  "✝️ Jesus Christ is Lord — Warri Crusade Day 2 is happening. Be there!",
+  "🌟 Come be healed and set free at Warri Crusade Day 2 tonight!",
+  "🔥 The fire of revival is burning in Warri on Day 2 — join us now!",
 ] as const;
 
 // ── Expo Push Notification Dispatcher ────────────────────────────────────────
@@ -690,18 +703,21 @@ function hourBucketUTC(now: number = Date.now()): string {
 }
 
 function buildWarriCrusadeNotification(slotBucket: string): NotificationPayload {
-  // Rotate through messages deterministically by hourly slot so each push
-  // feels fresh. Hour index gives 24 distinct daily slots.
+  // Rotate through messages deterministically by hourly slot (hour index = 0–23).
   const parts = slotBucket.split("-");
   const hourNum = parseInt(parts[3] ?? "0", 10);
-  const body = WARRI_CRUSADE_MESSAGES[hourNum % WARRI_CRUSADE_MESSAGES.length]!;
 
-  // Phase-aware title so users know whether Day 2 is live or upcoming
+  // Phase-aware: "Starting Soon" before 6 PM WAT, "LIVE NOW" once started.
   const now = Date.now();
   const isLive = now >= WARRI_CRUSADE_START_MS && now < WARRI_CRUSADE_END_MS;
+  const isUpcoming = now < WARRI_CRUSADE_START_MS;
+
+  const messages = isUpcoming ? WARRI_CRUSADE_UPCOMING_MESSAGES : WARRI_CRUSADE_MESSAGES;
+  const body = messages[hourNum % messages.length]!;
+
   const title = isLive
     ? "🔴 Warri Crusade Day 2 — LIVE NOW"
-    : "🔥 Warri City Crusade — Day 2 Tonight";
+    : "⏰ Warri Crusade Day 2 — Starting at 6 PM (WAT)";
 
   return {
     title,
@@ -711,15 +727,16 @@ function buildWarriCrusadeNotification(slotBucket: string): NotificationPayload 
     image: "/warri-crusade-flyer2.jpeg",
     url: WARRI_CRUSADE_URL,
     tag: "warri-crusade-2026",
-    requireInteraction: isLive, // demand interaction when actually live
+    requireInteraction: isLive,
     actions: [
-      { action: "open", title: isLive ? "Join Live Now" : "Learn More" },
+      { action: "open", title: isLive ? "Join Live Now" : isUpcoming ? "Join Tonight" : "Learn More" },
       { action: "share", title: "Share" },
     ],
     data: {
       type: "warri_crusade_promo",
-      broadcastType: "event_reminder",
+      broadcastType: isUpcoming ? "event_reminder" : "live_service",
       isLive,
+      isUpcoming,
       timestamp: new Date().toISOString(),
     },
   };
