@@ -181,7 +181,7 @@ function UnifiedPlayerModal({
     : rebroadcastQueue[queueIndex]?.videoId ?? rebroadcastVideoId ?? "f7TOxaM2Mq4";
 
   const currentTitle = isLive
-    ? (liveTitle ?? "Warri Crusade Day 2")
+    ? (liveTitle ?? "Temple TV")
     : rebroadcastQueue[queueIndex]?.title || rebroadcastTitle || "Service Rebroadcast — JCTM";
 
   const activeHls = liveHlsManifestUrl ?? rebroadcastQueue[queueIndex]?.hlsManifestUrl ?? null;
@@ -431,7 +431,7 @@ export function BroadcastStatusIndicator() {
   // ── UPCOMING: Live in N min countdown pill ────────────────────────────────
   if (showUpcoming && !dismissed && upcomingMinutes !== null) {
     const label = formatCountdown(upcomingMinutes);
-    const eventTitle = status.title ?? "Warri Crusade Day 2";
+    const eventTitle = status.title ?? "Temple TV";
     return (
       <motion.div
         key="upcoming-indicator"
@@ -494,7 +494,7 @@ export function BroadcastStatusIndicator() {
           exit={{ opacity: 0, x: 20 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           onClick={() => setDismissed(false)}
-          aria-label={status.isLive ? `Rejoin ${status.title ?? "Warri Crusade Day 2"} — Live` : "Reopen player"}
+          aria-label={status.isLive ? `Rejoin ${status.title ?? "Temple TV"} — Live` : "Reopen player"}
           className={[
             "fixed top-[4.5rem] right-0 z-[200]",
             "flex items-center gap-1.5 pl-3 pr-2 py-2",
@@ -570,7 +570,7 @@ export function BroadcastStatusIndicator() {
               <button
                 onClick={() => setShowPlayer(true)}
                 className="flex items-center gap-2 pl-3 pr-2 py-2 cursor-pointer touch-manipulation"
-                aria-label={`Watch ${status.title ?? "Warri Crusade Day 2"} — Live`}
+                aria-label={`Watch ${status.title ?? "Temple TV"} — Live`}
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-70" />

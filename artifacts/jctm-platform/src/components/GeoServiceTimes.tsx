@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { Clock, Globe, MapPin, Radio, ChevronRight, Flame, AlertCircle, Play } from "lucide-react";
+import { Clock, Globe, MapPin, Radio, ChevronRight, AlertCircle, Play } from "lucide-react";
 import { Link } from "wouter";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { useGeo } from "@/contexts/GeoContext";
@@ -64,30 +64,11 @@ function isNearbyService(): { isNear: boolean; service: typeof SERVICES[0] | nul
   return { isNear: false, service: null };
 }
 
-// Warri City Crusade: April 30 – May 1, 2026
-const CRUSADE_START = new Date("2026-04-30T17:00:00+01:00"); // 6PM WAT
-const CRUSADE_END   = new Date("2026-05-01T22:00:00+01:00");
-
-function getCrusadeCountdown(): { days: number; hours: number; isLive: boolean; isPast: boolean } {
-  const now = new Date();
-  if (now >= CRUSADE_START && now <= CRUSADE_END) {
-    return { days: 0, hours: 0, isLive: true, isPast: false };
-  }
-  if (now > CRUSADE_END) {
-    return { days: 0, hours: 0, isLive: false, isPast: true };
-  }
-  const diff = CRUSADE_START.getTime() - now.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  return { days, hours, isLive: false, isPast: false };
-}
-
 export function GeoServiceTimes() {
   const { geo } = useGeo();
   const [tz, setTz] = useState("");
   const [localOffset, setLocalOffset] = useState("");
   const [nearService, setNearService] = useState<{ isNear: boolean; service: typeof SERVICES[0] | null }>({ isNear: false, service: null });
-  const [crusade, setCrusade] = useState(getCrusadeCountdown());
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
@@ -95,17 +76,15 @@ export function GeoServiceTimes() {
   // alert flips from "starting soon" into a live "Watch Live" call-to-action.
   const liveStatus = useLivestreamStatus();
   const isLive = liveStatus.isLive;
-  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 2";
+  const liveTitle = liveStatus.title?.trim() || "Temple TV";
 
   useEffect(() => {
     setTz(getBrowserTimezone());
     setLocalOffset(getLocalOffset());
     setNearService(isNearbyService());
-    setCrusade(getCrusadeCountdown());
 
     const interval = setInterval(() => {
       setNearService(isNearbyService());
-      setCrusade(getCrusadeCountdown());
     }, 60000);
 
     return () => clearInterval(interval);
@@ -160,57 +139,6 @@ export function GeoServiceTimes() {
         )}
       </div>
 
-      {/* Warri Crusade Banner — shown to everyone, emphasised for Nigerian users */}
-      {!crusade.isPast && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={inView ? { opacity: 1, scale: 1 } : {}}
-          transition={{ delay: 0.15 }}
-          className={`rounded-2xl p-4 border ${
-            geo?.isNigeria
-              ? "bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-red-500/10 border-amber-400/40"
-              : "bg-amber-50/60 dark:bg-amber-950/20 border-amber-300/40 dark:border-amber-800/30"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-amber-500/15 shrink-0">
-              <Flame className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
-                  🔥 Warri City Crusade 2026
-                </span>
-                {geo?.isNigeria && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-400/30">
-                    {geo.isWarriRegion ? "In Your State!" : "In Nigeria!"}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-amber-600/80 dark:text-amber-500/80 mt-0.5">
-                April 30 – May 1, 2026 · Ighogbadu Primary School, Okumagba Ave, Warri
-              </p>
-              {crusade.isLive ? (
-                <p className="mt-1.5 text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-ping" />
-                  HAPPENING NOW — Tune in on Temple TV
-                </p>
-              ) : (
-                <p className="mt-1.5 text-xs text-amber-700/70 dark:text-amber-400/70">
-                  Starts in <strong>{crusade.days}d {crusade.hours}h</strong>
-                  {geo?.isNigeria ? " — Don't miss this in your country!" : " — Mark your calendar"}
-                </p>
-              )}
-              <Link href="/crusade">
-                <button className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1">
-                  Learn More & RSVP <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </Link>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
       {/* Nearby service alert — flips to "Live Now" with a watch CTA when broadcasting */}
       {(isLive || (nearService.isNear && nearService.service)) && (
         <motion.div
@@ -239,7 +167,7 @@ export function GeoServiceTimes() {
         </motion.div>
       )}
 
-      {/* Nigeria-specific alert for non-Warri region users */}
+      {/* Nigeria-specific alert */}
       {geo?.isNigeria && !geo.isWarriRegion && (
         <motion.div
           initial={{ opacity: 0, x: -10 }}
@@ -249,7 +177,7 @@ export function GeoServiceTimes() {
         >
           <AlertCircle className="h-4 w-4 text-sky-500 mt-0.5 shrink-0" />
           <p className="text-xs text-sky-700 dark:text-sky-400">
-            <span className="font-semibold">You're in Nigeria 🇳🇬</span> — Join us in Warri or stream live services on Temple TV. All Nigerians are especially welcome to the Warri City Crusade 2026!
+            <span className="font-semibold">You're in Nigeria 🇳🇬</span> — Join us in Warri or stream live services on Temple TV. All Nigerians are welcome to connect with the ministry.
           </p>
         </motion.div>
       )}

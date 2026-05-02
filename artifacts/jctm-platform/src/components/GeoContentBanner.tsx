@@ -51,11 +51,11 @@ export function GeoContentBanner() {
                   action={{ label: "Get Directions", href: "/about" }}
                 />
                 <GeoCard
-                  icon={<Radio className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
-                  colorClass="bg-amber-500/10 border-amber-400/20"
-                  title="🔥 Warri City Crusade 2026"
-                  body="April 30 – May 1 at Ighogbadu Primary School. Happening in your state!"
-                  action={{ label: "RSVP Now", href: "/crusade" }}
+                  icon={<Radio className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+                  colorClass="bg-purple-500/10 border-purple-400/20"
+                  title="🙏 Ministers Conference 2026"
+                  body="May 8–10 at the Church Auditorium, Effurun. Happening near you!"
+                  action={{ label: "Register Now", href: "/conference-registration" }}
                 />
               </>
             ) : (

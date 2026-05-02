@@ -61,7 +61,7 @@ function usePushNotifications() {
         body: JSON.stringify({ subscription: subJson, deviceType: "web" }),
       });
       setSubscribed(true);
-      toast.success("Warri Crusade Day 2 alerts enabled!");
+      toast.success("Temple TV live alerts enabled!");
     } catch (err) {
       toast.error("Failed to enable notifications");
     } finally {
@@ -156,7 +156,7 @@ export function Navbar() {
     { href: "/sermons", label: t("Sermons") },
     { href: "/moments", label: t("Moments"), featurePill: true },
     { href: "/intro-videos", label: t("Intro"), featurePill: true },
-    { href: "/crusade", label: `🔥 ${t("Crusade")}`, highlight: true },
+    { href: "/crusade", label: t("Crusade") },
     { href: "/prayer", label: t("Prayer"), featurePill: true },
   ];
 
@@ -307,8 +307,8 @@ export function Navbar() {
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
               disabled={pushLoading}
-              aria-label={subscribed ? "Unsubscribe from Warri Crusade Day 2 alerts" : "Subscribe to Warri Crusade Day 2 alerts"}
-              title={subscribed ? "Click to disable live alerts" : "Get notified when Warri Crusade Day 2 is live"}
+              aria-label={subscribed ? "Unsubscribe from Temple TV live alerts" : "Subscribe to Temple TV live alerts"}
+              title={subscribed ? "Click to disable live alerts" : "Get notified when Temple TV goes live"}
               className="flex items-center justify-center w-8 h-8 rounded-full border transition-all duration-300 cursor-pointer disabled:opacity-50"
               style={{
                 background: subscribed

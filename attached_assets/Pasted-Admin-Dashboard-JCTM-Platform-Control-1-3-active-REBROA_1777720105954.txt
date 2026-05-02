@@ -1,0 +1,245 @@
+Admin Dashboard
+JCTM Platform Control
+
+1/3 active
+REBROADCAST
+Overview
+Broadcast
+Events
+Sermons
+Gallery
+Testimonies
+Platform
+Credentials
+Warri Crusade 2026 — Campaign Live
+Ended
+Campaign concluded · stats frozen
+
+
+Active subscribers
+0
+46 total
+Broadcasts sent
+65
+last 13h 7m ago
+Delivery rate
+53.3%
+170 of 686 delivered
+Click-through
+0
+0.0% CTR
+Last 24 hours · delivery vs. clicks
+Sent
+Failed
+Clicks
+13:00
+14:00
+15:00
+16:00
+17:00
+18:00
+19:00
+20:00
+21:00
+22:00
+23:00
+0
+2
+4
+6
+8
+
+Recent broadcasts
+20 of last 20
+Warri Crusade 2026 broadcast [slot:2026-05-01-22-00]
+13h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-21-00]
+14h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-20-00]
+15h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-19-00]
+16h 7m ago
+The Warri City Crusade has just started — join us for miracles, healing, and the move of God! [live-alert:2026-05-01T18:53:25.791Z:admin:10.195.229.132]
+16h 14m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-18-00]
+17h 7m ago
+The Warri City Crusade has just started — join us for miracles, healing, and the move of God! [live-alert:2026-05-01T17:54:36.507Z:admin:10.192.192.131]
+17h 13m ago
+Warri Crusade 2026 broadcast [manual:2026-05-01T17:54:32.773Z:admin:10.192.192.131]
+17h 13m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-17-00]
+18h 7m ago
+Warri Crusade 2026 broadcast [manual:2026-05-01T16:34:47.865Z:admin:10.194.203.129]
+18h 33m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-16-00]
+19h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-15-00]
+20h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-14-00]
+21h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-13-00]
+22h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-12-00]
+23h 7m ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-11-00]
+1d ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-10-00]
+1d ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-09-00]
+1d ago
+Warri Crusade 2026 broadcast [slot:2026-05-01-08-00]
+1d ago
+Warri Crusade 2026 broadcast [manual:2026-05-01T07:12:44.353Z:admin:10.198.60.132]
+1d ago
+Event Promotions
+0 live · 1 upcoming · 0 ended
+
+Refresh
+New promotion
+Ministers Conference 2026
+upcoming
+active
+Starts in 5d 18h
+Ministers Conference 2026
+minister-conference-2026
+
+Ebrumede Roundabout, Effurun Uvwie, Delta State
+
+5/8/2026, 7:00:00 AM → 5/10/2026, 9:00:00 PM
+Live push sent
+Broadcast every 720 min
+
+Sticky on
+
+Banner off
+
+Popup on
+Edit
+Delete
+Event Notification Scheduler
+Multi-channel reminders (push · email · live banner) dispatched at 24h / 12h / 6h / 1h before each upcoming event in the calendar. Runs every 30 minutes with idempotency + automatic retries.
+
+Email subscribers
+3
+
+Dispatches sent
+3
+
+Dispatches failed
+0
+
+Total deliveries
+7
+
+Pending
+0
+
+Last tick: 7m ago
+Next tick: 22m
+Idle
+SMTP not configured — email skipped
+Run scheduler now
+Send test email to
+you@example.com
+Send test
+Background worker & delivery queue
+Worker running
+Last poll: just now
+Polls every 10s
+Success rate
+100%
+
+Queue pending
+0
+
+Queue processing
+0
+
+Dead-letter (open)
+0
+
+Worker processed
+0
+
+Last scheduler tick
+Scanned 1 events · targeted 1 · enqueued 0 jobs
+Oldest pending: none · Next scheduled: —
+Last worker poll
+Claimed 0 · completed 0 · retried 0 · dead-lettered 0
+Lifetime: 0 ok · 0 retried · 0 dead-lettered
+Notification channel health
+Channel issue detected
+Checked 11m ago
+Web Push (VAPID)
+ready
+Active subs: 0 · 46 inactive
+24 h delivery: 97% (92/95)
+fp: BPJ_UCIR…SiqTXQ
+Expo (mobile)
+reachable
+Active tokens: 0
+Access token: not configured (anonymous tier)
+Email (SMTP)
+not configured
+Email channel will be skipped until SMTP_* env vars are set.
+Dead-letter queue
+0 unresolved · jobs that exhausted all retry attempts
+Empty — no permanently failed jobs.
+Upcoming events & milestone status
+1 event scanned
+Minister Conference 2026
+Fri, 8 May, 8:00 · Ebrumede Temple, JCTM Headquarters, Warri, Delta State
+starts 5d 19h
+−24h reminder
+Push
+—
+Email
+—
+Live banner
+—
+−6h reminder
+Push
+—
+Email
+—
+Live banner
+—
+−1h reminder
+Push
+—
+Email
+—
+Live banner
+—
+Notification config
+
+Notifications enabled
+Milestones (hours, comma-sep)
+24, 6, 1
+Pulse interval (min)
+720
+Pulse window (hours pre-event)
+168
+Pause until (local)
+
+mm/dd/yyyy, --:-- --
+Pause 1h
+Pause 24h
+Resume
+Save config
+Pulse activity
+Last slot: 5/2/2026, 1:00:00 AM · sent 3/3 rows
+Push
+sent · 0/0
+Email
+sent · 3/3
+Live banner
+sent · 4/4
+Recent dispatches
+3 rows
+Event	Milestone	Channel	Status	Sent / Total	Attempts	When	
+Minister Conference 2026	−0h	Live banner	sent	4 / 4	1	25m ago	
+Minister Conference 2026	−0h	Email	sent	3 / 3	2	23m ago	
+Minister Conference 2026	−0h	Push	sent	0 / 0	1	25m ago	
+
+2

@@ -8,7 +8,7 @@ import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Calendar, MapPin, Clock, Youtube, Radio, Phone,
+  Calendar, MapPin, Clock, Youtube, Phone,
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download, CalendarPlus,
   Flame, CheckCircle2, ExternalLink,
 } from "lucide-react";
@@ -879,12 +879,9 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
   );
 }
 
-const YOUTUBE_LIVE_ID = "UCPFFvkE-KGpR37qJgvYriJg";
-const CRUSADE_VIDEO_ID = "oJUkSAZu0y0";
 const MINISTER_CONF_VIDEO_ID = "hQFA1Y9NAcY";
 
 export default function Events() {
-  const [showLive, setShowLive] = useState(false);
   const { data: events, isLoading } = useListEvents({ limit: 20, offset: 0 });
 
   useEffect(() => { document.title = "Events | JCTM Digital Sanctuary"; }, []);
@@ -938,40 +935,12 @@ export default function Events() {
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
         </motion.div>
 
-        {/* Promo Videos */}
+        {/* Ministers Conference 2026 Promo Video */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">
           <h2 className="text-xl font-serif font-bold text-primary mb-5 flex items-center gap-2">
-            <Youtube className="h-5 w-5 text-red-600" /> Event Promo Videos
+            <Youtube className="h-5 w-5 text-red-600" /> Event Promo Video
           </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Warri Crusade 2026 */}
-            <div className="rounded-2xl overflow-hidden border border-border shadow-lg flex flex-col">
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-muted/30">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white" style={{ background: "#D4A017" }}>
-                  🔥 Crusade
-                </span>
-                <span className="text-sm font-semibold text-primary truncate">Warri City Crusade 2026</span>
-                <a
-                  href={`https://www.youtube.com/watch?v=${CRUSADE_VIDEO_ID}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto shrink-0 flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold"
-                >
-                  <Youtube className="h-3.5 w-3.5" /> YouTube
-                </a>
-              </div>
-              <MutedVideoPlayer
-                videoId={CRUSADE_VIDEO_ID}
-                title="Warri City Crusade 2026 — Official Promo Video"
-                mode="eager"
-                autoplay={true}
-                loop={true}
-                audioOnly={true}
-                analyticsPage="/events"
-              />
-            </div>
-
-            {/* Ministers Conference 2026 */}
+          <div className="max-w-2xl">
             <div className="rounded-2xl overflow-hidden border border-border shadow-lg flex flex-col">
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-muted/30">
                 <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white" style={{ background: "#7c3aed" }}>
@@ -999,47 +968,6 @@ export default function Events() {
             </div>
           </div>
         </motion.div>
-
-        {/* YouTube Live */}
-        <div className="glass-panel rounded-2xl p-6 mb-12 border border-red-200/50 bg-red-50/30">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shrink-0 shadow-lg shadow-red-200">
-                <Radio className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-red-600 uppercase tracking-widest">YouTube Live</span>
-                  <span className="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                </div>
-                <h3 className="font-serif font-bold text-primary">Warri Crusade Day 2</h3>
-                <p className="text-sm text-muted-foreground">Now Streaming Live directly on this website</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={() => setShowLive(!showLive)} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50 rounded-full gap-2">
-                <Youtube className="h-4 w-4" />
-                {showLive ? "Hide" : "Live Now"}
-              </Button>
-              <a href="https://www.youtube.com/@JesusChristTempleMinistry" target="_blank" rel="noopener noreferrer">
-                <Button className="bg-red-600 text-white hover:bg-red-700 rounded-full gap-2">
-                  <Youtube className="h-4 w-4" /> Subscribe
-                </Button>
-              </a>
-            </div>
-          </div>
-          {showLive && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-6 overflow-hidden">
-              <YouTubeEmbed
-                videoId={YOUTUBE_LIVE_ID}
-                title="Warri Crusade Day 2"
-                mode="facade"
-                analyticsPage="/events"
-                className="rounded-xl shadow-xl"
-              />
-            </motion.div>
-          )}
-        </div>
 
         <AdSlot slot={ADSENSE_SLOTS.eventsPage} minHeight={100} format="horizontal" className="mb-12" />
 

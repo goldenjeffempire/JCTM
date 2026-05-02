@@ -24,7 +24,7 @@ import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
-import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
+
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
@@ -313,7 +313,7 @@ function BroadcastStatusNotification({
                     <span className="relative inline-flex rounded-full h-full w-full bg-amber-300" />
                   </span>
                   <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 whitespace-nowrap">
-                    Warri Crusade Day 2
+                    Temple TV
                   </span>
                 </div>
                 <span className="rounded-full bg-white/12 px-2 py-1 text-[9px] font-black text-white tabular-nums border border-white/10">
@@ -322,7 +322,7 @@ function BroadcastStatusNotification({
               </div>
               <div>
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug">
-                  Warri Crusade Day 2 Begins Soon
+                  Sunday Service Begins Soon
                 </p>
                 <p className="text-white/55 text-[9px] sm:text-[10px] mt-0.5 font-medium">
                   Join us live at 8:00 AM (WAT)
@@ -386,7 +386,7 @@ function BroadcastStatusNotification({
               </div>
               <div className="pr-1">
                 <p className="text-white font-serif font-bold text-xs sm:text-sm leading-snug line-clamp-2">
-                  {liveTitle ?? "Warri Crusade Day 2"}
+                  {liveTitle ?? "Temple TV"}
                 </p>
                 <p className="text-white/40 text-[9px] sm:text-[10px] mt-0.5 font-medium truncate">Jesus Christ Temple Ministry</p>
               </div>
@@ -958,7 +958,7 @@ function HeroSection() {
                     dashManifestUrl={liveStatus.stream?.dashManifestUrl ?? null}
                     youtubeVideoId={liveVideoId ?? LIVE_STREAM_VIDEO_ID}
                     isLive={true}
-                    title={liveTitle ?? "Warri Crusade Day 2"}
+                    title={liveTitle ?? "Temple TV"}
                     autoPlay={true}
                     onLoad={() => { if (!playerError) setPlayerLoading(false); }}
                     onError={() => { setPlayerError(true); setPlayerLoading(false); }}
@@ -2682,332 +2682,6 @@ function ScriptureFeature() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// WARRI CITY CRUSADE 2026 — Invite Section (mirrors MinisterConferenceSection)
-// ═══════════════════════════════════════════════════════════════════════════
-const CRUSADE_YT = "oJUkSAZu0y0";
-const CRUSADE_TITLE = "Warri City Crusade 2026";
-const CRUSADE_FLYER = "/warri-crusade-flyer2.jpeg";
-const CRUSADE_LOCATION = "Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State";
-const CRUSADE_SHARE_TEXT = `🔥 WARRI CITY CRUSADE 2026!
-
-"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"
-
-📅 Thursday 30th April & Friday 1st May, 2026
-⏰ 6:00 PM Daily (WAT)
-📍 ${CRUSADE_LOCATION}
-
-📞 +234(0)8081313111
-🌐 www.jctm.org.ng
-
-#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`;
-const CRUSADE_SHARE = encodeURIComponent(CRUSADE_SHARE_TEXT);
-
-function WarriCrusadeSection() {
-  const [, setTick] = useState(0);
-  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(id); }, []);
-
-  const { promotion } = useActiveEventPromotion();
-  const isLive = promotion?.livePhase === "live";
-
-  const target = new Date("2026-04-30T17:00:00.000Z"); // 6:00 PM WAT = UTC+1
-  const now = new Date();
-  const diff = Math.max(0, target.getTime() - now.getTime());
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  const secs = Math.floor((diff % 60000) / 1000);
-  const shareUrl = `${window.location.origin}${BASE}/crusade`;
-
-  const sharePlatforms = [
-    { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${CRUSADE_SHARE}` },
-    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${CRUSADE_SHARE}` },
-    { label: "X", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${CRUSADE_SHARE}&url=${encodeURIComponent(shareUrl)}` },
-    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${CRUSADE_SHARE}` },
-    { label: "LinkedIn", emoji: "in", bg: "#0A66C2", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
-    { label: "Instagram", emoji: "📷", bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)", href: "https://www.instagram.com/templetv.jctm/" },
-  ];
-
-  const handleDownloadFlyer = () => {
-    const link = document.createElement("a");
-    link.href = CRUSADE_FLYER;
-    link.download = "warri-city-crusade-2026-flyer.jpeg";
-    link.click();
-  };
-
-  const handleNativeShare = async () => {
-    const payload = {
-      title: CRUSADE_TITLE,
-      text: CRUSADE_SHARE_TEXT,
-      url: shareUrl,
-    };
-    if (navigator.share) {
-      try {
-        await navigator.share(payload);
-      } catch {
-        return;
-      }
-    } else {
-      await navigator.clipboard.writeText(`${CRUSADE_SHARE_TEXT}\n\n${shareUrl}`);
-    }
-  };
-
-  return (
-    <section id="warri-crusade" className="py-0 relative overflow-hidden" style={{
-      background: isLive
-        ? "linear-gradient(180deg,#1a0303 0%,#5a0c0c 50%,#1a0303 100%)"
-        : "linear-gradient(180deg,#020b2a 0%,#0a1a5a 50%,#020b2a 100%)"
-    }}>
-      {/* Live red glow ring */}
-      {isLive && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          animate={{ opacity: [0.35, 0.7, 0.35] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-          style={{ boxShadow: "inset 0 0 120px 12px rgba(239,68,68,0.45)" }}
-        />
-      )}
-
-      {/* Starfield */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 50 }).map((_, i) => (
-          <div key={i} className="absolute rounded-full" style={{
-            width: `${(i % 3) * 0.8 + 0.6}px`, height: `${(i % 3) * 0.8 + 0.6}px`,
-            top: `${(i * 37 + 11) % 100}%`, left: `${(i * 53 + 7) % 100}%`,
-            background: isLive
-              ? `rgba(255,180,180,${(i % 5) * 0.08 + 0.08})`
-              : `rgba(255,220,120,${(i % 5) * 0.08 + 0.08})`,
-          }} />
-        ))}
-      </div>
-
-      {/* Glow orbs */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full blur-3xl" style={{
-          background: isLive
-            ? "radial-gradient(ellipse, rgba(239,68,68,0.25) 0%, transparent 70%)"
-            : "radial-gradient(ellipse, rgba(212,160,23,0.15) 0%, transparent 70%)"
-        }} />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] rounded-full blur-2xl" style={{
-          background: isLive
-            ? "radial-gradient(ellipse, rgba(239,68,68,0.18) 0%, transparent 70%)"
-            : "radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, transparent 70%)"
-        }} />
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-20">
-        <div className="max-w-5xl mx-auto">
-
-          {/* Label */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8">
-            {isLive ? (
-              <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border mb-4 bg-red-500/20 border-red-400/50 text-red-100">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-300" />
-                </span>
-                Live Now · Broadcasting
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border mb-4"
-                style={{ borderColor: "rgba(212,160,23,0.4)", background: "rgba(212,160,23,0.1)", color: "#FFD700" }}>
-                <Flame className="h-3.5 w-3.5" /> Jesus Christ Temple Ministry Presents
-              </span>
-            )}
-            <h2 className="font-serif font-black text-4xl md:text-6xl text-white mb-3 leading-tight">
-              Warri City{" "}
-              <span style={{ WebkitTextStroke: "2px #FFD700", color: "transparent" }}>Crusade</span>{" "}
-              <span className="text-yellow-400">2026</span>
-            </h2>
-            <p className="text-yellow-200/80 font-serif italic text-lg max-w-xl mx-auto">&ldquo;Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!&rdquo;</p>
-          </motion.div>
-
-          {/* 2-col layout: Invite Card + Details */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-
-            {/* Left — styled crusade invite card */}
-            <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
-              <div className="relative rounded-3xl overflow-hidden border-2 shadow-2xl shadow-yellow-400/20 h-full flex flex-col"
-                style={{ borderColor: "rgba(212,160,23,0.45)", background: "linear-gradient(145deg,#020b2a 0%,#0a1a5a 50%,#020b2a 100%)" }}>
-
-                {/* Top accent bar */}
-                <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,transparent,#D4A017 20%,#FFD700 50%,#D4A017 80%,transparent)" }} />
-
-                <div className="relative bg-black/30">
-                  <img
-                    src={CRUSADE_FLYER}
-                    alt="Warri City Crusade 2026 official flyer"
-                    className="w-full h-auto object-contain"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-
-                <div className="px-5 py-5 text-center space-y-4">
-                  <p className="text-yellow-200/80 text-sm font-medium">
-                    Download the official flyer, then share it across WhatsApp, Facebook, Instagram, X, Telegram, LinkedIn, and your groups.
-                  </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <button
-                      onClick={handleDownloadFlyer}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                      style={{ background: "linear-gradient(135deg,#1d4ed8,#3b82f6)" }}
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download Flyer
-                    </button>
-                    <button
-                      onClick={handleNativeShare}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                      style={{ background: "linear-gradient(135deg,#D4A017,#FFD700)", color: "#0a1a4a" }}
-                    >
-                      <Share2 className="h-3.5 w-3.5" /> Share Flyer
-                    </button>
-                    {sharePlatforms.map(p => (
-                      <a key={p.label} href={p.href} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-3 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                        style={{ background: p.bg }}>
-                        <span>{p.emoji}</span> {p.label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bottom accent bar */}
-                <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
-              </div>
-            </motion.div>
-
-            {/* Right — countdown + details + video */}
-            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}
-              className="flex flex-col gap-6">
-
-              {/* Countdown / Live status */}
-              <div className="rounded-3xl p-6 text-center" style={{
-                background: isLive ? "rgba(90,12,12,0.85)" : "rgba(10,26,90,0.8)",
-                border: isLive ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(212,160,23,0.25)"
-              }}>
-                {isLive ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-400" />
-                    </span>
-                    <p className="text-white font-bold text-base">Broadcasting Now — Tap below to join the live altar</p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-yellow-400/70 text-xs uppercase tracking-widest font-bold mb-4">
-                      {diff > 0 ? "Crusade Begins In" : "🔥 The Crusade Is NOW!"}
-                    </p>
-                    {diff > 0 && (
-                      <div className="flex justify-center gap-3">
-                        {[{ v: days, l: "Days" }, { v: hours, l: "Hrs" }, { v: mins, l: "Min" }, { v: secs, l: "Sec" }].map(({ v, l }) => (
-                          <div key={l} className="flex flex-col items-center rounded-xl px-3 py-2 min-w-[52px]"
-                            style={{ background: "linear-gradient(135deg,#0a1a5a,#1e3a8a)", border: "1px solid rgba(212,160,23,0.3)" }}>
-                            <span className="text-2xl font-black text-white font-mono tabular-nums">{String(v).padStart(2, "0")}</span>
-                            <span className="text-[9px] text-yellow-400/60 uppercase tracking-wider">{l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Details */}
-              <div className="rounded-3xl p-6 space-y-3" style={{ background: "rgba(10,26,90,0.8)", border: "1px solid rgba(212,160,23,0.25)" }}>
-                {[
-                  { icon: Calendar, text: "Thursday 30th April & Friday 1st May, 2026" },
-                  { icon: Clock, text: "6:00 PM Daily (West Africa Time)" },
-                  { icon: MapPin, text: CRUSADE_LOCATION },
-                  { icon: Globe, text: "Watch on Temple TV · jctm.org.ng" },
-                ].map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-start gap-3 text-sm text-white/80">
-                    <Icon className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-                    <span>{text}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Video — live stream when live, promo otherwise */}
-              <div className="rounded-3xl overflow-hidden relative" style={{
-                border: isLive ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(212,160,23,0.25)"
-              }}>
-                {isLive && (
-                  <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                    </span>
-                    Live
-                  </div>
-                )}
-                {isLive ? (
-                  <YouTubeEmbed
-                    videoId={LIVE_STREAM_VIDEO_ID}
-                    title="Warri City Crusade 2026 — Live Broadcast"
-                    mode="eager"
-                    autoplay={true}
-                    analyticsPage="/"
-                  />
-                ) : (
-                  <MutedVideoPlayer
-                    videoId={CRUSADE_YT}
-                    title="Warri City Crusade 2026 Promo"
-                    mode="eager"
-                    autoplay={true}
-                    loop={true}
-                    audioOnly={true}
-                    analyticsPage="/"
-                  />
-                )}
-              </div>
-
-              {/* CTAs */}
-              <div className="flex flex-col gap-3">
-                <Link href="/crusade">
-                  {isLive ? (
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      animate={{ boxShadow: ["0 8px 32px rgba(239,68,68,0.35)", "0 8px 48px rgba(239,68,68,0.7)", "0 8px 32px rgba(239,68,68,0.35)"] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-full py-4 rounded-2xl font-serif font-black text-xl tracking-wide flex items-center justify-center gap-2"
-                      style={{ background: "linear-gradient(135deg,#dc2626,#ef4444)", color: "#fff" }}>
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
-                      </span>
-                      Join Live Now
-                    </motion.button>
-                  ) : (
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      className="w-full py-4 rounded-2xl font-serif font-black text-xl tracking-wide"
-                      style={{ background: "linear-gradient(135deg,#D4A017,#FFD700)", color: "#0a1a4a", boxShadow: "0 8px 32px rgba(212,160,23,0.35)" }}>
-                      ✋ Register to Attend
-                    </motion.button>
-                  )}
-                </Link>
-                <Link href="/crusade">
-                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                    className="w-full py-3 rounded-2xl font-serif font-bold text-base tracking-wide"
-                    style={{
-                      background: isLive
-                        ? "linear-gradient(135deg,#7a0c0c,#a91515)"
-                        : "linear-gradient(135deg,#1d4ed8,#3b82f6)",
-                      color: "#fff"
-                    }}>
-                    {isLive ? "Open Live Page" : "View Crusade Details"}
-                  </motion.button>
-                </Link>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // MINISTER CONFERENCE 2026 — Invite Section
 // ═══════════════════════════════════════════════════════════════════════════
 const MCONF_YT = "hQFA1Y9NAcY";
@@ -3298,38 +2972,6 @@ function EventsSection() {
             </div>
           ) : (
             <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {/* ── Warri City Crusade 2026 — Always Featured ── */}
-              <motion.div variants={fadeUp}>
-                <TiltCard>
-                  <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border-2 border-yellow-400/50 group relative overflow-hidden h-full flex flex-col"
-                    style={{ boxShadow: "0 0 36px 6px rgba(212,160,23,0.18), 0 4px 24px rgba(0,0,0,0.08)" }}>
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 z-10" />
-                    <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                      <img src="/warri-crusade-flyer2.jpeg" alt="Warri City Crusade 2026" className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
-                      <div className="absolute top-3 right-3">
-                        <span className="bg-yellow-500 text-[#0a1a4a] text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">Crusade</span>
-                      </div>
-                    </div>
-                    <div className="p-6 flex flex-col flex-1">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl px-3 py-1.5 text-[#0a1a4a] text-center">
-                          <span className="block font-bold text-xs leading-none uppercase">Apr 30</span>
-                        </div>
-                        <Badge className="rounded-full text-xs bg-yellow-50 text-yellow-700 border-yellow-200">Upcoming</Badge>
-                      </div>
-                      <h3 className="text-lg font-bold text-primary mb-1 leading-tight group-hover:text-accent transition-colors">Warri City Crusade 2026</h3>
-                      <p className="text-xs italic text-muted-foreground mb-3 line-clamp-2">"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"</p>
-                      <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
-                        <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-accent shrink-0" />Thu 30 Apr & Fri 1 May, 2026</div>
-                        <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-accent shrink-0" />6:00 PM Daily WAT</div>
-                        <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" /><span className="leading-snug">Ighogbadu Primary School, Warri</span></div>
-                      </div>
-                      <Link href="/crusade"><Button className="w-full rounded-xl bg-yellow-500 hover:bg-yellow-600 text-[#0a1a4a] font-bold border-none shadow-none transition-all duration-200">Register to Attend</Button></Link>
-                    </div>
-                  </div>
-                </TiltCard>
-              </motion.div>
               {/* ── Ministers Conference 2026 — Always Featured ── */}
               <motion.div variants={fadeUp}>
                 <TiltCard>
@@ -4096,26 +3738,6 @@ function GlobalAltarSection() {
 // PAGE ASSEMBLY
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Home() {
-  const { promotion } = useActiveEventPromotion();
-  const isCrusadeLive = promotion?.livePhase === "live";
-
-  // Live-priority shift: when the crusade is live, gently scroll the visitor
-  // to the Warri Crusade block once per session so they see the live entry
-  // immediately without hijacking the page on every navigation.
-  useEffect(() => {
-    if (!isCrusadeLive) return;
-    if (typeof window === "undefined") return;
-    const KEY = "jctm:crusade-live-autoscroll";
-    if (sessionStorage.getItem(KEY)) return;
-    const t = window.setTimeout(() => {
-      const el = document.getElementById("warri-crusade");
-      if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      sessionStorage.setItem(KEY, "1");
-    }, 1200); // small delay so first paint settles
-    return () => window.clearTimeout(t);
-  }, [isCrusadeLive]);
-
   return (
     <Layout>
       <Helmet>
@@ -4164,9 +3786,6 @@ export default function Home() {
         ]}
       />
       <HeroSection />
-      {/* Live-priority hoist: when crusade is broadcasting, the Warri Crusade
-          block becomes the primary featured content directly under the hero. */}
-      {isCrusadeLive && <WarriCrusadeSection />}
       <EventPopupModal />
       <div className="container mx-auto px-4 py-4">
         <AdSlot slot={ADSENSE_SLOTS.homeHero} minHeight={120} className="mx-auto max-w-5xl" lazy={false} />
@@ -4186,9 +3805,6 @@ export default function Home() {
       <MinistryPillars />
       <ScriptureFeature />
       <EventsSection />
-      {/* Default position: shown only when NOT live (when live, it's hoisted
-          to the top, directly under the hero, so we avoid rendering twice). */}
-      {!isCrusadeLive && <WarriCrusadeSection />}
       <MinisterConferenceSection />
       <GlobalReach />
       <GlobalAltarSection />

@@ -1,25 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect } from "react";
 import { SEO } from "@/components/SEO";
-import Cropper from "react-easy-crop";
-import type { Point, Area } from "react-easy-crop";
 import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
-import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  Calendar, MapPin, Clock, Phone, Share2, Download, Copy, Check,
-  Bell, BellOff, Users, ChevronDown, ExternalLink, Sparkles, Flame,
-  Facebook, Instagram, Youtube, X, Camera, ImagePlus
+  Calendar, MapPin, Clock, Phone, Share2, Download,
+  Youtube, ExternalLink, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { safeLocalGet, safeLocalRemove, safeLocalSet } from "@/lib/utils";
 import { VenueMap } from "@/components/VenueMap";
 import { WARRI_CRUSADE_VENUE } from "@/constants/venues";
-
-const CRUSADE_START = new Date("2026-04-30T18:00:00+01:00");
-const CRUSADE_END = new Date("2026-05-01T21:00:00+01:00");
+import { Link } from "wouter";
 
 const LOCATION = "Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State";
 const CONTACT = "+234(0)8081313111";
@@ -27,1217 +19,35 @@ const EVENT_TITLE = "Warri City Crusade 2026 — Prophet Amos Global Crusade";
 const EVENT_THEME = "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!";
 const CRUSADE_YT_VIDEO = "oJUkSAZu0y0";
 
-function useCountdown(target: Date) {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, started: false });
+export default function Crusade() {
   useEffect(() => {
-    const calc = () => {
-      const now = new Date();
-      const diff = target.getTime() - now.getTime();
-      if (diff <= 0) { setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, started: true }); return; }
-      setTimeLeft({
-        days: Math.floor(diff / 86400000),
-        hours: Math.floor((diff % 86400000) / 3600000),
-        minutes: Math.floor((diff % 3600000) / 60000),
-        seconds: Math.floor((diff % 60000) / 1000),
-        started: false,
-      });
-    };
-    calc();
-    const id = setInterval(calc, 1000);
-    return () => clearInterval(id);
-  }, [target]);
-  return timeLeft;
-}
+    document.title = "Warri City Crusade 2026 — Past Events Archive | JCTM Digital Sanctuary";
+    const meta = document.querySelector("meta[name='description']");
+    if (meta) meta.setAttribute("content", `Archive of the ${EVENT_TITLE}. ${EVENT_THEME} — ${LOCATION}.`);
+  }, []);
 
-function CountdownBlock({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="flex flex-col items-center">
-      <motion.div
-        key={value}
-        initial={{ rotateX: -90, opacity: 0 }}
-        animate={{ rotateX: 0, opacity: 1 }}
-        transition={{ duration: 0.35 }}
-        className="w-20 h-20 md:w-28 md:h-28 rounded-2xl flex items-center justify-center font-mono font-black text-4xl md:text-5xl text-white shadow-2xl border border-yellow-400/30"
-        style={{ background: "linear-gradient(135deg, #0a1a4a 0%, #1a3a8a 100%)" }}
-      >
-        {String(value).padStart(2, "0")}
-      </motion.div>
-      <span className="mt-2 text-[10px] md:text-xs text-yellow-400 uppercase tracking-[0.2em] font-bold">{label}</span>
-    </div>
-  );
-}
-
-const AD_COPIES = {
-  short: {
-    label: "Short (Stories / Reels)",
-    platform: "Instagram & Facebook Stories",
-    icon: Instagram,
-    text: `🔥 THE RAPTURE IS NEAR. ARE YOU READY?
-
-Join Prophet Amos at the Warri City Crusade 2026!
-
-📅 April 30 – May 1, 2026
-⏰ 6:00 PM Daily
-📍 Ighogbadu Primary School, Warri
-
-Run for your soul. Tribulation is coming.
-
-#WarriCrusade2026 #Rapture #ProphetAmos`,
-  },
-  medium: {
-    label: "Medium (Feed Posts)",
-    platform: "Facebook & Instagram Feed",
-    icon: Facebook,
-    text: `⚡ BREAKING: TRIBULATION IS COMING — RUN FOR YOUR SOUL! ⚡
-
-The Jesus Christ Temple Ministry invites you to the most powerful spiritual gathering of 2026 — The Warri City Crusade (Prophet Amos Global Crusade).
-
-📖 Theme: "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"
-
-This is not an ordinary church service. This is a divine emergency alert to the Body of Christ and every soul in Warri and Delta State.
-
-📅 Date: Thursday 30th April & Friday 1st May, 2026
-⏰ Time: 6:00 PM Daily (WAT)
-📍 Venue: Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State
-
-Come expecting miracles, healing, deliverance, and a direct encounter with the living God.
-
-📞 Enquiries: +234(0)8081313111
-
-Share this. Tag 5 souls who need to hear this message. The time is now.
-
-#WarriCrusade2026 #ProphetAmos #BeReadyForRapture #TribulationIsComing #JCTMinistry #WarriForJesus`,
-  },
-  long: {
-    label: "Long (YouTube / Blog)",
-    platform: "YouTube Ads & Blog",
-    icon: Youtube,
-    text: `🌍 WARRI CITY CRUSADE 2026 — PROPHET AMOS GLOBAL CRUSADE
-
-EVENT DETAILS:
-• Event: Warri City Crusade 2026 / Prophet Amos Global Crusade
-• Theme: "Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"
-• Date: Thursday 30th April & Friday 1st May, 2026
-• Time: 6:00 PM Daily (West Africa Time)
-• Venue: Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South L.G.A., Delta State, Nigeria
-• Enquiries: +234(0)8081313111
-
-THE MESSAGE IS URGENT:
-We are living in the last of the last days. The signs of the times are unmistakably clear. Across the globe, the Holy Spirit is sounding an alarm — the Rapture of the Church is at hand. Tribulation, unlike anything the world has ever witnessed, is about to be unleashed upon the earth.
-
-Prophet Amos, anointed and commissioned by the Lord Jesus Christ, will be ministering under a burning mandate: to warn souls, ignite faith, and prepare the body of Christ for what is coming.
-
-WHAT TO EXPECT:
-✅ Powerful prophetic ministry under the anointing
-✅ Mass deliverance and healing miracles
-✅ Deep revelatory teaching on end-time events
-✅ Altar calls and soul-winning
-✅ A life-changing encounter with the Living God
-
-WHO SHOULD ATTEND:
-This crusade is for every soul — whether you are saved, backslidden, or searching. If you are in Warri or within driving distance of Delta State, there is no excuse to miss this divine appointment.
-
-INVITE OTHERS: Share this post. Print flyers. Call your unsaved friends and family. The King is coming, and not a soul should be left behind.
-
-"Watch therefore, for you know neither the day nor the hour in which the Son of Man is coming." — Matthew 25:13
-
-Subscribe to JCTM Digital Sanctuary for live crusade updates, sermons, and testimonies.
-
-#WarriCityCrusade2026 #ProphetAmosGlobalCrusade #BeReadyForRapture #TribulationIsComing #JesusChristTempleMinistry #EndTimes #Rapture2026 #WarriForJesus #DeltaStateRevival`,
-  },
-};
-
-function FlyerShowcase() {
-  const shareText = encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri South, Delta State\n\n📞 ${CONTACT}\n🌐 www.jctm.org.ng\n\n#WarriCrusade2026 #ProphetAmos #BeReadyForRapture`);
-  const shareUrl = encodeURIComponent("https://jctm.church/crusade");
-  const platforms = [
-    { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${shareText}` },
-    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}&quote=${shareText}` },
-    { label: "X / Twitter", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}` },
-    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${shareUrl}&text=${shareText}` },
-    { label: "Instagram", emoji: "📷", bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)", href: "https://www.instagram.com/templetv.jctm/" },
-  ];
-
-  const handleDownload = () => {
+  const handleDownloadFlyer = () => {
     const link = document.createElement("a");
     link.href = "/warri-crusade-flyer2.jpeg";
     link.download = "warri-city-crusade-2026-flyer.jpeg";
     link.click();
-    toast.success("Flyer downloaded! Share it everywhere — WhatsApp, Facebook, Instagram.");
+    toast.success("Flyer downloaded!");
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.2 }}
-      className="mb-14 rounded-3xl overflow-hidden border-2 group relative"
-      style={{ borderColor: "rgba(212,160,23,0.6)" }}
-    >
-      <img
-        src="/warri-crusade-flyer2.jpeg"
-        alt="Warri City Crusade 2026 — Official Event Flyer"
-        className="w-full object-cover group-hover:scale-105 transition-transform duration-700"
-        style={{ maxHeight: "600px", objectPosition: "center top" }}
-        loading="lazy"
-        decoding="async"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#020b2a] via-[#020b2a]/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-        <p className="text-yellow-400 text-xs font-bold uppercase tracking-[0.25em] mb-4 flex items-center gap-2">
-          <Share2 className="h-3.5 w-3.5" />
-          Official Flyer — Share on All Platforms
-        </p>
-        <div className="flex flex-wrap gap-2.5">
-          {platforms.map(p => (
-            <a
-              key={p.label}
-              href={p.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
-              style={{ background: p.bg }}
-            >
-              <span>{p.emoji}</span>
-              <span className="hidden sm:inline">{p.label}</span>
-            </a>
-          ))}
-          <button
-            onClick={handleDownload}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg border-2"
-            style={{ borderColor: "#D4A017", color: "#FFD700", background: "rgba(212,160,23,0.12)" }}
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Download Flyer</span>
-          </button>
-        </div>
-      </div>
-    </motion.div>
+  const shareText = encodeURIComponent(
+    `🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n6:00 PM Daily\n📍 Ighogbadu Primary School, Warri\n\n📞 ${CONTACT}\n🌐 www.jctm.org.ng`
   );
-}
-
-function CrusadeVideoLoop() {
-  // Hot-swap the promo embed for the actual live broadcast the moment YouTube
-  // reports the crusade stream is live. Falls back to the official ad video
-  // any other time so this slot is never empty.
-  const liveStatus = useLivestreamStatus();
-  const isLive = liveStatus.isLive && !!liveStatus.videoId;
-  const activeVideoId = isLive ? liveStatus.videoId! : CRUSADE_YT_VIDEO;
-  const liveTitle = liveStatus.title?.trim() || "Warri Crusade Day 2";
-
-  const headerTitle = isLive
-    ? `${liveTitle} — Broadcasting Live`
-    : "Warri Crusade 2026 — YouTube Ad (Running Now)";
-
-  const headerCaption = isLive
-    ? "The crusade is broadcasting live right now. Watch, worship, and share the link so others can join the move of God in real time."
-    : "The official crusade video uploaded to YouTube. Playing as a continuous ad — watch, share, and amplify the reach across all platforms.";
-
-  const headerPill = isLive ? (
-    <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-extrabold uppercase tracking-widest">
-      <span className="h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.8)]" />
-      Live Now
-    </span>
-  ) : (
-    <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-red-400 font-bold uppercase tracking-widest">
-      <span className="h-2 w-2 bg-red-400 rounded-full animate-pulse" /> Live Promo
-    </span>
-  );
-
-  const embedTitle = isLive ? `${liveTitle} — Live on YouTube` : "Warri City Crusade 2026 — Official Promo Video";
-  const embedDescription = isLive
-    ? `Live broadcast of ${liveTitle} hosted by Jesus Christ Temple Ministry.`
-    : "Official promo video for the Warri City Crusade 2026 hosted by Jesus Christ Temple Ministry.";
-
-  // Share content adapts: when live, drive viewers straight to the live stream;
-  // otherwise share the promo video as before.
-  const shareYtUrl = `https://youtu.be/${activeVideoId}`;
-  const shareWhatsappText = encodeURIComponent(
-    isLive
-      ? `🔴 LIVE NOW — ${liveTitle}!\n\n"${EVENT_THEME}"\n\n📍 Ighogbadu Primary School, Warri\nJoin us live: ${shareYtUrl}\n\n#WarriCrusade2026 #ProphetAmos`
-      : `🔥 Watch the official Warri City Crusade 2026 promo!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026 · 6PM Daily\n📍 Ighogbadu Primary School, Warri\n\n${shareYtUrl}\n\n#WarriCrusade2026 #ProphetAmos`
-  );
-  const shareTweetText = encodeURIComponent(
-    isLive
-      ? `🔴 LIVE NOW — ${liveTitle}! "${EVENT_THEME}" Join us live from Warri. #WarriCrusade2026`
-      : `🔥 "${EVENT_THEME}" — Watch the Warri City Crusade 2026 promo! Apr 30–May 1, Warri. #WarriCrusade2026`
-  );
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.4 }}
-      className={`mb-10 rounded-3xl overflow-hidden border ${isLive ? "border-red-500/40 ring-2 ring-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.15)]" : "border-yellow-400/20"}`}
-      style={{ background: "rgba(10,26,74,0.7)" }}
-    >
-      <div className={`p-6 border-b ${isLive ? "border-red-500/20" : "border-yellow-400/10"}`}>
-        <div className="flex items-center gap-3 mb-1">
-          <Youtube className={`h-5 w-5 ${isLive ? "text-red-500 animate-pulse" : "text-red-500"}`} />
-          <h3 className="font-serif font-bold text-white text-xl">{headerTitle}</h3>
-          {headerPill}
-        </div>
-        <p className="text-white/60 text-sm">{headerCaption}</p>
-      </div>
-      <div className="p-4">
-        <YouTubeEmbed
-          key={activeVideoId}
-          videoId={activeVideoId}
-          title={embedTitle}
-          mode="facade"
-          autoplay={isLive}
-          emitSchema
-          schema={{
-            description: embedDescription,
-            publisherName: "Jesus Christ Temple Ministry (JCTM)",
-            publisherUrl: "https://jctm.org.ng",
-          }}
-          className="rounded-2xl shadow-2xl"
-          analyticsPage="/crusade"
-        />
-        <div className="flex flex-wrap gap-3 mt-5 justify-center">
-          <a
-            href={`https://wa.me/?text=${shareWhatsappText}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
-            style={{ background: "#25D366" }}
-          >
-            💬 {isLive ? "Share Live Link" : "Share on WhatsApp"}
-          </a>
-          <a
-            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareYtUrl)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
-            style={{ background: "#1877F2" }}
-          >
-            👍 Share on Facebook
-          </a>
-          <a
-            href={`https://twitter.com/intent/tweet?text=${shareTweetText}&url=${encodeURIComponent(shareYtUrl)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-black hover:bg-gray-900 transition-all hover:scale-105 shadow-lg"
-          >
-            𝕏 Share on X
-          </a>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function AdCopySection() {
-  const [active, setActive] = useState<keyof typeof AD_COPIES>("medium");
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(AD_COPIES[active].text);
-    setCopied(true);
-    toast.success("Ad copy copied to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="rounded-3xl overflow-hidden border border-yellow-400/20" style={{ background: "rgba(10,26,74,0.7)" }}>
-      <div className="p-6 border-b border-yellow-400/10">
-        <div className="flex items-center gap-3 mb-2">
-          <Sparkles className="h-5 w-5 text-yellow-400" />
-          <h3 className="font-serif font-bold text-white text-xl">Automated Ad Copy Generator</h3>
-        </div>
-        <p className="text-white/60 text-sm">3 professionally crafted ad versions for every platform. Copy and deploy instantly.</p>
-      </div>
-      <div className="flex border-b border-yellow-400/10">
-        {(Object.entries(AD_COPIES) as [keyof typeof AD_COPIES, typeof AD_COPIES.short][]).map(([key, val]) => {
-          const Icon = val.icon;
-          return (
-            <button
-              key={key}
-              onClick={() => setActive(key)}
-              className={`flex-1 py-3 px-2 text-xs font-bold uppercase tracking-wider transition-all duration-200 flex flex-col items-center gap-1 ${
-                active === key
-                  ? "text-yellow-400 border-b-2 border-yellow-400 bg-yellow-400/5"
-                  : "text-white/40 hover:text-white/70"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {val.label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-yellow-400/70 font-medium uppercase tracking-widest">
-            {AD_COPIES[active].platform}
-          </span>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 text-xs text-white/60 hover:text-yellow-400 transition-colors"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied!" : "Copy"}
-          </button>
-        </div>
-        <pre className="text-sm text-white/80 whitespace-pre-wrap leading-relaxed font-sans max-h-64 overflow-y-auto custom-scroll">
-          {AD_COPIES[active].text}
-        </pre>
-      </div>
-    </div>
-  );
-}
-
-async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string> {
-  const image = new Image();
-  image.src = imageSrc;
-  await new Promise<void>((res) => { image.onload = () => res(); });
-  const canvas = document.createElement("canvas");
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
-  return canvas.toDataURL("image/jpeg", 0.92);
-}
-
-function CropModal({ src, onDone, onCancel }: { src: string; onDone: (cropped: string) => void; onCancel: () => void }) {
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-
-  const onCropComplete = useCallback((_: Area, pixels: Area) => {
-    setCroppedAreaPixels(pixels);
-  }, []);
-
-  const handleDone = async () => {
-    if (!croppedAreaPixels) return;
-    const cropped = await getCroppedImg(src, croppedAreaPixels);
-    onDone(cropped);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-4">
-      <div className="w-full max-w-sm bg-[#0a1030] rounded-2xl overflow-hidden shadow-2xl border border-cyan-500/30">
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-white font-bold text-center text-sm">Crop Your Photo</p>
-          <p className="text-white/50 text-xs text-center mt-0.5">Drag to reposition · Pinch or use slider to zoom</p>
-        </div>
-        <div className="relative w-full" style={{ height: "clamp(180px, 38vh, 300px)" }}>
-          <Cropper
-            image={src}
-            crop={crop}
-            zoom={zoom}
-            aspect={1}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropComplete}
-          />
-        </div>
-        <div className="px-5 py-3">
-          <input
-            type="range"
-            min={1}
-            max={3}
-            step={0.01}
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full accent-cyan-400"
-          />
-        </div>
-        <div className="flex gap-3 px-4 pb-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors touch-manipulation"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDone}
-            className="flex-1 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-bold transition-colors touch-manipulation"
-          >
-            Use This Crop
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InviteCardGenerator({ initialName = "", initialPhoto = null }: { initialName?: string; initialPhoto?: string | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState(initialName);
-  const [photo, setPhoto] = useState<string | null>(initialPhoto);
-  const [generated, setGenerated] = useState(false);
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
-
-  useEffect(() => { if (initialName) setName(initialName); }, [initialName]);
-  useEffect(() => { if (initialPhoto) setPhoto(initialPhoto); }, [initialPhoto]);
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("Photo must be under 10 MB."); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => { setCropSrc(ev.target?.result as string); };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const generate = useCallback(async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const W = 1080, H = 1440;
-    canvas.width = W;
-    canvas.height = H;
-
-    const gold      = "#D4A017";
-    const goldLight = "#FFD700";
-    const white     = "#ffffff";
-    const green     = "#00c853";
-    const cyan      = "#4dc8ff";
-
-    // ── BACKGROUND GRADIENT ──────────────────────────────────────────
-    const bg = ctx.createLinearGradient(0, 0, W * 0.6, H);
-    bg.addColorStop(0,    "#06103a");
-    bg.addColorStop(0.35, "#0e1d60");
-    bg.addColorStop(0.7,  "#0a1550");
-    bg.addColorStop(1,    "#050d2a");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-
-    // Top purple radial glow
-    const topGlow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, W * 0.9);
-    topGlow.addColorStop(0, "rgba(110,40,230,0.55)");
-    topGlow.addColorStop(1, "rgba(6,16,58,0)");
-    ctx.fillStyle = topGlow;
-    ctx.fillRect(0, 0, W, H * 0.55);
-
-    // Bottom-left accent
-    const blGlow = ctx.createRadialGradient(0, H, 0, 0, H, W * 0.65);
-    blGlow.addColorStop(0, "rgba(30,80,200,0.28)");
-    blGlow.addColorStop(1, "rgba(5,13,42,0)");
-    ctx.fillStyle = blGlow;
-    ctx.fillRect(0, 0, W, H);
-
-    // ── DOT GRID PATTERN ────────────────────────────────────────────
-    const gs = 54;
-    ctx.fillStyle = "rgba(120,170,255,0.07)";
-    for (let gx = 0; gx <= W; gx += gs) {
-      for (let gy = 0; gy <= H; gy += gs) {
-        ctx.beginPath(); ctx.arc(gx, gy, 1.2, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    ctx.strokeStyle = "rgba(100,150,255,0.03)"; ctx.lineWidth = 1;
-    for (let gy = 0; gy <= H; gy += gs) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
-    for (let gx = 0; gx <= W; gx += gs) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
-
-    ctx.textAlign = "center";
-
-    // ── "CONFIRMED" PILL BADGE — top right ──────────────────────────
-    const cPillW = 200, cPillH = 48, cPillX = W - cPillW - 44, cPillY = 46;
-    ctx.fillStyle = "rgba(0,200,83,0.18)";
-    ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 24); ctx.fill();
-    ctx.strokeStyle = green; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(cPillX, cPillY, cPillW, cPillH, 24); ctx.stroke();
-    ctx.fillStyle = green; ctx.font = "bold 20px sans-serif";
-    ctx.fillText("✓  CONFIRMED", cPillX + cPillW / 2, cPillY + 32);
-
-    // ── MINISTRY LABEL ───────────────────────────────────────────────
-    ctx.fillStyle = "rgba(255,255,255,0.38)";
-    ctx.font = "bold 17px sans-serif";
-    ctx.fillText("J E S U S   C H R I S T   T E M P L E   M I N I S T R Y", W / 2, 80);
-
-    // ── EVENT TITLE ──────────────────────────────────────────────────
-    ctx.shadowColor = "rgba(255,215,0,0.5)"; ctx.shadowBlur = 32;
-    ctx.fillStyle = goldLight; ctx.font = "bold 88px serif";
-    ctx.fillText("WARRI CITY", W / 2, 172);
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-
-    ctx.fillStyle = white; ctx.font = "bold 70px serif";
-    ctx.fillText("CRUSADE 2026", W / 2, 252);
-
-    ctx.fillStyle = "rgba(255,255,255,0.42)"; ctx.font = "italic 23px serif";
-    ctx.fillText("Prophet Amos Global Crusade", W / 2, 293);
-
-    // Fade-out divider line
-    const divGrad = ctx.createLinearGradient(80, 0, W - 80, 0);
-    divGrad.addColorStop(0, "transparent");
-    divGrad.addColorStop(0.25, "rgba(212,160,23,0.5)");
-    divGrad.addColorStop(0.75, "rgba(212,160,23,0.5)");
-    divGrad.addColorStop(1, "transparent");
-    ctx.strokeStyle = divGrad; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(80, 318); ctx.lineTo(W - 80, 318); ctx.stroke();
-
-    // ── PHOTO ────────────────────────────────────────────────────────
-    const photoSize   = 340;
-    const photoX      = (W - photoSize) / 2;   // 310
-    const photoY      = 338;
-    const photoBottom = photoY + photoSize;     // 798
-
-    const drawPhoto = async () => {
-      // ── Dark backing always visible inside frame (like the reference) ──
-      ctx.fillStyle = "#06091e";
-      ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.fill();
-
-      // ── Outer neon cyan glow ring (strong, like reference) ────────────
-      ctx.shadowColor = "rgba(0,220,255,0.95)"; ctx.shadowBlur = 40;
-      ctx.strokeStyle = "#00d4ff"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.roundRect(photoX - 18, photoY - 18, photoSize + 36, photoSize + 36, 32); ctx.stroke();
-      // Second pass for extra glow intensity
-      ctx.shadowBlur = 70;
-      ctx.beginPath(); ctx.roundRect(photoX - 18, photoY - 18, photoSize + 36, photoSize + 36, 32); ctx.stroke();
-      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-
-      // ── Inner subtle border (slightly lighter cyan) ───────────────────
-      ctx.strokeStyle = "rgba(0,210,255,0.4)"; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.roundRect(photoX - 6, photoY - 6, photoSize + 12, photoSize + 12, 24); ctx.stroke();
-
-      // ── Corner bracket accents ────────────────────────────────────────
-      const cl = 44, pad = 20;
-      ctx.strokeStyle = "#00d4ff"; ctx.lineWidth = 4; ctx.lineCap = "square";
-      ctx.shadowColor = "rgba(0,220,255,0.8)"; ctx.shadowBlur = 12;
-      const x1 = photoX - pad, y1 = photoY - pad;
-      const x2 = photoX + photoSize + pad, y2 = photoBottom + pad;
-      ctx.beginPath(); ctx.moveTo(x1, y1 + cl); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cl, y1); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x2 - cl, y1); ctx.lineTo(x2, y1); ctx.lineTo(x2, y1 + cl); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x1, y2 - cl); ctx.lineTo(x1, y2); ctx.lineTo(x1 + cl, y2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x2 - cl, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - cl); ctx.stroke();
-      ctx.lineCap = "butt"; ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-
-      if (photo) {
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            const iw = img.naturalWidth || img.width || 1;
-            const ih = img.naturalHeight || img.height || 1;
-            // Contain-fit — full image on dark background (matches reference style)
-            ctx.save();
-            ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 20); ctx.clip();
-            const scale = Math.min(photoSize / iw, photoSize / ih);
-            const dw = iw * scale, dh = ih * scale;
-            ctx.drawImage(img, photoX + (photoSize - dw) / 2, photoY + (photoSize - dh) / 2, dw, dh);
-            ctx.restore();
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = photo;
-        });
-      } else {
-        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.font = "100px sans-serif";
-        ctx.fillText("🙏", W / 2, photoY + photoSize / 2 + 38);
-      }
-    };
-    await drawPhoto();
-
-    // ── "ATTENDING" CIRCULAR SEAL — bottom-right corner of photo ────
-    const sealR  = 68;
-    const sealCX = photoX + photoSize - sealR * 0.25;   // overlaps right edge
-    const sealCY = photoBottom - sealR * 0.25;           // overlaps bottom edge
-
-    ctx.shadowColor = "rgba(212,160,23,0.55)"; ctx.shadowBlur = 22;
-    ctx.fillStyle = "#0b1a5e";
-    ctx.beginPath(); ctx.arc(sealCX, sealCY, sealR, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-
-    ctx.strokeStyle = goldLight; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.arc(sealCX, sealCY, sealR, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = gold; ctx.lineWidth = 2;
-    ctx.setLineDash([5, 4]);
-    ctx.beginPath(); ctx.arc(sealCX, sealCY, sealR - 12, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.fillStyle = green; ctx.font = "bold 34px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("✓", sealCX, sealCY - 1);
-    ctx.fillStyle = goldLight; ctx.font = "bold 11px sans-serif";
-    ctx.fillText("ATTENDING", sealCX, sealCY + 19);
-
-    // ── NAME ─────────────────────────────────────────────────────────
-    const nameStr = name.trim() || "YOUR NAME HERE";
-    const nameY   = photoBottom + 82;
-    let nameFontSize = 72;
-    ctx.font = `900 ${nameFontSize}px sans-serif`;
-    while (ctx.measureText(nameStr.toUpperCase()).width > W - 100 && nameFontSize > 36) {
-      nameFontSize -= 3;
-      ctx.font = `900 ${nameFontSize}px sans-serif`;
-    }
-    ctx.shadowColor = "rgba(255,255,255,0.22)"; ctx.shadowBlur = 18;
-    ctx.fillStyle = white; ctx.textAlign = "center";
-    ctx.fillText(nameStr.toUpperCase(), W / 2, nameY);
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-
-    // ── "CONFIRMED & ATTENDING" STATUS PILL ──────────────────────────
-    const sPillY = nameY + 40;
-    const sPillW = 470, sPillH = 48;
-    ctx.fillStyle = "rgba(0,200,83,0.14)";
-    ctx.beginPath(); ctx.roundRect(W / 2 - sPillW / 2, sPillY, sPillW, sPillH, 24); ctx.fill();
-    ctx.strokeStyle = green; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(W / 2 - sPillW / 2, sPillY, sPillW, sPillH, 24); ctx.stroke();
-    ctx.fillStyle = green; ctx.font = "bold 22px sans-serif";
-    ctx.fillText("●   CONFIRMED & ATTENDING", W / 2, sPillY + 32);
-
-    // ── DETAILS SECTION ──────────────────────────────────────────────
-    let dy = sPillY + sPillH + 44;
-
-    ctx.fillStyle = goldLight; ctx.font = "bold 23px sans-serif";
-    ctx.fillText("REGISTERED ATTENDEE", W / 2, dy); dy += 34;
-
-    ctx.fillStyle = "rgba(255,255,255,0.48)"; ctx.font = "21px sans-serif";
-    ctx.fillText("2-Day Open-Air Crusade  ·  Warri, Delta State", W / 2, dy); dy += 50;
-
-    // Details panel
-    const panelH = 210;
-    ctx.fillStyle = "rgba(255,255,255,0.04)";
-    ctx.beginPath(); ctx.roundRect(72, dy, W - 144, panelH, 18); ctx.fill();
-    ctx.strokeStyle = "rgba(212,160,23,0.22)"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(72, dy, W - 144, panelH, 18); ctx.stroke();
-    dy += 44;
-
-    ctx.fillStyle = white; ctx.font = "bold 30px sans-serif";
-    ctx.fillText("📅  THU 30 APR & FRI 1 MAY, 2026", W / 2, dy); dy += 48;
-
-    ctx.fillStyle = gold; ctx.font = "25px sans-serif";
-    ctx.fillText("⏰  6:00 PM Daily  ·  West Africa Time", W / 2, dy); dy += 42;
-
-    ctx.fillStyle = "rgba(255,255,255,0.68)"; ctx.font = "22px sans-serif";
-    ctx.fillText("📍  Ighogbadu Primary School, Warri", W / 2, dy); dy += 42;
-
-    ctx.fillStyle = goldLight; ctx.font = "bold 21px sans-serif";
-    ctx.fillText(`📞 ${CONTACT}  ·  jctm.org.ng`, W / 2, dy);
-
-    // Bottom hashtags
-    ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.font = "18px sans-serif";
-    ctx.fillText("#WarriCrusade2026  ·  #ProphetAmos  ·  Free Admission", W / 2, H - 44);
-
-    setGenerated(true);
-  }, [name, photo]);
-
-  const download = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = "warri-crusade-2026-invite.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-    toast.success("Invite card downloaded! Share on WhatsApp & Instagram.");
-  };
-
-  const share = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      try {
-        const file = new File([blob], "warri-crusade-2026-invite.png", { type: "image/png" });
-        if (navigator.share && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: EVENT_TITLE, text: EVENT_THEME });
-        } else {
-          download();
-        }
-      } catch {
-        download();
-      }
-    }, "image/png");
-  };
-
-  return (
-    <>
-    {cropSrc && (
-      <CropModal
-        src={cropSrc}
-        onDone={(cropped) => { setPhoto(cropped); setGenerated(false); setCropSrc(null); }}
-        onCancel={() => { setCropSrc(null); }}
-      />
-    )}
-    <div className="rounded-3xl overflow-hidden border border-yellow-400/20" style={{ background: "rgba(10,26,74,0.7)" }}>
-      <div className="p-4 sm:p-6 border-b border-yellow-400/10">
-        <div className="flex items-center gap-3 mb-2">
-          <Share2 className="h-5 w-5 text-yellow-400" />
-          <h3 className="font-serif font-bold text-white text-lg sm:text-xl">Generate Shareable Invite Card</h3>
-        </div>
-        <p className="text-white/60 text-sm leading-relaxed">Add your name and photo to create a personalised digital invite to share on WhatsApp and Instagram.</p>
-      </div>
-      <div className="p-4 sm:p-6 space-y-4">
-        {/* Photo + Name + Generate — stacks on mobile, row on sm+ */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          {/* Photo upload button — centered on mobile */}
-          <div className="flex justify-center sm:justify-start">
-            <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            <button
-              type="button"
-              onClick={() => photoRef.current?.click()}
-              className="relative group shrink-0 transition-all duration-200 touch-manipulation"
-              title="Upload your photo"
-            >
-              {photo ? (
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400 shadow-lg group-hover:border-yellow-300 transition-all">
-                    <img src={photo} alt="Your registration photo for Warri Crusade 2026 — tap to replace" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Camera className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-              ) : (
-                <div className="w-16 h-16 rounded-full border-2 border-dashed border-yellow-400/40 flex flex-col items-center justify-center gap-0.5 bg-white/5 group-hover:bg-white/10 group-hover:border-yellow-400 transition-all">
-                  <Camera className="h-5 w-5 text-yellow-400/60 group-hover:text-yellow-400" />
-                  <span className="text-[8px] text-yellow-400/50 group-hover:text-yellow-400 font-bold uppercase tracking-wide">Photo</span>
-                </div>
-              )}
-            </button>
-          </div>
-          {/* Name input + Generate button */}
-          <div className="flex-1 flex flex-col sm:flex-row gap-2">
-            <Input
-              placeholder="Your full name (optional)"
-              value={name}
-              onChange={(e) => { setName(e.target.value); setGenerated(false); }}
-              className="bg-white/10 border-yellow-400/30 text-white placeholder:text-white/40 rounded-xl flex-1"
-            />
-            <Button
-              onClick={generate}
-              className="rounded-xl font-bold h-12 sm:h-auto w-full sm:w-auto shrink-0 touch-manipulation"
-              style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}
-            >
-              Generate
-            </Button>
-          </div>
-        </div>
-
-        {photo && (
-          <button
-            type="button"
-            onClick={() => { setPhoto(null); setGenerated(false); if (photoRef.current) photoRef.current.value = ""; }}
-            className="text-xs text-white/40 hover:text-red-400 transition-colors block touch-manipulation"
-          >
-            Remove photo
-          </button>
-        )}
-
-        {/* Canvas — correct 3:4 aspect ratio, max-width capped for clean display */}
-        <div className={`transition-all duration-300 ${generated ? "opacity-100" : "opacity-0 h-0 overflow-hidden"}`}>
-          <div className="max-w-xs sm:max-w-sm mx-auto">
-            <canvas
-              ref={canvasRef}
-              className="w-full rounded-2xl border border-yellow-400/20"
-              style={{ aspectRatio: "3/4", display: "block" }}
-            />
-          </div>
-        </div>
-
-        {generated && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 max-w-xs sm:max-w-sm mx-auto">
-            <Button onClick={share} className="flex-1 gap-2 rounded-xl font-bold h-12 touch-manipulation" style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}>
-              <Share2 className="h-4 w-4" /> Share
-            </Button>
-            <Button onClick={download} variant="outline" className="flex-1 gap-2 rounded-xl border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10 h-12 touch-manipulation">
-              <Download className="h-4 w-4" /> Download
-            </Button>
-          </motion.div>
-        )}
-      </div>
-    </div>
-    </>
-  );
-}
-
-function AddToCalendar() {
-  const [open, setOpen] = useState(false);
-  const title = encodeURIComponent(EVENT_TITLE);
-  const details = encodeURIComponent(`Theme: ${EVENT_THEME}\n\nContact: ${CONTACT}`);
-  const location = encodeURIComponent(LOCATION);
-  const startUTC = "20260430T170000Z";
-  const endUTC = "20260501T200000Z";
-
-  const links = [
-    {
-      label: "Google Calendar",
-      icon: "🗓️",
-      href: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startUTC}/${endUTC}&details=${details}&location=${location}`,
-    },
-    {
-      label: "Apple Calendar (.ics)",
-      icon: "🍎",
-      href: `data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:20260430T170000Z%0ADTEND:20260501T200000Z%0ASUMMARY:${title}%0ADESCRIPTION:${details}%0ALOCATION:${location}%0AEND:VEVENT%0AEND:VCALENDAR`,
-      download: "warri-crusade-2026.ics",
-    },
-    {
-      label: "Outlook Calendar",
-      icon: "📅",
-      href: `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&startdt=2026-04-30T17:00:00Z&enddt=2026-05-01T20:00:00Z&body=${details}&location=${location}`,
-    },
-  ];
-
-  return (
-    <div className="relative">
-      <Button
-        onClick={() => setOpen((v) => !v)}
-        variant="outline"
-        className="gap-2 rounded-xl border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10 w-full"
-      >
-        <Calendar className="h-4 w-4" />
-        Add to Calendar
-        <ChevronDown className={`h-3.5 w-3.5 ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
-      </Button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden border border-yellow-400/20 z-30 shadow-2xl"
-            style={{ background: "#0a1a4a" }}
-          >
-            {links.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                target={link.download ? undefined : "_blank"}
-                rel="noopener noreferrer"
-                download={link.download}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-5 py-3.5 text-white hover:bg-white/10 transition-colors text-sm font-medium border-b border-white/5 last:border-0"
-              >
-                <span className="text-base">{link.icon}</span>
-                {link.label}
-                <ExternalLink className="h-3 w-3 ml-auto text-white/30" />
-              </a>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function NotificationManager() {
-  const [permission, setPermission] = useState<NotificationPermission>("default");
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
-    if ("Notification" in window) {
-      setPermission(Notification.permission);
-    }
-    setEnabled(safeLocalGet("crusade_notif_enabled") === "true");
-  }, []);
-
-  const requestAndEnable = async () => {
-    if (!("Notification" in window)) {
-      toast.error("Your browser doesn't support notifications.");
-      return;
-    }
-    const perm = await Notification.requestPermission();
-    setPermission(perm);
-    if (perm === "granted") {
-      safeLocalSet("crusade_notif_enabled", "true");
-      setEnabled(true);
-      scheduleNotifications();
-      toast.success("Notifications enabled! You'll be reminded 7 days, 24 hours, and 1 hour before the crusade.");
-    } else {
-      toast.error("Permission denied. Please enable notifications in your browser settings.");
-    }
-  };
-
-  const disable = () => {
-    safeLocalRemove("crusade_notif_enabled");
-    setEnabled(false);
-    toast.info("Crusade notifications disabled.");
-  };
-
-  const scheduleNotifications = () => {
-    const now = Date.now();
-    const crusade = CRUSADE_START.getTime();
-    const reminders = [
-      { offset: 7 * 24 * 60 * 60 * 1000, label: "7 days", title: "⏰ 7 Days to Warri City Crusade 2026!", body: "The crusade begins in 7 days. Get ready — April 30th at 6PM, Ighogbadu Primary School, Warri." },
-      { offset: 24 * 60 * 60 * 1000, label: "24 hours", title: "🔥 Tomorrow! Warri City Crusade 2026", body: "The crusade is TOMORROW at 6PM! Ighogbadu Primary School, Okumagba Avenue, Warri. Be there!" },
-      { offset: 60 * 60 * 1000, label: "1 hour", title: "⚡ 1 Hour to Crusade! Run For Your Soul!", body: "The Warri City Crusade starts in 1 HOUR. Make your way to Ighogbadu Primary School now. See you there!" },
-    ];
-    reminders.forEach(({ offset, title, body }) => {
-      const fireAt = crusade - offset;
-      const delay = fireAt - now;
-      if (delay > 0 && delay < 30 * 24 * 60 * 60 * 1000) {
-        setTimeout(() => {
-          if (Notification.permission === "granted" && safeLocalGet("crusade_notif_enabled") === "true") {
-            new Notification(title, { body, icon: "/favicon.ico", tag: `crusade-${offset}` });
-          }
-        }, delay);
-      }
-    });
-  };
-
-  return (
-    <div className="rounded-2xl p-4 border border-yellow-400/20 flex items-center justify-between gap-4" style={{ background: "rgba(10,26,74,0.6)" }}>
-      <div className="flex items-center gap-3">
-        {enabled ? <Bell className="h-5 w-5 text-yellow-400" /> : <BellOff className="h-5 w-5 text-white/40" />}
-        <div>
-          <p className="text-white text-sm font-semibold">{enabled ? "Notifications Active" : "Get Reminders"}</p>
-          <p className="text-white/50 text-xs">{enabled ? "7 days · 24 hours · 1 hour before" : "Be notified before the crusade starts"}</p>
-        </div>
-      </div>
-      {enabled ? (
-        <Button onClick={disable} size="sm" variant="outline" className="rounded-xl border-yellow-400/30 text-yellow-400/70 hover:bg-yellow-400/10 text-xs shrink-0">
-          Disable
-        </Button>
-      ) : (
-        <Button onClick={requestAndEnable} size="sm" className="rounded-xl shrink-0 text-xs font-bold" style={{ background: "#D4A017", color: "#0a1a4a" }}>
-          Enable
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function RSVPForm({ onSuccess }: { onSuccess: (name: string, photo: string | null) => void }) {
-  const [form, setForm] = useState({ fullName: "", email: "", phone: "", city: "" });
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("Photo must be under 10 MB."); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => { setCropSrc(ev.target?.result as string); };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.fullName.trim()) { toast.error("Please enter your name."); return; }
-    setLoading(true);
-    try {
-      const res = await fetch(`${base}/api/crusade/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName: form.fullName, email: form.email || null, phone: form.phone || null, city: form.city || null }),
-      });
-      if (!res.ok) throw new Error();
-      setDone(true);
-      onSuccess(form.fullName, photo);
-      toast.success(`Thank you, ${form.fullName.split(" ")[0]}! Your attendance has been registered. See you at the crusade! 🔥`);
-    } catch {
-      toast.error("Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const [linkCopied, setLinkCopied] = useState(false);
-
-  if (done) {
-    const inviteLink = `${window.location.origin}/crusade?invited_by=${encodeURIComponent(form.fullName)}`;
-    return (
-      <>
-      {cropSrc && (
-        <CropModal
-          src={cropSrc}
-          onDone={(cropped) => { setPhoto(cropped); setCropSrc(null); }}
-          onCancel={() => setCropSrc(null)}
-        />
-      )}
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6">
-        {photo ? (
-          <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-yellow-400 shadow-xl">
-              <img src={photo} alt="Your registration photo confirming your spot at Warri Crusade 2026" className="w-full h-full object-cover" />
-            </div>
-          </div>
-        ) : (
-          <div className="text-5xl mb-4" role="img" aria-label="Hands raised in praise">🙌</div>
-        )}
-        <h4 className="font-serif font-bold text-white text-2xl mb-2">You&apos;re Registered!</h4>
-        <p className="text-yellow-400 text-sm mb-1">See you at Ighogbadu Primary School on April 30th.</p>
-        <p className="text-white/50 text-xs mb-6">Scroll down to generate your personalised invite card.</p>
-
-        {/* Shareable Invite Link */}
-        <div className="rounded-2xl p-4 text-left border border-yellow-400/20 mt-2" style={{ background: "rgba(10,26,74,0.7)" }}>
-          <div className="flex items-center gap-2 mb-1">
-            <Share2 className="h-4 w-4 text-yellow-400" />
-            <p className="text-yellow-300 text-sm font-bold">Invite Others to Attend</p>
-          </div>
-          <p className="text-white/50 text-xs mb-3 leading-relaxed">
-            Share this personal link — anyone who opens it will see your name and be inspired to register.
-          </p>
-          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5 mb-3"
-            style={{ background: "rgba(10,26,74,0.9)", borderColor: "rgba(212,160,23,0.25)" }}>
-            <span className="flex-1 text-xs text-yellow-300/60 truncate font-mono">{inviteLink}</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(inviteLink);
-                setLinkCopied(true);
-                toast.success("Invite link copied!");
-                setTimeout(() => setLinkCopied(false), 2500);
-              }}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-              style={{
-                background: linkCopied ? "rgba(34,197,94,0.2)" : "rgba(212,160,23,0.15)",
-                color: linkCopied ? "#4ade80" : "#FFD700",
-                border: `1px solid ${linkCopied ? "rgba(34,197,94,0.4)" : "rgba(212,160,23,0.35)"}`,
-              }}
-            >
-              {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {linkCopied ? "Copied!" : "Copy"}
-            </button>
-          </div>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent(
-              `🔥 *Warri City Crusade 2026 — Personal Invitation*\n\n` +
-              `I am ${form.fullName} and I personally invite you to join me at the Warri City Crusade 2026!\n\n` +
-              `📅 Thursday 30th April & Friday 1st May, 2026\n⏰ 6:00 PM Daily (WAT)\n📍 Ighogbadu Primary School, Obodo, Okumagba Ave, Warri\n\n` +
-              `Click the link below to register your attendance:\n${inviteLink}\n\n` +
-              `"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"\n\n` +
-              `📞 +234(0)8081313111\n🌐 www.jctm.org.ng`
-            )}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90 touch-manipulation"
-            style={{ background: "#25D366" }}
-          >
-            <span className="text-base leading-none">💬</span>
-            Share Invite via WhatsApp
-          </a>
-        </div>
-      </motion.div>
-      </>
-    );
-  }
-
-  return (
-    <>
-    {cropSrc && (
-      <CropModal
-        src={cropSrc}
-        onDone={(cropped) => { setPhoto(cropped); setCropSrc(null); }}
-        onCancel={() => setCropSrc(null)}
-      />
-    )}
-    <form onSubmit={submit} className="space-y-3">
-      {/* Photo upload */}
-      <div className="flex flex-col items-center gap-2">
-        <input
-          ref={photoRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handlePhotoChange}
-        />
-        <button
-          type="button"
-          onClick={() => photoRef.current?.click()}
-          className="relative group transition-all duration-200"
-        >
-          {photo ? (
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-yellow-400 shadow-xl group-hover:border-yellow-300 transition-all">
-                <img src={photo} alt="Your invite-card portrait for Warri Crusade 2026 — tap to change" className="w-full h-full object-cover" />
-              </div>
-              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <Camera className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          ) : (
-            <div className="w-24 h-24 rounded-full border-2 border-dashed border-yellow-400/50 flex flex-col items-center justify-center gap-1 bg-white/5 group-hover:bg-white/10 group-hover:border-yellow-400 transition-all">
-              <ImagePlus className="h-6 w-6 text-yellow-400/70 group-hover:text-yellow-400" />
-              <span className="text-[10px] text-yellow-400/60 group-hover:text-yellow-400 font-semibold uppercase tracking-wide">Add Photo</span>
-            </div>
-          )}
-        </button>
-        {photo && (
-          <button
-            type="button"
-            onClick={() => { setPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
-            className="text-xs text-white/40 hover:text-red-400 transition-colors"
-          >
-            Remove photo
-          </button>
-        )}
-        <p className="text-xs text-white/40 text-center">Optional · Your photo appears on your invite card</p>
-      </div>
-
-      <Input
-        required
-        placeholder="Full Name *"
-        value={form.fullName}
-        onChange={(e) => setForm(f => ({ ...f, fullName: e.target.value }))}
-        className="bg-white/10 border-yellow-400/20 text-white placeholder:text-white/40 rounded-xl"
-      />
-      <Input
-        type="email"
-        placeholder="Email Address (optional)"
-        value={form.email}
-        onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-        className="bg-white/10 border-yellow-400/20 text-white placeholder:text-white/40 rounded-xl"
-      />
-      <Input
-        placeholder="Phone Number (optional)"
-        value={form.phone}
-        onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
-        className="bg-white/10 border-yellow-400/20 text-white placeholder:text-white/40 rounded-xl"
-      />
-      <Input
-        placeholder="Your City (optional)"
-        value={form.city}
-        onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))}
-        className="bg-white/10 border-yellow-400/20 text-white placeholder:text-white/40 rounded-xl"
-      />
-      <motion.button
-        type="submit"
-        disabled={loading}
-        whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(212,160,23,0.5)" }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full py-4 rounded-2xl font-serif font-black text-lg tracking-wide disabled:opacity-60 cursor-pointer transition-all duration-200"
-        style={{ background: "linear-gradient(135deg, #D4A017 0%, #FFD700 50%, #D4A017 100%)", color: "#0a1a4a" }}
-      >
-        {loading ? "Registering…" : "✋ I Will Attend!"}
-      </motion.button>
-    </form>
-    </>
-  );
-}
-
-export default function Crusade() {
-  const countdown = useCountdown(CRUSADE_START);
-  const [attendCount, setAttendCount] = useState<number | null>(null);
-  const [rsvpName, setRsvpName] = useState("");
-  const [rsvpPhoto, setRsvpPhoto] = useState<string | null>(null);
-  const [invitedBy, setInvitedBy] = useState<string | null>(null);
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-
-  useEffect(() => {
-    document.title = "Warri City Crusade 2026 | JCTM Digital Sanctuary";
-    const meta = document.querySelector("meta[name='description']");
-    if (meta) meta.setAttribute("content", `${EVENT_THEME} — ${LOCATION}. April 30 & May 1, 2026 at 6PM WAT. Join Prophet Amos at the Warri City Crusade 2026.`);
-    const og = document.querySelector("meta[property='og:title']");
-    if (og) og.setAttribute("content", EVENT_TITLE);
-
-    const params = new URLSearchParams(window.location.search);
-    const name = params.get("invited_by");
-    if (name) setInvitedBy(decodeURIComponent(name));
-
-    fetch(`${base}/api/crusade/count`)
-      .then(r => r.json())
-      .then(d => setAttendCount(d.count))
-      .catch(() => {});
-  }, [base]);
 
   return (
     <Layout>
       <SEO
-        title="Warri City Crusade 2026 — Prophet Amos Global Crusade | JCTM"
-        description="Join the Warri City Crusade 2026 — a major evangelistic outreach by Jesus Christ Temple Ministry (JCTM). Experience the power of God, the Correction Mandate, and prophetic ministry in Warri, Nigeria. April 30 – May 1, 2026."
+        title="Warri City Crusade 2026 — Past Events Archive | JCTM"
+        description="Archive of the Warri City Crusade 2026 — a major evangelistic outreach by Jesus Christ Temple Ministry (JCTM). April 30 – May 1, 2026 at Ighogbadu Primary School, Warri, Nigeria."
         path="/crusade"
-        keywords="Warri City Crusade 2026, JCTM crusade, Jesus Christ Temple Ministry crusade, evangelism Warri Nigeria, Prophet Amos Evomobor crusade, Prophet Amos Global Crusade, church crusade Warri 2026, evangelistic crusade Nigeria 2026, rapture crusade JCTM"
+        keywords="Warri City Crusade 2026, JCTM crusade, Jesus Christ Temple Ministry crusade, evangelism Warri Nigeria, Prophet Amos Evomobor crusade, Prophet Amos Global Crusade"
         breadcrumbs={[
           { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Events", url: "https://jctm.org.ng/events" },
           { name: "Warri City Crusade 2026", url: "https://jctm.org.ng/crusade" },
         ]}
         jsonLd={[
@@ -1251,7 +61,7 @@ export default function Crusade() {
             "eventStatus": "https://schema.org/EventScheduled",
             "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
             "url": "https://jctm.org.ng/crusade",
-            "image": "https://jctm.org.ng/opengraph.jpg",
+            "image": "https://jctm.org.ng/warri-crusade-flyer2.jpeg",
             "location": {
               "@type": "Place",
               "name": "Ighogbadu Primary School",
@@ -1285,34 +95,31 @@ export default function Crusade() {
               "availability": "https://schema.org/InStock",
               "url": "https://jctm.org.ng/crusade",
               "validFrom": "2026-01-01"
-            },
-            "keywords": ["Evangelism", "Crusade", "Warri", "Nigeria", "Prophet Amos Evomobor", "JCTM", "Correction Mandate", "Healing", "Deliverance"]
+            }
           }
         ]}
       />
+
       <div
         className="relative min-h-screen"
         style={{
           background: "linear-gradient(180deg, #020b2a 0%, #0a1a5a 40%, #0d2060 70%, #060f38 100%)",
         }}
       >
-        {/* SEO hidden content */}
-        <h1 className="sr-only">Warri City Crusade 2026 — Prophet Amos Global Crusade | JCTM</h1>
+        <h1 className="sr-only">Warri City Crusade 2026 — Past Events Archive | JCTM</h1>
 
         {/* Starfield BG */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 80 }).map((_, i) => (
+          {Array.from({ length: 60 }).map((_, i) => (
             <div
               key={i}
               className="absolute rounded-full"
               style={{
-                width: `${Math.random() * 2 + 1}px`,
-                height: `${Math.random() * 2 + 1}px`,
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                background: `rgba(255,220,60,${Math.random() * 0.6 + 0.1})`,
-                animation: `pulse ${2 + Math.random() * 3}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 3}s`,
+                width: `${(i % 3) * 0.8 + 0.6}px`,
+                height: `${(i % 3) * 0.8 + 0.6}px`,
+                top: `${(i * 37 + 11) % 100}%`,
+                left: `${(i * 53 + 7) % 100}%`,
+                background: `rgba(255,220,120,${(i % 5) * 0.06 + 0.06})`,
               }}
             />
           ))}
@@ -1320,33 +127,47 @@ export default function Crusade() {
 
         {/* Gold cross glow */}
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-1 opacity-30 pointer-events-none"
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-1 opacity-20 pointer-events-none"
           style={{ height: "300px", background: "linear-gradient(to bottom, #FFD700, transparent)" }}
         />
         <div
-          className="absolute top-[150px] left-1/2 -translate-x-1/2 h-1 opacity-30 pointer-events-none"
+          className="absolute top-[150px] left-1/2 -translate-x-1/2 h-1 opacity-20 pointer-events-none"
           style={{ width: "300px", background: "linear-gradient(to right, transparent, #FFD700, transparent)" }}
         />
 
         <div className="relative z-10 container mx-auto px-4 py-16 max-w-5xl">
+
+          {/* EVENT CONCLUDED Banner */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-10 flex items-center justify-center"
+          >
+            <div
+              className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl border"
+              style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.2)" }}
+            >
+              <CheckCircle2 className="h-4 w-4 text-white/50" />
+              <span className="text-white/60 text-sm font-bold uppercase tracking-widest">
+                Past Event · April 30 – May 1, 2026 · Concluded
+              </span>
+            </div>
+          </motion.div>
 
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-14"
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+            <div
               className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border"
               style={{ borderColor: "rgba(212,160,23,0.4)", background: "rgba(212,160,23,0.1)", color: "#FFD700" }}
             >
-              <Flame className="h-3.5 w-3.5" />
               Jesus Christ Temple Ministry Presents
-            </motion.div>
+            </div>
 
             <h2 className="font-serif font-black text-5xl md:text-7xl text-white mb-4 leading-none tracking-tight">
               Warri City{" "}
@@ -1385,246 +206,193 @@ export default function Crusade() {
             </div>
           </motion.div>
 
-          {/* Official Flyer with Social Sharing */}
-          <FlyerShowcase />
-
-          {/* Countdown */}
+          {/* Official Flyer */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="text-center mb-16"
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-14 rounded-3xl overflow-hidden border-2 group relative"
+            style={{ borderColor: "rgba(212,160,23,0.4)" }}
           >
-            <p className="text-xs text-yellow-400/60 uppercase tracking-[0.3em] font-bold mb-6">
-              {countdown.started ? "The Crusade Has Begun!" : "Crusade Begins In"}
-            </p>
-            {!countdown.started ? (
-              <div className="flex justify-center gap-4 md:gap-6">
-                <CountdownBlock value={countdown.days} label="Days" />
-                <CountdownBlock value={countdown.hours} label="Hours" />
-                <CountdownBlock value={countdown.minutes} label="Minutes" />
-                <CountdownBlock value={countdown.seconds} label="Seconds" />
-              </div>
-            ) : (
-              <motion.div
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="text-3xl font-serif font-black text-yellow-400"
+            <img
+              src="/warri-crusade-flyer2.jpeg"
+              alt="Warri City Crusade 2026 — Official Event Flyer"
+              className="w-full object-cover"
+              style={{ maxHeight: "600px", objectPosition: "center top" }}
+              loading="lazy"
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020b2a] via-[#020b2a]/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 flex flex-wrap gap-3">
+              <button
+                onClick={handleDownloadFlyer}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg border-2"
+                style={{ borderColor: "#D4A017", color: "#FFD700", background: "rgba(212,160,23,0.14)" }}
               >
-                🔥 The Crusade Is Happening NOW! 🔥
-              </motion.div>
-            )}
-            {attendCount !== null && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-                className="mt-6 inline-flex items-center gap-2 text-sm text-white/60"
+                <Download className="h-3.5 w-3.5" />
+                Download Flyer
+              </button>
+              <a
+                href={`https://wa.me/?text=${shareText}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 shadow-lg"
+                style={{ background: "#25D366" }}
               >
-                <Users className="h-4 w-4 text-yellow-400" />
-                <span className="text-yellow-400 font-bold">{attendCount.toLocaleString()}</span> people have registered to attend
-              </motion.div>
-            )}
+                <Share2 className="h-3.5 w-3.5" /> Share on WhatsApp
+              </a>
+            </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {/* What the Crusade stood for */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.25 }}
+            className="mb-12 rounded-3xl p-8 border border-yellow-400/20"
+            style={{ background: "rgba(10,26,74,0.7)" }}
+          >
+            <h3 className="font-serif font-bold text-white text-2xl mb-6 text-center">What The Crusade Stood For</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                "Powerful prophetic ministry under the anointing",
+                "Mass deliverance and healing miracles",
+                "Deep revelatory teaching on end-time events",
+                "Altar calls and mass soul-winning",
+                "A divine encounter with the living God",
+                "Free entry — open to every soul",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3">
+                  <CheckCircle2 className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                  <span className="text-white/75 text-sm leading-snug">{item}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
-            {/* RSVP Card */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
-              className="rounded-3xl overflow-hidden"
-              style={{ background: "rgba(10,26,74,0.8)", border: "1px solid rgba(212,160,23,0.25)" }}
-            >
-              <div className="p-6 border-b" style={{ borderColor: "rgba(212,160,23,0.15)", background: "rgba(212,160,23,0.08)" }}>
-                <h3 className="font-serif font-bold text-white text-xl mb-1 flex items-center gap-2">
-                  <span>✋</span> Register Your Attendance
-                </h3>
-                <p className="text-white/50 text-sm">Let the ministry know you&apos;re coming. Free entry for all.</p>
+          {/* Promo Video Recap */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="mb-12 rounded-3xl overflow-hidden border border-yellow-400/20"
+            style={{ background: "rgba(10,26,74,0.7)" }}
+          >
+            <div className="p-6 border-b border-yellow-400/10">
+              <div className="flex items-center gap-3 mb-1">
+                <Youtube className="h-5 w-5 text-red-500" />
+                <h3 className="font-serif font-bold text-white text-xl">Official Crusade Promo Video</h3>
               </div>
-              <div className="p-6 space-y-5">
-                {invitedBy && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 rounded-2xl px-4 py-3 border border-yellow-400/30"
-                    style={{ background: "rgba(212,160,23,0.08)" }}
-                  >
-                    <span className="text-xl shrink-0">🙏</span>
-                    <div>
-                      <p className="text-yellow-300 text-xs font-bold">You've been personally invited!</p>
-                      <p className="text-white/50 text-xs mt-0.5">
-                        <span className="text-yellow-400 font-semibold">{invitedBy}</span> invites you to the Warri City Crusade 2026. Register below — free entry for all.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-                <RSVPForm onSuccess={(name, photo) => { setRsvpName(name); setRsvpPhoto(photo); }} />
-                <NotificationManager />
-                <AddToCalendar />
-              </div>
-            </motion.div>
-
-            {/* Map */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
-            >
-              <VenueMap
-                venue={WARRI_CRUSADE_VENUE}
-                headerTitle="Live Location Map"
-                height={400}
-                theme={{
-                  headerBg: "rgba(10,26,74,0.8)",
-                  headerBorder: "rgba(212,160,23,0.25)",
-                  accentText: "text-yellow-400",
-                  footerBg: "rgba(10,26,74,0.8)",
+              <p className="text-white/60 text-sm">
+                Watch the official promo and relive the vision behind the Warri City Crusade 2026.
+              </p>
+            </div>
+            <div className="p-4">
+              <YouTubeEmbed
+                videoId={CRUSADE_YT_VIDEO}
+                title="Warri City Crusade 2026 — Official Promo Video"
+                mode="facade"
+                emitSchema
+                schema={{
+                  description: "Official promo video for the Warri City Crusade 2026 hosted by Jesus Christ Temple Ministry.",
+                  publisherName: "Jesus Christ Temple Ministry (JCTM)",
+                  publisherUrl: "https://jctm.org.ng",
                 }}
+                className="rounded-2xl shadow-2xl"
+                analyticsPage="/crusade"
               />
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
 
-          {/* YouTube Crusade Promo Loop */}
-          <CrusadeVideoLoop />
-
-          {/* Ad Copy Generator */}
+          {/* Venue Map */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.5 }}
-            className="mb-8"
+            className="mb-12"
           >
-            <AdCopySection />
+            <VenueMap
+              venue={WARRI_CRUSADE_VENUE}
+              headerTitle="Event Venue"
+              height={380}
+              theme={{
+                headerBg: "rgba(10,26,74,0.8)",
+                headerBorder: "rgba(212,160,23,0.25)",
+                accentText: "text-yellow-400",
+                footerBg: "rgba(10,26,74,0.8)",
+              }}
+            />
           </motion.div>
 
-          {/* Invite Card Generator */}
+          {/* Event Details */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.6 }}
-            className="mb-12"
+            transition={{ duration: 0.7, delay: 0.45 }}
+            className="mb-12 rounded-3xl p-6 border border-yellow-400/20 space-y-4"
+            style={{ background: "rgba(10,26,74,0.7)" }}
           >
-            <InviteCardGenerator initialName={rsvpName} initialPhoto={rsvpPhoto} />
+            <h3 className="font-serif font-bold text-white text-xl mb-2">Event Details</h3>
+            {[
+              { icon: Calendar, label: "Dates", value: "Thursday 30th April & Friday 1st May, 2026" },
+              { icon: Clock, label: "Time", value: "6:00 PM Daily (West Africa Time)" },
+              { icon: MapPin, label: "Venue", value: LOCATION },
+              { icon: Phone, label: "Contact", value: CONTACT },
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="flex items-start gap-3">
+                <Icon className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs text-yellow-400/60 font-bold uppercase tracking-wider">{label}</p>
+                  <p className="text-white/80 text-sm">{value}</p>
+                </div>
+              </div>
+            ))}
           </motion.div>
 
-          {/* Contact & Share */}
+          {/* Footer CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
             className="text-center rounded-3xl p-8 border border-yellow-400/20"
             style={{ background: "rgba(10,26,74,0.6)" }}
           >
-            <h3 className="font-serif font-bold text-white text-2xl mb-2">Spread The Word</h3>
-            <p className="text-white/60 text-sm mb-6">The King is coming. Not a soul should be left behind. Share this crusade with everyone you know.</p>
-            <div className="flex flex-wrap justify-center gap-3 mb-6">
-              {[
-                {
-                  label: "Share on WhatsApp",
-                  bg: "#25D366",
-                  href: `https://wa.me/?text=${encodeURIComponent(`🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n6:00 PM Daily\n📍 Ighogbadu Primary School, Obodo, Okumagba Avenue, Warri\n\n📞 ${CONTACT}\n\n#WarriCrusade2026 #ProphetAmos`)}`,
-                  emoji: "💬",
-                },
-                {
-                  label: "Share on Facebook",
-                  bg: "#1877F2",
-                  href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://jctm.church/crusade")}`,
-                  emoji: "👍",
-                },
-                {
-                  label: "Share on X / Twitter",
-                  bg: "#000000",
-                  href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`🔥 Warri City Crusade 2026 — "Be Ready For Rapture: Tribulation Is Coming!"\n\n📅 April 30 – May 1, 2026\n⏰ 6PM Daily\n📍 Ighogbadu Primary School, Warri\n\n#WarriCrusade2026 #ProphetAmos #Rapture`)}`,
-                  emoji: "𝕏",
-                },
-              ].map(({ label, bg, href, emoji }) => (
-                <a
-                  key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-105 hover:shadow-xl"
-                  style={{ background: bg }}
+            <h3 className="font-serif font-bold text-white text-2xl mb-2">What's Next?</h3>
+            <p className="text-white/60 text-sm mb-6 max-w-md mx-auto">
+              The Warri City Crusade 2026 has concluded. See what's coming next or explore our sermon archive.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/events">
+                <Button
+                  className="rounded-xl font-bold px-6 py-3 h-auto"
+                  style={{ background: "linear-gradient(135deg, #D4A017, #FFD700)", color: "#0a1a4a" }}
                 >
-                  <span>{emoji}</span> {label}
-                </a>
-              ))}
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View Upcoming Events
+                </Button>
+              </Link>
+              <Link href="/sermons">
+                <Button
+                  variant="outline"
+                  className="rounded-xl font-bold px-6 py-3 h-auto border-yellow-400/40 text-yellow-400 hover:bg-yellow-400/10"
+                >
+                  <Youtube className="h-4 w-4 mr-2" />
+                  Watch on Temple TV
+                </Button>
+              </Link>
             </div>
-            <div className="flex items-center justify-center gap-2 text-white/50 text-sm">
+            <div className="mt-6 flex items-center justify-center gap-2 text-white/50 text-sm">
               <Phone className="h-4 w-4 text-yellow-400" />
-              Enquiries: <a href={`tel:${CONTACT.replace(/\s/g, "")}`} className="text-yellow-400 font-bold hover:underline">{CONTACT}</a>
+              Enquiries: <a href={`tel:${CONTACT.replace(/\s/g, "")}`} className="text-yellow-400 font-bold hover:underline ml-1">{CONTACT}</a>
             </div>
           </motion.div>
+
         </div>
       </div>
     </Layout>
   );
 }
 
-export function CrusadeAdBanner({ compact = false }: { compact?: boolean }) {
-  const countdown = useCountdown(CRUSADE_START);
-  const [visible, setVisible] = useState(true);
-
-  if (!visible) return null;
-
-  return (
-    <motion.div
-      initial={{ y: 60, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, delay: 2 }}
-      className={`relative w-full flex items-center justify-between gap-3 ${compact ? "px-4 py-3" : "px-5 py-4"}`}
-      style={{
-        background: "linear-gradient(90deg, #0a1a6b 0%, #1a3a8a 40%, #0a1a6b 100%)",
-        borderTop: "2px solid #D4A017",
-      }}
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div
-          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black"
-          style={{ background: "#D4A017", color: "#0a1a6b" }}
-        >
-          🔥
-        </div>
-        <div className="min-w-0">
-          <p className="text-yellow-400 font-bold text-xs uppercase tracking-widest truncate">Warri City Crusade 2026</p>
-          <p className="text-white text-xs truncate opacity-80">Apr 30 – May 1 · Ighogbadu Primary School · 6PM Daily</p>
-        </div>
-      </div>
-
-      {!countdown.started && (
-        <div className="hidden md:flex items-center gap-2 shrink-0">
-          {[
-            { v: countdown.days, l: "D" },
-            { v: countdown.hours, l: "H" },
-            { v: countdown.minutes, l: "M" },
-          ].map(({ v, l }) => (
-            <div key={l} className="text-center">
-              <div className="text-white font-mono font-black text-sm leading-none">{String(v).padStart(2, "0")}</div>
-              <div className="text-yellow-400/60 text-[9px] uppercase">{l}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <a
-        href="/crusade"
-        className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:scale-105"
-        style={{ background: "#D4A017", color: "#0a1a6b" }}
-      >
-        Learn More
-      </a>
-
-      {!compact && (
-        <button
-          onClick={() => setVisible(false)}
-          className="absolute top-1 right-1 text-white/30 hover:text-white/70 p-1"
-          aria-label="Close"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
-    </motion.div>
-  );
+export function CrusadeAdBanner() {
+  return null;
 }

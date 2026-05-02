@@ -77,7 +77,7 @@ function ReengagementBanner({ event, onDismiss }: ReengagementBannerProps) {
     : <Tv className="h-4 w-4 shrink-0" />;
 
   const label = isLiveBanner ? "Live Now" : "Rebroadcast";
-  const title = event.title ?? (isLiveBanner ? "Warri Crusade Day 2" : "Temple TV");
+  const title = event.title ?? (isLiveBanner ? "Temple TV" : "Temple TV");
   const actionLabel = isLiveBanner ? "Watch Live" : "Watch Now";
 
   const navigate = () => {
@@ -195,7 +195,7 @@ export function BroadcastEngagementSystem() {
     if (hasShownLiveToast(videoId)) return;
     markLiveToastShown(videoId);
 
-    const title = liveStatus.title ?? "Warri Crusade Day 2";
+    const title = liveStatus.title ?? "Temple TV";
     const streamUrl = liveStatus.streamUrl
       ? liveStatus.streamUrl
       : `${BASE}/sermons`;
