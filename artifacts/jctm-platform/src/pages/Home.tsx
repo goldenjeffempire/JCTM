@@ -692,6 +692,25 @@ function HeroSection() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+
+  // Ministers Conference 2026 — live countdown inside the hero
+  const [, setConfTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setConfTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const CONF_START = new Date("2026-05-08T07:00:00.000Z"); // 8 AM WAT
+  const CONF_END   = new Date("2026-05-10T20:00:00.000Z"); // 9 PM WAT
+  const confNow   = new Date();
+  const confDiff  = Math.max(0, CONF_START.getTime() - confNow.getTime());
+  const confOver  = confNow > CONF_END;
+  const confLive  = confNow >= CONF_START && !confOver;
+  const showConfWidget = !confOver;
+  const confDays  = Math.floor(confDiff / 86400000);
+  const confHours = Math.floor((confDiff % 86400000) / 3600000);
+  const confMins  = Math.floor((confDiff % 3600000) / 60000);
+  const confSecs  = Math.floor((confDiff % 60000) / 1000);
+
   // Rebroadcast widget: derived from SSE hook — same real-time updates as live state
   const rebroadcastForWidget = (liveStatus.rebroadcast.available && liveStatus.rebroadcast.videoId && !isLive && !isUpcoming)
     ? { videoId: liveStatus.rebroadcast.videoId, title: liveStatus.rebroadcast.title }
@@ -1220,6 +1239,114 @@ function HeroSection() {
                 </motion.div>
               ))}
             </motion.div>
+
+            {/* ── Ministers Conference 2026 Hero Countdown Widget ── */}
+            {showConfWidget && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.5 }}
+                className="mb-8"
+              >
+                <Link href="/conference-registration">
+                  <motion.div
+                    whileHover={{ scale: 1.015, y: -2 } as never}
+                    whileTap={{ scale: 0.985 } as never}
+                    className="relative mx-auto max-w-2xl rounded-2xl overflow-hidden cursor-pointer"
+                    style={{
+                      background: "linear-gradient(135deg, #13051c 0%, #2d0f3d 50%, #1e0b2e 100%)",
+                      border: "1px solid rgba(168,85,247,0.35)",
+                      boxShadow: "0 8px 40px rgba(168,85,247,0.22), 0 2px 8px rgba(0,0,0,0.18)",
+                    }}
+                  >
+                    {/* Gold shimmer top bar */}
+                    <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,#d4a017,#facc15,#d4a017,transparent)" }} />
+
+                    {/* Subtle animated glow orb */}
+                    <motion.div
+                      animate={{ opacity: [0.18, 0.38, 0.18], scale: [1, 1.15, 1] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      className="absolute -top-8 left-1/2 -translate-x-1/2 w-48 h-24 rounded-full pointer-events-none"
+                      style={{ background: "radial-gradient(circle, rgba(168,85,247,0.55), transparent 70%)", filter: "blur(12px)" }}
+                    />
+
+                    <div className="relative px-5 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
+
+                      {/* Left: label */}
+                      <div className="flex-1 min-w-0 text-center sm:text-left">
+                        <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                          <motion.span
+                            animate={{ opacity: confLive ? [1, 0.4, 1] : 1 }}
+                            transition={{ duration: 1.2, repeat: confLive ? Infinity : 0 }}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full"
+                            style={{
+                              background: confLive ? "rgba(239,68,68,0.25)" : "rgba(212,160,23,0.18)",
+                              color: confLive ? "#f87171" : "#facc15",
+                              border: confLive ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(212,160,23,0.35)",
+                            }}
+                          >
+                            {confLive ? (
+                              <><span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-400" /></span> Happening Now</>
+                            ) : (
+                              <><Calendar className="h-2.5 w-2.5" /> Coming Soon</>
+                            )}
+                          </motion.span>
+                        </div>
+                        <p className="text-white font-serif font-bold text-base sm:text-lg leading-tight tracking-tight">
+                          Ministers Conference 2026
+                        </p>
+                        <p className="text-purple-300/60 text-[11px] mt-0.5 truncate">
+                          May 8–10 · 8 AM Daily · Effurun, Delta State
+                        </p>
+                      </div>
+
+                      {/* Center: countdown digits */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {confLive ? (
+                          <span className="text-white font-serif font-black text-base tracking-wide px-3 py-1 rounded-xl" style={{ background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.35)" }}>
+                            🔥 The Conference Is LIVE!
+                          </span>
+                        ) : (
+                          <>
+                            {[
+                              { v: confDays,  l: "D" },
+                              { v: confHours, l: "H" },
+                              { v: confMins,  l: "M" },
+                              { v: confSecs,  l: "S" },
+                            ].map(({ v, l }) => (
+                              <div key={l} className="flex flex-col items-center rounded-xl px-2.5 py-1.5 min-w-[40px]"
+                                style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}>
+                                <span className="text-lg font-black text-white font-mono tabular-nums leading-none">
+                                  {String(v).padStart(2, "0")}
+                                </span>
+                                <span className="text-[9px] text-purple-400/60 uppercase tracking-wider mt-0.5">{l}</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Right: CTA */}
+                      <motion.div
+                        whileHover={{ scale: 1.05 } as never}
+                        whileTap={{ scale: 0.96 } as never}
+                        className="shrink-0 px-5 py-2.5 rounded-xl font-serif font-black text-sm tracking-wide flex items-center gap-2"
+                        style={{
+                          background: "linear-gradient(135deg,#d4a017,#facc15)",
+                          color: "#13051c",
+                          boxShadow: "0 4px 18px rgba(212,160,23,0.35)",
+                        }}
+                      >
+                        Register Now <ArrowRight className="h-3.5 w-3.5" />
+                      </motion.div>
+                    </div>
+
+                    {/* Gold shimmer bottom bar */}
+                    <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.4),transparent)" }} />
+                  </motion.div>
+                </Link>
+              </motion.div>
+            )}
 
             {/* ── Ministry Gallery Strip + Slideshow Controls ── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }} className="flex flex-col items-center gap-3">
