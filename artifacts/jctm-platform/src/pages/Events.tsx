@@ -210,7 +210,9 @@ type StaticEvent = {
   highlights?: string[];
 };
 
-const STATIC_UPCOMING_EVENTS: StaticEvent[] = [
+const STATIC_UPCOMING_EVENTS: StaticEvent[] = [];
+
+const STATIC_PAST_EVENTS: StaticEvent[] = [
   {
     id: "warri-crusade-2026",
     title: "Warri City Crusade 2026",
@@ -1082,12 +1084,15 @@ export default function Events() {
         </section>
 
         {/* Past Events */}
-        {past.length > 0 && (
+        {(STATIC_PAST_EVENTS.length > 0 || past.length > 0) && (
           <>
             <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">Past Events</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {STATIC_PAST_EVENTS.map((event, i) => (
+                <StaticEventCard key={event.id} event={event} index={i} />
+              ))}
               {past.slice(0, 6).map((event: EventItem, i: number) => (
-                <EventCard key={event.id} event={event} index={i} />
+                <EventCard key={event.id} event={event} index={STATIC_PAST_EVENTS.length + i} />
               ))}
             </div>
           </>
