@@ -692,5 +692,25 @@ export async function runMigrations(): Promise<void> {
     ON event_notification_dead_letter (event_id)
   `);
 
+  // ── Password reset tokens ────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id          serial PRIMARY KEY,
+      member_id   integer NOT NULL REFERENCES member_auth(id) ON DELETE CASCADE,
+      token       text    NOT NULL UNIQUE,
+      expires_at  timestamptz NOT NULL,
+      used_at     timestamptz,
+      created_at  timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_token_idx
+    ON password_reset_tokens (token) WHERE used_at IS NULL
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_member_idx
+    ON password_reset_tokens (member_id, created_at DESC)
+  `);
+
   logger.info("All migrations complete");
 }

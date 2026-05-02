@@ -41,6 +41,48 @@ The project is built as a pnpm monorepo, separating concerns into distinct packa
     -   **Performance:** Achieved through code splitting, lazy loading, TanStack Query, Vite optimization, and production-specific builds.
     -   **Monetization:** AdSense integration with Google Consent Mode v2 for compliant ad rendering.
 
+## Email Infrastructure (SMTP)
+
+The platform uses a production-grade outbound SMTP email system via **mail.jctm.org.ng** (port 587, STARTTLS).
+
+**Configuration (all stored as Replit Secrets / shared env vars):**
+- `SMTP_HOST` = `mail.jctm.org.ng`
+- `SMTP_PORT` = `587`
+- `SMTP_SECURE` = `false` (STARTTLS on 587, not implicit TLS)
+- `SMTP_USER` = `info@jctm.org.ng`
+- `SMTP_PASS` = *(secret)*
+- `SMTP_FROM` = `Jesus Christ Temple Ministry <info@jctm.org.ng>`
+- `SMTP_REPLY_TO` = `info@jctm.org.ng`
+- `SMTP_POOL_MAX` = `3`
+- `SMTP_RATE_LIMIT` = `5`
+
+**Core module:** `artifacts/api-server/src/lib/email-engine.ts`
+- nodemailer with connection pooling, STARTTLS enforcement, TLS 1.2+ minimum
+- Retry-with-backoff on transient errors (4xx SMTP codes, network errors) — up to 4 attempts
+- Health state tracking (`getEmailHealth()`) exposed to admin dashboard
+- Startup `verify()` call logs `"SMTP transport verified — email delivery ready"` on success
+- No-op graceful fallback when `SMTP_PASS` is missing (subscribers still saved, warns in logs)
+
+**Email flows implemented:**
+| Flow | Trigger | Template function |
+|---|---|---|
+| Daily devotion | Cron (daily) | `sendDevotionEmail` |
+| Devotion welcome | `POST /api/devotion/subscribe` | `sendWelcomeEmail` |
+| Member registration welcome | `POST /api/auth/register` | `sendMemberWelcomeEmail` |
+| Password reset | `POST /api/auth/forgot-password` | `sendPasswordResetEmail` |
+| Event reminder | Event notification scheduler | `sendEventNotificationEmail` |
+| Admin SMTP test | `POST /api/admin/email/test` (admin auth) | `sendTestEmail` |
+
+**Password reset flow:**
+- `POST /api/auth/forgot-password` — accepts `{email}`, generates a 1-hour token, stores in `password_reset_tokens` table, sends branded reset email. Always returns generic 200 (no user-enumeration).
+- `POST /api/auth/reset-password` — accepts `{token, password}`, validates token (expiry + used_at), updates password hash, rotates session token, marks reset token consumed.
+- DB table: `password_reset_tokens` (id, member_id FK, token UNIQUE, expires_at, used_at, created_at)
+
+**SPF / DKIM / DMARC recommendations for jctm.org.ng:**
+- **SPF:** `v=spf1 mx a:mail.jctm.org.ng ~all` — authorises the mail server to send on behalf of the domain
+- **DKIM:** Configure in your cPanel/Plesk mail server; ensure the selector is published as `mail._domainkey.jctm.org.ng`
+- **DMARC:** `v=DMARC1; p=quarantine; rua=mailto:info@jctm.org.ng; adkim=r; aspf=r` — starts in quarantine mode for monitoring
+
 ## External Dependencies
 
 -   **PostgreSQL:** Main relational database, hosted on Neon.

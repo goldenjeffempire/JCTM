@@ -574,6 +574,183 @@ export async function sendTestEmail(
   }
 }
 
+// ─── Member registration welcome email ───────────────────────────────────────
+
+export function renderMemberWelcomeEmail(firstName: string): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = "Welcome to the JCTM Digital Sanctuary";
+  const base = getPublicBaseUrl();
+
+  const text = [
+    `Welcome, ${firstName}!`,
+    ``,
+    `Your account has been created on the JCTM Digital Sanctuary.`,
+    ``,
+    `You can now:`,
+    `  • Watch live services and sermons at ${base}/sermons`,
+    `  • Read daily devotions at ${base}/devotion`,
+    `  • Connect with our prayer community at ${base}/prayer`,
+    ``,
+    `If you have any questions, reply to this email — we're happy to help.`,
+    ``,
+    `— Jesus Christ Temple Ministry, Warri, Nigeria`,
+  ].join("\n");
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
+        <tr><td style="background:#0f172a;padding:28px 32px;">
+          <p style="margin:0;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#94a3b8;font-weight:600;">Jesus Christ Temple Ministry</p>
+          <p style="margin:6px 0 0 0;font-size:20px;font-weight:700;color:#ffffff;">Welcome to the Digital Sanctuary</p>
+        </td></tr>
+        <tr><td style="padding:28px 32px;">
+          <p style="margin:0 0 14px 0;font-size:18px;font-weight:600;color:#0f172a;">Hello, ${escapeHtml(firstName)}! 🙌</p>
+          <p style="margin:0 0 14px 0;line-height:1.7;color:#374151;">Your account on the JCTM Digital Sanctuary has been created. You now have access to everything the ministry offers online.</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:16px 0;">
+            <tr><td style="padding:6px 0;font-size:14px;color:#374151;">📖 <a href="${escapeHtml(base)}/devotion" style="color:#0f172a;font-weight:600;text-decoration:none;">Daily Devotion</a> — scripture, reflection &amp; prayer each morning</td></tr>
+            <tr><td style="padding:6px 0;font-size:14px;color:#374151;">🎙️ <a href="${escapeHtml(base)}/sermons" style="color:#0f172a;font-weight:600;text-decoration:none;">Sermons</a> — watch live services and the full sermon library</td></tr>
+            <tr><td style="padding:6px 0;font-size:14px;color:#374151;">🙏 <a href="${escapeHtml(base)}/prayer" style="color:#0f172a;font-weight:600;text-decoration:none;">Prayer</a> — submit requests and connect with our prayer community</td></tr>
+          </table>
+          <p style="margin:20px 0 0 0;"><a href="${escapeHtml(base)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:9999px;font-size:14px;font-weight:600;">Visit the Sanctuary</a></p>
+        </td></tr>
+        <tr><td style="padding:18px 32px 28px 32px;border-top:1px solid #e5e7eb;background:#fafafa;">
+          <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6;">Jesus Christ Temple Ministry · Warri, Nigeria<br>Have a question? Reply to this email — we read every message.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+export async function sendMemberWelcomeEmail(
+  to: string,
+  firstName: string,
+  log: Logger = logger,
+): Promise<boolean> {
+  if (!isEmailConfigured()) {
+    log.info({ to }, "SMTP not configured — member welcome email skipped");
+    return false;
+  }
+  const { subject, text, html } = renderMemberWelcomeEmail(firstName);
+  try {
+    await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        headers: commonHeaders(),
+        ...replyToOption(),
+      },
+      log,
+      "member-welcome",
+    );
+    return true;
+  } catch (err) {
+    log.warn({ err, to }, "Member welcome email send failed (after retries)");
+    return false;
+  }
+}
+
+// ─── Password reset email ─────────────────────────────────────────────────────
+
+export function renderPasswordResetEmail(firstName: string, resetUrl: string): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = "Reset your JCTM Digital Sanctuary password";
+  const base = getPublicBaseUrl();
+
+  const text = [
+    `Hello, ${firstName}.`,
+    ``,
+    `We received a request to reset the password for your JCTM Digital Sanctuary account.`,
+    ``,
+    `Click the link below to set a new password. This link expires in 1 hour.`,
+    ``,
+    `${resetUrl}`,
+    ``,
+    `If you did not request a password reset, you can safely ignore this email.`,
+    `Your password will not change unless you follow the link above.`,
+    ``,
+    `— Jesus Christ Temple Ministry, Warri, Nigeria`,
+    `${base}`,
+  ].join("\n");
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
+        <tr><td style="background:#0f172a;padding:28px 32px;">
+          <p style="margin:0;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#94a3b8;font-weight:600;">Jesus Christ Temple Ministry</p>
+          <p style="margin:6px 0 0 0;font-size:20px;font-weight:700;color:#ffffff;">Password Reset Request</p>
+        </td></tr>
+        <tr><td style="padding:28px 32px;">
+          <p style="margin:0 0 14px 0;font-size:16px;font-weight:600;color:#0f172a;">Hello, ${escapeHtml(firstName)}</p>
+          <p style="margin:0 0 16px 0;line-height:1.7;color:#374151;">We received a request to reset the password for your JCTM Digital Sanctuary account. Click the button below to choose a new password.</p>
+          <p style="margin:0 0 16px 0;padding:16px;background:#fef3c7;border-radius:8px;border-left:4px solid #d97706;font-size:13px;color:#92400e;line-height:1.6;">⏰ This link expires in <strong>1 hour</strong>. After that you'll need to request a new one.</p>
+          <p style="margin:24px 0;"><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:9999px;font-size:15px;font-weight:600;">Reset my password</a></p>
+          <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">If the button doesn't work, copy and paste this URL into your browser:<br><a href="${escapeHtml(resetUrl)}" style="color:#2563eb;word-break:break-all;">${escapeHtml(resetUrl)}</a></p>
+        </td></tr>
+        <tr><td style="padding:18px 32px 28px 32px;border-top:1px solid #e5e7eb;background:#fafafa;">
+          <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6;">If you didn't request a password reset, you can safely ignore this email — your password won't change.<br><br>Jesus Christ Temple Ministry · Warri, Nigeria</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+export async function sendPasswordResetEmail(
+  to: string,
+  firstName: string,
+  resetUrl: string,
+  log: Logger = logger,
+): Promise<boolean> {
+  if (!isEmailConfigured()) {
+    log.warn({ to }, "SMTP not configured — password reset email skipped");
+    return false;
+  }
+  const { subject, text, html } = renderPasswordResetEmail(firstName, resetUrl);
+  try {
+    await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        headers: commonHeaders(),
+        ...replyToOption(),
+      },
+      log,
+      "password-reset",
+    );
+    return true;
+  } catch (err) {
+    log.warn({ err, to }, "Password reset email send failed (after retries)");
+    return false;
+  }
+}
+
 // ─── Event-notification email ─────────────────────────────────────────────────
 
 interface EventForEmail {
