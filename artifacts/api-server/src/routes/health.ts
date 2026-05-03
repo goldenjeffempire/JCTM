@@ -5,6 +5,7 @@ import { getSubscriberCount } from "../lib/push-manager.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { getNeonQuotaStatus } from "../lib/neon-quota-monitor.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
+import { getUptimeHistory } from "../lib/uptime-monitor.js";
 import net from "node:net";
 
 const router: IRouter = Router();
@@ -204,6 +205,28 @@ router.get(
       ...q,
       summary,
     });
+  },
+);
+
+// ─── Uptime history endpoint ──────────────────────────────────────────────────
+router.get(
+  "/admin/uptime",
+  requireAdminRole(["gallery", "sermon", "livestream"]),
+  async (req: Request, res: Response) => {
+    const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
+    try {
+      const history = await getUptimeHistory(days);
+      res.json({
+        ...history,
+        summary: history.uptimePercent >= 99.9
+          ? "Excellent — no significant downtime recorded."
+          : history.downtimeEvents.length === 0
+            ? "No downtime events recorded in this window."
+            : `${history.downtimeEvents.length} downtime event(s) detected — uptime ${history.uptimePercent}% over the last ${days} day(s).`,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load uptime history" });
+    }
   },
 );
 

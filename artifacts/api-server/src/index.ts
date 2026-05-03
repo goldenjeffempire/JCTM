@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startCron, setWebSubCallbackUrl, stopCron } from "./lib/cron.js";
+import { checkUptimeOnStartup, startHeartbeat, stopHeartbeat } from "./lib/uptime-monitor.js";
 import { altarSimInterval } from "./routes/altar.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
@@ -32,6 +33,11 @@ if (Number.isNaN(port) || port <= 0) {
 
 await initSentry();
 await runStartupMigrations();
+try {
+  await checkUptimeOnStartup();
+} catch (err) {
+  logger.warn({ err }, "Uptime startup check failed — continuing");
+}
 try {
   await seedMinistryBlogLibrary();
 } catch (err) {
@@ -76,6 +82,9 @@ const server = app.listen(port, async (err) => {
   void cleanupStalePushSubscriptions(60, logger).catch((err) =>
     logger.warn({ err }, "Startup push cleanup failed"),
   );
+
+  // Start uptime heartbeat writer (every 60 s)
+  startHeartbeat(logger);
 
   // Start the 30-minute YouTube sync cron
   startCron(logger);
@@ -127,6 +136,7 @@ function shutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   logger.info({ signal }, "Graceful shutdown initiated");
+  stopHeartbeat();
   stopCron();
   clearInterval(altarSimInterval);
 

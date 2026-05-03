@@ -909,6 +909,106 @@ export function renderEventNotificationEmail(
   return { subject, text, html };
 }
 
+// ─── Uptime alert email ───────────────────────────────────────────────────────
+
+interface UptimeAlertOptions {
+  to: string;
+  lastSeenAt: string;
+  recoveredAt: string;
+  downtimeMs: number;
+}
+
+function renderUptimeAlertEmail(opts: UptimeAlertOptions): { subject: string; text: string; html: string } {
+  const { lastSeenAt, recoveredAt, downtimeMs } = opts;
+  const downtimeMinutes = Math.round(downtimeMs / 60_000);
+  const downtimeHours   = Math.round((downtimeMs / 3_600_000) * 10) / 10;
+  const durationStr     = downtimeMs < 3_600_000
+    ? `${downtimeMinutes} minute${downtimeMinutes !== 1 ? "s" : ""}`
+    : `${downtimeHours} hour${downtimeHours !== 1 ? "s" : ""}`;
+  const lastSeenDisplay  = new Date(lastSeenAt).toUTCString();
+  const recoveredDisplay = new Date(recoveredAt).toUTCString();
+
+  const subject = `JCTM Server Alert — Downtime recovered after ${durationStr}`;
+
+  const text = [
+    "JCTM Digital Sanctuary — Uptime Alert",
+    "",
+    "The API server was unreachable and has now recovered.",
+    "",
+    `Last heartbeat : ${lastSeenDisplay}`,
+    `Recovered at   : ${recoveredDisplay}`,
+    `Total downtime : ${durationStr}`,
+    "",
+    "The server is now running normally. No action is required unless you notice ongoing issues.",
+    "",
+    "— JCTM Platform Monitor",
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>JCTM Uptime Alert</title></head>
+<body style="margin:0;padding:0;background:#f5f3ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f3ee;">
+    <tr><td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <tr><td style="background:#7f1d1d;padding:20px 28px;">
+          <p style="margin:0;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#fca5a5;font-weight:700;">System Alert</p>
+          <h1 style="margin:6px 0 0 0;font-size:20px;line-height:1.3;color:#fff;font-weight:700;">Server Downtime Detected</h1>
+          <p style="margin:4px 0 0 0;font-size:13px;color:#fecaca;">Jesus Christ Temple Ministry · Digital Sanctuary</p>
+        </td></tr>
+        <tr><td style="padding:24px 28px;">
+          <p style="margin:0 0 16px 0;font-size:15px;color:#374151;line-height:1.6;">
+            The JCTM API server was unreachable and has now <strong style="color:#166534;">successfully recovered</strong>.
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+            <tr style="background:#f9fafb;">
+              <td style="padding:10px 16px;font-size:13px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Last heartbeat</td>
+              <td style="padding:10px 16px;font-size:13px;color:#111827;border-bottom:1px solid #e5e7eb;">${escapeHtml(lastSeenDisplay)}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 16px;font-size:13px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Recovered at</td>
+              <td style="padding:10px 16px;font-size:13px;color:#166534;font-weight:600;border-bottom:1px solid #e5e7eb;">${escapeHtml(recoveredDisplay)}</td>
+            </tr>
+            <tr style="background:#fef2f2;">
+              <td style="padding:10px 16px;font-size:13px;color:#6b7280;font-weight:600;">Total downtime</td>
+              <td style="padding:10px 16px;font-size:14px;color:#991b1b;font-weight:700;">${escapeHtml(durationStr)}</td>
+            </tr>
+          </table>
+          <p style="margin:20px 0 0 0;font-size:13px;color:#6b7280;line-height:1.6;">
+            The server is now running normally. No action is required unless you notice ongoing issues.
+            Log in to the admin dashboard to review the full uptime history.
+          </p>
+        </td></tr>
+        <tr><td style="padding:0 28px 24px 28px;border-top:1px solid #e5e7eb;">
+          <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;">Jesus Christ Temple Ministry · Warri, Nigeria · Automated alert from the Digital Sanctuary platform monitor.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+export async function sendUptimeAlertEmail(opts: UptimeAlertOptions): Promise<boolean> {
+  if (!isEmailConfigured()) {
+    logger.warn({ to: opts.to }, "SMTP not configured — uptime alert email skipped");
+    return false;
+  }
+  const { subject, text, html } = renderUptimeAlertEmail(opts);
+  try {
+    await sendWithRetry(
+      { from: defaultFrom(), to: opts.to, subject, text, html, ...replyToOption() },
+      logger,
+      "uptime-alert",
+    );
+    logger.info({ to: opts.to, downtimeMs: opts.downtimeMs }, "Uptime alert email sent");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to: opts.to }, "Uptime alert email send failed (after retries)");
+    return false;
+  }
+}
+
 export async function sendEventNotificationEmail(
   to: string,
   event: EventForEmail,

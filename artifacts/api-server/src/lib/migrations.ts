@@ -712,5 +712,30 @@ export async function runMigrations(): Promise<void> {
     ON password_reset_tokens (member_id, created_at DESC)
   `);
 
+  // ── Uptime monitoring ─────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS server_heartbeats (
+      id bigserial PRIMARY KEY,
+      beat_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS server_heartbeats_beat_at_idx
+    ON server_heartbeats (beat_at DESC)
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS server_downtime_events (
+      id serial PRIMARY KEY,
+      started_at  timestamptz NOT NULL,
+      recovered_at timestamptz NOT NULL,
+      downtime_ms bigint NOT NULL,
+      alert_sent  boolean NOT NULL DEFAULT false
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS server_downtime_events_started_at_idx
+    ON server_downtime_events (started_at DESC)
+  `);
+
   logger.info("All migrations complete");
 }
