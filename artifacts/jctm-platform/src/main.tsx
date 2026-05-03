@@ -56,15 +56,15 @@ createRoot(document.getElementById("root")!).render(
 // ─── Hide instant app shell once React has mounted ────────────────────────────
 // The shell is rendered synchronously by index.html so users never see a blank
 // white page during JS download/parse. Once React commits its first paint we
-// fade it out (CSS transition handles the visual blend).
+// fade it out immediately (150ms CSS transition) and remove it from the DOM.
 function hideAppShell() {
   const el = document.getElementById("app-shell");
   if (!el) return;
   el.classList.add("app-shell--hide");
-  setTimeout(() => el.parentNode?.removeChild(el), 400);
+  setTimeout(() => el.parentNode?.removeChild(el), 160);
 }
 if (typeof requestAnimationFrame === "function") {
-  requestAnimationFrame(() => requestAnimationFrame(hideAppShell));
+  requestAnimationFrame(hideAppShell);
 } else {
   hideAppShell();
 }
