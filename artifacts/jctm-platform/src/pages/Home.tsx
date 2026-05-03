@@ -3175,7 +3175,7 @@ function GlobalReach() {
           viewport={{ once: true }}
           transition={{ type: "spring", stiffness: 60, damping: 18 }}
         >
-          <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Ministry in Pictures — Sermon Teachings, Scripture & Spiritual Growth</p>
+          <p className="text-white/35 text-[10px] uppercase tracking-[0.25em] mb-4 font-medium text-center">Ministry in Pictures — Moments of Faith, Worship & Spiritual Life at JCTM</p>
           <Suspense fallback={<div className="h-64 animate-pulse bg-white/5 rounded-2xl" />}>
             <MinistrySlideshow />
           </Suspense>

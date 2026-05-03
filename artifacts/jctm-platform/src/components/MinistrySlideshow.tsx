@@ -895,13 +895,88 @@ const jpgModules = import.meta.glob(
   { eager: true, query: "?url", import: "default" },
 ) as Record<string, string>;
 
-interface ImageEntry { webp: string; jpg: string }
+interface ImageEntry { webp: string; jpg: string; caption: string; category: string }
 type FeaturedGalleryImage = {
   objectPath: string;
   thumbnailPath?: string | null;
   title?: string | null;
   altText?: string | null;
 };
+
+// ─── Curated captions for static DSC assets ──────────────────────────────────
+// These are used when no gallery metadata is available (local attached assets).
+const STATIC_CAPTIONS: { caption: string; category: string }[] = [
+  { caption: "The congregation gathered in fervent worship at Jesus Christ Temple Ministry, Warri", category: "Sunday Service" },
+  { caption: "Prophet Amos Evomobor ministers the undiluted Word of God to a captivated congregation", category: "Bible Teaching" },
+  { caption: "The house of God overflows with praise as the spirit of worship fills the sanctuary", category: "Worship Night" },
+  { caption: "Believers bow in corporate intercession — the prayer altar burning with holy fire", category: "Prayer Meeting" },
+  { caption: "Sunday service at JCTM Warri: unity, holiness, and the move of the Holy Spirit", category: "Sunday Service" },
+  { caption: "The anointing flows as minister lays hands on the flock during a moment of impartation", category: "Ministry Moment" },
+  { caption: "Children of God assembled at JCTM for the weekly Holy Spirit Sunday Service", category: "Sunday Service" },
+  { caption: "The Correction Mandate preached with power — bringing the church back to apostolic foundations", category: "Bible Teaching" },
+  { caption: "A night of spiritual encounter as the glory of God descends on the assembly", category: "Evening Service" },
+  { caption: "Corporate praise and worship lifting the name of Jesus in one voice at JCTM", category: "Worship Night" },
+  { caption: "The Word of Truth going forth with boldness — restoring primitive Christianity", category: "Bible Teaching" },
+  { caption: "Members of JCTM standing in the faith, clothed with righteousness and holiness", category: "Sunday Service" },
+  { caption: "The prophet addresses the congregation with the fire of apostolic truth", category: "Prophetic Service" },
+  { caption: "Crusade night — multitudes gathering to receive the miracle-working power of Jesus Christ", category: "Crusade" },
+  { caption: "The sound of intercession rises from JCTM as the saints call upon the living God", category: "Prayer Meeting" },
+  { caption: "Temple TV capturing the move of God — broadcasting the Correction Mandate to 40+ nations", category: "Temple TV" },
+  { caption: "Choir ministering in the beauty of holiness as the Holy Spirit moves sovereignly", category: "Worship Night" },
+  { caption: "Baptism in the Holy Spirit — the early church experience restored at JCTM Warri", category: "Holy Spirit Service" },
+  { caption: "Ministers of the gospel gathered at JCTM for strategic kingdom assignment", category: "Ministry Meeting" },
+  { caption: "Bible study session — digging deep into the eternal truths of God's Word", category: "Bible Study" },
+  { caption: "The congregation receives impartation as the anointing breaks every yoke", category: "Ministry Moment" },
+  { caption: "Youth on fire for God — the next generation rising in holiness at JCTM", category: "Youth Service" },
+  { caption: "Fervent worship at the feet of Jesus — JCTM Warri alive with the presence of God", category: "Worship Night" },
+  { caption: "A moment of supernatural encounter as heaven touches earth at the altar", category: "Altar Call" },
+  { caption: "Sunday morning gathering — the people of JCTM united in faith, love, and holiness", category: "Sunday Service" },
+  { caption: "The healing anointing demonstrated as God confirms His Word with signs and wonders", category: "Healing Service" },
+  { caption: "Testimonies of God's faithfulness shared as the congregation rejoices together", category: "Testimony Service" },
+  { caption: "The altar call — souls responding to the apostolic message of repentance and salvation", category: "Altar Call" },
+  { caption: "Prophet Amos Evomobor in deep intercession, standing in the gap for the nation", category: "Intercession" },
+  { caption: "JCTM ministers going forth — carrying the light of truth to communities across Warri", category: "Outreach" },
+  { caption: "The house of God filled to capacity as revival breaks out in Warri, Nigeria", category: "Revival" },
+  { caption: "Holy Communion administered — the body and blood of Jesus Christ commemorated in reverence", category: "Communion Service" },
+  { caption: "Special evening service — God's people drawn into His holy presence at JCTM", category: "Evening Service" },
+  { caption: "Deliverance ministry in action — captives set free by the power of the Lord Jesus Christ", category: "Deliverance Service" },
+  { caption: "The congregation stands in unified worship — holiness filling every corner of the sanctuary", category: "Sunday Service" },
+  { caption: "Water baptism service — new converts publicly identifying with Christ's death and resurrection", category: "Baptism Service" },
+  { caption: "Leadership at JCTM gathered for prophetic declaration and spiritual strategy", category: "Leadership Meeting" },
+  { caption: "Vibrant worship at JCTM — sound and glory filling the atmosphere of praise", category: "Worship Night" },
+  { caption: "The congregation receives the prophetic Word with great joy and expectation", category: "Prophetic Service" },
+  { caption: "JCTM women in ministry — vessels of honour, filled with the Holy Spirit and power", category: "Women's Ministry" },
+  { caption: "Open-air crusade — the gospel reaching the unreached across the Niger Delta region", category: "Crusade" },
+  { caption: "A special prayer session as the body of Christ stands together in spiritual warfare", category: "Prayer Meeting" },
+  { caption: "The worship team leading God's people into the throne room of grace", category: "Worship Night" },
+  { caption: "Apostolic truths preached to a generation hungry for the uncompromised Word of God", category: "Bible Teaching" },
+  { caption: "The joy of the Lord manifesting among the saints at Sunday service", category: "Sunday Service" },
+  { caption: "Healing meeting — the power of God touching bodies, minds, and spirits", category: "Healing Service" },
+  { caption: "JCTM in prayer — the incense of intercession rising before the throne of God", category: "Prayer Meeting" },
+  { caption: "Corporate declaration — the body of Christ speaking life, faith, and victory", category: "Sunday Service" },
+  { caption: "A powerful move of the Holy Spirit breaking chains and transforming lives at JCTM", category: "Holy Spirit Service" },
+  { caption: "God's presence tangible in the assembly — worship, prayer and the Word in one accord", category: "Sunday Service" },
+  { caption: "The fire of revival consuming hearts as the Spirit of God moves among His people", category: "Revival" },
+  { caption: "Apostolic preaching cuts through deception, calling God's people back to the ancient paths", category: "Bible Teaching" },
+  { caption: "The congregation responds to a fresh outpouring of the Holy Spirit at JCTM", category: "Holy Spirit Service" },
+  { caption: "Night vigil — JCTM saints keeping watch in the night season of prayer and worship", category: "Night Vigil" },
+  { caption: "Kingdom community gathered — bearing one another's burdens in love at JCTM Warri", category: "Sunday Service" },
+];
+
+function parseCaptionFromGallery(altText: string | null | undefined, title: string | null | undefined): { caption: string; category: string } {
+  const raw = altText?.trim() || title?.trim() || "";
+  if (!raw) return { caption: "Ministry moment captured at Jesus Christ Temple Ministry, Warri", category: "Ministry in Pictures" };
+  // Strip trailing " 32", " 42" etc. — auto-numbered suffixes added on bulk upload
+  const clean = raw.replace(/\s+\d+$/, "").trim();
+  // Strip trailing emoji sequences (common in titles)
+  const noEmoji = clean.replace(/\s*[\u{1F300}-\u{1FAFF}]+\s*$/u, "").trim();
+  // Split on " | " — first segment becomes category, rest becomes caption
+  const parts = noEmoji.split(/\s*\|\s*/);
+  if (parts.length >= 2) {
+    return { category: parts[0]!.trim(), caption: parts.slice(1).join(" — ").trim() };
+  }
+  return { category: "Ministry in Pictures", caption: noEmoji || clean };
+}
 
 function buildImageEntries(): ImageEntry[] {
   const webpByBase: Record<string, string> = {};
@@ -912,9 +987,11 @@ function buildImageEntries(): ImageEntry[] {
   for (const [p, url] of Object.entries(jpgModules)) {
     jpgByBase[p.split("/").pop()!.replace(/\.(jpg|jpeg)$/i, "")] = url;
   }
-  return Object.keys(webpByBase)
-    .filter((b) => jpgByBase[b])
-    .map((b) => ({ webp: webpByBase[b], jpg: jpgByBase[b] }));
+  const bases = Object.keys(webpByBase).filter((b) => jpgByBase[b]).sort();
+  return bases.map((b, i) => {
+    const sc = STATIC_CAPTIONS[i % STATIC_CAPTIONS.length]!;
+    return { webp: webpByBase[b]!, jpg: jpgByBase[b]!, caption: sc.caption, category: sc.category };
+  });
 }
 
 const ALL_IMAGES: ImageEntry[] = buildImageEntries();
@@ -928,9 +1005,9 @@ function galleryEntries(images: FeaturedGalleryImage[]): ImageEntry[] {
     .filter((image) => typeof image.objectPath === "string" && image.objectPath.startsWith("/objects/"))
     .map((image) => {
       const fullSrc = galleryImageUrl(image.objectPath);
-      // Use the WebP thumbnail as the preferred source if available — much smaller payload
       const thumbSrc = image.thumbnailPath ? galleryImageUrl(image.thumbnailPath) : fullSrc;
-      return { webp: thumbSrc, jpg: fullSrc };
+      const { caption, category } = parseCaptionFromGallery(image.altText, image.title);
+      return { webp: thumbSrc, jpg: fullSrc, caption, category };
     });
 }
 
@@ -1013,32 +1090,32 @@ function SlideDots({
 
 // ─── Caption content ──────────────────────────────────────────────────────────
 function CaptionContent({
-  slide, layout,
+  slide, image, layout,
 }: {
-  slide: Slide; layout: "overlay" | "side";
+  slide: Slide; image: ImageEntry; layout: "overlay" | "side";
 }) {
   const th = THEME[slide.theme] ?? THEME["Spiritual Growth"];
   const isSide = layout === "side";
   return (
     <div className={isSide ? "flex flex-col justify-center h-full" : "text-center"}>
-      {/* Theme pill */}
-      <div className="mb-3 inline-flex">
+      {/* Event / category badge — derived from the actual image */}
+      <div className={`mb-3 ${isSide ? "inline-flex" : "flex justify-center"}`}>
         <span
           className="text-[10px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full"
           style={{ color: th.accent, background: th.pill }}
         >
-          {slide.theme}
+          {image.category}
         </span>
       </div>
 
-      {/* Sermon point */}
+      {/* Image caption — describes the actual ministry moment photographed */}
       <h2
         className={`font-serif font-bold leading-snug text-white mb-4 ${
-          isSide ? "text-base sm:text-xl lg:text-2xl" : "text-xl sm:text-2xl md:text-3xl"
+          isSide ? "text-base sm:text-xl lg:text-2xl" : "text-lg sm:text-xl md:text-2xl"
         }`}
         style={{ textShadow: isSide ? "none" : "0 2px 22px rgba(0,0,0,0.75)" }}
       >
-        {slide.point}
+        {image.caption}
       </h2>
 
       {/* Accent rule */}
@@ -1047,7 +1124,7 @@ function CaptionContent({
         style={{ background: `${th.accent}65` }}
       />
 
-      {/* Scripture quote */}
+      {/* Scripture quote — preserved exactly as-is */}
       <p
         className={`font-serif italic leading-relaxed mb-2 ${
           isSide ? "text-xs sm:text-sm" : "text-sm sm:text-base"
@@ -1057,29 +1134,29 @@ function CaptionContent({
         "{slide.quote}"
       </p>
 
-      {/* Reference */}
+      {/* Scripture reference — preserved exactly as-is */}
       <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: `${th.accent}CC` }}>
         — {slide.ref}
       </p>
 
       <p className={`text-white/25 text-[9px] uppercase tracking-widest ${isSide ? "mt-5 hidden sm:block" : "mt-3"}`}>
-        {slide.sourceTitle ? "From Temple TV Sermons · JCTM Warri" : "Jesus Christ Temple Ministry · Warri, Nigeria"}
+        Jesus Christ Temple Ministry · Warri, Nigeria
       </p>
     </div>
   );
 }
 
-function SlideCaption({ slide, slideIdx, layout }: { slide: Slide; slideIdx: number; layout: "overlay" | "side" }) {
+function SlideCaption({ slide, slideIdx, image, layout }: { slide: Slide; slideIdx: number; image: ImageEntry; layout: "overlay" | "side" }) {
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={`${slideIdx}-${slideKey(slide)}`}
+        key={`${slideIdx}-${image.webp}`}
         initial={{ opacity: 0, y: layout === "overlay" ? 18 : 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: layout === "overlay" ? -12 : -6 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       >
-        <CaptionContent slide={slide} layout={layout} />
+        <CaptionContent slide={slide} image={image} layout={layout} />
       </motion.div>
     </AnimatePresence>
   );
@@ -1317,7 +1394,7 @@ export function MinistrySlideshow() {
                 }}
               />
               <div className="relative z-10 px-6 sm:px-9 py-7">
-                <SlideCaption slide={slide} slideIdx={slideIdx} layout="side" />
+                <SlideCaption slide={slide} slideIdx={slideIdx} image={currentEntry} layout="side" />
               </div>
             </div>
           </motion.div>
@@ -1367,7 +1444,7 @@ export function MinistrySlideshow() {
             />
             {/* Caption */}
             <div className="absolute inset-x-0 bottom-0 px-7 sm:px-14 pb-10 sm:pb-12">
-              <SlideCaption slide={slide} slideIdx={slideIdx} layout="overlay" />
+              <SlideCaption slide={slide} slideIdx={slideIdx} image={currentEntry} layout="overlay" />
             </div>
           </motion.div>
         )}
