@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   motion, Variants, useScroll, useTransform, useInView,
   AnimatePresence, useMotionValue, useSpring,
@@ -1705,16 +1706,29 @@ function BentoGrid() {
     query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 30_000, staleTime: 15_000 },
   });
   const { data: stats } = useGetSermonStats({ query: { queryKey: getGetSermonStatsQueryKey() } });
+  const { data: homeVideos } = useQuery<{ highlightVideoId: string | null; broadcastVideoId: string | null }>({
+    queryKey: ["home-videos"],
+    queryFn: () => fetch(`${BASE}/api/home-videos`).then(r => r.json()),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
   const countdown = useNextService();
   const [wordIdx, setWordIdx] = useState(0);
   const [hoveredSermon, setHoveredSermon] = useState(false);
-  const ytId = (sermon as { videoId?: string })?.videoId;
+  const featuredYtId = (sermon as { videoId?: string })?.videoId;
+
+  // Custom admin override takes priority over the featured sermon
+  const hasCustomHighlight = !!homeVideos?.highlightVideoId;
+  const ytId = homeVideos?.highlightVideoId ?? featuredYtId;
+  const bentoThumbnailUrl = hasCustomHighlight
+    ? `https://i.ytimg.com/vi/${homeVideos!.highlightVideoId}/maxresdefault.jpg`
+    : sermon?.thumbnailUrl;
 
   // "Latest Broadcast" badge: show if this was an actual live stream (broadcastEndedAt set by
   // live-stream detection) OR if the video was published within the last 48 hours.
   const bentoBroadcastEndedAt = (sermon as { broadcastEndedAt?: string | null })?.broadcastEndedAt;
   const bentoPublishedAt = sermon?.publishedAt ? new Date(sermon.publishedAt).getTime() : 0;
-  const bentoIsRecentBroadcast = (
+  const bentoIsRecentBroadcast = hasCustomHighlight || (
     (!!bentoBroadcastEndedAt && (Date.now() - new Date(bentoBroadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000) ||
     (bentoPublishedAt > 0 && (Date.now() - bentoPublishedAt) < 48 * 60 * 60 * 1000)
   );
@@ -1754,15 +1768,15 @@ function BentoGrid() {
               >
                 {sermonLoading ? (
                   <><Skeleton className="aspect-video w-full" /><div className="p-5 flex-1"><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-3 w-1/3" /></div></>
-                ) : sermon && ytId ? (
+                ) : ytId ? (
                   <>
                     <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
                       {/* Facade preview — clicking the play button mounts the
                           monetized iframe so YouTube serves pre-roll ads. */}
                       <YouTubeEmbed
                         videoId={ytId}
-                        title={sermon.title}
-                        thumbnailUrl={sermon.thumbnailUrl}
+                        title={hasCustomHighlight ? "Today's Highlight" : (sermon?.title ?? "Today's Highlight")}
+                        thumbnailUrl={bentoThumbnailUrl ?? `https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`}
                         mode="facade"
                         analyticsPage="/"
                         className="rounded-none"
@@ -1776,11 +1790,13 @@ function BentoGrid() {
                         <span className="h-1.5 w-1.5 bg-accent rounded-full animate-pulse" />
                         {bentoIsRecentBroadcast ? "Latest Broadcast" : "Latest from Temple TV"}
                       </span>
-                      <h3 className="text-white font-serif font-bold text-lg leading-snug line-clamp-2">{sermon.title}</h3>
+                      <h3 className="text-white font-serif font-bold text-lg leading-snug line-clamp-2">
+                        {hasCustomHighlight ? "Today's Highlight" : (sermon?.title ?? "Today's Highlight")}
+                      </h3>
                       <p className="text-white/50 text-xs mt-1">
-                        {bentoIsRecentBroadcast && bentoBroadcastEndedAt
+                        {!hasCustomHighlight && sermon && (bentoIsRecentBroadcast && bentoBroadcastEndedAt
                           ? `Aired ${formatDistanceToNow(new Date(bentoBroadcastEndedAt), { addSuffix: true })}`
-                          : `Published ${formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}`}
+                          : `Published ${formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}`)}
                       </p>
                     </div>
                     <div className="p-5 flex items-center justify-between bg-primary">
@@ -2315,16 +2331,29 @@ function SermonSpotlight() {
     query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 30_000, staleTime: 15_000 },
   });
   const { data: stats } = useGetSermonStats({ query: { queryKey: getGetSermonStatsQueryKey() } });
+  const { data: homeVideos } = useQuery<{ highlightVideoId: string | null; broadcastVideoId: string | null }>({
+    queryKey: ["home-videos"],
+    queryFn: () => fetch(`${BASE}/api/home-videos`).then(r => r.json()),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
   const [playing, setPlaying] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
-  const ytId = (sermon as { videoId?: string })?.videoId;
+  const featuredYtId = (sermon as { videoId?: string })?.videoId;
 
-  // "Latest Broadcast" badge: show if this was an actual live stream (broadcastEndedAt set by
-  // live-stream detection) OR if the video was published within the last 48 hours.
+  // Custom admin override takes priority over the featured sermon for Latest Broadcast
+  const hasCustomBroadcast = !!homeVideos?.broadcastVideoId;
+  const ytId = homeVideos?.broadcastVideoId ?? featuredYtId;
+  const spotThumbnailUrl = hasCustomBroadcast
+    ? `https://i.ytimg.com/vi/${homeVideos!.broadcastVideoId}/maxresdefault.jpg`
+    : sermon?.thumbnailUrl;
+
+  // "Latest Broadcast" badge: show if admin pinned a custom broadcast video, or if this was an
+  // actual live stream, or if the video was published within the last 48 hours.
   const broadcastEndedAt = (sermon as { broadcastEndedAt?: string | null })?.broadcastEndedAt;
   const spotPublishedAt = sermon?.publishedAt ? new Date(sermon.publishedAt).getTime() : 0;
-  const isRecentBroadcast = (
+  const isRecentBroadcast = hasCustomBroadcast || (
     (!!broadcastEndedAt && (Date.now() - new Date(broadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000) ||
     (spotPublishedAt > 0 && (Date.now() - spotPublishedAt) < 48 * 60 * 60 * 1000)
   );
@@ -2379,7 +2408,7 @@ function SermonSpotlight() {
           <motion.div initial={{ opacity: 0, x: 40 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}>
             {isLoading ? (
               <div className="rounded-3xl overflow-hidden shadow-2xl"><Skeleton className="aspect-video w-full" /><div className="p-6 bg-primary"><Skeleton className="h-3 w-24 bg-white/10 mb-3" /><Skeleton className="h-6 w-full bg-white/10 mb-2" /><Skeleton className="h-6 w-3/4 bg-white/10 mb-4" /><div className="flex gap-3"><Skeleton className="h-10 flex-1 bg-white/10 rounded-xl" /><Skeleton className="h-10 w-20 bg-white/10 rounded-xl" /></div></div></div>
-            ) : sermon ? (
+            ) : (sermon || hasCustomBroadcast) && ytId ? (
               <TiltCard>
                 <div className="relative group">
                   <div className="absolute -inset-4 bg-gradient-to-r from-accent/15 to-primary/15 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -2387,15 +2416,15 @@ function SermonSpotlight() {
                     {playing && ytId ? (
                       <YouTubeEmbed
                         videoId={ytId}
-                        title={sermon.title}
-                        thumbnailUrl={sermon.thumbnailUrl}
+                        title={hasCustomBroadcast ? "Latest Broadcast" : (sermon?.title ?? "Latest Broadcast")}
+                        thumbnailUrl={spotThumbnailUrl ?? `https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`}
                         mode="eager"
                         analyticsPage="/"
                       />
                     ) : (
                       <>
                         <div className="aspect-video relative overflow-hidden">
-                          <img src={sermon.thumbnailUrl} alt={sermon.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
+                          <img src={spotThumbnailUrl ?? `https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`} alt={hasCustomBroadcast ? "Latest Broadcast" : (sermon?.title ?? "Latest Broadcast")} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`; }} />
                           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
                           {isRecentBroadcast && (
                             <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
@@ -2421,11 +2450,13 @@ function SermonSpotlight() {
                               <span className="text-white/40 text-xs">aired {broadcastAgo}</span>
                             )}
                           </div>
-                          <h3 className="text-xl font-serif font-bold mt-2 mb-1 leading-tight line-clamp-2">{sermon.title}</h3>
+                          <h3 className="text-xl font-serif font-bold mt-2 mb-1 leading-tight line-clamp-2">
+                            {hasCustomBroadcast ? "Latest Broadcast" : (sermon?.title ?? "Latest Broadcast")}
+                          </h3>
                           <p className="text-white/50 text-xs mb-4">
-                            {isRecentBroadcast && broadcastEndedAt
+                            {!hasCustomBroadcast && sermon && (isRecentBroadcast && broadcastEndedAt
                               ? `Broadcast ended ${formatDistanceToNow(new Date(broadcastEndedAt), { addSuffix: true })}`
-                              : formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}
+                              : formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true }))}
                           </p>
                           <div className="flex gap-3">
                             <button onClick={() => setPlaying(true)} className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center justify-center gap-2">

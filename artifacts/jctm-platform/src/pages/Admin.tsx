@@ -2035,7 +2035,210 @@ function SermonsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
           </div>
         </Card>
       )}
+
+      <HomeVideosCard auth={auth} />
+
     </div>
+  );
+}
+
+// ─── Home Videos Card ─────────────────────────────────────────────────────────
+
+function HomeVideosCard({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery<{ highlightVideoId: string | null; broadcastVideoId: string | null }>({
+    queryKey: ["home-videos"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/home-videos`);
+      return res.json();
+    },
+    staleTime: 15_000,
+  });
+
+  const [highlightInput, setHighlightInput] = useState("");
+  const [broadcastInput, setBroadcastInput] = useState("");
+  const [savingHighlight, setSavingHighlight] = useState(false);
+  const [savingBroadcast, setSavingBroadcast] = useState(false);
+
+  const YT_RE = /^[A-Za-z0-9_-]{5,20}$/;
+
+  const saveHighlight = async () => {
+    const id = highlightInput.trim();
+    if (!YT_RE.test(id)) { toast.error("Enter a valid YouTube video ID (e.g. 1GEdYA4f0-k)"); return; }
+    setSavingHighlight(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/home-videos/highlight`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ videoId: id }),
+      });
+      if (!res.ok) { if (res.status === 401) auth.logout(); const d = await res.json().catch(() => ({})) as { error?: string }; toast.error(d?.error ?? "Failed to save"); return; }
+      toast.success("Today's Highlight video updated");
+      setHighlightInput("");
+      qc.invalidateQueries({ queryKey: ["home-videos"] });
+    } finally { setSavingHighlight(false); }
+  };
+
+  const clearHighlight = async () => {
+    setSavingHighlight(true);
+    try {
+      await fetch(`${BASE}/api/admin/home-videos/highlight`, { method: "DELETE", headers: authHeader });
+      toast.success("Highlight override cleared — featured sermon will show");
+      qc.invalidateQueries({ queryKey: ["home-videos"] });
+    } finally { setSavingHighlight(false); }
+  };
+
+  const saveBroadcast = async () => {
+    const id = broadcastInput.trim();
+    if (!YT_RE.test(id)) { toast.error("Enter a valid YouTube video ID (e.g. 1GEdYA4f0-k)"); return; }
+    setSavingBroadcast(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/home-videos/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({ videoId: id }),
+      });
+      if (!res.ok) { if (res.status === 401) auth.logout(); const d = await res.json().catch(() => ({})) as { error?: string }; toast.error(d?.error ?? "Failed to save"); return; }
+      toast.success("Latest Broadcast video updated");
+      setBroadcastInput("");
+      qc.invalidateQueries({ queryKey: ["home-videos"] });
+    } finally { setSavingBroadcast(false); }
+  };
+
+  const clearBroadcast = async () => {
+    setSavingBroadcast(true);
+    try {
+      await fetch(`${BASE}/api/admin/home-videos/broadcast`, { method: "DELETE", headers: authHeader });
+      toast.success("Broadcast override cleared — featured sermon will show");
+      qc.invalidateQueries({ queryKey: ["home-videos"] });
+    } finally { setSavingBroadcast(false); }
+  };
+
+  return (
+    <AdminLoginGate role="sermon" auth={auth} title="Home Page Videos">
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <Tv2 className="w-4 h-4 text-primary" /> Home Page Videos
+          </h3>
+          <AdminBadge role="sermon" auth={auth} />
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Override the YouTube video shown in <strong>Today's Highlights</strong> and <strong>Latest Broadcast</strong> on the home page.
+          Leave blank to auto-show the featured sermon.
+        </p>
+
+        {isLoading ? (
+          <div className="space-y-3"><div className="h-8 rounded-lg bg-muted animate-pulse" /><div className="h-8 rounded-lg bg-muted animate-pulse" /></div>
+        ) : (
+          <div className="space-y-4">
+            {/* Today's Highlight */}
+            <div className="rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-foreground">Today's Highlights</p>
+                {data?.highlightVideoId ? (
+                  <span className="flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active: {data.highlightVideoId}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Auto (featured sermon)</span>
+                )}
+              </div>
+              {data?.highlightVideoId && (
+                <div className="mb-2 rounded-lg overflow-hidden border border-border" style={{ aspectRatio: "16/9", maxWidth: 240 }}>
+                  <img
+                    src={`https://i.ytimg.com/vi/${data.highlightVideoId}/mqdefault.jpg`}
+                    alt="Current highlight"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  value={highlightInput}
+                  onChange={e => setHighlightInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && saveHighlight()}
+                  placeholder="YouTube video ID (e.g. 1GEdYA4f0-k)"
+                  className="flex-1 h-8 rounded-lg border border-border bg-background px-3 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={saveHighlight}
+                  disabled={savingHighlight || !highlightInput.trim()}
+                  className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingHighlight ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Set
+                </button>
+                {data?.highlightVideoId && (
+                  <button
+                    onClick={clearHighlight}
+                    disabled={savingHighlight}
+                    className="h-8 px-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-destructive hover:border-destructive/40 disabled:opacity-50 transition-colors"
+                    title="Clear override"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Latest Broadcast */}
+            <div className="rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-foreground">Latest Broadcast</p>
+                {data?.broadcastVideoId ? (
+                  <span className="flex items-center gap-1.5 text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    Active: {data.broadcastVideoId}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Auto (featured sermon)</span>
+                )}
+              </div>
+              {data?.broadcastVideoId && (
+                <div className="mb-2 rounded-lg overflow-hidden border border-border" style={{ aspectRatio: "16/9", maxWidth: 240 }}>
+                  <img
+                    src={`https://i.ytimg.com/vi/${data.broadcastVideoId}/mqdefault.jpg`}
+                    alt="Current broadcast"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  value={broadcastInput}
+                  onChange={e => setBroadcastInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && saveBroadcast()}
+                  placeholder="YouTube video ID (e.g. 1GEdYA4f0-k)"
+                  className="flex-1 h-8 rounded-lg border border-border bg-background px-3 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={saveBroadcast}
+                  disabled={savingBroadcast || !broadcastInput.trim()}
+                  className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingBroadcast ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Set
+                </button>
+                {data?.broadcastVideoId && (
+                  <button
+                    onClick={clearBroadcast}
+                    disabled={savingBroadcast}
+                    className="h-8 px-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-destructive hover:border-destructive/40 disabled:opacity-50 transition-colors"
+                    title="Clear override"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+    </AdminLoginGate>
   );
 }
 
