@@ -1702,7 +1702,7 @@ const PROPHETIC_WORDS = [
 
 function BentoGrid() {
   const { data: sermon, isLoading: sermonLoading } = useGetFeaturedSermon({
-    query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 60_000, staleTime: 30_000 },
+    query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 30_000, staleTime: 15_000 },
   });
   const { data: stats } = useGetSermonStats({ query: { queryKey: getGetSermonStatsQueryKey() } });
   const countdown = useNextService();
@@ -1710,9 +1710,14 @@ function BentoGrid() {
   const [hoveredSermon, setHoveredSermon] = useState(false);
   const ytId = (sermon as { videoId?: string })?.videoId;
 
-  // Flag to show "Latest Broadcast" instead of "Featured Message" when the video was a recent live stream
+  // "Latest Broadcast" badge: show if this was an actual live stream (broadcastEndedAt set by
+  // live-stream detection) OR if the video was published within the last 48 hours.
   const bentoBroadcastEndedAt = (sermon as { broadcastEndedAt?: string | null })?.broadcastEndedAt;
-  const bentoIsRecentBroadcast = !!bentoBroadcastEndedAt && (Date.now() - new Date(bentoBroadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000;
+  const bentoPublishedAt = sermon?.publishedAt ? new Date(sermon.publishedAt).getTime() : 0;
+  const bentoIsRecentBroadcast = (
+    (!!bentoBroadcastEndedAt && (Date.now() - new Date(bentoBroadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000) ||
+    (bentoPublishedAt > 0 && (Date.now() - bentoPublishedAt) < 48 * 60 * 60 * 1000)
+  );
 
   useEffect(() => {
     const t = setInterval(() => setWordIdx(i => (i + 1) % PROPHETIC_WORDS.length), 6000);
@@ -2307,16 +2312,22 @@ function MandateReveal() {
 // ═══════════════════════════════════════════════════════════════════════════
 function SermonSpotlight() {
   const { data: sermon, isLoading } = useGetFeaturedSermon({
-    query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 60_000, staleTime: 30_000 },
+    query: { queryKey: getGetFeaturedSermonQueryKey(), refetchInterval: 30_000, staleTime: 15_000 },
   });
+  const { data: stats } = useGetSermonStats({ query: { queryKey: getGetSermonStatsQueryKey() } });
   const [playing, setPlaying] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
   const ytId = (sermon as { videoId?: string })?.videoId;
 
-  // Determine whether this sermon was a recent live broadcast (within last 7 days)
+  // "Latest Broadcast" badge: show if this was an actual live stream (broadcastEndedAt set by
+  // live-stream detection) OR if the video was published within the last 48 hours.
   const broadcastEndedAt = (sermon as { broadcastEndedAt?: string | null })?.broadcastEndedAt;
-  const isRecentBroadcast = !!broadcastEndedAt && (Date.now() - new Date(broadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000;
+  const spotPublishedAt = sermon?.publishedAt ? new Date(sermon.publishedAt).getTime() : 0;
+  const isRecentBroadcast = (
+    (!!broadcastEndedAt && (Date.now() - new Date(broadcastEndedAt).getTime()) < 8 * 24 * 60 * 60 * 1000) ||
+    (spotPublishedAt > 0 && (Date.now() - spotPublishedAt) < 48 * 60 * 60 * 1000)
+  );
   const broadcastAgo = broadcastEndedAt ? formatDistanceToNow(new Date(broadcastEndedAt), { addSuffix: true }) : null;
 
   return (
@@ -2358,7 +2369,7 @@ function SermonSpotlight() {
               <MagneticButton>
                 <Link href="/sermons">
                   <Button className="group rounded-full px-8 h-12 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5">
-                    Browse All 479 Sermons <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    Browse All {stats?.total ?? "All"} Sermons <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               </MagneticButton>

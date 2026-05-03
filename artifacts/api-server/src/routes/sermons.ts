@@ -310,33 +310,31 @@ router.get("/sermons/shorts", async (_req, res): Promise<void> => {
 });
 
 // ──────────────────────────────────────────────────────
-// GET /sermons/featured  — latest / featured sermon
+// GET /sermons/featured  — always returns the latest YouTube video
 // ──────────────────────────────────────────────────────
+//
+// Priority (highest first):
+//  1. Manually pinned video (pinned_at within the last 7 days) — an admin override.
+//  2. The most recently published video (publishedAt DESC) — always the latest upload.
+//
+// The broadcastEndedAt field is preserved in the response so the frontend can
+// show a "Latest Broadcast" badge when the video was an actual live stream, but it
+// is NOT used for selection — that was the bug causing stale videos to appear.
+//
 router.get("/sermons/featured", async (req, res): Promise<void> => {
-  // Priority ordering (highest priority first):
-  //  1. Manually pinned video (pinned_at within the last 30 days, most recent pin first)
-  //     — admin-set pin survives the daily YouTube auto-sync.
-  //  2. Videos whose broadcast ended within the last 8 days (most recent broadcast first)
-  //     — surfaces the just-concluded live service in Today's Highlight & Latest Broadcast.
-  //  3. Featured (is_featured = true) sermons by publishedAt
-  //  4. Any sermon by publishedAt
   const [sermon] = await db
     .select()
     .from(sermonsTable)
     .orderBy(
+      // 1. Honor a recent admin pin (7-day window — short enough that new uploads
+      //    surface naturally once the pin expires, but long enough to be useful)
       sql`CASE
         WHEN ${sermonsTable.pinnedAt} IS NOT NULL
-          AND ${sermonsTable.pinnedAt} > NOW() - INTERVAL '30 days'
+          AND ${sermonsTable.pinnedAt} > NOW() - INTERVAL '7 days'
         THEN 0 ELSE 1
       END ASC`,
       sql`${sermonsTable.pinnedAt} DESC NULLS LAST`,
-      sql`CASE
-        WHEN ${sermonsTable.broadcastEndedAt} IS NOT NULL
-          AND ${sermonsTable.broadcastEndedAt} > NOW() - INTERVAL '8 days'
-        THEN 0 ELSE 1
-      END ASC`,
-      sql`${sermonsTable.broadcastEndedAt} DESC NULLS LAST`,
-      desc(sermonsTable.isFeatured),
+      // 2. Always show the most recently published video
       desc(sermonsTable.publishedAt),
     )
     .limit(1);
@@ -346,6 +344,8 @@ router.get("/sermons/featured", async (req, res): Promise<void> => {
     return;
   }
 
+  // Never cache — this must always reflect the latest YouTube upload
+  res.setHeader("Cache-Control", "no-store");
   res.json(GetFeaturedSermonResponse.parse({
     ...sermon,
     publishedAt: sermon.publishedAt instanceof Date ? sermon.publishedAt.toISOString() : sermon.publishedAt,
