@@ -20,6 +20,7 @@ const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base: basePath,
+  cacheDir: path.resolve(import.meta.dirname, "../../.cache/vite-jctm-platform"),
   plugins: [
     react(),
     tailwindcss(),
@@ -111,6 +112,14 @@ export default defineConfig({
     origin: process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : `http://localhost:${port}`,
+    hmr: process.env.REPLIT_DEV_DOMAIN
+      ? {
+          protocol: "wss",
+          host: process.env.REPLIT_DEV_DOMAIN,
+          port: 443,
+          clientPort: 443,
+        }
+      : true,
     headers: {
       "Cache-Control": "no-store",
     },
