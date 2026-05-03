@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and, or, ilike, sql } from "drizzle-orm";
+import { eq, desc, and, or, ilike, sql, inArray } from "drizzle-orm";
+import { z } from "zod";
 import { db, galleryImagesTable } from "@workspace/db";
 import {
   ListGalleryImagesQueryParams,
@@ -34,6 +35,27 @@ const DEFAULT_GALLERY_CATEGORIES = [
   "special",
 ];
 
+// Inline schemas for bulk operations (not in openapi spec — admin-only endpoints)
+const BulkDeleteGalleryBody = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(200),
+});
+
+const BulkCreateGalleryImageEntry = z.object({
+  objectPath: z.string().min(1),
+  title: z.string().optional(),
+  description: z.string().nullable().optional(),
+  category: z.string().optional(),
+  serviceDate: z.string().nullable().optional(),
+  altText: z.string().nullable().optional(),
+  isPublished: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+  sortOrder: z.number().optional(),
+});
+
+const BulkCreateGalleryBody = z.object({
+  images: z.array(BulkCreateGalleryImageEntry).min(1).max(200),
+});
+
 function serializeImage(img: typeof galleryImagesTable.$inferSelect) {
   return {
     ...img,
@@ -42,8 +64,9 @@ function serializeImage(img: typeof galleryImagesTable.$inferSelect) {
 }
 
 function broadcastGalleryUpdate(
-  action: "created" | "updated" | "deleted" | "thumbnail_ready",
+  action: "created" | "updated" | "deleted" | "thumbnail_ready" | "bulk_deleted",
   image?: Partial<typeof galleryImagesTable.$inferSelect>,
+  extra?: Record<string, unknown>,
 ) {
   sseBroadcaster.broadcast({
     type: "gallery_updated",
@@ -55,6 +78,7 @@ function broadcastGalleryUpdate(
       isPublished: image?.isPublished,
       isFeatured: image?.isFeatured,
       changedAt: new Date().toISOString(),
+      ...extra,
     },
   });
 }
@@ -157,6 +181,7 @@ router.get("/gallery", async (req, res): Promise<void> => {
   res.json(ListGalleryImagesResponse.parse(images.map(serializeImage)));
 });
 
+// ─── Single image create ────────────────────────────────────────────────────
 router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => {
   const parsed = CreateGalleryImageBody.safeParse(req.body);
   if (!parsed.success) {
@@ -182,9 +207,6 @@ router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => 
   res.status(201).json(serializeImage(image));
   broadcastGalleryUpdate("created", image);
 
-  // Fire-and-forget: generate a WebP thumbnail in the background.
-  // Capture the logger reference before the async block so it remains valid
-  // after the HTTP response has been flushed.
   const log = req.log;
   const imageId = image.id;
   const objectPath = parsed.data.objectPath;
@@ -202,6 +224,71 @@ router.post("/gallery", requireGalleryAdmin, async (req, res): Promise<void> => 
   })();
 });
 
+// ─── Bulk image create ─────────────────────────────────────────────────────
+// POST /gallery/bulk
+// Accepts up to 200 image entries at once; each triggers background thumbnail generation.
+router.post("/gallery/bulk", requireGalleryAdmin, async (req, res): Promise<void> => {
+  const parsed = BulkCreateGalleryBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const rows = parsed.data.images.map(img => ({
+    objectPath: img.objectPath,
+    title: img.title ?? "",
+    description: img.description ?? null,
+    category: img.category ?? "service",
+    serviceDate: img.serviceDate ?? null,
+    altText: img.altText ?? null,
+    isPublished: img.isPublished ?? true,
+    isFeatured: img.isFeatured ?? false,
+    sortOrder: img.sortOrder ?? 0,
+  }));
+
+  const inserted = await db
+    .insert(galleryImagesTable)
+    .values(rows)
+    .returning();
+
+  res.status(201).json(inserted.map(serializeImage));
+
+  // Broadcast creation for each image
+  for (const image of inserted) {
+    broadcastGalleryUpdate("created", image);
+  }
+
+  // Fire-and-forget thumbnail generation for all inserted images
+  const log = req.log;
+  (async () => {
+    // Process thumbnails with limited concurrency to avoid overwhelming the server
+    const THUMB_CONCURRENCY = 4;
+    let i = 0;
+
+    async function worker() {
+      while (i < inserted.length) {
+        const image = inserted[i++];
+        if (!image) continue;
+        try {
+          const thumbnailPath = await objectStorageService.generateAndStoreThumbnail(image.objectPath);
+          await db
+            .update(galleryImagesTable)
+            .set({ thumbnailPath })
+            .where(eq(galleryImagesTable.id, image.id));
+          broadcastGalleryUpdate("thumbnail_ready", { ...image, thumbnailPath });
+        } catch (err) {
+          log.warn({ err, imageId: image.id }, "Bulk thumbnail generation failed — original will be used");
+        }
+      }
+    }
+
+    await Promise.allSettled(
+      Array.from({ length: Math.min(THUMB_CONCURRENCY, inserted.length) }, worker),
+    );
+  })();
+});
+
+// ─── Single image update ────────────────────────────────────────────────────
 router.patch("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void> => {
   const paramsParsed = UpdateGalleryImageParams.safeParse(req.params);
   if (!paramsParsed.success) {
@@ -241,6 +328,7 @@ router.patch("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void
   broadcastGalleryUpdate("updated", image);
 });
 
+// ─── Regenerate thumbnail ───────────────────────────────────────────────────
 router.post("/gallery/:id/regenerate-thumbnail", requireGalleryAdmin, async (req, res): Promise<void> => {
   const paramsParsed = UpdateGalleryImageParams.safeParse(req.params);
   if (!paramsParsed.success) {
@@ -273,6 +361,7 @@ router.post("/gallery/:id/regenerate-thumbnail", requireGalleryAdmin, async (req
   }
 });
 
+// ─── Single image delete ────────────────────────────────────────────────────
 router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<void> => {
   const parsed = DeleteGalleryImageParams.safeParse(req.params);
   if (!parsed.success) {
@@ -280,7 +369,6 @@ router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<voi
     return;
   }
 
-  // Fetch the record first so we know which storage objects to clean up
   const [existing] = await db
     .select()
     .from(galleryImagesTable)
@@ -298,7 +386,6 @@ router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<voi
   res.json({ success: true });
   broadcastGalleryUpdate("deleted", existing);
 
-  // Clean up GCS objects in the background after responding
   const log = req.log;
   (async () => {
     const paths = [existing.objectPath, existing.thumbnailPath].filter(Boolean) as string[];
@@ -309,6 +396,71 @@ router.delete("/gallery/:id", requireGalleryAdmin, async (req, res): Promise<voi
         )
       )
     );
+  })();
+});
+
+// ─── Bulk delete ───────────────────────────────────────────────────────────
+// DELETE /gallery/bulk
+// Body: { ids: number[] }  — up to 200 IDs at once
+router.delete("/gallery/bulk", requireGalleryAdmin, async (req, res): Promise<void> => {
+  const parsed = BulkDeleteGalleryBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { ids } = parsed.data;
+
+  // Fetch all matching records first (for storage cleanup)
+  const existing = await db
+    .select()
+    .from(galleryImagesTable)
+    .where(inArray(galleryImagesTable.id, ids));
+
+  if (existing.length === 0) {
+    res.status(404).json({ error: "None of the specified images were found" });
+    return;
+  }
+
+  // Delete DB records in one query
+  await db
+    .delete(galleryImagesTable)
+    .where(inArray(galleryImagesTable.id, ids));
+
+  res.json({ success: true, deleted: existing.length });
+
+  // Broadcast a bulk_deleted event with all affected IDs
+  broadcastGalleryUpdate("bulk_deleted", undefined, {
+    deletedIds: existing.map(img => img.id),
+  });
+
+  // Clean up storage objects in background with limited concurrency
+  const log = req.log;
+  (async () => {
+    const allPaths = existing.flatMap(img =>
+      [img.objectPath, img.thumbnailPath].filter(Boolean) as string[]
+    );
+
+    const CONCURRENCY = 6;
+    let i = 0;
+
+    async function worker() {
+      while (i < allPaths.length) {
+        const path = allPaths[i++];
+        if (!path) continue;
+        try {
+          await objectStorageService.deleteObjectEntity(path);
+        } catch (err) {
+          log.warn({ err, path }, "Could not delete storage object during bulk gallery removal");
+        }
+      }
+    }
+
+    await Promise.allSettled(
+      Array.from({ length: Math.min(CONCURRENCY, allPaths.length) }, worker),
+    );
+
+    log.info({ count: existing.length, paths: allPaths.length }, "Bulk gallery delete storage cleanup complete");
   })();
 });
 

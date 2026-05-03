@@ -19,6 +19,7 @@
     "@types/sharp": "^0.32.0",
     "@types/ws": "^8.18.1",
     "@workspace/api-zod": "workspace:*",
+    "zod": "catalog:",
     "@workspace/db": "workspace:*",
     "@workspace/integrations-openai-ai-server": "workspace:*",
     "compression": "^1.8.1",

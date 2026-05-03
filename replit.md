@@ -29,7 +29,7 @@ The project is built as a pnpm monorepo, separating concerns into distinct packa
     -   **Role-Based Admin System:** Granular access control using HMAC-signed JWTs for `gallery`, `sermon`, and `livestream` roles.
     -   **YouTube Sync Pipeline:** A three-layered system combining WebSub, RSS polling, and YouTube Data API v3 for near real-time sermon synchronization.
     -   **Featured Sermon Pinning:** Admins can pin sermons, influencing display priority and YouTube auto-promotion.
-    -   **Gallery Feature:** Supports image uploads with client-side compression, server-side thumbnail generation, and GCS storage.
+    -   **Gallery Feature:** Enterprise-grade bulk media management with multi-select/bulk-delete (up to 200 IDs), 100-image batch uploads, drag-and-drop, 8-parallel upload processing with auto-retry (3 attempts, exponential backoff), client-side image compression (Canvas API → JPEG at 1920px / 0.87q), fingerprint-based duplicate detection, queue management (retry failed, clear done), upload stats summary, SSE-based real-time thumbnail updates, and a `POST /gallery/bulk` endpoint for single-round-trip batch creation. A floating `BulkActionsBar` appears in selection mode; `BulkDeleteModal` confirms before permanent removal.
     -   **Live Stream Stability:** Adaptive quality, robust error handling, and real-time viewer counts via SSE.
     -   **Monetized YouTube Embeds:** A canonical `YouTubeEmbed` component supporting `facade` (lazy load for monetization) and `eager` modes, with standardized URL parameters and analytics tracking.
     -   **Broadcast Automation Engine:** AI-powered sermon rebroadcast curation using algorithmic scoring and GPT-4o-mini for metadata generation.
