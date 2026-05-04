@@ -15,7 +15,8 @@ import { logger } from "../lib/logger.js";
 import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
-import { broadcastWarriCrusadeManual, broadcastWarriCrusadeLiveAlert } from "../lib/cron.js";
+import { broadcastWarriCrusadeManual, broadcastWarriCrusadeLiveAlert, getCronState } from "../lib/cron.js";
+import { getPlatformHealth } from "../lib/platform-monitor.js";
 import {
   dispatchPushNotification,
   cleanupStalePushSubscriptions,
@@ -1178,6 +1179,82 @@ router.get(
     } catch (err) {
       logger.error({ err }, "Failed to fetch Warri Crusade stats");
       res.status(500).json({ error: "Failed to fetch crusade stats" });
+    }
+  }
+);
+
+// ─── AI Dashboard ─────────────────────────────────────────────────────────────
+
+router.get(
+  "/admin/ai-dashboard",
+  requireAnyRoleAdmin,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const [health, feedbackRows, tierRows, kbRow] = await Promise.all([
+        getPlatformHealth(),
+        db
+          .select({
+            total:      count(),
+            avgRating:  avg(aiFeedbackTable.rating),
+            avgLatency: avg(aiFeedbackTable.latencyMs),
+          })
+          .from(aiFeedbackTable),
+        db
+          .select({
+            tier:       aiFeedbackTable.modelTier,
+            total:      count(),
+            avgRating:  avg(aiFeedbackTable.rating),
+            avgLatency: avg(aiFeedbackTable.latencyMs),
+            helpful:    sql<number>`SUM(CASE WHEN ${aiFeedbackTable.wasHelpful} = 1 THEN 1 ELSE 0 END)`,
+          })
+          .from(aiFeedbackTable)
+          .groupBy(aiFeedbackTable.modelTier),
+        pool.query<{ total: string; embedded: string }>(
+          `SELECT
+             (SELECT COUNT(*) FROM knowledge_chunks) AS total,
+             (SELECT COUNT(*) FROM knowledge_chunks WHERE embedding IS NOT NULL) AS embedded`
+        ),
+      ]);
+
+      const cronState = getCronState();
+
+      const overall = feedbackRows[0] ?? { total: 0, avgRating: null, avgLatency: null };
+
+      const byTier = tierRows.map(r => ({
+        tier:        r.tier ?? "unknown",
+        total:       Number(r.total),
+        avgRating:   r.avgRating != null ? Math.round(Number(r.avgRating) * 10) / 10 : null,
+        avgLatencyMs: r.avgLatency != null ? Math.round(Number(r.avgLatency)) : null,
+        helpfulPct:  r.total > 0 ? Math.round((Number(r.helpful) / Number(r.total)) * 100) : null,
+      }));
+
+      const kb = kbRow.rows[0] ?? { total: "0", embedded: "0" };
+
+      res.json({
+        generatedAt: new Date().toISOString(),
+        feedback: {
+          total:       Number(overall.total),
+          avgRating:   overall.avgRating != null ? Math.round(Number(overall.avgRating) * 10) / 10 : null,
+          avgLatencyMs: overall.avgLatency != null ? Math.round(Number(overall.avgLatency)) : null,
+          byTier,
+        },
+        health: {
+          status:     health.status,
+          subsystems: health.subsystems,
+          ai:         health.ai,
+          features:   health.features,
+          resources:  health.resources,
+          uptime:     health.uptime,
+        },
+        knowledgeBase: {
+          totalChunks:    parseInt(kb.total, 10),
+          embeddedChunks: parseInt(kb.embedded, 10),
+        },
+        cron: cronState,
+      });
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch AI dashboard");
+      res.status(500).json({ error: "Failed to fetch AI dashboard" });
     }
   }
 );

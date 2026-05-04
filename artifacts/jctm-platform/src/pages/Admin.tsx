@@ -10,6 +10,7 @@ import {
   Shield, Menu, KeyRound, ImageOff, Bell, Send,
   TrendingUp, Globe, Monitor, Smartphone, Tablet, Signal,
   Megaphone, MapPin, Save, Plus, Edit3, Mail,
+  Bot, Database, Cpu, Server, Layers,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -83,7 +84,7 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "credentials";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "ai" | "credentials";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -93,6 +94,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }
   { id: "gallery",      label: "Gallery",      icon: <Image className="w-4 h-4" /> },
   { id: "testimonies",  label: "Testimonies",  icon: <MessageSquare className="w-4 h-4" /> },
   { id: "platform",     label: "Platform",     icon: <BarChart3 className="w-4 h-4" /> },
+  { id: "ai",           label: "AI Engine",    icon: <Bot className="w-4 h-4" /> },
   { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
 ];
 
@@ -4948,6 +4950,311 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── AI Engine Dashboard ──────────────────────────────────────────────────────
+
+interface AIDashboardData {
+  generatedAt: string;
+  feedback: {
+    total: number;
+    avgRating: number | null;
+    avgLatencyMs: number | null;
+    byTier: { tier: string; total: number; avgRating: number | null; avgLatencyMs: number | null; helpfulPct: number | null }[];
+  };
+  health: {
+    status: string;
+    subsystems: Record<string, { status: string; latencyMs: number | null; detail: string; checkedAt: string }>;
+    ai: { tier1: { name: string; status: string; latencyMs: number; detail: string }; tier2: { name: string; status: string; latencyMs: number; detail: string }; tier3: { name: string; status: string; latencyMs: number; detail: string } };
+    features: Record<string, boolean>;
+    resources: { memoryUsedMb: number; memoryTotalMb: number; memoryPct: number; uptimeSeconds: number; nodeVersion: string; platform: string };
+    uptime: { processUptimeSeconds: number; lastHeartbeatAt: string | null; heartbeatGapMs: number | null };
+  };
+  knowledgeBase: { totalChunks: number; embeddedChunks: number };
+  cron: {
+    youtube: { quotaPaused: boolean; lastRSSSync: string | null; nextRSSSync: string | null; lastAPISync: string | null; lastFullSync: string | null };
+    websub: { lastRenewal: string | null; nextRenewal: string | null };
+    ai: { mode: string; openaiEnabled: boolean };
+    running: Record<string, boolean>;
+    lastSyncError: string | null;
+  };
+}
+
+function StatusDot({ status }: { status: string }) {
+  const color = status === "healthy" ? "bg-emerald-500" : status === "degraded" ? "bg-amber-500" : status === "down" ? "bg-red-500" : "bg-zinc-400";
+  return <span className={`inline-block w-2 h-2 rounded-full ${color}`} />;
+}
+
+function AIDashboardSection({ auth }: { auth: AdminAuth }) {
+  const { data, isLoading, refetch, isRefetching } = useQuery<AIDashboardData>({
+    queryKey: ["admin-ai-dashboard"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/ai-dashboard`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load AI dashboard");
+      return r.json();
+    },
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const tierLabels: Record<string, { label: string; desc: string; icon: React.ReactNode; color: string }> = {
+    local:          { label: "Tier 1 — Local Engine",   desc: "Exact-match + TF-IDF scoring",       icon: <Cpu className="w-4 h-4" />,     color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
+    rag:            { label: "Tier 2 — RAG",            desc: "pgvector semantic search + context",  icon: <Database className="w-4 h-4" />, color: "text-blue-400 border-blue-500/30 bg-blue-500/10" },
+    "local-enhanced": { label: "Tier 3 — Enhanced",    desc: "Local template generation",           icon: <Layers className="w-4 h-4" />,   color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
+    openai:         { label: "OpenAI (legacy)",         desc: "No longer in use",                   icon: <X className="w-4 h-4" />,        color: "text-red-400 border-red-500/30 bg-red-500/10" },
+  };
+
+  const subsystemIcons: Record<string, React.ReactNode> = {
+    database:          <Database className="w-3.5 h-3.5" />,
+    ai:                <Bot className="w-3.5 h-3.5" />,
+    knowledgeBase:     <BookOpen className="w-3.5 h-3.5" />,
+    pushNotifications: <Bell className="w-3.5 h-3.5" />,
+    youtubeSync:       <Tv2 className="w-3.5 h-3.5" />,
+    email:             <Mail className="w-3.5 h-3.5" />,
+  };
+
+  const subsystemLabels: Record<string, string> = {
+    database: "Database", ai: "AI Engine", knowledgeBase: "Knowledge Base",
+    pushNotifications: "Push Notifications", youtubeSync: "YouTube Sync", email: "Email",
+  };
+
+  const fmtTime = (iso: string | null) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const fmtUptime = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return (
+    <AdminLoginGate role="sermon" auth={auth} title="AI Engine Dashboard">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SectionHeader title="AI Engine Dashboard" description="Live telemetry — Zero External API · Local-first · 30s auto-refresh" />
+          <button onClick={() => refetch()} disabled={isRefetching} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+
+        {isLoading && (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-8 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading AI metrics…
+          </div>
+        )}
+
+        {data && (
+          <>
+            {/* ── Overall Stats ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <MetricCard label="Total AI Responses" value={data.feedback.total.toLocaleString()} icon={<Bot className="w-4 h-4" />} />
+              <MetricCard label="Avg Rating" value={data.feedback.avgRating != null ? `${data.feedback.avgRating}/5` : "No data"} icon={<Sparkles className="w-4 h-4" />} />
+              <MetricCard label="Avg Latency" value={data.feedback.avgLatencyMs != null ? `${data.feedback.avgLatencyMs}ms` : "No data"} icon={<Zap className="w-4 h-4" />} />
+              <MetricCard label="Knowledge Chunks" value={`${data.knowledgeBase.embeddedChunks}/${data.knowledgeBase.totalChunks}`} icon={<BookOpen className="w-4 h-4" />} />
+            </div>
+
+            {/* ── AI Architecture Banner ── */}
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-violet-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-violet-300">Zero External AI · Fully Local Architecture</p>
+                <p className="text-xs text-muted-foreground mt-0.5">All AI inference runs on-platform. No OpenAI API key required. Mode: <span className="font-mono text-violet-300">{data.cron.ai.mode}</span></p>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold shrink-0">
+                {data.health.status.toUpperCase()}
+              </span>
+            </div>
+
+            {/* ── 3-Tier Engine Cards ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /> Inference Tiers</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(["tier1", "tier2", "tier3"] as const).map((key, i) => {
+                  const tier = data.health.ai[key];
+                  const styles = [
+                    "text-violet-400 border-violet-500/30 bg-violet-500/8",
+                    "text-blue-400 border-blue-500/30 bg-blue-500/8",
+                    "text-emerald-400 border-emerald-500/30 bg-emerald-500/8",
+                  ][i];
+                  const icons = [<Cpu key="c" className="w-4 h-4" />, <Database key="d" className="w-4 h-4" />, <Layers key="l" className="w-4 h-4" />];
+                  return (
+                    <div key={key} className={`rounded-xl border p-4 ${styles}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        {icons[i]}
+                        <span className="text-xs font-semibold">{tier.name}</span>
+                        <StatusDot status={tier.status} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">{tier.detail}</p>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground">Latency</span>
+                        <span className="font-mono font-semibold">{tier.latencyMs}ms</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* ── Per-Tier Feedback Quality ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-primary" /> Response Quality by Tier</h3>
+              {data.feedback.byTier.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No feedback recorded yet — quality scores appear as users interact with TempleBots.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                        <th className="pb-2 pr-4">Tier</th>
+                        <th className="pb-2 pr-4 text-right">Responses</th>
+                        <th className="pb-2 pr-4 text-right">Avg Rating</th>
+                        <th className="pb-2 pr-4 text-right">Avg Latency</th>
+                        <th className="pb-2 text-right">Helpful %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {data.feedback.byTier.map(row => {
+                        const meta = tierLabels[row.tier] ?? { label: row.tier, color: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10" };
+                        return (
+                          <tr key={row.tier} className="text-sm">
+                            <td className="py-2.5 pr-4">
+                              <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border font-medium ${meta.color}`}>
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td className="py-2.5 pr-4 text-right font-mono text-xs">{row.total.toLocaleString()}</td>
+                            <td className="py-2.5 pr-4 text-right">
+                              {row.avgRating != null ? (
+                                <span className={`text-xs font-semibold ${row.avgRating >= 4 ? "text-emerald-400" : row.avgRating >= 3 ? "text-amber-400" : "text-red-400"}`}>
+                                  {row.avgRating}/5
+                                </span>
+                              ) : <span className="text-muted-foreground text-xs">—</span>}
+                            </td>
+                            <td className="py-2.5 pr-4 text-right font-mono text-xs">{row.avgLatencyMs != null ? `${row.avgLatencyMs}ms` : "—"}</td>
+                            <td className="py-2.5 text-right">
+                              {row.helpfulPct != null ? (
+                                <span className={`text-xs font-semibold ${row.helpfulPct >= 70 ? "text-emerald-400" : row.helpfulPct >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                                  {row.helpfulPct}%
+                                </span>
+                              ) : <span className="text-muted-foreground text-xs">—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+
+            {/* ── Subsystem Health Grid ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Server className="w-4 h-4 text-primary" /> Platform Subsystems</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Object.entries(data.health.subsystems).map(([key, sub]) => (
+                  <div key={key} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="text-muted-foreground">{subsystemIcons[key] ?? <Activity className="w-3.5 h-3.5" />}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <StatusDot status={sub.status} />
+                        <span className="text-xs font-medium">{subsystemLabels[key] ?? key}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">{sub.detail}</p>
+                    </div>
+                    {sub.latencyMs != null && (
+                      <span className="text-[11px] font-mono text-muted-foreground shrink-0">{sub.latencyMs}ms</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* ── Feature Flags + System Resources ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> Feature Flags</h3>
+                <div className="space-y-1.5">
+                  {Object.entries(data.health.features).map(([key, enabled]) => (
+                    <div key={key} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
+                      {enabled
+                        ? <span className="flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle className="w-3 h-3" /> Enabled</span>
+                        : <span className="flex items-center gap-1 text-zinc-500"><X className="w-3 h-3" /> Off</span>
+                      }
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="space-y-4">
+                <Card>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Cpu className="w-4 h-4 text-primary" /> System Resources</h3>
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Memory</span>
+                        <span className="font-mono">{data.health.resources.memoryUsedMb}MB / {data.health.resources.memoryTotalMb}MB</span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${data.health.resources.memoryPct > 80 ? "bg-red-500" : data.health.resources.memoryPct > 60 ? "bg-amber-500" : "bg-emerald-500"}`}
+                          style={{ width: `${data.health.resources.memoryPct}%` }}
+                        />
+                      </div>
+                    </div>
+                    <ConfigRow label="Uptime" value={fmtUptime(data.health.resources.uptimeSeconds)} />
+                    <ConfigRow label="Node" value={data.health.resources.nodeVersion} mono />
+                    <ConfigRow label="Platform" value={data.health.resources.platform} mono />
+                  </div>
+                </Card>
+
+                <Card>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> Background Jobs</h3>
+                  <div className="space-y-1.5">
+                    {Object.entries(data.cron.running).map(([job, running]) => (
+                      <div key={job} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground capitalize">{job.replace(/([A-Z])/g, " $1").trim()}</span>
+                        {running
+                          ? <span className="flex items-center gap-1 text-emerald-400 font-semibold"><Activity className="w-3 h-3" /> Running</span>
+                          : <span className="flex items-center gap-1 text-zinc-500"><Clock className="w-3 h-3" /> Stopped</span>
+                        }
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* ── Sync Timing ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Tv2 className="w-4 h-4 text-primary" /> Sync Schedule</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <ConfigRow label="Last RSS sync"  value={fmtTime(data.cron.youtube.lastRSSSync)} />
+                <ConfigRow label="Next RSS sync"  value={fmtTime(data.cron.youtube.nextRSSSync)} />
+                <ConfigRow label="Last API sync"  value={fmtTime(data.cron.youtube.lastAPISync)} />
+                <ConfigRow label="Last full sync" value={fmtTime(data.cron.youtube.lastFullSync)} />
+                <ConfigRow label="WebSub renewal" value={fmtTime(data.cron.websub.lastRenewal)} />
+                <ConfigRow label="YT quota"       value={data.cron.youtube.quotaPaused ? "Paused" : "Active"} status={data.cron.youtube.quotaPaused ? "warn" : "ok"} />
+              </div>
+              {data.cron.lastSyncError && (
+                <div className="mt-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                  Last sync error: {data.cron.lastSyncError}
+                </div>
+              )}
+            </Card>
+
+            <p className="text-[11px] text-muted-foreground text-right">Last refreshed: {new Date(data.generatedAt).toLocaleTimeString("en-NG")}</p>
+          </>
+        )}
+      </div>
+    </AdminLoginGate>
+  );
+}
+
 // ─── Credentials ──────────────────────────────────────────────────────────────
 
 function CredentialsSection({
@@ -5157,6 +5464,7 @@ export default function Admin() {
               {section === "gallery"     && <GallerySection auth={galleryAuth} />}
               {section === "testimonies" && <TestimoniesSection auth={sermonAuth} />}
               {section === "platform"    && <PlatformSection auth={sermonAuth} />}
+              {section === "ai"          && <AIDashboardSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
             </motion.div>
           </AnimatePresence>
