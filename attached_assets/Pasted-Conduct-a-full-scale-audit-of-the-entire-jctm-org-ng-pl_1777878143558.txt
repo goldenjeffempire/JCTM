@@ -1,0 +1,59 @@
+Conduct a full-scale audit of the entire jctm.org.ng platform, covering frontend, backend, infrastructure, security, performance, and user experience. Based on findings, redesign, refactor, and upgrade the system to meet real-world, enterprise-grade production standards.
+
+In addition:
+
+1. Platform Modernization
+Refactor the entire codebase using modern, scalable architecture (modular, service-oriented or microservices where necessary).
+Ensure high performance, responsiveness, accessibility, and cross-platform compatibility (web + mobile).
+Implement robust authentication, authorization, and role-based access control (RBAC).
+Optimize database structure, indexing, and caching strategies for scalability.
+2. Native AI System (Zero External AI APIs)
+
+Design and implement a fully self-contained AI system, built and deployed within the platform’s own infrastructure — no reliance on third-party AI APIs (e.g., OpenAI, Google, etc.).
+
+All AI features must be:
+
+Locally hosted or server-controlled
+Efficient, optimized, and scalable
+Production-ready with proper error handling, monitoring, and fallback mechanisms
+3. AI Features & Functionalities
+
+Develop and integrate the following fully operational AI capabilities:
+
+Content Intelligence
+AI-powered sermon/message summarization
+Automatic caption and description generation for media uploads
+Context-aware tagging and categorization system
+Smart Search & Recommendations
+Semantic search engine (not just keyword-based)
+Personalized content recommendations based on user behavior
+Trending and relevance ranking algorithms
+Conversational AI (Internal)
+Built-in chatbot trained on platform content (messages, events, doctrine)
+FAQ automation and intelligent response system
+Admin-configurable knowledge base training pipeline
+Media Intelligence
+Speech-to-text for sermons and broadcasts (offline/local models)
+Text-to-speech for accessibility
+Thumbnail generation and media enhancement
+Predictive & Analytics AI
+User engagement prediction
+Content performance forecasting
+Intelligent notification timing (best time to notify users)
+Moderation & Security AI
+Automated content moderation (text/image filtering)
+Spam detection and anomaly detection
+Behavioral pattern monitoring for security threats
+4. AI Infrastructure Requirements
+Use open-source/local models where applicable (e.g., lightweight NLP, ONNX, TensorFlow Lite, etc.)
+Implement model lifecycle management (training, evaluation, deployment)
+Optimize for low latency and efficient resource usage
+Ensure fallback logic if AI components fail
+5. Production Readiness
+Ensure all features (core + AI) are:
+Fully functional and tested
+Scalable under real-world traffic
+Secure and compliant with best practices
+Properly logged and monitored
+Set up CI/CD pipelines for continuous deployment
+Include comprehensive documentation for maintainability

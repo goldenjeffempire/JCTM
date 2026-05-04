@@ -1,27 +1,25 @@
 /**
- * JCTM Knowledge Ingestion
+ * JCTM Knowledge Ingestion — Zero External API
  *
- * Runs at server startup (non-blocking) to populate the knowledge_chunks
- * table with JCTM-specific content.
- *
- * Also exports ingestSermonSummary() — called by the AI enrichment cron
- * after each sermon is AI-enriched so TempleBots can reference specific
- * sermon content via RAG search.
+ * Populates the knowledge_chunks table with JCTM-specific content.
+ * Embeddings are generated locally using local-embeddings.ts.
+ * No OpenAI required — all embedding is local.
  *
  * Strategy:
- *  - Embeddings via text-embedding-3-small when the OPENAI_API_KEY quota allows.
- *  - If quota is exhausted (429), chunks are stored as plain text (embedding = NULL)
- *    so TempleBots can still keyword-search them. The ingestion is marked complete
- *    so we don't retry on every restart.
+ *  - Embeddings via local all-MiniLM-L6-v2 transformer model (384-dim)
+ *  - TF-IDF hash fallback if transformer fails to load
+ *  - Text-only storage fallback if both fail
+ *  - Keyword search always works regardless of embedding method
  */
 
-import OpenAI from "openai";
 import pg from "pg";
 import type { Logger } from "pino";
+import { embed, embedBatch } from "./local-embeddings.js";
 
 const { Pool } = pg;
-
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// ─── JCTM Knowledge Base ──────────────────────────────────────────────────────
 
 const JCTM_KNOWLEDGE = [
   {
@@ -46,11 +44,11 @@ const JCTM_KNOWLEDGE = [
   },
   {
     source: "warri-city-crusade-2026",
-    content: `The Warri City Crusade 2026 is a major outdoor evangelical crusade organized by Jesus Christ Temple Ministry (JCTM). Event Details: Dates: April 30 – May 1, 2026 (two-day event). Location: Warri, Delta State, Nigeria. Organizer: Jesus Christ Temple Ministry (JCTM) under Prophet Amos Evomobor. Purpose: To bring the message of Primitive Christianity, the Correction Mandate, and the true gospel to the people of Warri and beyond. Features: Open-air gospel preaching, healing and miracle services, worship, testimonies, and doctrinal teachings. All believers, seekers, and the general public are welcome. Expected to draw thousands from across the Niger Delta region.`,
+    content: `The Warri City Crusade 2026 is a major outdoor evangelical crusade organized by Jesus Christ Temple Ministry (JCTM). Event Details: Dates: April 30 – May 1, 2026 (two-day event). Location: Ighogbadu Primary School, Warri, Delta State, Nigeria. Organizer: Jesus Christ Temple Ministry (JCTM) under Prophet Amos Evomobor. Purpose: To bring the message of Primitive Christianity, the Correction Mandate, and the true gospel to the people of Warri and beyond. Features: Open-air gospel preaching, healing and miracle services, worship, testimonies, and doctrinal teachings. All believers, seekers, and the general public are welcome. Expected to draw thousands from across the Niger Delta region.`,
   },
   {
     source: "giving-seed-sowing",
-    content: `Seed sowing and giving at JCTM is practiced within biblical stewardship, not the prosperity gospel. JCTM's teaching on giving: Giving is an act of worship and partnership with the ministry's mandate, not a formula for personal enrichment. JCTM does not teach "sow a seed and get a hundredfold return" as a transactional law. Giving supports the spread of the gospel, the Correction Mandate, and Temple TV. Tithes (10% of income) are a covenant principle from Malachi 3:10, given from a heart of love, not compulsion. To give to JCTM: visit the official JCTM website giving portal or contact the ministry via social media. Prophet Amos warns against ministries that use manipulation and false promises to extract money.`,
+    content: `Seed sowing and giving at JCTM is practiced within biblical stewardship, not the prosperity gospel. JCTM's teaching on giving: Giving is an act of worship and partnership with the ministry's mandate, not a formula for personal enrichment. JCTM does not teach "sow a seed and get a hundredfold return" as a transactional law. Giving supports the spread of the gospel, the Correction Mandate, and Temple TV. Tithes (10% of income) are a covenant principle from Malachi 3:10, given from a heart of love, not compulsion. To give to JCTM: visit jctm.org.ng/give. Prophet Amos warns against ministries that use manipulation and false promises to extract money.`,
   },
   {
     source: "baptism-doctrine",
@@ -66,7 +64,7 @@ const JCTM_KNOWLEDGE = [
   },
   {
     source: "church-location-contact",
-    content: `Jesus Christ Temple Ministry (JCTM) Contact Information: Physical Location: Ebrumede, Warri, Delta State, Nigeria. YouTube: Temple TV @TEMPLETVJCTM (https://www.youtube.com/templetvjctm). Facebook: @templetvjctm (https://www.facebook.com/templetvjctm). Email: info@jctm.org.ng. Regular Sunday services held at the Ebrumede temple and broadcast live on Temple TV. The JCTM Digital Sanctuary is the official online platform for ministry resources, sermon streaming, live worship counting, event registration, and member portal.`,
+    content: `Jesus Christ Temple Ministry (JCTM) Contact Information: Physical Location: Ebrumede, Warri, Delta State, Nigeria. YouTube: Temple TV @TEMPLETVJCTM (https://www.youtube.com/templetvjctm). Facebook: @templetvjctm (https://www.facebook.com/templetvjctm). Email: info@jctm.org.ng. Regular Sunday services held at the Ebrumede temple and broadcast live on Temple TV. The JCTM Digital Sanctuary is the official online platform for ministry resources, sermon streaming, live worship, event registration, and the member portal.`,
   },
   {
     source: "holy-spirit-baptism",
@@ -74,92 +72,56 @@ const JCTM_KNOWLEDGE = [
   },
 ];
 
-function isQuotaError(err: unknown): boolean {
-  if (err && typeof err === "object") {
-    const status = (err as { status?: number }).status;
-    const code = (err as { code?: string }).code;
-    return status === 429 || code === "insufficient_quota";
+// ─── Embedding Helpers ────────────────────────────────────────────────────────
+
+async function generateEmbeddingVector(text: string): Promise<string | null> {
+  try {
+    const result = await embed(text);
+    return `[${result.embedding.join(",")}]`;
+  } catch {
+    return null;
   }
-  return false;
 }
 
+// ─── Bulk Ingestion ───────────────────────────────────────────────────────────
+
 export async function ingestKnowledgeIfEmpty(
-  openai: OpenAI,
+  _openai: unknown,
   log: Logger,
 ): Promise<void> {
   const client = await pool.connect();
   try {
-    // Count ALL chunks (embedded or text-only) to avoid re-ingesting on every restart
     const countResult = await client.query<{ count: string }>(
       "SELECT COUNT(*) FROM knowledge_chunks",
     );
-    const count = parseInt(countResult.rows[0].count, 10);
+    const count = parseInt(countResult.rows[0]!.count, 10);
 
     if (count >= JCTM_KNOWLEDGE.length) {
       log.info({ count }, "Knowledge base already populated — skipping ingestion");
       return;
     }
 
-    log.info({ existing: count, total: JCTM_KNOWLEDGE.length }, "Populating JCTM knowledge base...");
+    log.info(
+      { existing: count, total: JCTM_KNOWLEDGE.length },
+      "Populating JCTM knowledge base with local embeddings...",
+    );
 
     await client.query("DELETE FROM knowledge_chunks");
 
-    let quotaExhausted = false;
-
     for (let i = 0; i < JCTM_KNOWLEDGE.length; i++) {
-      const chunk = JCTM_KNOWLEDGE[i];
+      const chunk = JCTM_KNOWLEDGE[i]!;
+      const vectorStr = await generateEmbeddingVector(chunk.content);
 
-      if (quotaExhausted) {
-        // Store remaining chunks as text-only so keyword search still works
-        await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, $2, $3, NULL)`,
-          [chunk.content, chunk.source, i],
-        );
-        continue;
-      }
+      await client.query(
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+         VALUES ($1, $2, $3, $4)`,
+        [chunk.content, chunk.source, i, vectorStr ?? null],
+      );
 
-      try {
-        const embeddingResponse = await openai.embeddings.create({
-          model: "text-embedding-3-small",
-          input: chunk.content,
-        });
-        const embedding = embeddingResponse.data[0].embedding;
-        const vectorStr = `[${embedding.join(",")}]`;
-
-        await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, $2, $3, $4::vector)`,
-          [chunk.content, chunk.source, i, vectorStr],
-        );
-
-        log.info({ index: i + 1, total: JCTM_KNOWLEDGE.length, source: chunk.source }, "Chunk embedded");
-
-        if (i < JCTM_KNOWLEDGE.length - 1) {
-          await new Promise((r) => setTimeout(r, 300));
-        }
-      } catch (err) {
-        if (isQuotaError(err)) {
-          // OpenAI quota exhausted — store this and remaining chunks as text-only
-          quotaExhausted = true;
-          log.info(
-            { source: chunk.source },
-            "OpenAI quota exhausted — storing knowledge as text-only for keyword search fallback",
-          );
-          await client.query(
-            `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-             VALUES ($1, $2, $3, NULL)`,
-            [chunk.content, chunk.source, i],
-          );
-        } else {
-          log.warn({ err, source: chunk.source }, "Failed to embed chunk — storing as text-only");
-          await client.query(
-            `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-             VALUES ($1, $2, $3, NULL)`,
-            [chunk.content, chunk.source, i],
-          );
-        }
-      }
+      log.info(
+        { index: i + 1, total: JCTM_KNOWLEDGE.length, source: chunk.source, hasEmbedding: vectorStr !== null },
+        "Chunk stored",
+      );
     }
 
     const finalCount = await client.query<{ count: string }>(
@@ -168,11 +130,13 @@ export async function ingestKnowledgeIfEmpty(
     const embeddedCount = await client.query<{ count: string }>(
       "SELECT COUNT(*) FROM knowledge_chunks WHERE embedding IS NOT NULL",
     );
+
     log.info(
-      { total: finalCount.rows[0].count, withEmbeddings: embeddedCount.rows[0].count },
-      quotaExhausted
-        ? "JCTM knowledge base stored as text-only (keyword search active, vector search unavailable)"
-        : "JCTM knowledge base ingestion complete",
+      {
+        total: finalCount.rows[0]!.count,
+        withEmbeddings: embeddedCount.rows[0]!.count,
+      },
+      "JCTM knowledge base ingestion complete (local embeddings)",
     );
   } catch (err) {
     log.error({ err }, "Knowledge ingestion failed — TempleBots will work without RAG context");
@@ -181,17 +145,8 @@ export async function ingestKnowledgeIfEmpty(
   }
 }
 
-/**
- * Ingest a single sermon AI summary into the knowledge_chunks table.
- *
- * Called by the AI metadata enrichment cron (broadcast-engine.ts) after
- * each sermon is enriched so TempleBots can retrieve specific sermon content.
- * Uses UPSERT (INSERT … ON CONFLICT) keyed on `source = 'sermon-<videoId>'`
- * so re-enriching a sermon updates rather than duplicates the chunk.
- *
- * Embedding generation is best-effort — if OpenAI quota is exhausted the
- * chunk is stored as text-only so keyword search still works.
- */
+// ─── Single Sermon Ingestion ──────────────────────────────────────────────────
+
 export async function ingestSermonSummary(opts: {
   videoId: string;
   title: string;
@@ -204,7 +159,6 @@ export async function ingestSermonSummary(opts: {
   if (!videoId || !summary) return;
 
   const source = `sermon-${videoId}`;
-
   const content = [
     `Sermon: "${title}"`,
     `Category: ${category ?? "teaching"}`,
@@ -215,45 +169,17 @@ export async function ingestSermonSummary(opts: {
 
   const client = await pool.connect();
   try {
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const vectorStr = await generateEmbeddingVector(content);
 
-    if (openaiKey) {
-      try {
-        const ai = new OpenAI({ apiKey: openaiKey });
-        const res = await ai.embeddings.create({
-          model: "text-embedding-3-small",
-          input: content,
-        });
-        const embedding = res.data[0].embedding;
-        const vectorStr = `[${embedding.join(",")}]`;
-
-        await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, $2, 0, $3::vector)
-           ON CONFLICT (source, chunk_index)
-           DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
-          [content, source, vectorStr],
-        );
-
-        log?.info({ videoId, source }, "Sermon summary ingested with embedding");
-        return;
-      } catch (err) {
-        if (!isQuotaError(err)) {
-          log?.warn({ err, source }, "Sermon embedding failed — storing as text-only");
-        }
-      }
-    }
-
-    // Fallback: text-only (keyword search still works)
     await client.query(
       `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, $2, 0, NULL)
+       VALUES ($1, $2, 0, $3)
        ON CONFLICT (source, chunk_index)
-       DO UPDATE SET content = EXCLUDED.content`,
-      [content, source],
+       DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      [content, source, vectorStr ?? null],
     );
 
-    log?.info({ videoId, source }, "Sermon summary ingested as text-only");
+    log?.info({ videoId, source, hasEmbedding: vectorStr !== null }, "Sermon summary ingested");
   } catch (err) {
     log?.warn({ err, source }, "Sermon knowledge ingestion failed (non-fatal)");
   } finally {

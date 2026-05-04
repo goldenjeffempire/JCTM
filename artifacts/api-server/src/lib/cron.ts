@@ -32,8 +32,6 @@ let eventNotificationStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let lastFullSync: Date | null = null;
 
 let quotaPausedUntil: number | null = null;
-let openaiQuotaPausedUntil: number | null = null;
-const OPENAI_QUOTA_BACKOFF_MS = 60 * 60 * 1000; // 1 hour cooldown after 429
 let rssBackoffUntil: number | null = null;
 const RSS_404_BACKOFF_MS = 30 * 60 * 1000; // 30 min cooldown after 404 (hosting IP restriction)
 let lastWebSubRenewal: Date | null = null;
@@ -312,9 +310,9 @@ export function getCronState() {
         : null,
       callbackUrl: webSubCallbackUrl ?? null,
     },
-    openai: {
-      quotaPaused:   openaiQuotaPausedUntil !== null && now < openaiQuotaPausedUntil,
-      quotaResetsAt: openaiQuotaPausedUntil && now < openaiQuotaPausedUntil ? new Date(openaiQuotaPausedUntil).toISOString() : null,
+    ai: {
+      mode: "local",
+      openaiEnabled: false,
     },
     lastSyncError: lastSyncError ?? null,
     running: {
@@ -1559,28 +1557,13 @@ async function renewWebSub(log: Logger): Promise<void> {
 // ─── AI Metadata enrichment ───────────────────────────────────────────────────
 
 async function runMetadataEnrichment(log: Logger): Promise<void> {
-  if (openaiQuotaPausedUntil !== null && Date.now() < openaiQuotaPausedUntil) {
-    const resumesInMinutes = Math.ceil((openaiQuotaPausedUntil - Date.now()) / 60_000);
-    log.info({ resumesInMinutes }, "AI metadata enrichment paused — OpenAI quota exceeded, skipping batch");
-    return;
-  }
-
   try {
     const enriched = await enrichNextSermonBatch(5, log);
     if (enriched > 0) {
-      log.info({ count: enriched }, "AI metadata enrichment batch complete");
+      log.info({ count: enriched }, "Local AI metadata enrichment batch complete");
     }
-    openaiQuotaPausedUntil = null;
   } catch (err) {
-    const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-    const isQuota = errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("insufficient_quota") || errMsg.includes("rate");
-    if (isQuota) {
-      openaiQuotaPausedUntil = Date.now() + OPENAI_QUOTA_BACKOFF_MS;
-      const resumesAt = new Date(openaiQuotaPausedUntil).toISOString();
-      log.warn({ resumesAt }, "OpenAI quota exceeded — AI metadata enrichment paused for 1 hour");
-    } else {
-      log.warn({ err }, "Metadata enrichment batch failed (non-fatal)");
-    }
+    log.warn({ err }, "Metadata enrichment batch failed (non-fatal)");
   }
 }
 

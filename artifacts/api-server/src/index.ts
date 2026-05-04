@@ -12,7 +12,6 @@ import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
 import { runMigrations } from "./lib/migrations.js";
 import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
 import { pool } from "@workspace/db";
-import OpenAI from "openai";
 
 async function runStartupMigrations() {
   try {
@@ -112,21 +111,10 @@ const server = app.listen(port, async (err) => {
   setWebSubCallbackUrl(websubCallback);
   subscribeToWebSub(websubCallback, logger);
 
-  // ── Populate JCTM knowledge base into pgvector store (non-blocking) ──────────
-  // Uses the direct OPENAI_API_KEY (not the Replit proxy) because the embeddings
-  // API is not available through the Replit AI Integrations proxy.
-  const openAiApiKey = process.env.OPENAI_API_KEY;
-  if (openAiApiKey) {
-    const embeddingsClient = new OpenAI({
-      apiKey: openAiApiKey,
-      baseURL: "https://api.openai.com/v1",
-    });
-    ingestKnowledgeIfEmpty(embeddingsClient, logger).catch((err) => {
-      logger.warn({ err }, "Knowledge ingestion failed at startup — TempleBots will fall back to inline knowledge base");
-    });
-  } else {
-    logger.warn("OPENAI_API_KEY not set — skipping knowledge base ingestion. TempleBots will use inline knowledge base only.");
-  }
+  // ── Populate JCTM knowledge base with local embeddings (non-blocking) ────────
+  ingestKnowledgeIfEmpty(undefined, logger).catch((err) => {
+    logger.warn({ err }, "Knowledge ingestion failed at startup — TempleBots will use inline knowledge base");
+  });
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────

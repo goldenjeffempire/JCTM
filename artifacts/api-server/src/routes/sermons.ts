@@ -15,8 +15,8 @@ import { syncFromRSS } from "../lib/rss-sync.js";
 import { isQuotaPaused, getQuotaResetTime, setQuotaPaused, getCronState } from "../lib/cron.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { requireAdminRole } from "../lib/adminAuth.js";
+import { summarizeSermon } from "../lib/local-content-intelligence.js";
 
 // ── In-memory sermon summary cache (survives restarts only in dev) ─────────────
 const summaryCache = new Map<number, { summary: string; keyPoints: string[]; generatedAt: string }>();
@@ -637,33 +637,18 @@ router.get("/sermons/:id/summary", async (req, res): Promise<void> => {
   }
 
   try {
-    const prompt = `You are a biblical scholar summarizing a sermon by Prophet Amos Evomobor of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria.
-
-Sermon title: "${sermon.title}"
-${sermon.description ? `Description: ${sermon.description.slice(0, 500)}` : ""}
-
-Write a 200-250 word sermon summary in plain, engaging English. Cover: the main scriptural theme, key teachings, and a practical takeaway for the listener. Then list exactly 5 bullet-point key points from the sermon. Format your response as JSON: { "summary": "...", "keyPoints": ["...", "...", "...", "...", "..."] }`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 8192,
-    });
-
-    const raw_content = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw_content) as { summary?: string; keyPoints?: string[] };
+    const localResult = summarizeSermon(sermon.title, sermon.description ?? "");
 
     const result = {
-      summary: parsed.summary ?? "Summary unavailable.",
-      keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.slice(0, 5) : [],
+      summary: localResult.summary,
+      keyPoints: localResult.bulletPoints.slice(0, 5),
       generatedAt: new Date().toISOString(),
     };
 
     summaryCache.set(params.data.id, result);
     res.json(result);
   } catch (err) {
-    req.log.warn({ err }, "Sermon summary generation failed");
+    req.log.warn({ err }, "Local sermon summary generation failed");
     res.status(503).json({ error: "Summary generation unavailable" });
   }
 });

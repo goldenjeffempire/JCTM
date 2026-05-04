@@ -1,27 +1,31 @@
 /**
- * AI Blog Generator
+ * Local Blog Generator — Zero External API
  *
- * Generates SEO-optimized faith-based blog posts for the JCTM platform.
- * Topics are drawn from JCTM doctrine, sermon themes, Bible passages,
- * and ministry events to dominate Google search rankings.
+ * Generates SEO-optimized faith-based blog posts for JCTM.
+ * Uses local content intelligence templates — no OpenAI required.
  */
 
-import type OpenAI from "openai";
 import { db, sermonsTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { generateBlogContent, categorize } from "./local-content-intelligence.js";
 
 export const BLOG_TOPICS = [
-  { title: "What Is Primitive Christianity? A Return to Apostolic Faith", category: "doctrine", tags: ["primitive-christianity", "apostolic", "correction-mandate"] },
+  { title: "What Is Primitive Christianity? A Return to Apostolic Faith", category: "correction", tags: ["primitive-christianity", "apostolic", "correction-mandate"] },
   { title: "The Prosperity Gospel Exposed: What the Bible Really Says About Wealth", category: "correction", tags: ["prosperity-gospel", "false-doctrine", "biblical-truth"] },
-  { title: "Baptism by Full Immersion: Why Mode Matters in Scripture", category: "sacraments", tags: ["baptism", "immersion", "ordinance"] },
-  { title: "Speaking in Tongues: The Biblical Evidence for Spirit Baptism", category: "holy-spirit", tags: ["tongues", "spirit-baptism", "pentecost"] },
+  { title: "Baptism by Full Immersion: Why Mode Matters in Scripture", category: "doctrine", tags: ["baptism", "immersion", "ordinance"] },
+  { title: "Speaking in Tongues: The Biblical Evidence for Spirit Baptism", category: "holiness", tags: ["tongues", "spirit-baptism", "pentecost"] },
   { title: "Who Are the True Five-Fold Ministers? Apostles, Prophets, and the Modern Church", category: "ministry", tags: ["five-fold", "apostle", "prophet"] },
-  { title: "The Correction Mandate: God's Call to Restore the Gospel", category: "mandate", tags: ["correction-mandate", "jctm", "prophet-amos"] },
-  { title: "False Prophets in the Modern Church: A Biblical Checklist", category: "discernment", tags: ["false-prophets", "discernment", "scripture"] },
+  { title: "The Correction Mandate: God's Call to Restore the Gospel", category: "correction", tags: ["correction-mandate", "jctm", "prophet-amos"] },
+  { title: "False Prophets in the Modern Church: A Biblical Checklist", category: "doctrine", tags: ["false-prophets", "discernment", "scripture"] },
   { title: "Holiness in the 21st Century: Is It Still Required?", category: "holiness", tags: ["holiness", "sanctification", "christian-living"] },
-  { title: "The Original Gospel: What Christianity Looked Like Before Corruption", category: "history", tags: ["church-history", "early-church", "apostolic"] },
+  { title: "The Original Gospel: What Christianity Looked Like Before Corruption", category: "correction", tags: ["church-history", "early-church", "apostolic"] },
   { title: "Prophet Amos Evomobor and the JCTM Mission: A Ministry Profile", category: "ministry", tags: ["prophet-amos", "jctm", "warri-nigeria"] },
+  { title: "Without Holiness No Man Shall See the Lord — What This Means Today", category: "holiness", tags: ["holiness", "hebrews-12-14", "salvation"] },
+  { title: "Water Baptism vs Sprinkling: The Shocking Biblical Truth", category: "doctrine", tags: ["baptism", "sprinkling", "full-immersion"] },
+  { title: "How to Test the Spirits: A Biblical Guide to Discernment", category: "doctrine", tags: ["discernment", "false-prophets", "1-john-4"] },
+  { title: "What the First-Century Church Got Right (And We Got Wrong)", category: "correction", tags: ["early-church", "apostolic", "primitive-christianity"] },
+  { title: "The Holy Spirit Baptism: Evidence, Purpose, and Power", category: "holiness", tags: ["holy-spirit", "spirit-baptism", "pentecost"] },
 ];
 
 function generateSlug(title: string): string {
@@ -47,72 +51,39 @@ export interface GeneratedBlogPost {
 }
 
 export async function generateBlogPost(
-  topic: typeof BLOG_TOPICS[0],
-  openai: OpenAI,
+  topic: (typeof BLOG_TOPICS)[0],
+  _openai?: unknown,
 ): Promise<GeneratedBlogPost> {
-  const sermons = await db
-    .select({ title: sermonsTable.title, description: sermonsTable.description })
-    .from(sermonsTable)
-    .orderBy(desc(sermonsTable.publishedAt))
-    .limit(5);
+  let sermonContext = "";
 
-  const sermonContext = sermons
-    .map(s => `- ${s.title}: ${s.description?.slice(0, 100) ?? ""}`)
-    .join("\n");
-
-  const prompt = `You are a content writer for Jesus Christ Temple Ministry (JCTM), the digital ministry of Prophet Amos Evomobor in Warri, Nigeria.
-
-Write a comprehensive, SEO-optimized blog post on this topic:
-Title: "${topic.title}"
-Category: ${topic.category}
-
-Recent JCTM sermons for context:
-${sermonContext}
-
-Requirements:
-- 800-1200 words, well-structured with H2 subheadings
-- Scripture references (KJV preferred)
-- JCTM doctrinal voice: bold, apostolic, rooted in Primitive Christianity
-- End with a call to watch Temple TV (@TEMPLETVJCTM on YouTube)
-- No prosperity gospel endorsement
-- SEO-rich naturally (include topic keywords organically)
-
-Also provide:
-- excerpt: 2-sentence summary (max 200 chars)
-- metaTitle: SEO title (max 60 chars)
-- metaDescription: SEO description (max 155 chars)
-
-Format as JSON:
-{
-  "content": "full blog post HTML with h2 tags",
-  "excerpt": "...",
-  "metaTitle": "...",
-  "metaDescription": "..."
-}`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 2000,
-    temperature: 0.6,
-    response_format: { type: "json_object" },
-  });
-
-  let parsed: Record<string, string> = {};
   try {
-    parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
-  } catch {
-    logger.warn("Failed to parse blog generation response");
+    const sermons = await db
+      .select({ title: sermonsTable.title, description: sermonsTable.description })
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.publishedAt))
+      .limit(3);
+
+    sermonContext = sermons
+      .map(s => s.description?.slice(0, 80) ?? "")
+      .filter(Boolean)
+      .join(" ");
+  } catch (err) {
+    logger.warn({ err }, "Could not fetch sermon context for blog generation");
   }
+
+  const { content, excerpt } = generateBlogContent(topic.title, topic.category, sermonContext);
 
   const BASE_URL = "https://jctm.org.ng";
   const slug = generateSlug(topic.title);
+
+  const seoTitle = topic.title.slice(0, 60);
+  const seoDescription = `${topic.title} — ${excerpt.slice(0, 110).trim()} | JCTM`.slice(0, 155);
 
   const schemaJson = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     "headline": topic.title,
-    "description": parsed.metaDescription ?? topic.title,
+    "description": seoDescription,
     "author": {
       "@type": "Organization",
       "name": "Jesus Christ Temple Ministry (JCTM)",
@@ -126,18 +97,19 @@ Format as JSON:
     "url": `${BASE_URL}/blog/${slug}`,
     "keywords": topic.tags.join(", "),
     "inLanguage": "en-NG",
+    "datePublished": new Date().toISOString().split("T")[0],
   });
 
   return {
     slug,
     title: topic.title,
-    excerpt: parsed.excerpt ?? "",
-    content: parsed.content ?? "",
+    excerpt,
+    content,
     topic: topic.category,
     category: topic.category,
     tags: topic.tags,
-    seoTitle: parsed.metaTitle ?? topic.title.slice(0, 60),
-    seoDescription: parsed.metaDescription ?? "",
+    seoTitle,
+    seoDescription,
     schemaJson,
   };
 }
@@ -145,27 +117,12 @@ Format as JSON:
 export async function generateSermonTranscriptSummary(
   sermonTitle: string,
   description: string,
-  openai: OpenAI,
+  _openai?: unknown,
 ): Promise<string> {
-  const prompt = `Create a detailed transcript-style summary of this JCTM sermon for SEO indexing.
-
-Title: "${sermonTitle}"
-Description: "${description}"
-
-Write 3-4 paragraphs that:
-1. Summarize the key teaching points
-2. Quote likely scripture references
-3. Explain the doctrinal significance in JCTM's context
-4. Include searchable theological terms
-
-This will be indexed for semantic search. Be thorough and specific.`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 600,
-    temperature: 0.4,
-  });
-
-  return completion.choices[0]?.message?.content ?? "";
+  const { summarizeSermon } = await import("./local-content-intelligence.js");
+  const result = summarizeSermon(sermonTitle, description);
+  return [
+    result.summary,
+    result.bulletPoints.map((b, i) => `${i + 1}. ${b}`).join("\n"),
+  ].filter(Boolean).join("\n\n");
 }

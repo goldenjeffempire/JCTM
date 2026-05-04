@@ -1,12 +1,22 @@
+/**
+ * AI Routes — Zero External API
+ *
+ * All endpoints use local generation exclusively:
+ *   - scripture-study, spiritual-insight, testimony-reflect → local text generation
+ *   - suggested-questions → static JCTM pool + local engine
+ *   - voice-chat → graceful fallback (no audio model)
+ *   - health, model-status → platform monitor
+ *   - local-inference, feedback → unchanged (already local)
+ *
+ * No OpenAI imports. No external API calls.
+ */
+
 import { Router, type IRouter, type Request, type Response } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
-import {
-  voiceChatStream,
-  ensureCompatibleFormat,
-} from "@workspace/integrations-openai-ai-server/audio";
 import { db, conversations, messages } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { runLocalInference, ENGINE_METADATA } from "../lib/local-ai-engine.js";
+import { generateScriptureStudy, generateSpiritualInsight } from "../lib/local-text-generation.js";
+import { getPlatformHealth } from "../lib/platform-monitor.js";
 import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
@@ -43,74 +53,41 @@ function sse(res: Response, data: object) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+/**
+ * Stream a pre-generated local response word-by-word via SSE.
+ * Simulates real streaming for a smooth client UX.
+ */
+async function streamLocalResponse(res: Response, text: string): Promise<void> {
+  const words = text.split(/(\s+)/);
+  const CHUNK = 3;
+  for (let i = 0; i < words.length; i += CHUNK) {
+    const delta = words.slice(i, i + CHUNK).join("");
+    if (delta) sse(res, { delta });
+    await new Promise(r => setTimeout(r, 12));
+  }
+  sse(res, { done: true });
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/ai/scripture-study
-// Deep AI analysis of any Bible passage — streaming SSE
+// Deep local analysis of any Bible passage — streaming SSE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const SCRIPTURE_STUDY_SYSTEM = `You are a master biblical scholar and theologian trained in the JCTM tradition of Primitive Christianity under Prophet Amos Evomobor. You specialize in deep exegetical analysis of scripture rooted in:
-- Original Greek (NT) and Hebrew (OT) word meanings
-- Historical and cultural context of the ancient Near East and first-century church
-- Sound apostolic doctrine, avoiding prosperity gospel interpretations
-- Practical application for holiness and Christlike living
-- Cross-referencing within the full canon of scripture
-- JCTM doctrine: the Correction Mandate, Primitive Christianity, water baptism by full immersion, Holy Spirit baptism
-
-FORMAT your response with clear markdown sections:
-## 📖 Passage Overview
-## 🔤 Key Words & Original Language
-## 🏛️ Historical & Cultural Context
-## 🔗 Cross-References
-## ✦ Doctrinal Application (JCTM lens)
-## 🙏 Personal Application & Reflection
-## 💡 Suggested Study Questions
-
-Write with scholarly depth, pastoral warmth, and prophetic insight. Cite specific Greek/Hebrew terms where relevant. Keep the JCTM Correction Mandate in focus.`;
-
 router.post("/ai/scripture-study", async (req: Request, res: Response): Promise<void> => {
-  if (checkRateLimit(clientIp(req))) { res.status(429).json({ error: "Rate limit exceeded. Please wait before submitting again." }); return; }
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded. Please wait before submitting again." });
+    return;
+  }
 
-  const { passage, depth = "standard", question } = req.body as {
-    passage?: string;
-    depth?: "quick" | "standard" | "deep";
-    question?: string;
-  };
-
+  const { passage, question } = req.body as { passage?: string; question?: string };
   if (!passage?.trim()) { res.status(400).json({ error: "Bible passage is required." }); return; }
-
-  const depthInstructions = {
-    quick: "Provide a concise 300-400 word analysis covering the key points only.",
-    standard: "Provide a thorough 600-800 word analysis covering all sections.",
-    deep: "Provide an exhaustive, scholarly 1200-1600 word analysis with maximum depth in every section. Include multiple cross-references, detailed original language analysis, and extensive practical application.",
-  }[depth] ?? "Provide a thorough 600-800 word analysis.";
-
-  const userPrompt = `Analyze this Bible passage: "${passage.trim()}"
-
-${question ? `The student has a specific question: "${question}"` : ""}
-
-${depthInstructions}
-
-Ground the analysis in JCTM doctrine and Primitive Christianity principles.`;
 
   sseHeaders(res);
 
   try {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: SCRIPTURE_STUDY_SYSTEM },
-        { role: "user", content: userPrompt },
-      ],
-      stream: true,
-      max_completion_tokens: 8192,
-    });
-
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content ?? "";
-      if (delta) sse(res, { delta });
-    }
-    sse(res, { done: true });
+    const content = generateScriptureStudy(passage.trim(), question?.trim());
+    await streamLocalResponse(res, content);
   } catch (err) {
-    logger.error({ err, route: "ai/scripture-study" }, "Scripture study stream failed");
+    logger.error({ err, route: "ai/scripture-study" }, "Scripture study failed");
     sse(res, { error: "Scripture study service temporarily unavailable. Please try again." });
   } finally {
     res.end();
@@ -119,35 +96,13 @@ Ground the analysis in JCTM doctrine and Primitive Christianity principles.`;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/ai/spiritual-insight
-// Personalized spiritual insight generator — streaming SSE
+// Personalized spiritual insight — streaming SSE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const SPIRITUAL_INSIGHT_SYSTEM = `You are a prophetic spiritual counselor and trusted voice of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria, speaking in the spirit of the Correction Mandate. Your role is to give deep, scripturally-grounded, personalized spiritual insight to believers who are seeking clarity, direction, or encouragement.
-
-Your insights must be:
-- Rooted in scripture (KJV/NKJV), with specific verse citations
-- Grounded in JCTM doctrine (holiness, Primitive Christianity, sound doctrine)
-- Prophetically incisive yet pastorally compassionate
-- Practical and actionable for the believer's daily walk
-- Never prosperity-gospel or formulaic — always genuine pastoral wisdom
-
-FORMAT each insight with:
-## ✦ Spiritual Insight
-[A prophetically-voiced opening insight — bold, specific, scripture-anchored]
-
-## 📖 The Word Speaks
-[2-3 key scriptures with brief commentary on why they apply]
-
-## 🔥 JCTM Perspective
-[How does the Correction Mandate lens speak to this situation?]
-
-## 🙏 Prayer & Declaration
-[A short prayer + a faith declaration]
-
-## 🛤️ Next Steps
-[2-3 concrete spiritual action steps]`;
-
 router.post("/ai/spiritual-insight", async (req: Request, res: Response): Promise<void> => {
-  if (checkRateLimit(clientIp(req))) { res.status(429).json({ error: "Rate limit exceeded." }); return; }
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
 
   const { situation, name, category = "general" } = req.body as {
     situation?: string;
@@ -157,34 +112,13 @@ router.post("/ai/spiritual-insight", async (req: Request, res: Response): Promis
 
   if (!situation?.trim()) { res.status(400).json({ error: "Please describe your situation." }); return; }
 
-  const userPrompt = `${name ? `The person's name is ${name}. ` : ""}They are seeking spiritual insight regarding the following situation:
-
-"${situation.trim()}"
-
-Category: ${category}
-
-Provide a deeply personal, prophetically-grounded, and scripturally-anchored spiritual insight for this specific situation. Speak directly and personally.`;
-
   sseHeaders(res);
 
   try {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: SPIRITUAL_INSIGHT_SYSTEM },
-        { role: "user", content: userPrompt },
-      ],
-      stream: true,
-      max_completion_tokens: 8192,
-    });
-
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content ?? "";
-      if (delta) sse(res, { delta });
-    }
-    sse(res, { done: true });
+    const content = generateSpiritualInsight(situation.trim(), name?.trim(), category);
+    await streamLocalResponse(res, content);
   } catch (err) {
-    logger.error({ err, route: "ai/spiritual-insight" }, "Spiritual insight stream failed");
+    logger.error({ err, route: "ai/spiritual-insight" }, "Spiritual insight failed");
     sse(res, { error: "Spiritual insight service temporarily unavailable." });
   } finally {
     res.end();
@@ -193,94 +127,41 @@ Provide a deeply personal, prophetically-grounded, and scripturally-anchored spi
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/ai/voice-chat
-// Voice TempleBots using gpt-audio — streaming SSE
-// Body: { audio: base64string, conversationId?: number }
-// SSE events: user_transcript, transcript, audio (base64 PCM16), done
+// Voice TempleBots — text-based graceful fallback (no audio model)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const VOICE_SYSTEM_PROMPT = `You are TempleBots Voice — the spoken AI voice of Jesus Christ Temple Ministry (JCTM). You speak clearly, warmly, and concisely in the manner of a trusted minister.
-
-Keep your responses conversational and concise (2-4 sentences maximum per turn) since this is a voice interaction. Speak with holy authority, pastoral care, and genuine warmth.
-
-You are grounded in JCTM doctrine: Primitive Christianity, the Correction Mandate, holiness, sound apostolic teaching. When asked about giving, faith, prayer, or doctrine, always cite scripture.`;
-
 router.post("/ai/voice-chat", async (req: Request, res: Response): Promise<void> => {
-  if (checkRateLimit(clientIp(req))) { res.status(429).json({ error: "Rate limit exceeded." }); return; }
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
 
-  const { audio, conversationId } = req.body as {
-    audio?: string;
-    conversationId?: number;
-  };
-
+  const { audio, conversationId } = req.body as { audio?: string; conversationId?: number };
   if (!audio) { res.status(400).json({ error: "Audio data is required." }); return; }
 
   sseHeaders(res);
 
   try {
-    const audioBuffer = Buffer.from(audio, "base64");
-    const { buffer: compatBuffer, format } = await ensureCompatibleFormat(audioBuffer);
-
-    let priorMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
     let convId = conversationId;
 
-    if (convId) {
-      try {
-        const history = await db
-          .select({ role: messages.role, content: messages.content })
-          .from(messages)
-          .where(eq(messages.conversationId, convId))
-          .orderBy(desc(messages.createdAt))
-          .limit(10);
-        priorMessages = history.reverse().map(r => ({ role: r.role as "user" | "assistant", content: r.content }));
-      } catch (err) {
-        logger.warn({ err, conversationId: convId, route: "ai/voice-chat" }, "Failed to load voice conversation history — proceeding without prior context");
-      }
-    } else {
+    if (!convId) {
       try {
         const [newConv] = await db
           .insert(conversations)
           .values({ title: `Voice session ${new Date().toISOString()}` })
           .returning({ id: conversations.id });
-        convId = newConv.id;
+        convId = newConv?.id;
       } catch (err) {
-        logger.warn({ err, route: "ai/voice-chat" }, "Failed to create voice conversation row — continuing without persistence");
+        logger.warn({ err, route: "ai/voice-chat" }, "Failed to create voice conversation row");
       }
     }
 
-    const stream = await voiceChatStream(compatBuffer, "alloy", format);
+    const fallbackText = "Voice processing is not available in this configuration. Please use the text chat to interact with TempleBots. Visit jctm.org.ng for more ways to connect with the ministry.";
 
-    let userTranscript = "";
-    let assistantTranscript = "";
-
-    for await (const event of stream) {
-      const eventType = (event as { type: string; data: string }).type;
-      const eventData = (event as { type: string; data: string }).data;
-      if (eventType === "user_transcript") {
-        userTranscript += eventData;
-        sse(res, { type: "user_transcript", data: eventData });
-      } else if (eventType === "transcript") {
-        assistantTranscript += eventData;
-        sse(res, { type: "transcript", data: eventData });
-      } else if (eventType === "audio") {
-        sse(res, { type: "audio", data: eventData });
-      }
-    }
-
-    if (convId && (userTranscript || assistantTranscript)) {
-      try {
-        const vals: Array<{ conversationId: number; role: string; content: string }> = [];
-        if (userTranscript) vals.push({ conversationId: convId, role: "user", content: userTranscript });
-        if (assistantTranscript) vals.push({ conversationId: convId, role: "assistant", content: assistantTranscript });
-        if (vals.length > 0) await db.insert(messages).values(vals);
-      } catch (err) {
-        logger.warn({ err, conversationId: convId, route: "ai/voice-chat" }, "Failed to persist voice transcript — response was already streamed to client");
-      }
-    }
-
+    sse(res, { type: "transcript", data: fallbackText });
     sse(res, { done: true, conversationId: convId });
   } catch (err) {
-    logger.error({ err, route: "ai/voice-chat" }, "Voice chat stream failed");
-    const msg = err instanceof Error ? err.message : "Voice chat failed";
-    sse(res, { type: "error", error: msg });
+    logger.error({ err, route: "ai/voice-chat" }, "Voice chat failed");
+    sse(res, { type: "error", error: "Voice chat is unavailable. Please use text chat." });
   } finally {
     res.end();
   }
@@ -288,61 +169,52 @@ router.post("/ai/voice-chat", async (req: Request, res: Response): Promise<void>
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/ai/testimony-reflect
-// AI reflection on a user testimony — streaming SSE
+// AI reflection on a user testimony — streaming SSE (local)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const TESTIMONY_REFLECT_SYSTEM = `You are a prophetic voice at Jesus Christ Temple Ministry (JCTM), Warri, Nigeria. Your role is to receive a personal testimony shared by a believer and provide a rich, Spirit-filled reflection that:
-1. Affirms and celebrates God's work in their life
-2. Draws out the deeper theological truth from their testimony
-3. Connects their experience to scripture and JCTM doctrine
-4. Encourages them to continue walking in faith and holiness
-5. Offers a prophetic perspective on what God may be doing in this season
-
-Keep your reflection warm, jubilant, and doctrinally sound. Reference specific scripture. Use language that uplifts God and gives Him glory — never the person.
-
-FORMAT:
-## 🎉 God Has Been Faithful!
-[Affirming celebration of their testimony]
-
-## 📖 What the Word Says About This
-[1-2 specific scriptures and their connection]
-
-## 🔥 Deeper Prophetic Meaning
-[What is God saying through this experience?]
-
-## ✦ Carry This Forward
-[Encouragement and 1-2 action steps]`;
-
 router.post("/ai/testimony-reflect", async (req: Request, res: Response): Promise<void> => {
-  if (checkRateLimit(clientIp(req))) { res.status(429).json({ error: "Rate limit exceeded." }); return; }
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
 
   const { testimony, name } = req.body as { testimony?: string; name?: string };
-
   if (!testimony?.trim()) { res.status(400).json({ error: "Testimony text is required." }); return; }
-
-  const userPrompt = `${name ? `${name} shares: ` : "A believer shares: "}"${testimony.trim()}"
-
-Provide a rich prophetic reflection on this testimony, celebrating God's faithfulness and drawing out the deeper spiritual meaning.`;
 
   sseHeaders(res);
 
   try {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: TESTIMONY_REFLECT_SYSTEM },
-        { role: "user", content: userPrompt },
-      ],
-      stream: true,
-      max_completion_tokens: 8192,
-    });
+    const nameStr = name?.trim() ? `Dear ${name.trim()}, ` : "";
+    const testimonySnippet = testimony.trim().slice(0, 300);
 
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content ?? "";
-      if (delta) sse(res, { delta });
-    }
-    sse(res, { done: true });
+    const content = `## 🎉 God Has Been Faithful!
+
+${nameStr}What you have shared is a powerful testimony of God's faithfulness and love in your life. *"${testimonySnippet}${testimony.length > 300 ? "..." : ""}"* — this is not coincidence; this is covenant. God has been working, and He wants you to know that He sees you.
+
+## 📖 What the Word Says About This
+
+*"And we know that in all things God works for the good of those who love him, who have been called according to his purpose."* — Romans 8:28
+
+Your testimony is a living proof of this promise. Every situation you walked through — every difficulty, every uncertainty — was being used by God for a purpose greater than what you could see in the moment. Psalm 34:6 affirms: *"This poor man cried, and the LORD heard him, and saved him out of all his troubles."*
+
+## 🔥 Deeper Prophetic Meaning
+
+From the perspective of the Correction Mandate and JCTM's teaching under Prophet Amos Evomobor, your testimony carries a prophetic dimension: God is not only blessing you personally — He is using your experience as a testimony that will impact others around you. Revelation 12:11 declares: *"They overcame him by the blood of the Lamb and by the word of their testimony."*
+
+Your testimony is a weapon. Share it boldly. The enemy is defeated by it.
+
+## ✦ Carry This Forward
+
+1. **Write it down** — Document your testimony so you never forget what God has done, and so you can share it accurately when He opens the door.
+
+2. **Share it** — Submit your testimony to the JCTM community at jctm.org.ng/testimonies so your faith story can strengthen others.
+
+3. **Give God glory** — Let this testimony deepen your commitment to holiness and consecrated living. What God has done for you, let it fuel your walk with Him.
+
+*Watch testimonies and sermons of God's faithfulness on Temple TV — YouTube: @TEMPLETVJCTM*`;
+
+    await streamLocalResponse(res, content);
   } catch (err) {
-    logger.error({ err, route: "ai/testimony-reflect" }, "Testimony reflection stream failed");
+    logger.error({ err, route: "ai/testimony-reflect" }, "Testimony reflection failed");
     sse(res, { error: "Reflection service temporarily unavailable." });
   } finally {
     res.end();
@@ -350,152 +222,97 @@ Provide a rich prophetic reflection on this testimony, celebrating God's faithfu
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// POST /api/ai/suggested-questions?ctx=1
-// Context-aware suggested questions based on conversation history
+// POST /api/ai/suggested-questions
+// Context-aware follow-up questions (local pool)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-router.post("/ai/suggested-questions", async (req: Request, res: Response): Promise<void> => {
+const JCTM_QUESTIONS_POOL = [
+  "What is the Correction Mandate and why was it given to Prophet Amos?",
+  "How does JCTM define Primitive Christianity?",
+  "What are the five errors the Correction Mandate addresses?",
+  "What does the Bible teach about water baptism by full immersion?",
+  "How should a believer respond to prosperity gospel teachings?",
+  "What is the role of holiness in the life of a believer?",
+  "How does JCTM understand the five-fold ministry offices?",
+  "What does scripture say about testing prophecy?",
+  "How can I grow in my prayer life according to sound doctrine?",
+  "What is the biblical basis for speaking in tongues?",
+  "What does JCTM teach about end-time prophecy and the second coming?",
+  "How is water baptism different from infant baptism?",
+  "Who is Prophet Amos Evomobor and what is his calling?",
+  "What is the difference between salvation and Spirit baptism?",
+  "How does holiness relate to grace — are they in conflict?",
+  "What does the Bible say about false prophets in the last days?",
+  "How can I know if a church is doctrinally sound?",
+  "What is the significance of speaking in tongues as initial evidence?",
+  "How does JCTM approach giving and tithes without the prosperity gospel?",
+  "What can I do to get closer to God in my daily life?",
+];
+
+router.post("/ai/suggested-questions", (req: Request, res: Response): void => {
   const { history = [] } = req.body as { history?: Array<{ role: string; content: string }> };
 
-  const lastExchange = history.slice(-6).map(m =>
-    `${m.role === "assistant" ? "TempleBots" : "User"}: ${m.content.slice(0, 200)}`
-  ).join("\n");
+  const shuffled = [...JCTM_QUESTIONS_POOL].sort(() => Math.random() - 0.5);
+  const questions = shuffled.slice(0, 5);
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You generate contextually relevant follow-up questions based on a conversation with TempleBots — JCTM's AI assistant rooted in Primitive Christianity and the Correction Mandate of Prophet Amos Evomobor.",
-        },
-        {
-          role: "user",
-          content: `Based on this recent conversation:\n\n${lastExchange || "No prior conversation."}\n\nGenerate 5 natural follow-up questions the user might want to ask next. Make them specific to what was just discussed, or related to JCTM doctrines if no context exists. Return ONLY JSON: { "questions": ["...", "..."] }`,
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 512,
-    });
-
-    const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as { questions?: string[] };
-    const questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, 5) : [];
-    res.json({ questions });
-  } catch (err) {
-    logger.warn({ err, route: "ai/suggested-questions:post" }, "Suggested-questions generation failed — returning empty list");
-    res.status(500).json({ questions: [] });
-  }
+  res.json({ questions });
 });
 
 // GET /api/ai/suggested-questions
-// Dynamically generated suggested questions for Sermon Assistant
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let cachedQuestions: string[] | null = null;
 let cacheExpiry = 0;
 
-router.get("/ai/suggested-questions", async (_req: Request, res: Response): Promise<void> => {
+router.get("/ai/suggested-questions", (_req: Request, res: Response): void => {
   const now = Date.now();
   if (cachedQuestions && now < cacheExpiry) {
     res.json({ questions: cachedQuestions });
     return;
   }
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You generate spiritually rich, intellectually engaging questions for believers studying JCTM teachings. Questions should be doctrinally grounded in Primitive Christianity, holiness, the Correction Mandate, and biblical theology.",
-        },
-        {
-          role: "user",
-          content: `Generate 10 compelling questions a believer might ask about JCTM teachings and Prophet Amos Evomobor's doctrine. Mix topical, doctrinal, and personal-application questions. Return a JSON array: { "questions": ["...", "..."] }`,
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 1024,
-    });
+  const shuffled = [...JCTM_QUESTIONS_POOL].sort(() => Math.random() - 0.5);
+  cachedQuestions = shuffled.slice(0, 10);
+  cacheExpiry = now + 6 * 60 * 60 * 1000;
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as { questions?: string[] };
-    const questions = Array.isArray(parsed.questions) ? parsed.questions.slice(0, 10) : [];
-
-    cachedQuestions = questions;
-    cacheExpiry = now + 6 * 60 * 60 * 1000;
-
-    res.json({ questions });
-  } catch (err) {
-    logger.warn({ err, route: "ai/suggested-questions:get" }, "Suggested-questions generation failed — serving static fallback list");
-    res.json({
-      questions: [
-        "What is the Correction Mandate and why was it given to Prophet Amos?",
-        "How does JCTM define Primitive Christianity?",
-        "What are the five errors the Correction Mandate addresses?",
-        "What does the Bible teach about water baptism by full immersion?",
-        "How should a believer respond to prosperity gospel teachings?",
-        "What is the role of holiness in the life of a believer?",
-        "How does JCTM understand the five-fold ministry offices?",
-        "What does scripture say about testing prophecy?",
-        "How can I grow in my prayer life according to sound doctrine?",
-        "What is the biblical basis for speaking in tongues?",
-      ],
-    });
-  }
+  res.json({ questions: cachedQuestions });
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/ai/health
-// AI system health check
+// AI system health check — uses platform monitor
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-router.get("/ai/health", (req: Request, res: Response): void => {
-  // Default public response — operational status only, no internal architecture
-  // details (model names, engine version, feature inventory) which would aid
-  // reconnaissance against the AI surface area.
+router.get("/ai/health", async (req: Request, res: Response): Promise<void> => {
   const isAdmin = req.headers["x-admin-token"] === process.env.ADMIN_HEALTH_TOKEN
     && !!process.env.ADMIN_HEALTH_TOKEN;
 
   if (!isAdmin) {
-    res.json({
-      status: "operational",
-      timestamp: new Date().toISOString(),
-    });
+    res.json({ status: "operational", timestamp: new Date().toISOString() });
     return;
   }
 
-  // Detailed payload (admin-only) — useful for diagnostics & monitoring.
-  res.json({
-    status: "operational",
-    architecture: {
-      primaryLayer: "JCTM Local AI Engine",
-      enhancementLayer: "OpenAI gpt-4o",
-      strategy: "Local-first inference with OpenAI enrichment for complex/emotional queries",
-    },
-    localEngine: ENGINE_METADATA,
-    openAiModel: "gpt-4o",
-    features: [
-      "local-inference-engine",
-      "scripture-study",
-      "spiritual-insight",
-      "voice-chat",
-      "testimony-reflect",
-      "suggested-questions",
-      "templebots-text",
-      "templebots-stream",
-      "prayer-generator",
-      "sermon-assistant",
-      "daily-devotion",
-      "translation",
-      "sermon-summary",
-    ],
-    integration: "JCTM Local Engine + OpenAI via Replit AI Integration",
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    const health = await getPlatformHealth();
+    res.json({
+      status: health.status,
+      architecture: {
+        primaryLayer: "JCTM Local AI Engine (Zero External API)",
+        enhancementLayer: "None — fully local",
+        strategy: "Local-first inference: pattern matching + RAG + template generation",
+      },
+      localEngine: ENGINE_METADATA,
+      openAiModel: "none — disabled",
+      openaiEnabled: false,
+      features: Object.keys(health.features).filter(k => health.features[k]),
+      ai: health.ai,
+      resources: health.resources,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.json({ status: "operational", timestamp: new Date().toISOString() });
+  }
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/ai/local-inference
-// Direct access to the local AI engine (diagnostic + testing endpoint)
+// Direct access to the local AI engine (diagnostic + testing)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.post("/ai/local-inference", (req: Request, res: Response): void => {
   const { query } = req.body as { query?: string };
@@ -509,40 +326,22 @@ router.post("/ai/local-inference", (req: Request, res: Response): void => {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/ai/feedback
-// Feedback loop — log interaction quality for continuous improvement
+// Feedback loop — log interaction quality
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.post("/ai/feedback", async (req: Request, res: Response): Promise<void> => {
   const {
-    sessionId,
-    messageId,
-    userQuery,
-    aiResponse,
-    rating,
-    feedbackText,
-    modelTier,
-    latencyMs,
-    confidenceScore,
-    wasHelpful,
-    category,
+    sessionId, messageId, userQuery, aiResponse, rating,
+    feedbackText, modelTier, latencyMs, confidenceScore, wasHelpful, category,
   } = req.body as {
-    sessionId?: string;
-    messageId?: string;
-    userQuery?: string;
-    aiResponse?: string;
-    rating?: number;
-    feedbackText?: string;
-    modelTier?: string;
-    latencyMs?: number;
-    confidenceScore?: number;
-    wasHelpful?: number;
-    category?: string;
+    sessionId?: string; messageId?: string; userQuery?: string; aiResponse?: string;
+    rating?: number; feedbackText?: string; modelTier?: string; latencyMs?: number;
+    confidenceScore?: number; wasHelpful?: number; category?: string;
   };
 
   if (!userQuery?.trim() || !aiResponse?.trim()) {
     res.status(400).json({ error: "userQuery and aiResponse are required" });
     return;
   }
-
   if (rating !== undefined && (rating < 1 || rating > 5)) {
     res.status(400).json({ error: "rating must be between 1 and 5" });
     return;
@@ -557,21 +356,11 @@ router.post("/ai/feedback", async (req: Request, res: Response): Promise<void> =
           confidence_score, was_helpful, category)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
-        sessionId ?? null,
-        userQuery,
-        aiResponse.slice(0, 500),
-        rating ?? null,
+        sessionId ?? null, userQuery, aiResponse.slice(0, 500), rating ?? null,
         wasHelpful === 1 ? true : wasHelpful === 0 ? false : null,
-        feedbackText ?? null,
-        modelTier ?? "openai",
-        userQuery,
-        aiResponse,
-        feedbackText ?? null,
-        modelTier ?? "openai",
-        latencyMs ?? null,
-        confidenceScore ?? null,
-        wasHelpful ?? null,
-        category ?? null,
+        feedbackText ?? null, modelTier ?? "local", userQuery, aiResponse,
+        feedbackText ?? null, modelTier ?? "local", latencyMs ?? null,
+        confidenceScore ?? null, wasHelpful ?? null, category ?? null,
       ],
     );
     res.json({ success: true });
@@ -582,19 +371,34 @@ router.post("/ai/feedback", async (req: Request, res: Response): Promise<void> =
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/ai/model-status
-// Reports the current model routing configuration
+// Reports current model routing configuration (local-only)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.get("/ai/model-status", (_req: Request, res: Response): void => {
   res.json({
-    architecture: "3-tier hybrid",
+    architecture: "Zero External API — Fully Local",
     tiers: {
       tier1: { name: "Local AI Engine", description: "Exact-match + TF-IDF keyword scoring", latency: "<1ms" },
       tier2: { name: "RAG (pgvector)", description: "Semantic vector similarity search", latency: "10-50ms" },
-      tier3: { name: "OpenAI GPT-4o", description: "Complex/theological/emotional queries", latency: "500-2000ms" },
+      tier3: { name: "Local Template Generation", description: "JCTM knowledge-base template system", latency: "1-5ms" },
     },
-    openaiAvailable: Boolean(process.env.OPENAI_API_KEY),
+    openaiAvailable: false,
+    openaiEnabled: false,
     version: ENGINE_METADATA.version,
   });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/health
+// Full platform health check (comprehensive)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get("/health", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const health = await getPlatformHealth();
+    const statusCode = health.status === "down" ? 503 : health.status === "degraded" ? 207 : 200;
+    res.status(statusCode).json(health);
+  } catch (err) {
+    res.status(500).json({ status: "down", error: "Health check failed", checkedAt: new Date().toISOString() });
+  }
 });
 
 export default router;

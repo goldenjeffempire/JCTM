@@ -1,34 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sermonsTable, conversations, messages } from "@workspace/db";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { desc, eq } from "drizzle-orm";
 import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
-import OpenAI from "openai";
 import pg from "pg";
 import { runLocalInference, streamLocalResponse, ENGINE_METADATA } from "../lib/local-ai-engine.js";
+import { openAIEnhancer } from "../lib/openai-enhancer.js";
+import { embed } from "../lib/local-embeddings.js";
 
 const { Pool } = pg;
 
 const router: IRouter = Router();
 
-// ── Direct OpenAI client for embeddings (bypasses Replit AI proxy) ─────────────
-// The Replit AI Integrations proxy does not support the embeddings API.
-// We use the real OpenAI API key directly for embedding queries only.
-let _embeddingsClient: OpenAI | null = null;
-function getEmbeddingsClient(): OpenAI | null {
-  if (_embeddingsClient) return _embeddingsClient;
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-  _embeddingsClient = new OpenAI({ apiKey, baseURL: "https://api.openai.com/v1" });
-  return _embeddingsClient;
-}
-
 // ── pgvector pool (RAG similarity search) ─────────────────────────────────────
 const ragPool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // ── JCTM Knowledge Base (fallback — used when DB/embeddings not available) ────
-// This inline corpus (~6k chars) is injected as context of last resort so the
-// bot always has core ministry data even when RAG is unavailable.
 const JCTM_KNOWLEDGE_BASE = `
 ## JCTM KNOWLEDGE BASE — USE THIS TO ANSWER ALL QUESTIONS
 
@@ -219,7 +205,6 @@ function getClientIp(req: Request): string {
 // ── RAG: keyword fallback when no embeddings are stored ───────────────────────
 async function keywordKnowledgeFallback(query: string): Promise<string> {
   try {
-    // Extract meaningful words (≥4 chars) from the query for ILIKE matching
     const words = query
       .split(/\s+/)
       .map((w) => w.replace(/[^a-zA-Z]/g, ""))
@@ -227,7 +212,6 @@ async function keywordKnowledgeFallback(query: string): Promise<string> {
       .slice(0, 5);
 
     if (words.length === 0) {
-      // No useful keywords — return all text-only chunks
       const result = await ragPool.query<{ content: string; source: string }>(
         `SELECT content, source FROM knowledge_chunks WHERE embedding IS NULL LIMIT 4`,
       );
@@ -258,20 +242,13 @@ async function keywordKnowledgeFallback(query: string): Promise<string> {
   }
 }
 
-// ── RAG: Retrieve relevant knowledge chunks via pgvector cosine similarity ─────
+// ── RAG: local embedding similarity search ─────────────────────────────────────
 async function getRelevantKnowledge(query: string): Promise<string> {
-  const client = getEmbeddingsClient();
-
-  // Try vector search first (requires OpenAI embeddings key)
-  if (client) {
-    try {
-      const embeddingResponse = await client.embeddings.create({
-        model: "text-embedding-3-small",
-        input: query,
-      });
-      const queryVector = embeddingResponse.data[0].embedding;
-      const vectorStr = `[${queryVector.join(",")}]`;
-
+  // Try local embedding vector search
+  try {
+    const embResult = await embed(query);
+    if (embResult.embedding.length > 0) {
+      const vectorStr = `[${embResult.embedding.join(",")}]`;
       const result = await ragPool.query<{ content: string; source: string; similarity: number }>(
         `SELECT content, source, 1 - (embedding <=> $1::vector) AS similarity
          FROM knowledge_chunks
@@ -283,7 +260,7 @@ async function getRelevantKnowledge(query: string): Promise<string> {
 
       if (result.rows.length > 0) {
         const chunks = result.rows
-          .filter((r) => r.similarity > 0.3)
+          .filter((r) => r.similarity > 0.2)
           .map((r) => `[${r.source}] ${r.content}`)
           .join("\n\n");
 
@@ -291,12 +268,11 @@ async function getRelevantKnowledge(query: string): Promise<string> {
           return `\n\n## MOST RELEVANT JCTM KNOWLEDGE (from semantic search):\n${chunks}`;
         }
       }
-    } catch {
-      // Vector search failed — fall through to keyword search
     }
+  } catch {
+    // Embedding failed — fall through to keyword search
   }
 
-  // Fallback: keyword search over text-only chunks (stored when quota is exhausted)
   return keywordKnowledgeFallback(query);
 }
 
@@ -330,7 +306,7 @@ async function getOrCreateConversation(sessionId: string | undefined): Promise<n
         .from(conversations)
         .where(eq(conversations.id, parseInt(sessionId, 10)))
         .limit(1);
-      if (existing.length > 0) return existing[0].id;
+      if (existing.length > 0) return existing[0]!.id;
     } catch {
       // Fall through to create a new one
     }
@@ -339,7 +315,7 @@ async function getOrCreateConversation(sessionId: string | undefined): Promise<n
     .insert(conversations)
     .values({ title: `TempleBots session ${new Date().toISOString()}` })
     .returning({ id: conversations.id });
-  return newConv.id;
+  return newConv!.id;
 }
 
 async function loadConversationHistory(
@@ -380,10 +356,9 @@ async function persistMessages(
 // ── Extract action from reply ──────────────────────────────────────────────────
 function extractAction(reply: string): { cleanReply: string; action: string | null } {
   const actionMatch = reply.match(/\[ACTION:([\w-]+)\]/);
-  const action = actionMatch ? actionMatch[1] : null;
+  const action = actionMatch ? actionMatch[1] ?? null : null;
   const cleanReply = reply.replace(/\[ACTION:[\w-]+\]/g, "").trim();
 
-  // Fallback: detect giving keywords even if model forgot the action tag
   if (!action) {
     const givingKeywords = /\b(seed|sow|give|offering|tithe|donation|financial support|partner with)\b/i;
     if (givingKeywords.test(cleanReply)) {
@@ -415,48 +390,46 @@ const SUPPORTED_LANGUAGE_NAMES: Record<string, string> = {
   he: "Hebrew", fa: "Persian", el: "Greek", bg: "Bulgarian", sr: "Serbian",
 };
 
-// ── Build messages array ───────────────────────────────────────────────────────
-async function buildMessages(
+// ── Build local enriched response ─────────────────────────────────────────────
+async function buildLocalEnrichedResponse(
   userMessage: string,
   clientHistory: Array<{ role: "user" | "assistant"; content: string }>,
   sessionId: string | undefined,
-  language = "en",
-  localEngineContext = "",
-): Promise<{
-  msgs: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-  conversationId: number;
-}> {
+  language: string,
+  localEnrichmentContext: string,
+): Promise<{ reply: string; conversationId: number }> {
   const [sermonContext, ragContext, conversationId] = await Promise.all([
     buildSermonContext(),
     getRelevantKnowledge(userMessage),
     getOrCreateConversation(sessionId),
   ]);
 
+  const dbHistory = await loadConversationHistory(conversationId, 10);
+  const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-10);
+
+  // Build enriched context for openAIEnhancer (fully local)
+  const fullContext = [
+    sermonContext,
+    ragContext,
+    localEnrichmentContext
+      ? `\n\nLocal AI Engine Analysis:\n${localEnrichmentContext}`
+      : "",
+    history.slice(-4).map(h => `${h.role === "user" ? "User" : "TempleBots"}: ${h.content.slice(0, 200)}`).join("\n"),
+  ].filter(Boolean).join("\n");
+
   const langName = SUPPORTED_LANGUAGE_NAMES[language] ?? "English";
-  const languageInstruction = language !== "en"
-    ? `\n\nLANGUAGE INSTRUCTION: The user's preferred language is ${langName}. You MUST respond entirely in ${langName}. Do not mix languages. Preserve all scripture references, ministry names (JCTM, Temple TV), and proper nouns (Prophet Amos Evomobor) in their original form.`
-    : "";
+  const langNote = language !== "en" ? ` Please respond in ${langName}.` : "";
 
-  const localEngineSection = localEngineContext
-    ? `\n\n## LOCAL AI ENGINE ANALYSIS:\n${localEngineContext}`
-    : "";
+  const reply = await openAIEnhancer({
+    query: userMessage + langNote,
+    conversationHistory: history,
+    ragContext: fullContext,
+  });
 
-  const fullSystemPrompt = TEMPLEBOTS_SYSTEM_PROMPT + languageInstruction + localEngineSection + sermonContext + ragContext;
-
-  // Prefer DB history; fall back to client-sent history
-  const dbHistory = await loadConversationHistory(conversationId, 20);
-  const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-20);
-
-  const msgs: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: fullSystemPrompt },
-    ...history,
-    { role: "user", content: userMessage },
-  ];
-
-  return { msgs, conversationId };
+  return { reply, conversationId };
 }
 
-// ── POST /chat — standard JSON response (backward compat) ─────────────────────
+// ── POST /chat — standard JSON response ───────────────────────────────────────
 router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const ip = getClientIp(req);
   if (isRateLimited(ip)) {
@@ -472,11 +445,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
 
   const { message, sessionId, history = [] } = parsed.data;
   const language = typeof req.body?.language === "string" ? req.body.language : "en";
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
 
   try {
-    // ── TIER 1: Local AI Engine (primary execution layer) ──────────────────
+    // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
     if (!localResult.escalateToOpenAI && localResult.response && language === "en") {
@@ -487,7 +458,6 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
 
       await persistMessages(conversationId, message, cleanReply);
 
-      clearTimeout(timeout);
       res.json(
         ChatWithTempleBotsResponse.parse({
           reply: cleanReply,
@@ -499,23 +469,20 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // ── TIER 2: OpenAI (enriched with local engine context) ────────────────
-    const { msgs, conversationId } = await buildMessages(
+    // ── TIER 2: Local Enriched Response ───────────────────────────────────
+    const clientHistory = history.map((m: { role: string; content: string }) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+    const { reply: rawReply, conversationId } = await buildLocalEnrichedResponse(
       message,
-      history.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      clientHistory,
       sessionId ?? undefined,
       language,
-      localResult.enrichmentContext,
+      localResult.enrichmentContext ?? "",
     );
 
-    const completion = await openai.chat.completions.create(
-      { model: "gpt-4o", max_completion_tokens: 8192, messages: msgs },
-      { signal: controller.signal },
-    );
-
-    const rawReply =
-      completion.choices[0]?.message?.content ??
-      "I was unable to process your question. Please try again.";
     const { cleanReply, action } = extractAction(rawReply);
     const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
@@ -531,25 +498,15 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       }),
     );
   } catch (err: unknown) {
-    const isAbort =
-      err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
+    const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
     if (isAbort) {
       res.status(504).json({ error: "TempleBots took too long to respond. Please try again." });
-      return;
-    }
-    const status = (err as { status?: number })?.status;
-    if (status === 429) {
-      res.status(503).json({
-        error: "TempleBots is experiencing high demand. Please try again shortly.",
-      });
       return;
     }
     req.log.error({ err }, "TempleBots AI request failed");
     res.status(500).json({
       error: "TempleBots is temporarily unavailable. Please contact the ministry directly.",
     });
-  } finally {
-    clearTimeout(timeout);
   }
 });
 
@@ -585,7 +542,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
   res.on("close", () => controller.abort());
 
   try {
-    // ── TIER 1: Local AI Engine (primary execution layer) ──────────────────
+    // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
     if (!localResult.escalateToOpenAI && localResult.response && language === "en") {
@@ -608,53 +565,43 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // ── TIER 2: OpenAI (enriched with local engine context) ────────────────
-    const { msgs, conversationId } = await buildMessages(
+    // ── TIER 2: Local Enriched Response (streamed) ─────────────────────────
+    const clientHistory = history.map((m: { role: string; content: string }) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+    const { reply: rawReply, conversationId } = await buildLocalEnrichedResponse(
       message,
-      history.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      clientHistory,
       sessionId ?? undefined,
       language,
-      localResult.enrichmentContext,
+      localResult.enrichmentContext ?? "",
     );
 
-    const stream = await openai.chat.completions.create(
-      {
-        model: "gpt-4o",
-        max_completion_tokens: 8192,
-        messages: msgs,
-        stream: true,
-      },
-      { signal: controller.signal },
-    );
-
-    let fullReply = "";
-
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content ?? "";
-      if (delta) {
-        fullReply += delta;
-        send({ delta });
-      }
-    }
-
-    const { cleanReply, action } = extractAction(fullReply);
+    const { cleanReply, action } = extractAction(rawReply);
     const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
 
+    // Stream the local response word-by-word
+    for await (const chunk of streamLocalResponse(cleanReply)) {
+      if (!res.writableEnded) send({ delta: chunk });
+    }
+
     await persistMessages(conversationId, message, cleanReply);
 
-    send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
-    res.end();
+    if (!res.writableEnded) {
+      send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
+      res.end();
+    }
   } catch (err: unknown) {
-    const isAbort =
-      err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
+    const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
 
     if (!isAbort) {
       req.log.error({ err }, "TempleBots stream error");
       if (!res.writableEnded) {
         send({
-          error:
-            "TempleBots is temporarily unavailable. Please contact the ministry at info@jctm.org.ng.",
+          error: "TempleBots is temporarily unavailable. Please contact the ministry at info@jctm.org.ng.",
         });
       }
     }
@@ -674,15 +621,9 @@ router.post("/chat/knowledge/ingest", async (req: Request, res: Response): Promi
   }
 
   try {
-    const embeddingsClient = getEmbeddingsClient();
-    if (!embeddingsClient) {
-      res.status(503).json({ error: "Embeddings API not available — OPENAI_API_KEY not configured." });
-      return;
-    }
-
     const { ingestKnowledgeIfEmpty } = await import("../lib/knowledge-ingestion.js");
-    await ingestKnowledgeIfEmpty(embeddingsClient, req.log);
-    res.json({ message: "Knowledge base ingestion triggered successfully." });
+    await ingestKnowledgeIfEmpty(undefined, req.log);
+    res.json({ message: "Knowledge base ingestion triggered successfully (local embeddings)." });
   } catch (err) {
     req.log.error({ err }, "Manual knowledge ingestion failed");
     res.status(500).json({ error: "Knowledge ingestion failed." });

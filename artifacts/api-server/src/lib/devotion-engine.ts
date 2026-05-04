@@ -6,7 +6,7 @@
  * circular imports and lets both callers share the same generation code path.
  */
 
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { generateDevotionForDate as generateLocalDevotion } from "./local-text-generation.js";
 import { db, devotionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import type { Logger } from "pino";
@@ -630,41 +630,17 @@ export async function ensureDevotionForDate(
         `6. Remember: over 1,000 days of unique content is required — think creatively across all 66 books.`
       : "\n\nThis is the FIRST devotion in the series. Begin with a foundational, powerful scripture that sets the tone for years of fresh content to come.";
 
-  // 3. Generate via OpenAI
+  // 3. Generate via local text generation engine
   const date = new Date(dateStr + "T00:00:00Z");
-  const dayName = date.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
-  const monthDay = date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 
   let devotionData: Omit<DailyDevotion, "date">;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: DEVOTION_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content:
-            `Generate today's daily devotion for ${dayName}, ${monthDay}.\n` +
-            `Day-of-week theme focus: ${getDayTheme(date.getUTCDay())}.\n` +
-            `Monthly seasonal theme: ${getMonthlyTheme(date)}.\n` +
-            `The devotion should be spiritually rich, pastorally warm, and deeply rooted in scripture — with a tone that is prophetic yet accessible to everyday believers in Nigeria and worldwide.\n` +
-            `Include a bold, specific prophetic word for today that speaks directly to the hearts of believers.\n` +
-            `Return ONLY the raw JSON object, no markdown, no code blocks.` +
-            avoidClause,
-        },
-      ],
-      max_completion_tokens: 8192,
-    });
-
-    const raw = completion.choices[0]?.message?.content ?? "";
-    const cleaned = raw.replace(/^```(?:json)?\n?/i, "").replace(/```\s*$/m, "").trim();
-    const parsed = JSON.parse(cleaned) as Omit<DailyDevotion, "date">;
-    if (!parsed.propheticWord) parsed.propheticWord = getFallbackForDate(dateStr).propheticWord;
-    devotionData = parsed;
-    log?.info({ date: dateStr, reference: parsed.reference }, "Devotion generated via AI");
+    const localResult = generateLocalDevotion(dateStr, usedReferences);
+    devotionData = localResult;
+    log?.info({ date: dateStr, reference: localResult.reference }, "Devotion generated via local engine");
   } catch (err) {
-    log?.warn({ err, date: dateStr }, "AI devotion generation failed — using fallback");
+    log?.warn({ err, date: dateStr }, "Local devotion generation failed — using fallback");
     devotionData = getFallbackForDate(dateStr);
   }
 

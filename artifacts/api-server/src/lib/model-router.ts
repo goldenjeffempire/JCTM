@@ -1,19 +1,18 @@
 /**
- * Model Router — AI Abstraction Layer
+ * Model Router — Local AI Abstraction Layer
  *
  * Routes inference requests through the correct tier:
  *   Tier 1: Local AI Engine  (sub-millisecond, exact/keyword match)
- *   Tier 2: RAG search       (semantic vector similarity)
- *   Tier 3: OpenAI GPT-4o   (complex / theological / emotional)
+ *   Tier 2: RAG search       (semantic vector similarity, local embeddings)
+ *   Tier 3: Local enhancer   (JCTM knowledge templates + openAIEnhancer local)
  *
- * The router selects the cheapest tier that can confidently answer.
+ * Zero external API calls. No OpenAI dependency.
  */
 
 import { runLocalInference, type LocalInferenceResult } from "./local-ai-engine.js";
 import { openAIEnhancer } from "./openai-enhancer.js";
-import type OpenAI from "openai";
 
-export type ModelTier = "local" | "rag" | "openai";
+export type ModelTier = "local" | "rag" | "local-enhanced";
 
 export interface RouteResult {
   answer: string;
@@ -26,7 +25,6 @@ export interface RouterOptions {
   query: string;
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
   context?: string;
-  openai?: OpenAI;
   ragResults?: string;
 }
 
@@ -57,10 +55,11 @@ function assessComplexity(query: string): "simple" | "moderate" | "complex" {
 
 export async function routeQuery(options: RouterOptions): Promise<RouteResult> {
   const start = Date.now();
-  const { query, conversationHistory, context, openai, ragResults } = options;
+  const { query, conversationHistory, context, ragResults } = options;
 
   const complexity = assessComplexity(query);
 
+  // Tier 1: High-confidence local match
   if (complexity === "simple") {
     const localResult: LocalInferenceResult = runLocalInference(query);
     if (localResult.confidence > 0.7) {
@@ -73,6 +72,7 @@ export async function routeQuery(options: RouterOptions): Promise<RouteResult> {
     }
   }
 
+  // Tier 2: RAG results available (local embeddings)
   if (ragResults && ragResults.length > 50) {
     if (complexity !== "complex" && !conversationHistory?.length) {
       const ragAnswer = buildRagAnswer(query, ragResults);
@@ -87,28 +87,18 @@ export async function routeQuery(options: RouterOptions): Promise<RouteResult> {
     }
   }
 
-  if (!openai) {
-    const localResult: LocalInferenceResult = runLocalInference(query);
-    return {
-      answer: localResult.response ?? "",
-      tier: "local",
-      confidence: localResult.confidence,
-      latencyMs: Date.now() - start,
-    };
-  }
-
+  // Tier 3: Local enhanced (templates + knowledge base)
   const answer = await openAIEnhancer({
     query,
     conversationHistory,
     ragContext: ragResults,
     additionalContext: context,
-    openai,
   });
 
   return {
     answer,
-    tier: "openai",
-    confidence: 0.95,
+    tier: "local-enhanced",
+    confidence: 0.85,
     latencyMs: Date.now() - start,
   };
 }

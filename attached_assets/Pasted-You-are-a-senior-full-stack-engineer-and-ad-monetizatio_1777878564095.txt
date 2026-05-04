@@ -1,0 +1,85 @@
+You are a senior full-stack engineer and ad monetization specialist. Your task is to diagnose, fix, and fully restore Google AdSense functionality on the production domain jctm.org.ng.
+
+Objective
+
+Ensure that Google AdSense ads are correctly rendered and served across all eligible pages in the production environment with zero errors, full policy compliance, and stable performance.
+
+Execution Requirements
+1. Full Diagnostic Audit
+Crawl and inspect the entire production site.
+Identify why AdSense ads are not displaying.
+Log all findings with root-cause analysis (not assumptions).
+2. AdSense Configuration Validation
+Verify:
+Correct ca-pub-XXXXXXXXXXXXXXXX publisher ID
+Domain approval status in AdSense
+Active and correctly configured ad units (data-ad-slot)
+Ensure no mismatched or deprecated ad code is used.
+3. Script Injection & Rendering Fix
+Ensure global AdSense script is correctly loaded:
+Only once per page
+Uses async loading
+Fix ad initialization issues:
+Ensure (adsbygoogle = window.adsbygoogle || []).push({}) executes properly
+Resolve issues with:
+SSR (Server-Side Rendering)
+Hydration mismatches
+Lazy loading conflicts
+4. Frontend Framework Compatibility
+
+If the platform uses React / Next.js / SPA architecture:
+
+Ensure ads render only on client-side
+Prevent hydration errors
+Implement a reusable AdSense component/module
+Handle route changes (ads reload on navigation)
+5. CSP & Security Headers
+Audit all HTTP headers
+Update Content Security Policy to allow:
+pagead2.googlesyndication.com
+googleads.g.doubleclick.net
+Remove or fix any blocked script/resource
+6. Layout & Visibility Issues
+Ensure ad containers:
+Have valid width/height
+Are not hidden (display: none, visibility: hidden)
+Fix CSS/layout conflicts preventing rendering
+7. Network & Console Debugging
+Inspect:
+Browser console errors
+Failed network requests
+Fix:
+Blocked scripts
+CORS issues
+Mixed content (HTTP vs HTTPS)
+8. Environment & Deployment Validation
+Ensure:
+Ads are enabled in production (not disabled via env flags)
+Build process does not strip scripts
+Validate across:
+Different browsers
+Devices
+Networks (no ad-block interference)
+9. Policy Compliance Check
+Ensure all pages meet AdSense requirements:
+Sufficient original content
+No restricted or invalid content
+Flag and report any violations
+10. Final Implementation
+Apply all necessary fixes directly to the codebase
+Refactor into a clean, reusable, production-ready AdSense integration module
+Ensure:
+High performance
+No duplicate renders
+Stable ad loading
+Deliverables
+✅ Root cause report
+✅ Fully fixed and working AdSense integration
+✅ Clean, maintainable code implementation
+✅ Performance and compliance validation
+✅ Deployment-ready updates
+Success Criteria
+Ads display consistently on jctm.org.ng
+No console or network errors
+Fully compliant with AdSense policies
+Works across all modern browsers and devices

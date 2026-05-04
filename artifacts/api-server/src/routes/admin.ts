@@ -11,7 +11,6 @@ import { desc, count, avg, sql, eq } from "drizzle-orm";
 import { generateBlogPost, BLOG_TOPICS } from "../lib/blog-generator.js";
 import { generateSermonTranscriptSummary } from "../lib/blog-generator.js";
 import { pool } from "@workspace/db";
-import OpenAI from "openai";
 import { logger } from "../lib/logger.js";
 import { getVisitorRealtimeSnapshot } from "./visitors.js";
 import { getLiveAudienceSnapshot } from "./livestream.js";
@@ -31,14 +30,6 @@ const PERMANENT_PUSH_FAILURE_STATUSES = new Set<number>([400, 401, 403, 404, 410
 
 const router: IRouter = Router();
 const requireAnyRoleAdmin = requireAdminRole(["gallery", "sermon", "livestream"]);
-
-const getOpenAI = () =>
-  process.env.OPENAI_API_KEY
-    ? new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-        baseURL: "https://api.openai.com/v1",
-      })
-    : null;
 
 async function getAudienceEngagementSnapshot() {
   const [
@@ -241,12 +232,6 @@ router.post(
   "/admin/blog/generate",
   requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
-    const openai = getOpenAI();
-    if (!openai) {
-      res.status(503).json({ error: "OpenAI API key not configured" });
-      return;
-    }
-
     const { topicIndex, topic: requestedTopic } = req.body as { topicIndex?: number; topic?: string };
 
     if (
@@ -270,7 +255,7 @@ router.post(
     }
 
     try {
-      const post = await generateBlogPost(topic, openai);
+      const post = await generateBlogPost(topic);
 
       const [existing] = await db
         .select({ id: blogPostsTable.id })
@@ -311,12 +296,6 @@ router.post(
   "/admin/sermons/:id/index-transcript",
   requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
-    const openai = getOpenAI();
-    if (!openai) {
-      res.status(503).json({ error: "OpenAI API key not configured" });
-      return;
-    }
-
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       res.status(400).json({ error: "Invalid sermon ID" });
@@ -336,7 +315,6 @@ router.post(
       const transcriptSummary = await generateSermonTranscriptSummary(
         sermon.title,
         sermon.description ?? "",
-        openai,
       );
 
       await pool.query(
