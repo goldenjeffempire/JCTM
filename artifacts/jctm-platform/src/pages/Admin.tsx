@@ -84,7 +84,7 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "ai" | "credentials";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "credentials";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -94,6 +94,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }
   { id: "gallery",      label: "Gallery",      icon: <Image className="w-4 h-4" /> },
   { id: "testimonies",  label: "Testimonies",  icon: <MessageSquare className="w-4 h-4" /> },
   { id: "platform",     label: "Platform",     icon: <BarChart3 className="w-4 h-4" /> },
+  { id: "analytics",    label: "Analytics",    icon: <TrendingUp className="w-4 h-4" /> },
   { id: "ai",           label: "AI Engine",    icon: <Bot className="w-4 h-4" /> },
   { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
 ];
@@ -4950,6 +4951,150 @@ function TopVideosPanel({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── Predictive Analytics Dashboard ──────────────────────────────────────────
+
+interface AnalyticsData {
+  metrics: {
+    activeUsersToday: number;
+    activeUsers7d: number;
+    activeUsers30d: number;
+    avgSessionDuration: number;
+    topContentTypes: string[];
+    peakHourUTC: number;
+    engagementRate: number;
+  };
+  notificationTiming: {
+    bestHourUTC: number;
+    bestDayName: string;
+    confidence: string;
+    reasoning: string;
+  };
+  generatedAt: string;
+}
+
+function AnalyticsDashboardSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const { data, isLoading, error, refetch } = useQuery<AnalyticsData>({
+    queryKey: ["admin-analytics"],
+    queryFn: async () => {
+      const token = auth.token;
+      if (!token) throw new Error("Not authenticated");
+      const res = await fetch(`${BASE}/api/admin/analytics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    enabled: !!auth.token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const peakHour = data?.metrics.peakHourUTC ?? 9;
+  const peakHourLocal = ((peakHour + 1) % 24).toString().padStart(2, "0");
+  const engagePct = data ? Math.round(data.metrics.engagementRate * 100) : 0;
+
+  const metricCards = data ? [
+    { label: "Active Today",   value: data.metrics.activeUsersToday.toLocaleString(),  sub: "unique visitors",          color: "text-emerald-400" },
+    { label: "Active 7 Days",  value: data.metrics.activeUsers7d.toLocaleString(),     sub: "unique visitors",          color: "text-sky-400" },
+    { label: "Active 30 Days", value: data.metrics.activeUsers30d.toLocaleString(),    sub: "unique visitors",          color: "text-violet-400" },
+    { label: "Engagement Rate",value: `${engagePct}%`,                                  sub: "7d / 30d active ratio",    color: engagePct >= 40 ? "text-emerald-400" : "text-amber-400" },
+    { label: "Peak Hour (WAT)",value: `${peakHourLocal}:00`,                            sub: "highest traffic window",   color: "text-amber-400" },
+    { label: "Avg Session",    value: `${data.metrics.avgSessionDuration.toFixed(1)}m`, sub: "estimated time-on-site",   color: "text-rose-400" },
+  ] : [];
+
+  return (
+    <AdminLoginGate role="sermon" auth={auth} title="Predictive Analytics">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            title="Predictive Analytics"
+            description="Real-time audience metrics, engagement forecasting, and optimal notification timing — zero external APIs."
+          />
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+        </div>
+
+        {isLoading && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border bg-card p-4 animate-pulse space-y-2">
+                <div className="h-3 w-24 rounded bg-muted" />
+                <div className="h-7 w-16 rounded bg-muted" />
+                <div className="h-3 w-28 rounded bg-muted/60" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-400">
+            Failed to load analytics. <button onClick={() => refetch()} className="underline ml-1">Retry</button>
+          </div>
+        )}
+
+        {data && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {metricCards.map((m) => (
+                <Card key={m.label} className="flex flex-col gap-1">
+                  <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">{m.label}</p>
+                  <p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>
+                  <p className="text-[11px] text-muted-foreground">{m.sub}</p>
+                </Card>
+              ))}
+            </div>
+
+            <Card>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Top Content Types</p>
+              <div className="flex flex-wrap gap-2">
+                {data.metrics.topContentTypes.map((t, i) => (
+                  <span key={t} className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                    i === 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : i === 1 ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                    : "bg-muted/40 text-muted-foreground border-border"
+                  }`}>
+                    #{i + 1} {t}
+                  </span>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Optimal Push Notification Timing</p>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-1">
+                  <p className="text-base font-bold text-foreground">
+                    {data.notificationTiming.bestDayName} · {((data.notificationTiming.bestHourUTC + 1) % 24).toString().padStart(2, "0")}:00 WAT
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{data.notificationTiming.reasoning}</p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 ${
+                  data.notificationTiming.confidence === "high"
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : data.notificationTiming.confidence === "medium"
+                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      : "bg-muted/40 text-muted-foreground border-border"
+                }`}>
+                  {data.notificationTiming.confidence} confidence
+                </span>
+              </div>
+            </Card>
+
+            <p className="text-[11px] text-muted-foreground/50 text-right">
+              Generated {new Date(data.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · auto-refresh every 60s
+            </p>
+          </>
+        )}
+      </div>
+    </AdminLoginGate>
+  );
+}
+
 // ─── AI Engine Dashboard ──────────────────────────────────────────────────────
 
 interface AIDashboardData {
@@ -5464,6 +5609,7 @@ export default function Admin() {
               {section === "gallery"     && <GallerySection auth={galleryAuth} />}
               {section === "testimonies" && <TestimoniesSection auth={sermonAuth} />}
               {section === "platform"    && <PlatformSection auth={sermonAuth} />}
+              {section === "analytics"   && <AnalyticsDashboardSection auth={sermonAuth} />}
               {section === "ai"          && <AIDashboardSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
             </motion.div>

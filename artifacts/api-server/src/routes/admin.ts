@@ -18,6 +18,12 @@ import { requireAdminRole } from "../lib/adminAuth.js";
 import { broadcastWarriCrusadeManual, broadcastWarriCrusadeLiveAlert, getCronState } from "../lib/cron.js";
 import { getPlatformHealth } from "../lib/platform-monitor.js";
 import {
+  getPlatformMetrics,
+  getOptimalNotificationTime,
+  getPersonalizedRecommendations,
+  predictEngagement,
+} from "../lib/analytics-ai.js";
+import {
   dispatchPushNotification,
   cleanupStalePushSubscriptions,
   type NotificationPayload,
@@ -1255,6 +1261,47 @@ router.get(
     } catch (err) {
       logger.error({ err }, "Failed to fetch AI dashboard");
       res.status(500).json({ error: "Failed to fetch AI dashboard" });
+    }
+  }
+);
+
+// ─── GET /api/admin/analytics — Predictive analytics dashboard ────────────────
+router.get(
+  "/admin/analytics",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const [metrics, notificationTiming] = await Promise.all([
+        getPlatformMetrics(),
+        getOptimalNotificationTime("nigeria"),
+      ]);
+      res.json({ metrics, notificationTiming, generatedAt: new Date().toISOString() });
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch analytics");
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  }
+);
+
+// ─── GET /api/admin/analytics/recommendations/:visitorId ──────────────────────
+router.get(
+  "/admin/analytics/recommendations/:visitorId",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (req: Request, res: Response): Promise<void> => {
+    const { visitorId } = req.params;
+    if (!visitorId || visitorId.length > 128) {
+      res.status(400).json({ error: "Invalid visitorId" });
+      return;
+    }
+    try {
+      const [engagement, recommendations] = await Promise.all([
+        predictEngagement(visitorId),
+        getPersonalizedRecommendations(visitorId, 5),
+      ]);
+      res.json({ visitorId, engagement, recommendations });
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch recommendations");
+      res.status(500).json({ error: "Failed to fetch recommendations" });
     }
   }
 );

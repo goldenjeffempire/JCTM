@@ -27,9 +27,9 @@ As of this upgrade, all GPT-4o and external AI calls have been removed and repla
 | `local-ai-engine.ts` | Core pattern-matching inference engine with 200+ intents |
 | `local-text-generation.ts` | 365+ devotion pool, scripture study, spiritual insight templates, TempleBots responses |
 | `local-content-intelligence.ts` | TF-IDF tagging, extractive sermon summarization, blog templates, categorization |
-| `local-embeddings.ts` | Local embedding generation (transformer model / TF-IDF hash fallback) |
-| `local-moderation.ts` | Rule-based content moderation, spam detection, behavioral anomaly detection |
-| `analytics-ai.ts` | Engagement prediction, content performance forecasting, optimal notification timing |
+| `local-embeddings.ts` | Local embedding generation (TF-IDF hash 384-dim, with @xenova/transformers as optional accelerator) |
+| `local-moderation.ts` | Rule-based content moderation, spam detection, behavioral anomaly detection — wired into testimonies, prayer, comments |
+| `analytics-ai.ts` | Engagement prediction, content performance forecasting, optimal notification timing — available at `/api/admin/analytics` |
 | `openai-enhancer.ts` | Fully local enhanced response engine (no OpenAI dependency) |
 | `platform-monitor.ts` | Comprehensive platform health monitoring for all subsystems |
 
@@ -37,13 +37,50 @@ As of this upgrade, all GPT-4o and external AI calls have been removed and repla
 
 - `routes/ai.ts` — scripture-study, spiritual-insight, testimony-reflect, suggested-questions, voice-chat (all local SSE streaming)
 - `routes/chat.ts` — TempleBots: Tier 1 local engine → Tier 2 local enhanced (RAG + templates)
-- `routes/prayer.ts` — Local prayer generation with scripture templates by category
+- `routes/prayer.ts` — Local prayer generation + content moderation gate
 - `routes/sermon-assistant.ts` — Local sermon assistant with RAG context
 - `routes/translate.ts` — Local phrase matching for ministry strings (no external translation API)
 - `routes/sermons.ts` — Local summarization via `summarizeSermon()`
+- `routes/testimonies.ts` — Content moderation + anomaly detection before insert
+- `routes/moments.ts` — Content moderation + anomaly detection on comments
 - `lib/devotion-engine.ts` — Local devotion generation from 365+ pool
 - `lib/blog-generator.ts` — Local blog content generation via content intelligence
 - `lib/broadcast-engine.ts` — Local sermon scoring/recommendation engine
+
+### Admin Dashboard Features
+
+- **Overview** — Live visitor stats, sermon metrics, AI enrichment progress
+- **Broadcast** — YouTube sync queue, curation strategy, sermon library metrics
+- **Events** — Event promotion manager, push notification scheduler
+- **Sermons** — Sermon management, AI metadata enrichment
+- **Gallery** — GCS image management, bulk upload
+- **Testimonies** — Moderation queue, approve/reject, liked testimonies
+- **Platform** — System health, uptime, push subscriber stats
+- **Analytics** — Predictive audience metrics, engagement forecasting, optimal notification timing (`GET /api/admin/analytics`)
+- **AI Engine** — 3-tier AI health, feedback loop, knowledge base status, feature flags
+- **Credentials** — Secure HMAC token management for all admin roles
+
+## pgvector Embedding Dimensions
+
+The `knowledge_chunks.embedding` column uses **384 dimensions** (local TF-IDF / all-MiniLM-L6-v2).
+Previous builds used `vector(1536)` for OpenAI. A migration in `migrations.ts` auto-detects and fixes this on startup.
+
+## Content Moderation
+
+All user-submitted content (testimonies, prayer requests, Moments comments) passes through `local-moderation.ts` before database insert:
+- Rule-based profanity, blasphemy, spam, hate speech detection
+- Statistical signals: URL density, caps ratio, repetition, emoji overuse
+- Behavioral anomaly detection: rate limiting per IP (10 req/min window)
+- Decisions: `approve` | `flag` | `reject` — rejected content returns HTTP 422
+
+## Frontend Fixes (May 2026)
+
+- `Status.tsx` — AI status now shows "Local AI · TempleBots" (was "OpenAI / TempleBots")
+- `Topics.tsx` — Fixed `bg-white` → `bg-background` (dark mode compatibility)
+- `Leadership.tsx` — Fixed `bg-white` → `bg-background` (dark mode compatibility)
+- `Devotion.tsx` — Loading state upgraded from italic text to full skeleton layout
+- `SpiritualInsight.tsx` — Added missing `path="/spiritual-insight"` to SEO component
+- `VoiceTempleBots.tsx` — Replaced `@workspace/integrations-openai-ai-react` imports with native MediaRecorder + fetch SSE hooks (no external AI package dependency)
 
 ## Google AdSense Fix
 
@@ -81,7 +118,7 @@ pnpm monorepo with:
 
 - Helmet, rate limiting, Gzip, scrypt hashing, CORS, JSON body limits
 - Role-based admin (HMAC-signed JWTs for `gallery`, `sermon`, `livestream`)
-- Content moderation (local ML + rule-based)
+- Content moderation gate on all user-generated content (local ML + rule-based)
 
 ## Email Infrastructure (SMTP)
 

@@ -123,6 +123,7 @@ export default function SpiritualInsight() {
         title="Spiritual Insight | JCTM Digital Sanctuary"
         description="Receive personalized, prophetically-grounded spiritual insight for your specific situation — scripture-anchored, JCTM doctrine-rooted, and pastorally compassionate."
         keywords="JCTM spiritual insight, Christian counseling AI, prophetic word, scripture guidance"
+        path="/spiritual-insight"
       />
 
       <div className="min-h-screen bg-gradient-to-br from-[#0d0821] via-[#120d28] to-[#0d0821]">

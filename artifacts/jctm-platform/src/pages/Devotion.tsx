@@ -93,9 +93,34 @@ export default function Devotion() {
         )}
 
         {isLoading && !error && (
-          <p className="text-primary/60 text-base italic font-serif">
-            Drawing today's word from the well…
-          </p>
+          <div className="space-y-12 sm:space-y-14 animate-pulse" aria-label="Loading devotion…">
+            <div className="space-y-3">
+              <div className="h-8 w-3/4 rounded-lg bg-primary/8" />
+              <div className="h-8 w-1/2 rounded-lg bg-primary/5" />
+            </div>
+            <div className="pl-6 border-l-2 border-accent/20 space-y-3">
+              <div className="h-6 w-full rounded bg-primary/6" />
+              <div className="h-6 w-5/6 rounded bg-primary/6" />
+              <div className="h-6 w-4/6 rounded bg-primary/5" />
+              <div className="h-3 w-24 rounded mt-2 bg-accent/15" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-3 w-20 rounded-full bg-accent/15" />
+              <div className="h-5 w-full rounded bg-primary/6" />
+              <div className="h-5 w-full rounded bg-primary/6" />
+              <div className="h-5 w-4/5 rounded bg-primary/5" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-3 w-28 rounded-full bg-accent/15" />
+              <div className="h-5 w-full rounded bg-primary/6" />
+              <div className="h-5 w-3/4 rounded bg-primary/5" />
+            </div>
+            <div className="rounded-xl border border-accent/20 bg-accent/[0.04] px-6 py-6 space-y-3">
+              <div className="h-3 w-32 rounded-full bg-accent/20" />
+              <div className="h-6 w-full rounded bg-primary/6" />
+              <div className="h-6 w-2/3 rounded bg-primary/5" />
+            </div>
+          </div>
         )}
 
         {devotion && !isLoading && (

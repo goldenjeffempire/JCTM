@@ -2,7 +2,7 @@ import { customType, integer, pgTable, serial, text, timestamp } from "drizzle-o
 
 const embeddingVector = customType<{ data: number[]; driverData: string }>({
   dataType() {
-    return "vector(1536)";
+    return "vector(384)";
   },
   toDriver(value: number[]): string {
     return `[${value.join(",")}]`;

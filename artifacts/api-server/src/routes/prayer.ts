@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { pool } from "@workspace/db";
 import { generateSpiritualInsight } from "../lib/local-text-generation.js";
+import { moderateContent, detectAnomaly } from "../lib/local-moderation.js";
 
 const router: IRouter = Router();
 
@@ -155,6 +156,19 @@ router.post("/prayer/requests", async (req: Request, res: Response): Promise<voi
   }
   if (reqText.trim().length > PRAYER_NEED_MAX_LEN) {
     res.status(400).json({ error: "Prayer request too long." });
+    return;
+  }
+
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+  const anomaly = detectAnomaly(ip, reqText.trim());
+  if (anomaly.riskLevel === "high") {
+    res.status(429).json({ error: "Too many requests. Please wait before submitting again." });
+    return;
+  }
+
+  const modResult = moderateContent(reqText.trim(), { context: "prayer", minLength: 10, maxLength: PRAYER_NEED_MAX_LEN });
+  if (modResult.decision === "reject") {
+    res.status(422).json({ error: "Your prayer request could not be submitted. " + (modResult.reasons[0] ?? "Please revise and try again.") });
     return;
   }
 

@@ -207,9 +207,9 @@ export default function Status() {
         {
           icon: <BrainCircuit className="h-4 w-4" />,
           name: "AI Assistant",
-          description: "OpenAI / TempleBots",
+          description: "Local AI · TempleBots",
           state: resolveIndicator(data.services.ai),
-          detail: data.services.ai.openaiEnabled ? "OpenAI connected — TempleBots active" : "AI key not configured",
+          detail: "Local AI active — TempleBots powered by 3-tier local engine",
         },
         {
           icon: <Bell className="h-4 w-4" />,

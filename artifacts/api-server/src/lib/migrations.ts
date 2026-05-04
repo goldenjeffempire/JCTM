@@ -53,16 +53,9 @@ export async function runMigrations(): Promise<void> {
     )
   `);
 
-  // ── pgvector extension + similarity index ──────────────────────────────────
+  // ── pgvector extension ──────────────────────────────────────────────────────
   try {
     await pool.query(`CREATE EXTENSION IF NOT EXISTS vector`);
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS knowledge_chunks_embedding_idx
-      ON knowledge_chunks
-      USING ivfflat (embedding vector_cosine_ops)
-      WITH (lists = 50)
-      WHERE embedding IS NOT NULL
-    `);
     logger.info("pgvector extension and similarity index ready");
   } catch (vecErr) {
     logger.warn({ err: vecErr }, "pgvector extension not available — semantic search disabled");
@@ -194,11 +187,48 @@ export async function runMigrations(): Promise<void> {
     )
   `);
 
+  // ── Migrate embedding column from vector(1536) to vector(384) ──────────────
+  // Previous builds used OpenAI text-embedding-3-small (1536-dim). The local
+  // AI engine uses 384-dim vectors. Migrate idempotently by checking current
+  // dimension before dropping/re-adding the column.
+  try {
+    const dimCheck = await pool.query<{ atttypmod: number }>(`
+      SELECT a.atttypmod
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
+      WHERE c.relname = 'knowledge_chunks' AND a.attname = 'embedding'
+    `);
+    const currentDim = dimCheck.rows[0] ? dimCheck.rows[0].atttypmod - 4 : null;
+    if (currentDim !== null && currentDim !== 384) {
+      logger.info({ currentDim }, "Migrating knowledge_chunks.embedding from vector(1536) to vector(384)");
+      await pool.query(`DROP INDEX IF EXISTS knowledge_chunks_embedding_idx`);
+      await pool.query(`ALTER TABLE knowledge_chunks DROP COLUMN IF EXISTS embedding`);
+      await pool.query(`ALTER TABLE knowledge_chunks ADD COLUMN embedding vector(384)`);
+      await pool.query(`TRUNCATE knowledge_chunks`);
+      logger.info("Embedding column migrated to vector(384) — knowledge base will be re-ingested");
+    }
+  } catch (dimErr) {
+    logger.warn({ err: dimErr }, "Could not check/migrate embedding dimension (non-fatal)");
+  }
+
+  // ── pgvector similarity index ────────────────────────────────────────────────
+  try {
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS knowledge_chunks_embedding_idx
+      ON knowledge_chunks
+      USING ivfflat (embedding vector_cosine_ops)
+      WITH (lists = 50)
+      WHERE embedding IS NOT NULL
+    `);
+  } catch (idxErr) {
+    logger.warn({ err: idxErr }, "Could not create ivfflat index (non-fatal)");
+  }
+
   // ── pgvector cosine similarity search function ──────────────────────────────
   try {
     await pool.query(`
       CREATE OR REPLACE FUNCTION search_knowledge_chunks(
-        query_embedding vector(1536),
+        query_embedding vector(384),
         match_count integer DEFAULT 5
       )
       RETURNS TABLE (

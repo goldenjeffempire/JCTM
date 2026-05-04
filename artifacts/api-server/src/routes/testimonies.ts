@@ -7,6 +7,7 @@ import {
   SubmitTestimonyBody,
 } from "@workspace/api-zod";
 import { verifyAdminToken, getAdminTokenFromRequest, requireAdminRole } from "../lib/adminAuth.js";
+import { moderateContent, detectAnomaly } from "../lib/local-moderation.js";
 
 const router: IRouter = Router();
 
@@ -56,14 +57,30 @@ router.post("/testimonies", async (req, res): Promise<void> => {
     return;
   }
 
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+  const text = [parsed.data.name ?? "", parsed.data.content ?? ""].join(" ");
+
+  const anomaly = detectAnomaly(ip, text);
+  if (anomaly.riskLevel === "high") {
+    res.status(429).json({ error: "Too many requests. Please wait before submitting again." });
+    return;
+  }
+
+  const modResult = moderateContent(parsed.data.content ?? "", { context: "testimony", minLength: 20, maxLength: 3000 });
+  if (modResult.decision === "reject") {
+    res.status(422).json({ error: "Your testimony could not be submitted. " + (modResult.reasons[0] ?? "Please review your content and try again.") });
+    return;
+  }
+
   const [testimony] = await db
     .insert(testimoniesTable)
-    .values({ ...parsed.data, approved: false, likeCount: 0 })
+    .values({ ...parsed.data, approved: modResult.decision === "approve" ? false : false, likeCount: 0 })
     .returning();
 
   res.status(201).json({
     ...testimony,
     createdAt: testimony.createdAt instanceof Date ? testimony.createdAt.toISOString() : testimony.createdAt,
+    moderated: true,
   });
 });
 

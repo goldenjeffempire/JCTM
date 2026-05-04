@@ -1,10 +1,93 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Volume2, VolumeX, X, Phone, ChevronUp, MessageCircle, Bot } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, X, Phone, MessageCircle, Bot } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { SiZoom } from "react-icons/si";
-import { useVoiceStream } from "@workspace/integrations-openai-ai-react";
-import { useVoiceRecorder } from "@workspace/integrations-openai-ai-react";
+// ─── Local voice hooks — no external AI dependency ────────────────────────────
+interface VoiceStreamOptions {
+  workletPath?: string;
+  onUserTranscript?: (text: string) => void;
+  onTranscript?: (chunk: string) => void;
+  onComplete?: () => void;
+  onError?: (err: Error) => void;
+}
+
+function useVoiceStream(options: VoiceStreamOptions) {
+  const { onUserTranscript, onTranscript, onComplete, onError } = options;
+  const abortRef = useRef<AbortController | null>(null);
+  const [playbackState, setPlaybackState] = useState<"idle" | "playing">("idle");
+
+  const streamVoiceResponse = useCallback(async (url: string, audioBlob: Blob) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setPlaybackState("playing");
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      const resp = await fetch(url, { method: "POST", body: formData, signal: controller.signal });
+      if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const raw = line.slice(5).trim();
+          if (raw === "[DONE]") { onComplete?.(); setPlaybackState("idle"); return; }
+          try {
+            const ev = JSON.parse(raw);
+            if (ev.userText) onUserTranscript?.(ev.userText);
+            if (ev.chunk) onTranscript?.(ev.chunk);
+            if (ev.text) onTranscript?.(ev.text);
+          } catch { /* ignore malformed SSE chunks */ }
+        }
+      }
+      onComplete?.();
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") onError?.(err);
+    } finally {
+      setPlaybackState("idle");
+    }
+  }, [onUserTranscript, onTranscript, onComplete, onError]);
+
+  return { streamVoiceResponse, playbackState };
+}
+
+function useVoiceRecorder() {
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = useCallback(async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunksRef.current = [];
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+    const mr = new MediaRecorder(stream, { mimeType });
+    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.start();
+    mediaRecorderRef.current = mr;
+  }, []);
+
+  const stopRecording = useCallback((): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const mr = mediaRecorderRef.current;
+      if (!mr || mr.state === "inactive") { reject(new Error("Not recording")); return; }
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        mr.stream.getTracks().forEach(t => t.stop());
+        resolve(blob);
+      };
+      mr.stop();
+    });
+  }, []);
+
+  return { startRecording, stopRecording };
+}
 import { Link } from "wouter";
 import { useLivestreamStatus } from "../hooks/useLivestreamStatus";
 

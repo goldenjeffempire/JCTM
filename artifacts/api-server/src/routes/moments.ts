@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, momentLikesTable, momentCommentsTable, momentEngagementsTable } from "@workspace/db";
 import { postYouTubeComment, syncEngagementComment } from "../lib/youtube-oauth.js";
+import { moderateContent, detectAnomaly } from "../lib/local-moderation.js";
 
 const router: IRouter = Router();
 
@@ -200,6 +201,19 @@ router.post("/moments/:videoId/comments", async (req, res): Promise<void> => {
 
   if (!name || name.length > 80)    { res.status(400).json({ error: "name is required (max 80 chars)" });   return; }
   if (!text || text.length > 1000)  { res.status(400).json({ error: "body is required (max 1000 chars)" }); return; }
+
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+  const anomaly = detectAnomaly(ip, text);
+  if (anomaly.riskLevel === "high") {
+    res.status(429).json({ error: "Too many requests. Please wait before commenting again." });
+    return;
+  }
+
+  const modResult = moderateContent(text, { context: "comment", minLength: 2, maxLength: 1000 });
+  if (modResult.decision === "reject") {
+    res.status(422).json({ error: "Comment could not be posted. " + (modResult.reasons[0] ?? "Please revise and try again.") });
+    return;
+  }
 
   // Mirror to YouTube (fire-and-forget with result)
   const ytCommentId = await postYouTubeComment(videoId, name, text);
