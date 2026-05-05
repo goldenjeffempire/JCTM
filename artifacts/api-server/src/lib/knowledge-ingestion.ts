@@ -86,7 +86,7 @@ async function generateEmbeddingVector(text: string): Promise<string | null> {
 // ─── Bulk Ingestion ───────────────────────────────────────────────────────────
 
 export async function ingestKnowledgeIfEmpty(
-  _openai: unknown,
+  _unused: unknown,
   log: Logger,
 ): Promise<void> {
   const client = await pool.connect();

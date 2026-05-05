@@ -450,7 +450,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
-    if (!localResult.escalateToOpenAI && localResult.response && language === "en") {
+    if (!localResult.needsEnrichment && localResult.response && language === "en") {
       const conversationId = await getOrCreateConversation(sessionId ?? undefined);
       const { cleanReply, action } = extractAction(localResult.response);
       const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
@@ -545,7 +545,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
-    if (!localResult.escalateToOpenAI && localResult.response && language === "en") {
+    if (!localResult.needsEnrichment && localResult.response && language === "en") {
       const conversationId = await getOrCreateConversation(sessionId ?? undefined);
       const { cleanReply, action } = extractAction(localResult.response);
       const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);

@@ -1,21 +1,20 @@
 /**
  * JCTM Local AI Engine
  *
- * A custom, locally-executed AI inference system that serves as the
- * PRIMARY execution layer for TempleBots queries. OpenAI is used only
- * to enhance, enrich, and handle queries that exceed local confidence.
+ * A fully local, zero-external-API inference system that serves as the
+ * PRIMARY execution layer for TempleBots queries. All processing is local.
  *
  * Architecture:
  *  Tier 1 — Exact-match lookup against the JCTM canonical knowledge index
  *  Tier 2 — TF-IDF-weighted keyword scoring across knowledge entries
  *  Tier 3 — Intent classification + template response generation
- *  Tier 4 — Escalation signal to OpenAI for complex/emotional queries
+ *  Tier 4 — Local enrichment via RAG + local-ai-enhancer for complex queries
  *
  * Design principles:
  *  - No external model calls; fully synchronous inference
  *  - Sub-millisecond response time for known queries
- *  - Confidence-gated escalation ensures accuracy over speed when needed
- *  - Returns enriched context for OpenAI to build on
+ *  - Confidence-gated routing ensures accuracy over speed when needed
+ *  - Returns enriched context for the local enhancer to build on
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -48,7 +47,7 @@ export interface LocalInferenceResult {
   confidence: number;
   response: string | null;
   enrichmentContext: string;
-  escalateToOpenAI: boolean;
+  needsEnrichment: boolean;
   emotionalFlag: boolean;
   givingFlag: boolean;
   detectedKeywords: string[];
@@ -643,7 +642,7 @@ export function runLocalInference(query: string): LocalInferenceResult {
     confidence: normalizedScore,
     response: canServeLocally ? matchedEntry.response : null,
     enrichmentContext,
-    escalateToOpenAI: shouldEscalate || !canServeLocally,
+    needsEnrichment: shouldEscalate || !canServeLocally,
     emotionalFlag: emotional.detected,
     givingFlag: isGiving,
     detectedKeywords,

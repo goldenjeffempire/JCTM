@@ -82,12 +82,33 @@ All user-submitted content (testimonies, prayer requests, Moments comments) pass
 - `SpiritualInsight.tsx` — Added missing `path="/spiritual-insight"` to SEO component
 - `VoiceTempleBots.tsx` — Replaced `@workspace/integrations-openai-ai-react` imports with native MediaRecorder + fetch SSE hooks (no external AI package dependency)
 
-## Google AdSense Fix
+## Google AdSense Fix (Updated May 2026)
 
 - Root cause: `VITE_ADSENSE_CLIENT_ID` env var was not set → `ADSENSE_ENABLED = false`
 - Fix: `AdSense.tsx` hardcodes fallback publisher ID `ca-pub-6817509745706083`
 - Script deduplication guard added; `ins` element ref fixed; consent-change re-render added
 - `VITE_ADSENSE_ENABLE=true` is set in .env
+- **Production consent fix:** `canRender` no longer requires `consentResolved`. Ads now render
+  immediately for new visitors under Google Consent Mode v2 (non-personalized). They are only
+  blocked when a user has *explicitly* denied advertising consent (`consent !== null && consent.advertising === false`).
+- **Push error fix:** Failed `adsbygoogle.push({})` calls no longer set `pushedRef.current = true`,
+  allowing the push to retry on the next render cycle instead of silently giving up.
+
+## AI System Overhaul — Zero External API (Completed May 2026)
+
+All stale OpenAI references removed from production code:
+
+| File | Change |
+|------|--------|
+| `local-ai-engine.ts` | Docstring rewritten; `escalateToOpenAI` renamed to `needsEnrichment` |
+| `routes/chat.ts` | Updated both stream + non-stream handlers to use `needsEnrichment` |
+| `knowledge-ingestion.ts` | Dead `_openai: unknown` parameter renamed to `_unused` |
+| `platform-monitor.ts` | `AITierHealth` interface: removed `openaiEnabled`/`openaiQuotaExceeded`; replaced with `externalAIEnabled: false`. Feature flag renamed from `openai` to `externalAI`. |
+| `routes/ai.ts` | Response fields renamed: `openAiModel` → `externalAIModel`, `openaiEnabled` → `externalAIEnabled` |
+| `cron.ts` | Status object field renamed: `openaiEnabled` → `externalAIEnabled` |
+| `lib/integrations-openai-ai-server/src/client.ts` | Live OpenAI SDK replaced with a stub that throws a descriptive error if called |
+| `Admin.tsx` | Type definition updated; tier label key renamed from `openai` to `external-ai` |
+| `Status.tsx` | `openaiEnabled?` field renamed to `externalAIEnabled?` |
 
 ## System Architecture
 

@@ -111,18 +111,22 @@ export function AdSlot({
   const [adKey, setAdKey] = useState(0);
   const consent = useCookieConsent();
 
-  const consentResolved = consent !== null;
-  const advertisingAllowed = consent?.advertising !== false;
+  // Consent Mode v2 compliance:
+  // - When consent === null (user hasn't decided yet), allow rendering.
+  //   Google's Consent Mode will serve non-personalized ads after the
+  //   wait_for_update window expires (2s, configured in index.html).
+  // - Only block ads when the user has EXPLICITLY denied advertising consent.
+  const advertisingExplicitlyDenied = consent !== null && consent.advertising === false;
   const slotValid = isValidSlot(slot);
-  const canRender = ADSENSE_ENABLED && slotValid && consentResolved && advertisingAllowed;
+  const canRender = ADSENSE_ENABLED && slotValid && !advertisingExplicitlyDenied;
 
-  // Re-render on consent change (e.g. user accepts ads after page load)
+  // Re-render on consent change (e.g. user accepts or changes preferences)
   useEffect(() => {
-    if (advertisingAllowed && consentResolved) {
+    if (!advertisingExplicitlyDenied) {
       pushedRef.current = false;
       setAdKey(k => k + 1);
     }
-  }, [advertisingAllowed, consentResolved]);
+  }, [advertisingExplicitlyDenied]);
 
   // Lazy-load via IntersectionObserver
   useEffect(() => {
@@ -151,7 +155,10 @@ export function AdSlot({
     if (!ins) return;
 
     // Don't push if already filled (e.g. after hot-reload)
-    if (ins.getAttribute("data-adsbygoogle-status") === "done") return;
+    if (ins.getAttribute("data-adsbygoogle-status") === "done") {
+      pushedRef.current = true;
+      return;
+    }
 
     ensureAdSenseScript();
 
@@ -161,20 +168,20 @@ export function AdSlot({
         (window.adsbygoogle = window.adsbygoogle ?? []).push({});
         pushedRef.current = true;
       } catch (err) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[AdSense] push failed:", err);
+        // Do NOT set pushedRef.current = true on error — allow retry on next render
+        if (import.meta.env.DEV) {
+          console.warn("[AdSense] push failed (will retry):", err);
         }
-        pushedRef.current = true;
       }
-    }, 150);
+    }, 200);
 
     return () => clearTimeout(timeoutId);
   }, [canRender, shouldLoad, adKey]);
 
   // Don't render anything if ads are disabled or slot is invalid
   if (!ADSENSE_ENABLED || !slotValid) return null;
-  // Render placeholder while waiting for consent
-  if (!consentResolved || !advertisingAllowed) return null;
+  // Block only when user has explicitly denied advertising consent
+  if (advertisingExplicitlyDenied) return null;
 
   const insProps: Record<string, string | boolean> = {
     "data-ad-client": ADSENSE_CLIENT_ID,

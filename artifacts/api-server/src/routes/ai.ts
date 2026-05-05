@@ -298,8 +298,8 @@ router.get("/ai/health", async (req: Request, res: Response): Promise<void> => {
         strategy: "Local-first inference: pattern matching + RAG + template generation",
       },
       localEngine: ENGINE_METADATA,
-      openAiModel: "none — disabled",
-      openaiEnabled: false,
+      externalAIModel: "none — local only",
+      externalAIEnabled: false,
       features: Object.keys(health.features).filter(k => health.features[k]),
       ai: health.ai,
       resources: health.resources,
@@ -381,8 +381,8 @@ router.get("/ai/model-status", (_req: Request, res: Response): void => {
       tier2: { name: "RAG (pgvector)", description: "Semantic vector similarity search", latency: "10-50ms" },
       tier3: { name: "Local Template Generation", description: "JCTM knowledge-base template system", latency: "1-5ms" },
     },
-    openaiAvailable: false,
-    openaiEnabled: false,
+    externalAIAvailable: false,
+    externalAIEnabled: false,
     version: ENGINE_METADATA.version,
   });
 });

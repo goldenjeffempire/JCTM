@@ -32,8 +32,7 @@ export interface AITierHealth {
   localEngine: "active" | "inactive";
   localEngineVersion: string;
   embeddingMethod: "transformer" | "tfidf" | "unknown";
-  openaiEnabled: boolean;
-  openaiQuotaExceeded: boolean;
+  externalAIEnabled: false;
   knowledgeBaseChunks: number;
   knowledgeBaseWithEmbeddings: number;
 }
@@ -87,7 +86,7 @@ function getFeatureFlags(): Record<string, boolean> {
     youtubeSync: Boolean(process.env.YOUTUBE_API_KEY),
     adsense: Boolean(process.env.VITE_ADSENSE_CLIENT_ID ?? "ca-pub-6817509745706083"),
     giving: Boolean(process.env.STRIPE_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY),
-    openai: false,
+    externalAI: false,
   };
 }
 
@@ -139,8 +138,7 @@ async function checkAI(): Promise<{ health: SubsystemHealth; tier: AITierHealth 
     localEngine: "active",
     localEngineVersion: ENGINE_METADATA.version,
     embeddingMethod: "tfidf",
-    openaiEnabled: false,
-    openaiQuotaExceeded: false,
+    externalAIEnabled: false,
     knowledgeBaseChunks: knowledgeChunks,
     knowledgeBaseWithEmbeddings: knowledgeWithEmbeddings,
   };

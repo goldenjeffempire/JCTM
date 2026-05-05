@@ -312,7 +312,7 @@ export function getCronState() {
     },
     ai: {
       mode: "local",
-      openaiEnabled: false,
+      externalAIEnabled: false,
     },
     lastSyncError: lastSyncError ?? null,
     running: {

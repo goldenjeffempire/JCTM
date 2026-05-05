@@ -28,7 +28,7 @@ interface ServiceStatus {
   vapidConfigured?: boolean;
   activeSubscribers?: number;
   connectedClients?: number;
-  openaiEnabled?: boolean;
+  externalAIEnabled?: boolean;
   quotaPaused?: boolean;
   neonQuota?: { status: string };
 }

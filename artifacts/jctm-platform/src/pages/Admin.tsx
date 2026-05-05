@@ -5165,7 +5165,7 @@ interface AIDashboardData {
   cron: {
     youtube: { quotaPaused: boolean; lastRSSSync: string | null; nextRSSSync: string | null; lastAPISync: string | null; lastFullSync: string | null };
     websub: { lastRenewal: string | null; nextRenewal: string | null };
-    ai: { mode: string; openaiEnabled: boolean };
+    ai: { mode: string; externalAIEnabled: boolean };
     running: Record<string, boolean>;
     lastSyncError: string | null;
   };
@@ -5192,7 +5192,7 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
     local:          { label: "Tier 1 — Local Engine",   desc: "Exact-match + TF-IDF scoring",       icon: <Cpu className="w-4 h-4" />,     color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
     rag:            { label: "Tier 2 — RAG",            desc: "pgvector semantic search + context",  icon: <Database className="w-4 h-4" />, color: "text-blue-400 border-blue-500/30 bg-blue-500/10" },
     "local-enhanced": { label: "Tier 3 — Enhanced",    desc: "Local template generation",           icon: <Layers className="w-4 h-4" />,   color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-    openai:         { label: "OpenAI (legacy)",         desc: "No longer in use",                   icon: <X className="w-4 h-4" />,        color: "text-red-400 border-red-500/30 bg-red-500/10" },
+    "external-ai":  { label: "External AI (disabled)",  desc: "No longer in use — fully local",     icon: <X className="w-4 h-4" />,        color: "text-red-400 border-red-500/30 bg-red-500/10" },
   };
 
   const subsystemIcons: Record<string, React.ReactNode> = {
