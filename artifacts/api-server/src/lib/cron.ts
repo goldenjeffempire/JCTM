@@ -1,4 +1,5 @@
 import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds, refreshFeaturedSermon } from "./youtube-sync.js";
+import { ingestAllSermons, ingestActivityLearning } from "./knowledge-ingestion.js";
 import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
@@ -1444,6 +1445,10 @@ async function runFullSync(apiKey: string, log: Logger): Promise<void> {
     });
 
     await refreshFeaturedSermon(log);
+
+    // After successful full sync — trigger AI learning on the updated sermon DB
+    ingestAllSermons(log).catch(err => log.warn({ err }, "Post-sync sermon ingestion failed (non-fatal)"));
+    ingestActivityLearning(log).catch(err => log.warn({ err }, "Post-sync activity learning failed (non-fatal)"));
   } catch (err) {
     if (err instanceof QuotaExceededError) {
       const pauseMs = msUntilUtcMidnight();
@@ -1576,6 +1581,12 @@ export function startCron(log: Logger, websubUrl?: string): void {
     webSubCallbackUrl = websubUrl;
     lastWebSubRenewal = new Date();
   }
+
+  // ── AI Learning — startup (delayed 90s to let DB settle after boot) ─────
+  setTimeout(() => {
+    ingestAllSermons(log).catch(err => log.warn({ err }, "Startup sermon ingestion failed (non-fatal)"));
+    ingestActivityLearning(log).catch(err => log.warn({ err }, "Startup activity learning failed (non-fatal)"));
+  }, 90_000);
 
   // ── RSS sync — always active, runs every 5 minutes ──────────────────────
   log.info({ intervalMs: RSS_INTERVAL_MS }, "Starting YouTube RSS sync (5-min, quota-free)");

@@ -40,6 +40,18 @@ export type JCTMIntent =
   | "join_membership"
   | "viewing_centres"
   | "general_greeting"
+  | "end_times"
+  | "fasting_prayer"
+  | "spiritual_warfare"
+  | "salvation_new_birth"
+  | "repentance_restoration"
+  | "praise_worship"
+  | "bible_study_method"
+  | "sin_temptation"
+  | "marriage_family"
+  | "healing_miracles"
+  | "new_believer"
+  | "testimony_sharing"
   | "unknown";
 
 export interface LocalInferenceResult {
@@ -497,6 +509,548 @@ I am here to help you explore JCTM's teachings, doctrines, and resources. Here a
 How may I assist you today?`,
     enrichment: "User greeted TempleBots. Provide a warm welcome and guide them to JCTM resources. TempleBots is the AI assistant of JCTM.",
   },
+
+  // ── New Intents ───────────────────────────────────────────────────────────
+
+  {
+    id: "end_times",
+    intent: "end_times",
+    keywords: [
+      "end times", "end time", "rapture", "second coming", "tribulation", "antichrist",
+      "mark of the beast", "666", "last days", "apocalypse", "eschatology",
+      "book of revelation", "armageddon", "great tribulation", "day of the lord",
+      "signs of the times", "end of the world", "is jesus coming soon", "when is rapture",
+      "millennium", "thousand years", "beast", "false prophet", "one world government",
+    ],
+    weight: 1.0,
+    response: `**End Times Prophecy** is one of the most urgent messages of Jesus Christ Temple Ministry (JCTM) under Prophet Amos Evomobor.
+
+The Bible is unambiguous: Jesus Christ **will return** physically, visibly, and gloriously — and the signs of that return are happening around us now.
+
+**🔥 The Warri City Crusade 2026 theme says it all:**
+*"Be Ready For Rapture: Tribulation Is Coming! Run For Your Soul!"*
+
+## What JCTM Teaches on End Times:
+
+**The Rapture** — The catching away of true believers before or during the tribulation. Not all who call themselves Christians will be taken — only those who are genuinely born again, living in holiness, and watching for His return (1 Thessalonians 4:16-17, Matthew 24:44).
+
+**The Tribulation** — A period of unprecedented global suffering described in Revelation 6-19. The mark of the beast (666) will be enforced as an economic and spiritual allegiance system (Revelation 13:16-18). **Do not take it.**
+
+**The Antichrist** — A political and religious world figure who will demand worship. He will arise from the current world system. Believers must not be deceived.
+
+**Signs Already Happening:**
+- Global moral collapse (2 Timothy 3:1-5)
+- Apostasy within the church (2 Thessalonians 2:3)
+- Wars, famines, earthquakes (Matthew 24:6-8)
+- Israel's restoration and global prophetic alignment
+
+> *"Watch therefore, for you do not know what hour your Lord is coming."* — Matthew 24:42
+
+**Prophet Amos's urgent word:** The end-time message is not to cause fear but to provoke holy preparation. Repent. Live holy. Stay close to the Word. Watch and pray.
+
+📺 **Watch end-times teachings:** YouTube **@TEMPLETVJCTM**`,
+    enrichment: "End times teaching from JCTM. Rapture, tribulation, antichrist, second coming. Warri Crusade 2026 theme: Be Ready for Rapture. Urgent call to holiness and preparation. Matthew 24, 1 Thessalonians 4:16-17, Revelation 13.",
+  },
+
+  {
+    id: "fasting_prayer",
+    intent: "fasting_prayer",
+    keywords: [
+      "fasting", "fast", "how to fast", "daniel fast", "prayer and fasting",
+      "3 day fast", "7 day fast", "21 day fast", "dry fast", "water fast",
+      "break fast", "fasting and prayer", "fasting benefits", "why fast",
+      "biblical fasting", "corporate fasting", "consecration fast",
+    ],
+    weight: 1.0,
+    response: `**Fasting** is one of the most powerful spiritual disciplines in the believer's life, consistently practised throughout Scripture and emphasized at Jesus Christ Temple Ministry (JCTM).
+
+## What the Bible Teaches on Fasting:
+
+**🔥 Jesus assumed believers would fast** — He said *"when you fast"* not *"if you fast"* (Matthew 6:16-18). Fasting is not optional for the serious disciple.
+
+**Why Christians Fast:**
+1. **To seek God's face** — Fasting shifts your attention from physical appetite to spiritual hunger (Psalm 35:13)
+2. **For spiritual breakthrough** — Some demonic bondages only break through prayer AND fasting (Mark 9:29)
+3. **For national and personal intercession** — Esther, Nehemiah, Daniel, and Paul all fasted at critical moments
+4. **For consecration** — Preparing to receive a word, make a major decision, or enter a new season
+5. **For repentance** — Fasting accompanies genuine turning back to God (Joel 2:12)
+
+## Practical Guidelines:
+
+**Types of Biblical Fasting:**
+- 🌊 **Complete fast** — No food or water (Moses, Esther — not recommended beyond 3 days without medical guidance)
+- 💧 **Water fast** — No food, water only — the most common biblical fast
+- 🥦 **Daniel fast** — Vegetables and water only (Daniel 1 & 10) — excellent for longer periods
+- ⏱️ **Partial/time fast** — Skip certain meals (e.g., breakfast only, until 6 PM)
+
+**How to fast effectively:**
+1. Start with prayer — declare your purpose before God
+2. Set a specific duration and stick to it
+3. Use the time you would normally eat for prayer, Scripture reading, and worship
+4. Break your fast gently — start with fruits or light foods
+5. Journal what God speaks to you during the fast
+
+> *"Is this not the fast that I have chosen: to loose the bonds of wickedness, to undo the heavy burdens, to let the oppressed go free?"* — Isaiah 58:6
+
+📺 Watch Prophet Amos teach on fasting and prayer: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Fasting is biblical discipline. Jesus said 'when you fast'. Types: complete, water, Daniel, partial. Purpose: breakthrough, intercession, consecration, repentance. Isaiah 58:6, Matthew 6:16-18, Mark 9:29.",
+  },
+
+  {
+    id: "spiritual_warfare",
+    intent: "spiritual_warfare",
+    keywords: [
+      "spiritual warfare", "spiritual attack", "spiritual battle", "warfare prayer",
+      "demonic attack", "demon", "demons", "deliverance", "oppression", "possession",
+      "bind and loose", "binding", "loosing", "principalities", "powers",
+      "stronghold", "spiritual stronghold", "rebuke", "cast out", "breaking chains",
+      "ancestral curse", "generational curse", "witchcraft", "occult", "dark forces",
+    ],
+    weight: 1.0,
+    response: `**Spiritual Warfare** is a reality that every born-again believer must be equipped to navigate. Jesus Christ Temple Ministry (JCTM) under Prophet Amos Evomobor teaches biblical warfare from a place of authority in Christ — not fear.
+
+## The Reality of Spiritual War:
+
+> *"For we do not wrestle against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this age, against spiritual hosts of wickedness in the heavenly places."* — Ephesians 6:12
+
+**The battle is real, but the victory is already won at the Cross** (Colossians 2:15).
+
+## Your Armour (Ephesians 6:13-18):
+
+🛡️ **Belt of Truth** — Know the Word; lies are the enemy's primary weapon
+🛡️ **Breastplate of Righteousness** — Holy living removes openings for attack
+🛡️ **Gospel of Peace** — Stability in your footing and identity
+🛡️ **Shield of Faith** — Quench every fiery dart; faith is your defence
+🛡️ **Helmet of Salvation** — Guard your mind from doubt and deception
+⚔️ **Sword of the Spirit** — The Word of God is your only offensive weapon
+🙏 **Prayer in the Spirit** — Sustained intercession
+
+## JCTM's Position on Deliverance:
+
+- **Binding and loosing (Matthew 18:18)** operates within the authority of Christ's name and the local church — not as a personal power
+- **Generational/ancestral curses** can be broken through genuine repentance, faith in the blood of Jesus, and walking in righteousness (Galatians 3:13)
+- **Demonic oppression** (attacks from outside) is different from possession — believers can experience oppression; the solution is always prayer, fasting, and standing firm in God's Word
+- **Witchcraft and the occult** must be completely renounced — any involvement opens spiritual doors (Deuteronomy 18:10-12)
+
+⚠️ **Warning:** Prophet Amos cautions against sensationalized "deliverance ministries" that commercialize warfare. True deliverance comes through the Holy Spirit — not through a man's dramatic theatrics.
+
+🙏 **For personal prayer support:** jctm.org.ng/prayer
+📺 **Watch warfare teachings:** **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Spiritual warfare is real. Ephesians 6:12. Armour of God. JCTM teaches binding/loosing within authority of Christ. Generational curses broken by Christ (Galatians 3:13). Warning against sensationalized deliverance. Prayer at jctm.org.ng/prayer.",
+  },
+
+  {
+    id: "salvation_new_birth",
+    intent: "salvation_new_birth",
+    keywords: [
+      "salvation", "saved", "how to be saved", "accept jesus", "born again", "new birth",
+      "eternal life", "sinner's prayer", "how do i get saved", "give my life to christ",
+      "accept christ", "receive jesus", "what must i do to be saved", "plan of salvation",
+      "are you saved", "what is salvation", "gospel", "repent and believe",
+      "the way of salvation", "path to heaven", "how to go to heaven",
+    ],
+    weight: 1.0,
+    response: `**Salvation** — the most important decision any human being will ever make.
+
+Jesus Christ Temple Ministry (JCTM) presents the pure, uncompromised gospel: **salvation is by grace through faith in Jesus Christ alone** (Ephesians 2:8-9). Not through church attendance, good works, financial giving, or religious ritual.
+
+## The Gospel in Four Points:
+
+**1. 🔴 All have sinned** — *"For all have sinned and fall short of the glory of God."* (Romans 3:23). Every person is born with a sin nature that separates them from God.
+
+**2. ⚠️ Sin's wage is death** — *"For the wages of sin is death."* (Romans 6:23a). Not just physical death — but eternal separation from God.
+
+**3. ✝️ Christ paid the price** — *"But God demonstrates His own love toward us, in that while we were still sinners, Christ died for us."* (Romans 5:8). Jesus took your sin, your guilt, and your punishment on the Cross.
+
+**4. 🎁 Receive the free gift** — *"But the gift of God is eternal life in Christ Jesus our Lord."* (Romans 6:23b). Salvation is a gift — you cannot earn it; you can only receive it by faith.
+
+## How to Be Saved — Right Now:
+
+1. **Acknowledge** — that you are a sinner in need of a Saviour
+2. **Believe** — that Jesus Christ died for your sins and rose from the dead (Romans 10:9)
+3. **Confess** — with your mouth that Jesus is Lord (Romans 10:10)
+4. **Repent** — turn away from your old life and surrender to Christ
+5. **Follow** — be baptized, find a doctrinally sound church, and grow in God's Word
+
+You can pray this right now:
+
+> *"Lord Jesus, I confess I am a sinner. I believe You died for my sins and rose again. I receive You as my Lord and Saviour. Forgive me and come into my life. I commit to follow You. Amen."*
+
+If you just prayed that sincerely — welcome to the family of God! 🎉
+
+📩 **Contact JCTM:** info@jctm.org.ng — we'd love to walk with you in your new faith
+📺 **New believer resources:** **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Salvation by grace through faith alone (Ephesians 2:8-9). Romans 3:23, 6:23, 5:8, 10:9-10. Four points: sin, death, Christ paid, receive gift. Sinner's prayer included. Contact info@jctm.org.ng for follow-up.",
+  },
+
+  {
+    id: "repentance_restoration",
+    intent: "repentance_restoration",
+    keywords: [
+      "repentance", "repent", "how to repent", "turn from sin", "backsliding", "backslider",
+      "restoration", "returning to god", "i drifted away", "i left the church",
+      "come back to god", "returning to faith", "rededication", "i sinned",
+      "fallen away", "i strayed", "prodigal", "restore me", "how do i come back",
+    ],
+    weight: 0.95,
+    response: `The call to **repentance** is the heartbeat of the gospel — and it is always accompanied by the open arms of a Father who runs to meet His returning child (Luke 15:20).
+
+Jesus Christ Temple Ministry (JCTM) teaches genuine biblical repentance — not guilt, shame, or religious performance, but a transforming change of heart and direction.
+
+## What Repentance Really Means:
+
+The Greek word is **metanoia** — "a change of mind" that leads to a change of direction. True repentance is not:
+- ❌ Simply feeling sorry (2 Corinthians 7:10 — "the sorrow of the world produces death")
+- ❌ A religious ritual or repeated confession with no change
+- ❌ Self-punishment or prolonged guilt
+
+True repentance IS:
+- ✅ A genuine turning of the heart toward God
+- ✅ Acknowledging specific sin before God with honesty
+- ✅ A decision to change direction — empowered by the Holy Spirit, not willpower alone
+- ✅ Accompanied by the fruit of changed behaviour (Luke 3:8)
+
+## To the Backslider — God Is Calling You Home:
+
+> *"Return, O backsliding children, says the LORD; for I am married to you."* — Jeremiah 3:14
+
+If you have walked away from faith, drifted from God's standard, or abandoned the church — know this: **the door is open**. The Father is not angry — He is watching and waiting (Luke 15:20).
+
+## Steps to Restoration:
+
+1. **Come as you are** — God does not require you to clean yourself up before coming to Him
+2. **Be specific in confession** — name your sin honestly before God (1 John 1:9)
+3. **Receive forgiveness** — *"If we confess our sins, He is faithful and just to forgive us our sins and cleanse us from all unrighteousness"* (1 John 1:9)
+4. **Return to the Word and to a sound church community**
+5. **Don't look back** — Like Lot's wife — keep moving forward (Luke 9:62)
+
+🙏 **Submit a prayer request:** jctm.org.ng/prayer
+📩 **Contact the ministry:** info@jctm.org.ng`,
+    enrichment: "Repentance is metanoia - change of mind leading to change of direction. Not guilt or shame. Backsliders welcomed: Jeremiah 3:14. 1 John 1:9. Luke 15 prodigal son. Steps to restoration. Contact jctm.org.ng/prayer.",
+  },
+
+  {
+    id: "praise_worship",
+    intent: "praise_worship",
+    keywords: [
+      "praise", "worship", "praise and worship", "thanksgiving", "glorify god",
+      "praise god", "worship songs", "hymns", "singing", "how to worship",
+      "spirit of worship", "true worship", "worship in spirit and truth",
+      "praise service", "corporate worship", "adoration", "magnify",
+    ],
+    weight: 0.9,
+    response: `**Praise and Worship** is the highest activity of the human soul — the direct ascent of the redeemed heart into the presence of the Living God.
+
+Jesus Christ Temple Ministry (JCTM) maintains a culture of deep, authentic, scripture-grounded worship — not entertainment, not performance, but genuine encounter with the Holy Spirit.
+
+## What True Worship Means:
+
+> *"God is Spirit, and those who worship Him must worship in spirit and truth."* — John 4:24
+
+**Two pillars of authentic worship:**
+- **In Spirit** — From the heart, prompted by the Holy Spirit, not manufactured emotion
+- **In Truth** — Grounded in the revealed Word of God, not in tradition or personal preference
+
+## Praise vs. Worship:
+
+🎺 **Praise** — Declaring the greatness and acts of God, often with energy and joy (Psalm 150). Praise is the *declaration* of who God is.
+
+🕊️ **Worship** — Intimate adoration of God's person — bowing the heart before His presence. Worship is the *response* to who God is.
+
+## Why Praise Is a Weapon:
+
+2 Chronicles 20 — King Jehoshaphat sent the singers FIRST into battle. God showed up when they began to praise. **Praise is not passive — it is spiritual warfare in its most beautiful form.**
+
+> *"Let the high praises of God be in their mouth, and a two-edged sword in their hand."* — Psalm 149:6
+
+## Practical Encouragement:
+
+- Praise God in private before you praise in public — cultivate an intimate altar
+- Sing the Psalms — they are God's own songbook for His people
+- Thanksgiving is the gateway into deeper worship (Psalm 100:4)
+- Worship should flow from a consecrated life — holiness and worship are inseparable at JCTM
+
+📺 Watch JCTM worship services on Temple TV: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Worship must be in spirit and truth (John 4:24). Praise is declaration; worship is intimate adoration. Praise as warfare (2 Chronicles 20, Psalm 149:6). Psalm 100:4 gateway. Temple TV on YouTube.",
+  },
+
+  {
+    id: "bible_study_method",
+    intent: "bible_study_method",
+    keywords: [
+      "how to study the bible", "bible study", "bible reading", "quiet time",
+      "devotion", "devotional time", "study scripture", "how to read the bible",
+      "bible reading plan", "morning devotion", "daily word", "word for today",
+      "scripture reading", "how do i study", "inductive bible study",
+      "bible study method", "how to understand the bible",
+    ],
+    negativeKeywords: ["scripture inquiry", "what does this verse mean"],
+    weight: 0.9,
+    response: `**Studying God's Word** is the most important discipline in a believer's life — and yet many Christians feel unequipped to do it effectively.
+
+Jesus Christ Temple Ministry (JCTM) teaches believers to approach Scripture not as a textbook to be analyzed, but as a living Word to be received (Hebrews 4:12).
+
+## A Practical Bible Study Framework:
+
+**📖 Step 1: OBSERVATION** — What does it say?
+Read the passage slowly. Read it multiple times. What is actually written? Who is speaking? To whom? What are the key words and phrases?
+
+**🔍 Step 2: INTERPRETATION** — What does it mean?
+- Read in context — never isolate a verse from its surrounding passage
+- Compare Scripture with Scripture — the Bible interprets itself
+- Consider original language (Greek/Hebrew) — tools like Bible Hub or Blue Letter Bible are free online
+- Ask: What did this mean to the original hearers?
+
+**✅ Step 3: APPLICATION** — What should I do?
+This is the most important step. Every passage of Scripture has a corresponding demand on your life. Ask:
+- What does this teach me about God?
+- What does this reveal about my own heart?
+- What specific action or change does this require of me today?
+
+## Prophet Amos's Recommendation for Beginners:
+
+Start with these books in order:
+1. **John** — The Gospel of Christ's identity and mission
+2. **Romans** — The complete theology of salvation
+3. **Acts** — The Holy Spirit-powered early church
+4. **Ephesians** — Your identity and authority in Christ
+5. **Psalms** — The prayer and worship foundation
+
+## Daily Quiet Time Structure:
+
+- 📖 **Read** — One chapter minimum (same passage for 3 days to absorb it)
+- 📝 **Write** — One key verse that stood out and why
+- 🙏 **Pray** — Respond to what you read in prayer
+- 📣 **Declare** — Speak a truth from the passage over your day
+
+*Daily devotions are also available at jctm.org.ng/devotion*
+📺 Sermon series on Scripture: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Three-step Bible study: Observation, Interpretation, Application. Beginner books: John, Romans, Acts, Ephesians, Psalms. Daily quiet time structure. Devotions at jctm.org.ng/devotion. Temple TV YouTube.",
+  },
+
+  {
+    id: "sin_temptation",
+    intent: "sin_temptation",
+    keywords: [
+      "temptation", "sin", "struggling with sin", "overcome sin", "how to stop sinning",
+      "sexual sin", "pornography", "fornication", "addiction", "struggling",
+      "the flesh", "carnal", "worldliness", "lust", "pride", "lying",
+      "habitual sin", "sinful habit", "how do i overcome", "i keep falling",
+    ],
+    weight: 0.95,
+    response: `The struggle with **sin and temptation** is one of the most honest conversations the Bible has — and one of the most urgent for every believer today.
+
+JCTM teaches that overcoming sin is not about willpower — it is about abiding in the life-giving power of the Holy Spirit.
+
+## God's Truth About Temptation:
+
+> *"No temptation has overtaken you except such as is common to man; but God is faithful, who will not allow you to be tempted beyond what you are able, but with the temptation will also make the way of escape."* — 1 Corinthians 10:13
+
+Every temptation has an escape route. Your job is to take it.
+
+## Why Believers Still Struggle:
+
+1. **The flesh is not yet glorified** — Even Paul said: *"I do not do the good I want, but the evil I do not want is what I keep on doing."* (Romans 7:19) — This is the tension of the already-but-not-yet
+2. **Spiritual hunger unfed** — Temptation grows when the soul is not regularly nourished by the Word and prayer
+3. **Wrong environment** — Continued exposure to triggers makes resistance harder (1 Corinthians 15:33)
+4. **No accountability** — God designed believers to live in community, not isolation
+
+## Practical Victory Strategies:
+
+⚔️ **Know your weakness** — Where do you consistently fall? That is where to build your strongest defences
+🏃 **Flee, don't fight** — Joseph didn't argue with Potiphar's wife; he ran (Genesis 39:12). Some temptations require escape, not engagement
+📖 **Saturate your mind with the Word** — *"Your word I have hidden in my heart, that I might not sin against You."* (Psalm 119:11)
+🙏 **Pray immediately** — The moment temptation arises, pray — don't reason with it
+👥 **Get accountable** — Confess your struggles to a trusted, mature believer (James 5:16)
+🔥 **Walk in the Spirit** — *"Walk in the Spirit and you shall not fulfill the lust of the flesh."* (Galatians 5:16)
+
+🙏 Submit a prayer request for breakthrough: jctm.org.ng/prayer`,
+    enrichment: "Overcoming sin and temptation. 1 Corinthians 10:13 - no temptation beyond bearing. Galatians 5:16 - walk in Spirit. Flee, don't engage (Genesis 39:12). Psalm 119:11. James 5:16 accountability. Prayer at jctm.org.ng/prayer.",
+  },
+
+  {
+    id: "marriage_family",
+    intent: "marriage_family",
+    keywords: [
+      "marriage", "husband", "wife", "spouse", "married", "wedding",
+      "christian marriage", "family", "children", "parenting", "raising children",
+      "divorce", "separation", "marital problems", "my marriage",
+      "relationship", "dating", "courtship", "premarital", "covenant marriage",
+      "single", "finding a spouse", "should i get married",
+    ],
+    weight: 0.9,
+    response: `**Marriage and Family** stand at the centre of God's design for human flourishing — and JCTM teaches on these topics with both scriptural authority and pastoral sensitivity.
+
+## God's Design for Marriage:
+
+> *"Therefore a man shall leave his father and mother and be joined to his wife, and they shall become one flesh."* — Genesis 2:24
+
+Marriage is:
+- 🔗 **A covenant, not a contract** — covenants are broken only by death or immorality (Matthew 19:6)
+- 🪞 **A reflection of Christ and the Church** — Ephesians 5:22-33 is the blueprint
+- 🏠 **The foundational institution of society** — when the family collapses, society follows
+
+## Biblical Roles in Marriage:
+
+**Husbands:** Love sacrificially as Christ loved the Church — with servant leadership, not domination (Ephesians 5:25). Provide, protect, and nourish.
+
+**Wives:** Respectful submission — not subjugation or inferiority — as a voluntary honouring of God's ordained order (Ephesians 5:22). This is strength, not weakness.
+
+## On Divorce:
+
+JCTM acknowledges the two grounds Jesus gave for divorce: sexual immorality (Matthew 19:9) and abandonment by an unbelieving spouse (1 Corinthians 7:15). Outside these, JCTM calls believers to pursue reconciliation, counselling, and prayer. God's goal is always restoration.
+
+## On Dating & Courtship:
+
+- Pursue **purity** — sexual intimacy belongs within the covenant of marriage (1 Thessalonians 4:3-5)
+- **Character above chemistry** — choose a spouse based on godliness, not just attraction
+- Seek **spiritual compatibility** — *"Do not be unequally yoked with unbelievers"* (2 Corinthians 6:14)
+
+## For Families with Children:
+
+- Train children in the Word from childhood (Deuteronomy 6:6-7, Proverbs 22:6)
+- Discipline in love — not harshness, not permissiveness (Proverbs 13:24)
+- Pray together as a family daily — establish an altar in your home
+
+📩 For counselling: contact the ministry at info@jctm.org.ng`,
+    enrichment: "Marriage is covenant (Genesis 2:24). Ephesians 5 blueprint. Husbands: sacrificial love. Wives: respectful submission. Divorce: Matthew 19:9, 1 Corinthians 7:15. Courtship: purity and equal yoke (2 Cor 6:14). Family altar. Contact info@jctm.org.ng.",
+  },
+
+  {
+    id: "healing_miracles",
+    intent: "healing_miracles",
+    keywords: [
+      "healing", "miracle", "divine healing", "sick", "sickness", "disease",
+      "believe for healing", "is healing in the atonement", "by his stripes",
+      "can god heal me", "divine health", "i am sick", "pray for healing",
+      "medical healing", "faith and healing", "healings in the bible",
+      "does god still heal", "pray for my health",
+    ],
+    weight: 0.95,
+    response: `**Divine Healing** is a reality attested throughout the entire Bible — and Jesus Christ Temple Ministry (JCTM) stands on the firm biblical foundation that God is still a Healer today.
+
+> *"But He was wounded for our transgressions, He was bruised for our iniquities; the chastisement for our peace was upon Him, and by His stripes we are healed."* — Isaiah 53:5
+
+## What JCTM Teaches on Healing:
+
+**✅ God heals — because it is His nature:**
+- Jehovah Rapha — *"I am the LORD who heals you"* (Exodus 15:26)
+- Jesus healed ALL who came to Him during His earthly ministry (Matthew 4:23-24)
+- *"Jesus Christ is the same yesterday, today, and forever"* (Hebrews 13:8) — His healing power is unchanged
+
+**✅ Healing is in the atonement:**
+Isaiah 53:5 places healing alongside forgiveness in the same verse. Matthew 8:16-17 quotes this as Jesus healed the sick — confirming healing belongs in God's redemptive package.
+
+## JCTM's Balanced Position:
+
+⚠️ **Important:** JCTM does NOT teach the "healing is always guaranteed NOW" position of the prosperity gospel — which leads to false hope and spiritual abuse of the sick.
+
+**What we DO teach:**
+- Healing is God's *will* and *ability* — always
+- Timing and manifestation may vary — God is sovereign
+- **Pray in faith, receive medical care if needed — both are gifts of God's provision**
+- Persistent, faith-filled prayer for healing is always right (James 5:14-16)
+- If healing does not come immediately, trust God's deeper purpose (2 Corinthians 12:9 — Paul's thorn)
+
+## What to Do When Sick:
+
+1. 🙏 Pray and anoint with oil — call for the elders of the church (James 5:14)
+2. 📖 Stand on the healing scriptures — Isaiah 53:5, Psalm 103:3, Mark 16:18
+3. 💊 Use available medicine — Luke the physician was Paul's companion (Colossians 4:14)
+4. 🤝 Seek intercession — submit a prayer request at jctm.org.ng/prayer
+5. ✝️ Trust God's sovereignty — healing is His will; He alone determines the *when*
+
+📺 Healing teaching series: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Divine healing is biblical. Isaiah 53:5, Hebrews 13:8, Matthew 4:23-24. God is Jehovah Rapha. JCTM: balanced position - not prosperity gospel's 'guaranteed now'. James 5:14-16, prayer and medicine both valid. Prayer at jctm.org.ng/prayer.",
+  },
+
+  {
+    id: "new_believer",
+    intent: "new_believer",
+    keywords: [
+      "new christian", "new believer", "just got saved", "just became a christian",
+      "new to faith", "just accepted jesus", "recently saved", "first steps",
+      "what do i do now", "i just gave my life", "i am a new convert",
+      "baby christian", "beginning my faith", "how to start", "where do i begin",
+      "just rededicated", "fresh start with god",
+    ],
+    weight: 1.0,
+    response: `Welcome to the family of God! 🎉
+
+This is the greatest decision you have ever made, and Jesus Christ Temple Ministry (JCTM) wants to walk with you as you begin this incredible journey.
+
+## Your First Steps as a New Believer:
+
+### 1. 📖 Get Into God's Word — Daily
+The Bible is your spiritual food. Without it, your faith will not grow.
+- Start with the Gospel of **John** — it reveals who Jesus is
+- Then read **Acts** — how the early church lived and moved in the Spirit
+- Read at least one chapter every day
+
+### 2. 💧 Get Baptized
+Water baptism is your first public act of obedience. Jesus commanded it (Matthew 28:19) and modelled it (Matthew 3:16). It is your declaration to the world that you have died to your old life and risen with Christ (Romans 6:3-4).
+
+**Contact JCTM to arrange baptism:** info@jctm.org.ng
+
+### 3. 🙏 Develop a Daily Prayer Life
+Talk to God every day — in the morning before the world gets loud. Prayer is simply honest conversation with your Father. Start with 10-15 minutes daily.
+
+### 4. ⛪ Connect With a Doctrinally Sound Church
+Do not try to grow alone. God places His people in the Body of Christ for a reason. At JCTM, you are welcome at our Ebrumede Temple (Warri) or at any of our viewing centres.
+
+### 5. 🔥 Pursue the Baptism of the Holy Spirit
+This is the supernatural empowerment for your Christian life (Acts 1:8). Pray and ask God to fill you with His Spirit (Luke 11:13).
+
+### 6. 🚫 Guard What You Take In
+Your mind is the battlefield. What you feed your eyes, ears, and heart shapes your faith. Be selective with media, friendships, and environments.
+
+### 7. 📝 Get Accountability
+Find a mature believer who can walk alongside you, answer your questions, and pray with you.
+
+📩 **Contact JCTM for new believer support:** info@jctm.org.ng
+📺 **New believer playlist:** **YouTube @TEMPLETVJCTM**`,
+    enrichment: "New believer first steps: Read Bible (start with John), get baptized, daily prayer, join a doctrinally sound church, pursue Holy Spirit baptism, guard your mind, find accountability. Contact info@jctm.org.ng. Temple TV YouTube.",
+  },
+
+  {
+    id: "testimony_sharing",
+    intent: "testimony_sharing",
+    keywords: [
+      "testimony", "testimonies", "share a testimony", "my testimony", "what god did",
+      "miracle story", "god healed me", "god saved me", "i want to share",
+      "god provided", "answered prayer", "prayer was answered", "breakthrough testimony",
+      "god showed up", "my experience", "what happened to me",
+    ],
+    weight: 0.85,
+    response: `**Testimonies** are one of the most powerful weapons in the believer's arsenal — Revelation 12:11 tells us that the saints overcame the enemy *"by the blood of the Lamb and by the word of their testimony."*
+
+When you share what God has done for you, you are not simply telling a story — you are releasing a weapon into the spiritual atmosphere that can unlock someone else's breakthrough.
+
+## Why Your Testimony Matters:
+
+- 🛡️ **It defeats the enemy** — the enemy cannot argue with your personal experience (Revelation 12:11)
+- 🌟 **It builds faith in others** — Romans 10:17 — faith comes by hearing
+- 🙏 **It glorifies God** — the purpose of every testimony is not to magnify the person, but to magnify God
+- 📣 **It is evangelism** — a clear testimony of salvation, healing, or breakthrough is one of the most effective ways to share the gospel
+
+## Submit Your Testimony to JCTM:
+
+We welcome testimonies of:
+- 🙌 Salvation — coming to Christ
+- 💊 Healing — physical restoration
+- 🏠 Provision — God's supernatural supply
+- 🔓 Deliverance — freedom from bondage
+- 🙏 Answered prayer — God responding specifically to what you prayed
+
+**Submit at:** jctm.org.ng/testimonies
+
+Your story might be the turning point for someone who is struggling today. Do not keep it to yourself.
+
+> *"They overcame him by the blood of the Lamb and by the word of their testimony."* — Revelation 12:11
+
+📺 Watch community testimonies and service recordings: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Testimonies are spiritual weapons (Revelation 12:11). Builds faith, glorifies God, evangelism. Submit testimonies at jctm.org.ng/testimonies. Categories: salvation, healing, provision, deliverance, answered prayer.",
+  },
 ];
 
 // ─── Emotional Signal Detection ───────────────────────────────────────────────
@@ -674,10 +1228,10 @@ export async function* streamLocalResponse(
 // ─── Engine metadata ─────────────────────────────────────────────────────────
 
 export const ENGINE_METADATA = {
-  version: "1.0.0",
+  version: "2.0.0",
   knowledgeEntries: KNOWLEDGE_INDEX.length,
   confidenceThreshold: CONFIDENCE_THRESHOLD,
   escalationThreshold: ESCALATION_THRESHOLD,
   intentsSupported: [...new Set(KNOWLEDGE_INDEX.map(e => e.intent))],
-  description: "JCTM Local AI Engine — custom first-principles inference for TempleBots",
+  description: "JCTM Local AI Engine v2 — 32 intents, activity learning, sermon RAG, fully local",
 };

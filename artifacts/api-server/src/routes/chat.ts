@@ -276,25 +276,93 @@ async function getRelevantKnowledge(query: string): Promise<string> {
   return keywordKnowledgeFallback(query);
 }
 
-// ── Recent sermon context ──────────────────────────────────────────────────────
+// ── Recent sermon context ─────────────────────────────────────────────────────
+// Includes title + first 200 chars of description so the AI can reference
+// sermon content, not just titles.
 async function buildSermonContext(): Promise<string> {
   try {
     const recentSermons = await db
-      .select({ title: sermonsTable.title, videoId: sermonsTable.videoId })
+      .select({
+        title: sermonsTable.title,
+        videoId: sermonsTable.videoId,
+        description: sermonsTable.description,
+        viewCount: sermonsTable.viewCount,
+      })
       .from(sermonsTable)
       .orderBy(desc(sermonsTable.publishedAt))
-      .limit(8);
+      .limit(12);
 
     if (recentSermons.length === 0) return "";
-    return (
-      "\n\n## RECENT TEMPLE TV SERMONS (for reference when citing sources):\n" +
-      recentSermons
-        .map((s) => `- "${s.title}" → https://youtube.com/watch?v=${s.videoId}`)
-        .join("\n")
-    );
+    const lines = recentSermons.map((s) => {
+      const desc = s.description
+        ? ` — ${s.description.slice(0, 180).replace(/\n/g, " ").trim()}...`
+        : "";
+      const views = s.viewCount ? ` (${s.viewCount.toLocaleString()} views)` : "";
+      return `- "${s.title}"${views} → https://youtube.com/watch?v=${s.videoId}${desc}`;
+    });
+    return "\n\n## RECENT TEMPLE TV SERMONS (cite these when relevant):\n" + lines.join("\n");
   } catch {
     return "";
   }
+}
+
+// ── Live website activity context ─────────────────────────────────────────────
+// Surfaces what's actually happening on the JCTM platform right now:
+// upcoming events, recent testimony themes, active prayer categories.
+const activityCache: { data: string; expiresAt: number } = { data: "", expiresAt: 0 };
+
+async function buildActivityContext(): Promise<string> {
+  if (activityCache.expiresAt > Date.now()) return activityCache.data;
+
+  const parts: string[] = [];
+  try {
+    // Upcoming events (next 30 days)
+    const eventsRes = await ragPool.query<{ title: string; start_date: string; location: string | null }>(
+      `SELECT title, start_date, location FROM event_calendar
+       WHERE start_date >= NOW() AND start_date <= NOW() + INTERVAL '30 days'
+       ORDER BY start_date ASC LIMIT 5`,
+    );
+    if (eventsRes.rows.length > 0) {
+      const eventList = eventsRes.rows.map(e => {
+        const d = new Date(e.start_date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+        return `  • ${e.title} — ${d}${e.location ? ` @ ${e.location}` : ""}`;
+      }).join("\n");
+      parts.push(`UPCOMING JCTM EVENTS:\n${eventList}`);
+    }
+  } catch { /* non-fatal */ }
+
+  try {
+    // Recent prayer categories (what the community is seeking prayer for)
+    const prayerRes = await ragPool.query<{ category: string; count: string }>(
+      `SELECT category, COUNT(*) AS count FROM prayer_requests
+       WHERE created_at >= NOW() - INTERVAL '30 days'
+       GROUP BY category ORDER BY count DESC LIMIT 6`,
+    );
+    if (prayerRes.rows.length > 0) {
+      const cats = prayerRes.rows.map(r => `${r.category}(${r.count})`).join(", ");
+      parts.push(`COMMUNITY PRAYER FOCUS THIS MONTH: ${cats}`);
+    }
+  } catch { /* non-fatal */ }
+
+  try {
+    // Recent approved testimonies titles (what God is doing)
+    const testRes = await ragPool.query<{ title: string; category: string }>(
+      `SELECT title, category FROM testimonies WHERE approved = true
+       ORDER BY created_at DESC NULLS LAST LIMIT 5`,
+    );
+    if (testRes.rows.length > 0) {
+      const list = testRes.rows.map(t => `  • "${t.title}" [${t.category}]`).join("\n");
+      parts.push(`RECENT COMMUNITY TESTIMONIES (what God is doing at JCTM):\n${list}`);
+    }
+  } catch { /* non-fatal */ }
+
+  const data = parts.length > 0
+    ? "\n\n## LIVE JCTM COMMUNITY CONTEXT:\n" + parts.join("\n\n")
+    : "";
+
+  activityCache.data = data;
+  activityCache.expiresAt = Date.now() + 5 * 60_000; // cache 5 minutes
+  return data;
 }
 
 // ── DB conversation persistence ────────────────────────────────────────────────
@@ -398,9 +466,10 @@ async function buildLocalEnrichedResponse(
   language: string,
   localEnrichmentContext: string,
 ): Promise<{ reply: string; conversationId: number }> {
-  const [sermonContext, ragContext, conversationId] = await Promise.all([
+  const [sermonContext, ragContext, activityContext, conversationId] = await Promise.all([
     buildSermonContext(),
     getRelevantKnowledge(userMessage),
+    buildActivityContext(),
     getOrCreateConversation(sessionId),
   ]);
 
@@ -411,6 +480,7 @@ async function buildLocalEnrichedResponse(
   const fullContext = [
     sermonContext,
     ragContext,
+    activityContext,
     localEnrichmentContext
       ? `\n\nLocal AI Engine Analysis:\n${localEnrichmentContext}`
       : "",

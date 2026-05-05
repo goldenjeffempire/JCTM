@@ -8,30 +8,43 @@ The JCTM Digital Sanctuary is a full-stack pnpm monorepo serving as the comprehe
 
 I want iterative development and detailed explanations of changes.
 
-## AI Architecture — Zero External API (Local-First)
+## AI Architecture — Zero External API (Local-First) v2
 
 **All AI features run locally — no OpenAI dependency.**
 
-As of this upgrade, all GPT-4o and external AI calls have been removed and replaced with a tiered local AI system:
+All GPT-4o and external AI calls removed. Replaced with a tiered local AI system, now at v2 with 32 intents and automatic learning.
 
 | Tier | Engine | Latency | Scope |
 |------|--------|---------|-------|
-| 1 | Local AI Engine (pattern matching + TF-IDF) | <1ms | High-confidence ministry queries |
-| 2 | RAG (pgvector + local embeddings) | 10-50ms | Sermon & knowledge base context |
-| 3 | Local Template Generation (JCTM knowledge base) | 1-5ms | Complex theological / emotional queries |
+| 1 | Local AI Engine (pattern matching, 32 intents) | <1ms | High-confidence ministry queries |
+| 2 | RAG (pgvector + local TF-IDF embeddings, 6 chunks) | 10-50ms | Sermon & knowledge base context |
+| 3 | Local Template Generation + Activity Context | 1-5ms | Complex theological / emotional queries |
 
 ### Local AI Modules (all in `artifacts/api-server/src/lib/`)
 
 | File | Purpose |
 |------|---------|
-| `local-ai-engine.ts` | Core pattern-matching inference engine with 200+ intents |
+| `local-ai-engine.ts` | Core pattern-matching inference engine — **32 intents** (v2.0.0), 700+ keyword patterns |
+| `local-ai-enhancer.ts` | In-house enhancer v2 — handles all 32 intents, RAG injection, activity-aware context, compact response builders |
 | `local-text-generation.ts` | 365+ devotion pool, scripture study, spiritual insight templates, TempleBots responses |
 | `local-content-intelligence.ts` | TF-IDF tagging, extractive sermon summarization, blog templates, categorization |
 | `local-embeddings.ts` | Local embedding generation (TF-IDF hash 384-dim, with @xenova/transformers as optional accelerator) |
-| `local-moderation.ts` | Rule-based content moderation, spam detection, behavioral anomaly detection — wired into testimonies, prayer, comments |
-| `analytics-ai.ts` | Engagement prediction, content performance forecasting, optimal notification timing — available at `/api/admin/analytics` |
-| `local-ai-enhancer.ts` | In-house AI enhanced response engine — Tier 3 fallback with RAG context injection, scripture study, spiritual insight routing |
+| `local-moderation.ts` | Rule-based content moderation, spam detection, behavioral anomaly detection |
+| `analytics-ai.ts` | Engagement prediction, content performance forecasting, optimal notification timing |
 | `platform-monitor.ts` | Comprehensive platform health monitoring for all subsystems |
+| `knowledge-ingestion.ts` | **v2.1** — Version-stamped static ingestion (18 JCTM docs) + `ingestAllSermons()` (up to 200 sermons) + `ingestActivityLearning()` (prayer themes, testimonies, blog posts, events, popular questions) |
+
+### AI Learning Pipeline
+
+- **Startup** (90-second delayed): `ingestAllSermons` + `ingestActivityLearning` run automatically
+- **After daily full sync** (24h): Same two functions re-run so AI stays current with new YouTube content
+- **Activity context** (5-min cache): `buildActivityContext()` in `chat.ts` fetches upcoming events, prayer categories, recent testimonies and injects them into every chat response
+
+### 32 Supported Intents (v2.0.0)
+
+Original 20: `ministry_overview`, `prophet_amos`, `correction_mandate`, `primitive_christianity`, `holiness_doctrine`, `water_baptism`, `holy_spirit_baptism`, `five_fold_ministry`, `giving_tithing`, `temple_tv`, `contact_location`, `service_times`, `warri_crusade`, `prayer_support`, `sermon_library`, `emotional_distress`, `scripture_inquiry`, `join_membership`, `viewing_centres`, `general_greeting`
+
+New 12: `end_times`, `fasting_prayer`, `spiritual_warfare`, `salvation_new_birth`, `repentance_restoration`, `praise_worship`, `bible_study_method`, `sin_temptation`, `marriage_family`, `healing_miracles`, `new_believer`, `testimony_sharing`
 
 ### Routes — Local AI Only
 
