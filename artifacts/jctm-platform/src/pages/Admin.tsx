@@ -11,6 +11,7 @@ import {
   TrendingUp, Globe, Monitor, Smartphone, Tablet, Signal,
   Megaphone, MapPin, Save, Plus, Edit3, Mail,
   Bot, Database, Cpu, Server, Layers,
+  DollarSign, ExternalLink, Info, Hash, CircleDot,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -84,7 +85,7 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "credentials";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -96,6 +97,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }
   { id: "platform",     label: "Platform",     icon: <BarChart3 className="w-4 h-4" /> },
   { id: "analytics",    label: "Analytics",    icon: <TrendingUp className="w-4 h-4" /> },
   { id: "ai",           label: "AI Engine",    icon: <Bot className="w-4 h-4" /> },
+  { id: "ads",          label: "AdSense",      icon: <DollarSign className="w-4 h-4" /> },
   { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
 ];
 
@@ -5176,6 +5178,387 @@ function StatusDot({ status }: { status: string }) {
   return <span className={`inline-block w-2 h-2 rounded-full ${color}`} />;
 }
 
+// ─── AdSense Diagnostics ──────────────────────────────────────────────────────
+
+interface AdSenseConfig {
+  publisherId: string;
+  isHardcodedFallback: boolean;
+  envKeyUsed: string;
+  publisherValid: boolean;
+  enableFlag: boolean;
+  slots: { name: string; envKey: string; slotId: string | null; configured: boolean }[];
+  configuredSlots: number;
+  totalSlots: number;
+  adsTxt: { status: "ok" | "missing" | "wrong" | "error"; content: string | null };
+  checkedAt: string;
+}
+
+interface AdSenseRuntime {
+  scriptLoaded: boolean;
+  adsboogleQueueLength: number;
+  slotsInDOM: number;
+  slotsFilled: number;
+  consent: { essential: true; analytics: boolean; advertising: boolean } | null;
+  measuredAt: string;
+}
+
+function AdSenseDiagnosticsSection({ auth }: { auth: AdminAuth }) {
+  const { data: config, isLoading, refetch, isRefetching } = useQuery<AdSenseConfig>({
+    queryKey: ["admin-adsense-diagnostics"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/adsense-diagnostics`, {
+        headers: { Authorization: `Bearer ${auth.adminToken}` },
+      });
+      if (!r.ok) throw new Error("Failed to load AdSense diagnostics");
+      return r.json();
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    enabled: !!auth.adminToken,
+  });
+
+  const [runtime, setRuntime] = useState<AdSenseRuntime | null>(null);
+
+  useEffect(() => {
+    function measure() {
+      const insEls = document.querySelectorAll("ins.adsbygoogle");
+      const filled = Array.from(insEls).filter(
+        el => el.getAttribute("data-adsbygoogle-status") === "done"
+      ).length;
+      const scriptLoaded = Boolean(
+        document.querySelector('script[src*="pagead2.googlesyndication.com"]')
+      );
+      const queue = (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle;
+      const queueLen = Array.isArray(queue) ? queue.length : -1;
+      let consent = null;
+      try {
+        const raw = localStorage.getItem("jctm_cookie_consent_v2");
+        consent = raw ? JSON.parse(raw) : null;
+      } catch { /* ignore */ }
+      setRuntime({
+        scriptLoaded,
+        adsboogleQueueLength: queueLen,
+        slotsInDOM: insEls.length,
+        slotsFilled: filled,
+        consent,
+        measuredAt: new Date().toISOString(),
+      });
+    }
+    measure();
+    const id = setInterval(measure, 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const fmtSlotName = (n: string) =>
+    n.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase());
+
+  const adsTxtColors: Record<string, string> = {
+    ok:      "text-emerald-400 border-emerald-500/30 bg-emerald-500/8",
+    missing: "text-amber-400 border-amber-500/30 bg-amber-500/8",
+    wrong:   "text-red-400 border-red-500/30 bg-red-500/8",
+    error:   "text-zinc-400 border-zinc-500/30 bg-zinc-500/8",
+  };
+  const adsTxtIcon: Record<string, React.ReactNode> = {
+    ok:      <CheckCircle className="w-4 h-4 text-emerald-400" />,
+    missing: <AlertCircle className="w-4 h-4 text-amber-400" />,
+    wrong:   <AlertCircle className="w-4 h-4 text-red-400" />,
+    error:   <Info className="w-4 h-4 text-zinc-400" />,
+  };
+  const adsTxtMsg: Record<string, string> = {
+    ok:      "ads.txt present and publisher ID matches",
+    missing: "ads.txt not found in the build output",
+    wrong:   "ads.txt exists but publisher ID does not match",
+    error:   "Could not read ads.txt",
+  };
+
+  return (
+    <AdminLoginGate role="sermon" auth={auth} title="AdSense Diagnostics">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            title="AdSense Diagnostics"
+            description="Server-side config + live browser runtime — 10s auto-refresh"
+          />
+          <button
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+
+        {isLoading && (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-8 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading diagnostics…
+          </div>
+        )}
+
+        {config && (
+          <>
+            {/* ── Top metric cards ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <MetricCard
+                label="Publisher ID"
+                value={config.publisherValid ? "Valid" : "Invalid"}
+                icon={<CheckCircle className={`w-4 h-4 ${config.publisherValid ? "text-emerald-400" : "text-red-400"}`} />}
+              />
+              <MetricCard
+                label="Slots Configured"
+                value={`${config.configuredSlots} / ${config.totalSlots}`}
+                icon={<Hash className="w-4 h-4" />}
+              />
+              <MetricCard
+                label="Script Loaded"
+                value={runtime ? (runtime.scriptLoaded ? "Yes" : "No") : "…"}
+                icon={<CircleDot className={`w-4 h-4 ${runtime?.scriptLoaded ? "text-emerald-400" : "text-amber-400"}`} />}
+              />
+              <MetricCard
+                label="Slots Filled"
+                value={runtime ? `${runtime.slotsFilled} / ${runtime.slotsInDOM}` : "…"}
+                icon={<DollarSign className="w-4 h-4" />}
+              />
+            </div>
+
+            {/* ── Publisher Setup Card ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-amber-400" /> Publisher Configuration
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-border/40">
+                  <span className="text-xs text-muted-foreground">Publisher ID</span>
+                  <span className="font-mono text-xs text-foreground flex items-center gap-2">
+                    {config.publisherId}
+                    {config.publisherValid
+                      ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      : <AlertCircle className="w-3.5 h-3.5 text-red-400" />}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-border/40">
+                  <span className="text-xs text-muted-foreground">Source</span>
+                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${
+                    config.isHardcodedFallback
+                      ? "text-amber-400 border-amber-500/30 bg-amber-500/8"
+                      : "text-emerald-400 border-emerald-500/30 bg-emerald-500/8"
+                  }`}>
+                    {config.isHardcodedFallback ? "hardcoded fallback" : config.envKeyUsed}
+                  </span>
+                </div>
+                {config.isHardcodedFallback && (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex gap-2 text-xs text-amber-300">
+                    <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Set <code className="font-mono bg-amber-500/10 px-1 rounded">VITE_ADSENSE_CLIENT_ID</code> as a build-time env var to avoid relying on the hardcoded fallback.
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2 border-b border-border/40">
+                  <span className="text-xs text-muted-foreground">VITE_ADSENSE_ENABLE flag</span>
+                  <span className={`text-xs font-semibold ${config.enableFlag ? "text-emerald-400" : "text-amber-400"}`}>
+                    {config.enableFlag ? "true (set)" : "not set — relies on import.meta.env.PROD"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs text-muted-foreground">AdSense account</span>
+                  <a
+                    href={`https://www.google.com/adsense/new/u/0/pub-${config.publisherId.replace("ca-pub-", "")}/home`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-accent hover:text-accent/80 flex items-center gap-1 transition-colors"
+                  >
+                    Open AdSense Console <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </Card>
+
+            {/* ── ads.txt Status ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-400" /> ads.txt Verification
+              </h3>
+              <div className={`rounded-xl border p-3.5 flex items-start gap-3 ${adsTxtColors[config.adsTxt.status]}`}>
+                {adsTxtIcon[config.adsTxt.status]}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">{adsTxtMsg[config.adsTxt.status]}</p>
+                  {config.adsTxt.content && (
+                    <pre className="mt-2 text-[11px] font-mono opacity-75 whitespace-pre-wrap break-all">
+                      {config.adsTxt.content.trim()}
+                    </pre>
+                  )}
+                  {config.adsTxt.status === "missing" && (
+                    <p className="text-xs mt-1 opacity-80">
+                      ads.txt is generated by <code className="font-mono">scripts/write-ads-txt.mjs</code> during the Vite build. Run a production build to regenerate it.
+                    </p>
+                  )}
+                </div>
+                <a
+                  href="/ads.txt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity shrink-0"
+                >
+                  View <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </Card>
+
+            {/* ── Browser Runtime ── */}
+            {runtime && (
+              <Card>
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-violet-400" /> Live Browser Runtime
+                  <span className="ml-auto text-[10px] font-normal text-muted-foreground/60">
+                    Measured at {new Date(runtime.measuredAt).toLocaleTimeString()} · refreshes every 10s
+                  </span>
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {/* Script loaded */}
+                  <div className={`rounded-xl border p-3.5 ${runtime.scriptLoaded ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">AdSense Script</p>
+                    <p className={`text-base font-bold ${runtime.scriptLoaded ? "text-emerald-400" : "text-amber-400"}`}>
+                      {runtime.scriptLoaded ? "Loaded" : "Not found"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      {runtime.scriptLoaded ? "pagead2.googlesyndication.com detected in DOM" : "Script tag missing — may not have been injected yet"}
+                    </p>
+                  </div>
+
+                  {/* adsbygoogle queue */}
+                  <div className="rounded-xl border border-border/50 bg-muted/10 p-3.5">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Push Queue Length</p>
+                    <p className="text-base font-bold text-foreground">
+                      {runtime.adsboogleQueueLength === -1 ? "N/A" : runtime.adsboogleQueueLength}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      window.adsbygoogle.length — total pushes sent to Google
+                    </p>
+                  </div>
+
+                  {/* Slots in DOM */}
+                  <div className="rounded-xl border border-border/50 bg-muted/10 p-3.5">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">ins.adsbygoogle in DOM</p>
+                    <p className="text-base font-bold text-foreground">{runtime.slotsInDOM}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      {runtime.slotsFilled > 0
+                        ? `${runtime.slotsFilled} filled (data-adsbygoogle-status="done")`
+                        : runtime.slotsInDOM === 0
+                          ? "No ad slots rendered on current page"
+                          : "Pending fill from Google"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Consent state */}
+                <div className="mt-4 rounded-xl border border-border/50 bg-muted/10 p-4">
+                  <p className="text-xs font-semibold mb-3 flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-blue-400" /> Consent State (localStorage)
+                  </p>
+                  {runtime.consent === null ? (
+                    <div className="flex items-center gap-2 text-xs text-amber-400">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        No consent decision saved yet. This visitor will see the cookie banner. Ads render immediately (non-personalized) via Consent Mode v2 — personalized ads require "Accept All".
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: "Essential", value: true },
+                        { label: "Analytics", value: runtime.consent.analytics },
+                        { label: "Advertising", value: runtime.consent.advertising },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex items-center gap-2">
+                          {value
+                            ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            : <X className="w-3.5 h-3.5 text-red-400 shrink-0" />}
+                          <span className="text-xs text-foreground">{label}</span>
+                          <span className={`ml-auto text-[10px] font-bold ${value ? "text-emerald-400" : "text-red-400"}`}>
+                            {value ? "granted" : "denied"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* ── Slot Registry ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                <Hash className="w-4 h-4 text-primary" /> Ad Slot Registry
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  {config.configuredSlots}/{config.totalSlots} configured
+                </span>
+              </h3>
+              <div className="divide-y divide-border/30">
+                {config.slots.map(slot => (
+                  <div key={slot.name} className="flex items-center justify-between py-2.5 gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {slot.configured
+                        ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        : <AlertCircle className="w-3.5 h-3.5 text-amber-400/60 shrink-0" />}
+                      <span className="text-xs text-foreground">{fmtSlotName(slot.name)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {slot.slotId ? (
+                        <span className="font-mono text-[11px] text-emerald-400">{slot.slotId}</span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/50 italic">not set</span>
+                      )}
+                      <span className="text-[10px] font-mono text-muted-foreground/40 hidden sm:block">
+                        {slot.envKey}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {config.configuredSlots < config.totalSlots && (
+                <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex gap-2 text-xs text-amber-300">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    {config.totalSlots - config.configuredSlots} slot(s) have no slot ID. Set the corresponding{" "}
+                    <code className="font-mono bg-amber-500/10 px-1 rounded">VITE_ADSENSE_SLOT_*</code> env vars in the Replit Secrets panel, then trigger a production build.
+                  </span>
+                </div>
+              )}
+            </Card>
+
+            {/* ── Consent Mode Config ── */}
+            <Card>
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-blue-400" /> Google Consent Mode v2
+              </h3>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Default signals set to <code className="font-mono bg-muted px-1 rounded">denied</code> in <code className="font-mono bg-muted px-1 rounded">index.html</code> before any scripts load.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span><code className="font-mono bg-muted px-1 rounded">wait_for_update: 2000</code> — Google waits 2 seconds for a consent signal before deciding ad type (personalized vs non-personalized).</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Ad slots render immediately for all visitors. Personalization requires explicit acceptance via the cookie banner.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Consent update signals fire via <code className="font-mono bg-muted px-1 rounded">gtag("consent","update",…)</code> in <code className="font-mono bg-muted px-1 rounded">CookieConsent.tsx</code>.</span>
+                </div>
+              </div>
+            </Card>
+          </>
+        )}
+      </div>
+    </AdminLoginGate>
+  );
+}
+
 function AIDashboardSection({ auth }: { auth: AdminAuth }) {
   const { data, isLoading, refetch, isRefetching } = useQuery<AIDashboardData>({
     queryKey: ["admin-ai-dashboard"],
@@ -5659,6 +6042,7 @@ export default function Admin() {
               {section === "platform"    && <PlatformSection auth={sermonAuth} />}
               {section === "analytics"   && <AnalyticsDashboardSection auth={sermonAuth} />}
               {section === "ai"          && <AIDashboardSection auth={sermonAuth} />}
+              {section === "ads"         && <AdSenseDiagnosticsSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
             </motion.div>
           </AnimatePresence>

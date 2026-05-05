@@ -1306,4 +1306,94 @@ router.get(
   }
 );
 
+// ─── GET /api/admin/adsense-diagnostics ────────────────────────────────────────
+// Returns server-side AdSense configuration: publisher ID, slot env vars,
+// ads.txt content, and feature flag status. Client-side runtime state
+// (consent, DOM fill status) is checked directly in the browser.
+router.get(
+  "/admin/adsense-diagnostics",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (_req: Request, res: Response): Promise<void> => {
+    const PUBLISHER_ID_FALLBACK = "ca-pub-6817509745706083";
+    const rawClientId = (
+      process.env.VITE_ADSENSE_CLIENT_ID ??
+      process.env.VITE_GOOGLE_ADSENSE_CLIENT ??
+      ""
+    ).trim();
+
+    const publisherIdFromEnv = rawClientId
+      ? rawClientId.startsWith("ca-pub-") ? rawClientId : `ca-pub-${rawClientId}`
+      : null;
+    const publisherId = publisherIdFromEnv ?? PUBLISHER_ID_FALLBACK;
+    const isHardcodedFallback = !publisherIdFromEnv;
+
+    const SLOT_ENV_KEYS: Record<string, string> = {
+      homeHero:        "VITE_ADSENSE_SLOT_HOME_HERO",
+      homeMid:         "VITE_ADSENSE_SLOT_HOME_MID",
+      sermonFeed:      "VITE_ADSENSE_SLOT_SERMON_FEED",
+      sermonSidebar:   "VITE_ADSENSE_SLOT_SERMON_SIDEBAR",
+      liveBelowPlayer: "VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER",
+      introFeed:       "VITE_ADSENSE_SLOT_INTRO_FEED",
+      blogFeed:        "VITE_ADSENSE_SLOT_BLOG_FEED",
+      blogPost:        "VITE_ADSENSE_SLOT_BLOG_POST",
+      prayerPage:      "VITE_ADSENSE_SLOT_PRAYER",
+      eventsPage:      "VITE_ADSENSE_SLOT_EVENTS",
+      aboutPage:       "VITE_ADSENSE_SLOT_ABOUT",
+      testimoniesPage: "VITE_ADSENSE_SLOT_TESTIMONIES",
+      devotionPage:    "VITE_ADSENSE_SLOT_DEVOTION",
+      topicsPage:      "VITE_ADSENSE_SLOT_TOPICS",
+      leadershipPage:  "VITE_ADSENSE_SLOT_LEADERSHIP",
+    };
+
+    const slots = Object.entries(SLOT_ENV_KEYS).map(([name, envKey]) => {
+      const raw = (process.env[envKey] ?? "").trim();
+      return {
+        name,
+        envKey,
+        slotId: raw || null,
+        configured: /^\d+$/.test(raw),
+      };
+    });
+
+    // Verify ads.txt is accessible and has correct publisher line
+    let adsTxtStatus: "ok" | "missing" | "wrong" | "error" = "error";
+    let adsTxtContent: string | null = null;
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+      const __dirname = fileURLToPath(new URL(".", import.meta.url));
+      // ads.txt is written to dist/public/ during build
+      const adsTxtPath = join(__dirname, "..", "..", "dist", "public", "ads.txt");
+      adsTxtContent = await readFile(adsTxtPath, "utf8");
+      const pubNum = publisherId.replace("ca-pub-", "");
+      if (adsTxtContent.includes(`pub-${pubNum}`) || adsTxtContent.includes(publisherId)) {
+        adsTxtStatus = "ok";
+      } else {
+        adsTxtStatus = "wrong";
+      }
+    } catch {
+      adsTxtStatus = "missing";
+    }
+
+    const configuredSlots = slots.filter(s => s.configured).length;
+    const enableFlag = Boolean(process.env.VITE_ADSENSE_ENABLE === "true" || process.env.VITE_ADSENSE_ENABLE === "1");
+
+    res.json({
+      publisherId,
+      isHardcodedFallback,
+      envKeyUsed: publisherIdFromEnv
+        ? (process.env.VITE_ADSENSE_CLIENT_ID ? "VITE_ADSENSE_CLIENT_ID" : "VITE_GOOGLE_ADSENSE_CLIENT")
+        : "hardcoded-fallback",
+      publisherValid: /^ca-pub-\d+$/.test(publisherId),
+      enableFlag,
+      slots,
+      configuredSlots,
+      totalSlots: slots.length,
+      adsTxt: { status: adsTxtStatus, content: adsTxtContent },
+      checkedAt: new Date().toISOString(),
+    });
+  }
+);
+
 export default router;
