@@ -109,6 +109,8 @@ app.use(
           "https://www.google.com",
           "https://www.googletagservices.com",
           "https://accounts.google.com",
+          "https://csi.gstatic.com",
+          "https://www.gstatic.com",
           "wss:",
           "ws:",
         ],
