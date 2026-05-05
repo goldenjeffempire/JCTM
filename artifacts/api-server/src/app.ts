@@ -190,10 +190,12 @@ app.use(
       const isConfiguredOrigin = ALLOWED_ORIGINS.has(origin);
       const isReplitOrigin = /\.replit\.(dev|app)$/.test(origin);
       const isRenderOrigin = /\.onrender\.com$/.test(origin);
+      const isLocalhostOrigin = /^https?:\/\/localhost(:\d+)?$/.test(origin);
       if (
         isConfiguredOrigin ||
         !isProduction ||
         (isReplitOrigin && process.env.ALLOW_REPLIT_ORIGINS === "true") ||
+        (isLocalhostOrigin && process.env.ALLOW_REPLIT_ORIGINS === "true") ||
         (isRenderOrigin && process.env.ALLOW_RENDER_ORIGINS === "true")
       ) {
         return cb(null, true);

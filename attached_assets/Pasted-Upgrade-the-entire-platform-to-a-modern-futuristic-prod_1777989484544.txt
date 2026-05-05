@@ -1,0 +1,74 @@
+Upgrade the entire platform to a modern, futuristic, production-grade system leveraging best-in-class architecture, UX, scalability, and performance optimizations.
+Core Content Automation
+
+
+Ensure “Today’s Highlight” and “Latest Broadcast” automatically sync with the most recent video from the YouTube channel (real-time or near real-time, zero manual intervention).
+
+
+Moments Page Update
+
+
+Remove Warri Crusade completely from pinned content
+
+
+Pin Ministers Conference as the primary featured content across the page
+
+
+AI System Overhaul (Fully Localized)
+
+
+Eliminate all external AI integrations and third-party APIs
+
+
+Architect and implement fully in-house AI systems (models, inference engines, pipelines, orchestration layers)
+
+
+Ensure AI capabilities are self-contained, scalable, production-ready, and continuously evolving without external dependencies
+
+
+Ads System Fix (Production Issue)
+Resolve the issue where Google Ads function in development but fail in production through a full audit and fix:
+
+
+Validate ad script loading, placement, and async behavior in production builds
+
+
+Confirm domain authorization, AdSense/Ad Manager setup, and site verification
+
+
+Fix CSP, HTTPS, and mixed-content restrictions blocking ads
+
+
+Align environment variables, build configs, and deployment differences
+
+
+Review ad blockers, consent management (GDPR/cookies), and regional policies
+
+
+Ensure correct initialization timing in SSR/CSR frameworks (hydration handling)
+
+
+Debug network requests, console errors, and ad fill status
+
+
+➡️ Deliver a stable, production-grade implementation with reliable ad rendering and zero regressions.
+Homepage Banner Correction
+
+
+Replace incorrect Warri Crusade flyer with the correct Ministers Conference flyer in the homepage popup banner
+
+
+Remove all legacy Warri Crusade assets entirely
+
+
+Update image sources, cache, and CDN to prevent stale content
+
+
+Ensure responsive rendering across all devices and screen sizes
+
+
+Eliminate any fallback references to outdated assets
+
+
+Final Objective
+Deliver a fully automated, intelligent, and zero-maintenance platform with robust infrastructure, accurate content delivery, and production stability across all systems. 🚀
