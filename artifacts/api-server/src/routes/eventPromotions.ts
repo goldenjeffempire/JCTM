@@ -313,6 +313,64 @@ router.post(
   },
 );
 
+// ──────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/event-promotions/seed-ministers-conference
+// Creates the Ministers Conference 2026 entry if it doesn't already exist.
+// Idempotent: returns the existing row if the slug is already present.
+// This lets admins "take ownership" of the promotion from the built-in fallback
+// and edit artwork, dates, and CTA entirely from the dashboard.
+// ──────────────────────────────────────────────────────────────────────────────
+router.post(
+  "/admin/event-promotions/seed-ministers-conference",
+  requireAdminRole("livestream"),
+  async (_req: Request, res: Response): Promise<void> => {
+    const SLUG = "ministers-conference-2026";
+
+    // Return existing row if already seeded
+    const existing = await db
+      .select()
+      .from(eventPromotionsTable)
+      .where(eq(eventPromotionsTable.slug, SLUG))
+      .limit(1);
+
+    if (existing.length > 0) {
+      res.json({ promotion: serialize(existing[0]), alreadyExists: true });
+      return;
+    }
+
+    try {
+      const [row] = await db
+        .insert(eventPromotionsTable)
+        .values({
+          slug: SLUG,
+          title: "Ministers Conference 2026 — Apostolic Fire",
+          subtitle: "Daily 8:00 AM WAT — JCTM Auditorium, Ebrumede Roundabout",
+          artworkUrl: null,
+          location: "JCTM Auditorium, Ebrumede Roundabout",
+          ctaText: "Register for Conference",
+          ctaUrl: "/conference-registration",
+          startAt: new Date("2026-05-08T07:00:00Z"),
+          endAt: new Date("2026-05-10T21:00:00Z"),
+          status: "active",
+          showBanner: true,
+          showPopup: true,
+          showStickyBar: true,
+          broadcastEnabled: false,
+          broadcastCadence: "half_hourly",
+          broadcastIntervalMinutes: null,
+          broadcastMessages: [],
+          broadcastTitleOverride: null,
+          broadcastImageUrl: null,
+        })
+        .returning();
+      res.status(201).json({ promotion: serialize(row), alreadyExists: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      res.status(500).json({ error: "Failed to seed promotion", details: message });
+    }
+  },
+);
+
 router.put(
   "/admin/event-promotions/:id",
   requireAdminRole("livestream"),

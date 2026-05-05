@@ -2758,6 +2758,27 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
     onError: (error) => toast.error(formatAdminError(error, "Delete failed")),
   });
 
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/event-promotions/seed-ministers-conference`, {
+        method: "POST",
+        headers: authHeader,
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ promotion: AdminEventPromotion; alreadyExists: boolean }>(res, "Failed to import Ministers Conference");
+    },
+    onSuccess: (result) => {
+      if (result.alreadyExists) {
+        toast.info("Ministers Conference is already in the database");
+      } else {
+        toast.success("Ministers Conference imported — edit artwork, dates, and CTA below");
+      }
+      qc.invalidateQueries({ queryKey: ["admin-event-promotions"] });
+      qc.invalidateQueries({ queryKey: ["event-promotions", "active"] });
+    },
+    onError: (error) => toast.error(formatAdminError(error, "Import failed")),
+  });
+
   const handleEdit = (p: AdminEventPromotion) => {
     setForm({
       id: p.id,
@@ -2838,6 +2859,33 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
             </button>
           </div>
         </div>
+
+        {/* ── Ministers Conference callout — visible when not yet in DB ─────── */}
+        {!isLoading && data !== undefined && !promotions.some(p => p.slug === "ministers-conference-2026") && (
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-400/5 p-4">
+            <div className="flex items-start gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Ministers Conference 2026 — running from built-in fallback
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  The conference banner is currently driven by hardcoded data. Import it into the database to manage the artwork, event dates, and CTA button from this dashboard — no code changes required. After importing you can edit it like any other promotion.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => seedMutation.mutate()}
+                disabled={seedMutation.isPending}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-amber-500 text-white hover:bg-amber-600 font-semibold transition-colors disabled:opacity-60"
+              >
+                {seedMutation.isPending
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Importing…</>
+                  : <><Download className="w-3.5 h-3.5" /> Import to database</>}
+              </button>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <Card>
