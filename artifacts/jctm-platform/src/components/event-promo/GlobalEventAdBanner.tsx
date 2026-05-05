@@ -40,23 +40,24 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useActiveEventPromotion } from "@/hooks/useActiveEventPromotion";
+import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 
-const SESSION_HIDE_KEY = "warri_banner_hidden";
+const SESSION_HIDE_KEY = "ministers_conf_banner_hidden";
 
 const FALLBACK_EVENT = {
   enabled: true,
-  slug: "warri-crusade-2026-day2",
-  artwork: "/warri-crusade-flyer2.jpeg",
-  title: "Warri City Crusade 2026 — Day 2",
-  subtitle: "Starting at 6:00 PM WAT Tonight — Be Ready For Rapture",
-  dateLabel: "May 1, 2026 · 6:00 PM (WAT)",
-  location: "Ighogbadu Primary School, Warri",
-  ctaLabel: "Get Crusade Details",
-  ctaHref: "/crusade",
-  // 2026-05-01T17:00:00Z = 6:00 PM WAT (WAT is UTC+1, so 6 PM WAT = 17:00 UTC)
-  startAtIso: "2026-05-01T17:00:00Z",
-  // 2026-05-01T23:00:00Z = midnight WAT
-  endAtIso: "2026-05-01T23:00:00Z",
+  slug: "ministers-conference-2026",
+  artworkImport: ministerConferenceFlyer,
+  title: "Ministers Conference 2026 — Apostolic Fire",
+  subtitle: "Daily 8:00 AM WAT — JCTM Auditorium, Ebrumede Roundabout",
+  dateLabel: "May 8–10, 2026 · 8:00 AM (WAT)",
+  location: "JCTM Auditorium, Ebrumede Roundabout",
+  ctaLabel: "Register for Conference",
+  ctaHref: "/conference-registration",
+  // 2026-05-08T07:00:00Z = 8:00 AM WAT (WAT is UTC+1)
+  startAtIso: "2026-05-08T07:00:00Z",
+  // 2026-05-10T21:00:00Z = 10:00 PM WAT — conference closes
+  endAtIso: "2026-05-10T21:00:00Z",
 };
 
 // ── Static styles (allocated once at module scope) ─────────────────────────
@@ -196,7 +197,7 @@ export function GlobalEventAdBanner() {
     if (!FALLBACK_EVENT.enabled || fallback.isEnded) return null;
     return {
       slug: FALLBACK_EVENT.slug,
-      artwork: FALLBACK_EVENT.artwork,
+      artwork: FALLBACK_EVENT.artworkImport,
       title: FALLBACK_EVENT.title,
       subtitle: FALLBACK_EVENT.subtitle,
       dateLabel: FALLBACK_EVENT.dateLabel,

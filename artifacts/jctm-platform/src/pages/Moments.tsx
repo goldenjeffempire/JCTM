@@ -28,16 +28,16 @@ interface MomentItem {
   pinned?: boolean;
 }
 
-// ── Crusade pinned video — shown at the top until the crusade ends ────────────
-const CRUSADE_VIDEO_ID = "oJUkSAZu0y0";
-const CRUSADE_PIN_UNTIL = new Date("2026-05-01T23:59:59+01:00");
+// ── Ministers Conference pinned video — featured primary content ──────────────
+const CONF_VIDEO_ID = "hQFA1Y9NAcY";
+const CONF_PIN_UNTIL = new Date("2026-05-10T23:59:59+01:00");
 
-const CRUSADE_PINNED: MomentItem = {
+const CONF_PINNED: MomentItem = {
   id: -1,
-  videoId: CRUSADE_VIDEO_ID,
-  title: "🔥 Warri City Crusade 2026 — Prophet Amos Global Crusade Promo",
-  thumbnailUrl: `https://img.youtube.com/vi/${CRUSADE_VIDEO_ID}/maxresdefault.jpg`,
-  publishedAt: "2026-04-30T18:00:00+01:00",
+  videoId: CONF_VIDEO_ID,
+  title: "🔥 Ministers Conference 2026 — Apostolic Fire | Jesus Christ Temple Ministry",
+  thumbnailUrl: `https://img.youtube.com/vi/${CONF_VIDEO_ID}/maxresdefault.jpg`,
+  publishedAt: "2026-05-08T08:00:00+01:00",
   isLive: false,
   pinned: true,
 };
@@ -593,7 +593,7 @@ export default function Moments() {
   const loadMoments = useCallback(() => {
     return fetchShorts()
       .then(data => {
-        const pinned = new Date() < CRUSADE_PIN_UNTIL ? [CRUSADE_PINNED] : [];
+        const pinned = new Date() < CONF_PIN_UNTIL ? [CONF_PINNED] : [];
         setMoments([...pinned, ...data]);
         setNewVideoAlert(false);
       })
