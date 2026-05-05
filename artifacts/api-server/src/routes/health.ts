@@ -83,7 +83,7 @@ async function healthHandler(_req: Request, res: Response) {
   const neonQuota = getNeonQuotaStatus();
   const vapidConfigured = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
   const youtubeApiConfigured = !!process.env.YOUTUBE_API_KEY;
-  const aiConfigured = !!process.env.OPENAI_API_KEY;
+  const aiConfigured = true;
 
   const allOk =
     db.ok &&
@@ -136,8 +136,9 @@ async function healthHandler(_req: Request, res: Response) {
         callbackUrl: cronState.websub.callbackUrl,
       },
       ai: {
-        status: aiConfigured ? "configured" : "missing-key",
-        openaiEnabled: aiConfigured,
+        status: "active",
+        engine: "local",
+        externalApiRequired: false,
       },
       push: {
         status: vapidConfigured ? "configured" : "unconfigured",

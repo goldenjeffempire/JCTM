@@ -4,13 +4,13 @@
  * Routes inference requests through the correct tier:
  *   Tier 1: Local AI Engine  (sub-millisecond, exact/keyword match)
  *   Tier 2: RAG search       (semantic vector similarity, local embeddings)
- *   Tier 3: Local enhancer   (JCTM knowledge templates + openAIEnhancer local)
+ *   Tier 3: Local enhancer   (JCTM knowledge templates + in-house AI engine)
  *
  * Zero external API calls. No OpenAI dependency.
  */
 
 import { runLocalInference, type LocalInferenceResult } from "./local-ai-engine.js";
-import { openAIEnhancer } from "./openai-enhancer.js";
+import { localAIEnhancer } from "./local-ai-enhancer.js";
 
 export type ModelTier = "local" | "rag" | "local-enhanced";
 
@@ -88,7 +88,7 @@ export async function routeQuery(options: RouterOptions): Promise<RouteResult> {
   }
 
   // Tier 3: Local enhanced (templates + knowledge base)
-  const answer = await openAIEnhancer({
+  const answer = await localAIEnhancer({
     query,
     conversationHistory,
     ragContext: ragResults,

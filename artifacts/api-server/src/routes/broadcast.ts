@@ -48,7 +48,7 @@ router.get("/broadcast/status", async (_req: Request, res: Response): Promise<vo
         pollingInterval: isSundayServiceWindow ? "5s (Sunday service window)" : "30s (standard)",
         sundayServiceWindowActive: isSundayServiceWindow,
         rebroadcastDurationDays: 4,
-        smartCurationEnabled: !!process.env.OPENAI_API_KEY,
+        smartCurationEnabled: true,
         timezone: "WAT (UTC+1, Africa/Lagos)",
         channelId: "UCPFFvkE-KGpR37qJgvYriJg",
         youtubeApiConfigured: !!process.env.YOUTUBE_API_KEY,

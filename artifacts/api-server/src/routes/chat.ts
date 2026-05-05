@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
 import pg from "pg";
 import { runLocalInference, streamLocalResponse, ENGINE_METADATA } from "../lib/local-ai-engine.js";
-import { openAIEnhancer } from "../lib/openai-enhancer.js";
+import { localAIEnhancer } from "../lib/local-ai-enhancer.js";
 import { embed } from "../lib/local-embeddings.js";
 
 const { Pool } = pg;
@@ -407,7 +407,7 @@ async function buildLocalEnrichedResponse(
   const dbHistory = await loadConversationHistory(conversationId, 10);
   const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-10);
 
-  // Build enriched context for openAIEnhancer (fully local)
+  // Build enriched context for local AI enhancer
   const fullContext = [
     sermonContext,
     ragContext,
@@ -420,7 +420,7 @@ async function buildLocalEnrichedResponse(
   const langName = SUPPORTED_LANGUAGE_NAMES[language] ?? "English";
   const langNote = language !== "en" ? ` Please respond in ${langName}.` : "";
 
-  const reply = await openAIEnhancer({
+  const reply = await localAIEnhancer({
     query: userMessage + langNote,
     conversationHistory: history,
     ragContext: fullContext,

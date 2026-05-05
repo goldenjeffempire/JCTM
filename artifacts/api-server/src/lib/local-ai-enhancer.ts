@@ -1,13 +1,11 @@
 /**
- * AI Enhancer — Local-First, Zero External API
+ * local-ai-enhancer.ts — JCTM In-House AI Enhancer
  *
- * Replaces GPT-4o entirely. All responses generated from:
+ * Zero external API calls. All responses generated from:
  *   1. Local AI engine (pattern matching + JCTM knowledge base)
- *   2. RAG context integration
+ *   2. RAG context integration (pgvector semantic search)
  *   3. Local text generation templates
  *   4. Spiritual insight & scripture study generators
- *
- * No OpenAI import. No external API calls.
  */
 
 import { runLocalInference } from "./local-ai-engine.js";
@@ -29,8 +27,8 @@ export interface EnhancerOptions {
 
 // ─── Main Local Enhancer ──────────────────────────────────────────────────────
 
-export async function openAIEnhancer(options: EnhancerOptions): Promise<string> {
-  const { query, conversationHistory = [], ragContext, additionalContext } = options;
+export async function localAIEnhancer(options: EnhancerOptions): Promise<string> {
+  const { query, ragContext } = options;
 
   try {
     const localResult = runLocalInference(query);
@@ -111,7 +109,7 @@ function injectRagContext(response: string, ragContext?: string): string {
   return response + `\n\n---\n*From JCTM's knowledge base:* ${ragLines.slice(0, 300)}`;
 }
 
-function buildRagEnrichedResponse(query: string, ragContext: string, intent: string): string {
+function buildRagEnrichedResponse(query: string, ragContext: string, _intent: string): string {
   const ragLines = ragContext
     .split("\n")
     .filter(l => l.trim().length > 40)

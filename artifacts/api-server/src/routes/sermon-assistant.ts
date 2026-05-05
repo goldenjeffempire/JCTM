@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sermonsTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
-import { openAIEnhancer } from "../lib/openai-enhancer.js";
+import { localAIEnhancer } from "../lib/local-ai-enhancer.js";
 
 const router: IRouter = Router();
 
@@ -54,7 +54,7 @@ router.post("/sermon-assistant", async (req: Request, res: Response): Promise<vo
       ? `## RECENT JCTM SERMONS:\n${sermonContext}`
       : undefined;
 
-    const answer = await openAIEnhancer({
+    const answer = await localAIEnhancer({
       query: question,
       conversationHistory: conversationHistory.slice(-8) as Array<{ role: "user" | "assistant"; content: string }>,
       ragContext,

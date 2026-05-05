@@ -52,7 +52,6 @@ export interface GeneratedBlogPost {
 
 export async function generateBlogPost(
   topic: (typeof BLOG_TOPICS)[0],
-  _openai?: unknown,
 ): Promise<GeneratedBlogPost> {
   let sermonContext = "";
 
@@ -117,7 +116,6 @@ export async function generateBlogPost(
 export async function generateSermonTranscriptSummary(
   sermonTitle: string,
   description: string,
-  _openai?: unknown,
 ): Promise<string> {
   const { summarizeSermon } = await import("./local-content-intelligence.js");
   const result = summarizeSermon(sermonTitle, description);

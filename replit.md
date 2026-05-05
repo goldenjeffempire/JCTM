@@ -30,7 +30,7 @@ As of this upgrade, all GPT-4o and external AI calls have been removed and repla
 | `local-embeddings.ts` | Local embedding generation (TF-IDF hash 384-dim, with @xenova/transformers as optional accelerator) |
 | `local-moderation.ts` | Rule-based content moderation, spam detection, behavioral anomaly detection — wired into testimonies, prayer, comments |
 | `analytics-ai.ts` | Engagement prediction, content performance forecasting, optimal notification timing — available at `/api/admin/analytics` |
-| `openai-enhancer.ts` | Fully local enhanced response engine (no OpenAI dependency) |
+| `local-ai-enhancer.ts` | In-house AI enhanced response engine — Tier 3 fallback with RAG context injection, scripture study, spiritual insight routing |
 | `platform-monitor.ts` | Comprehensive platform health monitoring for all subsystems |
 
 ### Routes — Local AI Only
