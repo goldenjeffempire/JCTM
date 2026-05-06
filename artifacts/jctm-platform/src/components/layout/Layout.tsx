@@ -10,6 +10,10 @@ import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
 import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
 import { EventPromoPreviewToggle } from "../event-promo/EventPromoPreviewToggle";
+import { WarriCrusadeStickyBanner } from "../event-promo/WarriCrusadeStickyBanner";
+import { CrusadeInlineAd } from "../event-promo/CrusadeInlineAd";
+import { FloatingJoinCrusadeCTA } from "../event-promo/FloatingJoinCrusadeCTA";
+import { MinistersConferenceFlyerPopup } from "../event-promo/MinistersConferenceFlyerPopup";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -35,6 +39,8 @@ export function Layout({ children }: LayoutProps) {
         className="sr-only"
       />
 
+      {/* Ministers Conference sticky campaign banner (dismissible, phase-aware) */}
+      <WarriCrusadeStickyBanner />
       <EventStickyBar />
       <LiveBanner />
       <Navbar />
@@ -42,14 +48,26 @@ export function Layout({ children }: LayoutProps) {
       <main id="main-content" className="flex-1 w-full" tabIndex={-1}>
         {children}
       </main>
+
+      {/* Ministers Conference inline ad — full-width block above footer */}
+      <CrusadeInlineAd />
+
       <Footer />
       <TempleBots />
       <LanguageSuggestionBanner />
       <BackToTop />
       <BroadcastStatusIndicator />
       <EventLiveToast />
+
+      {/* Admin-driven floating event banner */}
       <GlobalEventAdBanner />
       <EventPromoPreviewToggle />
+
+      {/* Ministers Conference floating register FAB */}
+      <FloatingJoinCrusadeCTA />
+
+      {/* Full-screen flyer popup — auto-opens once per session */}
+      <MinistersConferenceFlyerPopup />
     </div>
   );
 }

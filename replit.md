@@ -165,6 +165,20 @@ pnpm monorepo with:
 
 **Email flows:** Daily devotion, devotion welcome, member registration, password reset, event reminders, admin SMTP test
 
+## Ministers Conference 2026 — Promo Component System (May 2026)
+
+All Warri Crusade hardcoded promotional components replaced with Ministers Conference 2026 branding (purple/gold theme, #a855f7 / #D4A017).
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `WarriCrusadeStickyBanner` | `components/event-promo/WarriCrusadeStickyBanner.tsx` | Top dismissible sticky banner — purple/gold, countdown, phase-aware (upcoming → live → ended), defers to LiveBanner & admin EventStickyBar |
+| `CrusadeInlineAd` | `components/event-promo/CrusadeInlineAd.tsx` | Full-width inline ad block above `<Footer/>` — shows conference flyer thumbnail on desktop, countdown chips, register/WhatsApp/Email CTAs |
+| `FloatingJoinCrusadeCTA` | `components/event-promo/FloatingJoinCrusadeCTA.tsx` | Fixed bottom-right FAB — dismissible per session, skips `/conference-registration` route, purple/gold pill |
+| `MinistersConferenceFlyerPopup` | `components/event-promo/MinistersConferenceFlyerPopup.tsx` | Full-screen modal popup — shows official flyer, countdown, details grid, social share + download, session & 24h cooldown aware |
+
+All four are mounted globally in `Layout.tsx`. Campaign window: May 8–10, 2026 (CONF_START = `2026-05-08T07:00:00+01:00`). All auto-hide on `phase === "ended"`.
+Flyer asset: `attached_assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg` (imported via `@assets` alias).
+
 ## External Dependencies
 
 - **PostgreSQL:** Neon (production DB)
