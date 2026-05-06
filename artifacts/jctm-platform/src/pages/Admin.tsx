@@ -5026,7 +5026,7 @@ function AnalyticsDashboardSection({ auth }: { auth: ReturnType<typeof useAdminA
   const { data, isLoading, error, refetch } = useQuery<AnalyticsData>({
     queryKey: ["admin-analytics"],
     queryFn: async () => {
-      const token = auth.token;
+      const token = auth.adminToken;
       if (!token) throw new Error("Not authenticated");
       const res = await fetch(`${BASE}/api/admin/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -5034,7 +5034,7 @@ function AnalyticsDashboardSection({ auth }: { auth: ReturnType<typeof useAdminA
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
-    enabled: !!auth.token,
+    enabled: !!auth.adminToken,
     refetchInterval: 60_000,
     staleTime: 30_000,
   });

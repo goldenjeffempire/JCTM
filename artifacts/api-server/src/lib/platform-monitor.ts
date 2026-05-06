@@ -15,7 +15,15 @@ import os from "os";
 import { ENGINE_METADATA } from "./local-ai-engine.js";
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+function normalizeDbUrl(url: string): string {
+  return url.replace(
+    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
+    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
+  );
+}
+
+const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

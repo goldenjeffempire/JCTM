@@ -10,6 +10,13 @@ import { toast } from "sonner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+interface FlatNavItem {
+  href: string;
+  label: string;
+  highlight?: boolean;
+  featurePill?: boolean;
+}
+
 function usePushNotifications() {
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -151,7 +158,7 @@ export function Navbar() {
   //   • `highlight`        → Gold campaign pill — reserved for the active crusade (one item)
   //   • `featurePill`      → Subtle accent pill — quieter family for feature pages
   //   • default            → Underline link — everything else
-  const flatNavItems = [
+  const flatNavItems: FlatNavItem[] = [
     { href: "/", label: t("Home") },
     { href: "/sermons", label: t("Sermons") },
     { href: "/moments", label: t("Moments"), featurePill: true },

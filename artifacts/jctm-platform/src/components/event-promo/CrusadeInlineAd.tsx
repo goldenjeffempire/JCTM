@@ -114,8 +114,8 @@ export function CrusadeInlineAd() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.5 }}
-              className="hidden lg:block shrink-0 w-40 xl:w-48 rounded-2xl overflow-hidden ring-2 self-center shadow-2xl"
-              style={{ ringColor: "rgba(168,85,247,0.6)" }}
+              className="hidden lg:block shrink-0 w-40 xl:w-48 rounded-2xl overflow-hidden self-center shadow-2xl border-2"
+              style={{ borderColor: "rgba(168,85,247,0.6)" }}
             >
               <img
                 src={ministerConferenceFlyer}

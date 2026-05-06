@@ -22,7 +22,15 @@ import type { Logger } from "pino";
 import { embed } from "./local-embeddings.js";
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+function normalizeDbUrl(url: string): string {
+  return url.replace(
+    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
+    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
+  );
+}
+
+const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
 
 // ─── Version Stamp ────────────────────────────────────────────────────────────
 // Increment this when the static JCTM_KNOWLEDGE array changes to force
