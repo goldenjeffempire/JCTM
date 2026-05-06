@@ -1,207 +1,73 @@
 # JCTM Digital Sanctuary
 
-## Overview
+A full-stack ministry platform for Jesus Christ Temple Ministry (Warri, Nigeria) — sermon streaming, testimony sharing, event management, an AI chat assistant (TempleBots), devotions, gallery, and a live Global Altar worshipper counter.
 
-The JCTM Digital Sanctuary is a full-stack pnpm monorepo serving as the comprehensive, production-grade digital platform for Jesus Christ Temple Ministry (jctm.org.ng). It expands JCTM's global outreach through sermons, AI-powered spiritual assistance (TempleBots), giving portal, live streaming, events, and community engagement tools.
+## Run & Operate
 
-## User Preferences
+| Command | Purpose |
+|---|---|
+| `pnpm install` | Install all workspace dependencies |
+| `pnpm --filter @workspace/jctm-platform run build` | Build React frontend |
+| `pnpm --filter @workspace/api-server run build` | Build Express API |
+| `NODE_ENV=production PORT=5000 node artifacts/api-server/dist/index.mjs` | Start production server |
 
-I want iterative development and detailed explanations of changes.
+**Required env vars:** `DATABASE_URL` (Replit PostgreSQL — auto-provisioned), `OPENAI_API_KEY`, `YOUTUBE_API_KEY`, `PAYSTACK_SECRET_KEY`, `STRIPE_SECRET_KEY`
 
-## AI Architecture — Zero External API (Local-First) v2
+**Optional:** `SMTP_*` (email), `VAPID_*` (push notifications), `SENTRY_DSN`, `GCS_*` (Google Cloud Storage)
 
-**All AI features run locally — no OpenAI dependency.**
+## Stack
 
-All GPT-4o and external AI calls removed. Replaced with a tiered local AI system, now at v2 with 32 intents and automatic learning.
+- **Frontend:** React 19, Vite 7, Tailwind CSS 4, Framer Motion, Three.js, TanStack Query
+- **Backend:** Express 5 (ESM), Pino logging, Helmet security, rate limiting
+- **Database:** PostgreSQL 16 (Replit built-in) + Drizzle ORM
+- **AI:** OpenAI GPT-4o for TempleBots; local embeddings fallback
+- **Runtime:** Node.js 20, pnpm 10 monorepo
 
-| Tier | Engine | Latency | Scope |
-|------|--------|---------|-------|
-| 1 | Local AI Engine (pattern matching, 32 intents) | <1ms | High-confidence ministry queries |
-| 2 | RAG (pgvector + local TF-IDF embeddings, 6 chunks) | 10-50ms | Sermon & knowledge base context |
-| 3 | Local Template Generation + Activity Context | 1-5ms | Complex theological / emotional queries |
+## Where things live
 
-### Local AI Modules (all in `artifacts/api-server/src/lib/`)
+- `artifacts/jctm-platform/` — React web app (Vite)
+- `artifacts/api-server/src/` — Express server, routes, lib utilities
+- `artifacts/api-server/src/lib/migrations.ts` — All DB migrations (idempotent, run at startup)
+- `lib/db/src/schema/` — Drizzle ORM schema definitions
+- `lib/api-spec/openapi.yaml` — OpenAPI 3.1 source of truth
+- `lib/api-client-react/` — Auto-generated React Query hooks (via Orval)
+- `.replit` — Workflow, deployment, and port config
 
-| File | Purpose |
-|------|---------|
-| `local-ai-engine.ts` | Core pattern-matching inference engine — **32 intents** (v2.0.0), 700+ keyword patterns |
-| `local-ai-enhancer.ts` | In-house enhancer v2 — handles all 32 intents, RAG injection, activity-aware context, compact response builders |
-| `local-text-generation.ts` | 365+ devotion pool, scripture study, spiritual insight templates, TempleBots responses |
-| `local-content-intelligence.ts` | TF-IDF tagging, extractive sermon summarization, blog templates, categorization |
-| `local-embeddings.ts` | Local embedding generation (TF-IDF hash 384-dim, with @xenova/transformers as optional accelerator) |
-| `local-moderation.ts` | Rule-based content moderation, spam detection, behavioral anomaly detection |
-| `analytics-ai.ts` | Engagement prediction, content performance forecasting, optimal notification timing |
-| `platform-monitor.ts` | Comprehensive platform health monitoring for all subsystems |
-| `knowledge-ingestion.ts` | **v2.1** — Version-stamped static ingestion (18 JCTM docs) + `ingestAllSermons()` (up to 200 sermons) + `ingestActivityLearning()` (prayer themes, testimonies, blog posts, events, popular questions) |
+## Architecture decisions
 
-### AI Learning Pipeline
+- **Single-port architecture:** Express serves both the built React SPA (`dist/public/`) and all `/api/*` routes on port 5000. No separate dev proxy in production.
+- **Idempotent startup migrations:** `runMigrations()` in `migrations.ts` uses `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` throughout — safe to call on every deploy and startup.
+- **Object storage driver:** Defaults to `database` (stores blobs in `local_objects` PostgreSQL table). Can be switched to GCS via `OBJECT_STORAGE_DRIVER=gcs` + GCS credentials.
+- **SSE for real-time:** Sermon updates, gallery changes, visitor counts, and livestream state all use Server-Sent Events rather than WebSockets.
+- **Local AI fallback:** TempleBots uses local embeddings (384-dim) when OpenAI is unavailable; pgvector powers RAG search on `knowledge_chunks`.
 
-- **Startup** (90-second delayed): `ingestAllSermons` + `ingestActivityLearning` run automatically
-- **After daily full sync** (24h): Same two functions re-run so AI stays current with new YouTube content
-- **Activity context** (5-min cache): `buildActivityContext()` in `chat.ts` fetches upcoming events, prayer categories, recent testimonies and injects them into every chat response
+## Product
 
-### 32 Supported Intents (v2.0.0)
+- Sermon library with YouTube sync, live streaming, and rebroadcast detection
+- Ministry Moments (short videos) with likes and comments
+- Global Altar 3D — live worshipper count visualization
+- TempleBots AI assistant with RAG over ministry knowledge base
+- Daily devotionals with email subscription
+- Event promotions with countdown banners and push notifications
+- Member directory and auth (registration, login, password reset)
+- Gallery with image uploads and admin management
+- Giving/donations via Paystack and Stripe
+- Admin panels for sermons, gallery, livestream, broadcasts
 
-Original 20: `ministry_overview`, `prophet_amos`, `correction_mandate`, `primitive_christianity`, `holiness_doctrine`, `water_baptism`, `holy_spirit_baptism`, `five_fold_ministry`, `giving_tithing`, `temple_tv`, `contact_location`, `service_times`, `warri_crusade`, `prayer_support`, `sermon_library`, `emotional_distress`, `scripture_inquiry`, `join_membership`, `viewing_centres`, `general_greeting`
+## User preferences
 
-New 12: `end_times`, `fasting_prayer`, `spiritual_warfare`, `salvation_new_birth`, `repentance_restoration`, `praise_worship`, `bible_study_method`, `sin_temptation`, `marriage_family`, `healing_miracles`, `new_believer`, `testimony_sharing`
+- Keep the pnpm monorepo structure intact
+- All migrations are idempotent — safe to re-run on every restart
 
-### Routes — Local AI Only
+## Gotchas
 
-- `routes/ai.ts` — scripture-study, spiritual-insight, testimony-reflect, suggested-questions, voice-chat (all local SSE streaming)
-- `routes/chat.ts` — TempleBots: Tier 1 local engine → Tier 2 local enhanced (RAG + templates)
-- `routes/prayer.ts` — Local prayer generation + content moderation gate
-- `routes/sermon-assistant.ts` — Local sermon assistant with RAG context
-- `routes/translate.ts` — Local phrase matching for ministry strings (no external translation API)
-- `routes/sermons.ts` — Local summarization via `summarizeSermon()`
-- `routes/testimonies.ts` — Content moderation + anomaly detection before insert
-- `routes/moments.ts` — Content moderation + anomaly detection on comments
-- `lib/devotion-engine.ts` — Local devotion generation from 365+ pool
-- `lib/blog-generator.ts` — Local blog content generation via content intelligence
-- `lib/broadcast-engine.ts` — Local sermon scoring/recommendation engine
+- The `migrations.ts` file runs `ALTER TABLE member_auth ADD COLUMN IF NOT EXISTS role` — this requires `member_auth` to already exist. The base schema tables must be created first.
+- `DATABASE_URL` must not have `sslmode=prefer` — the db client normalizes it to `verify-full` to suppress pg deprecation warnings.
+- Port 5000 is the only exposed port (mapped to external port 80 in `.replit`).
+- The `blog_posts` table has both `meta_title`/`meta_description` declared twice (idempotent ALTER TABLE handles this).
 
-### Admin Dashboard Features
+## Pointers
 
-- **Overview** — Live visitor stats, sermon metrics, AI enrichment progress
-- **Broadcast** — YouTube sync queue, curation strategy, sermon library metrics
-- **Events** — Event promotion manager, push notification scheduler
-- **Sermons** — Sermon management, AI metadata enrichment
-- **Gallery** — GCS image management, bulk upload
-- **Testimonies** — Moderation queue, approve/reject, liked testimonies
-- **Platform** — System health, uptime, push subscriber stats
-- **Analytics** — Predictive audience metrics, engagement forecasting, optimal notification timing (`GET /api/admin/analytics`)
-- **AI Engine** — 3-tier AI health, feedback loop, knowledge base status, feature flags
-- **Credentials** — Secure HMAC token management for all admin roles
-
-## pgvector Embedding Dimensions
-
-The `knowledge_chunks.embedding` column uses **384 dimensions** (local TF-IDF / all-MiniLM-L6-v2).
-Previous builds used `vector(1536)` for OpenAI. A migration in `migrations.ts` auto-detects and fixes this on startup.
-
-## Content Moderation
-
-All user-submitted content (testimonies, prayer requests, Moments comments) passes through `local-moderation.ts` before database insert:
-- Rule-based profanity, blasphemy, spam, hate speech detection
-- Statistical signals: URL density, caps ratio, repetition, emoji overuse
-- Behavioral anomaly detection: rate limiting per IP (10 req/min window)
-- Decisions: `approve` | `flag` | `reject` — rejected content returns HTTP 422
-
-## Frontend Fixes (May 2026)
-
-- `Status.tsx` — AI status now shows "Local AI · TempleBots" (was "OpenAI / TempleBots")
-- `Topics.tsx` — Fixed `bg-white` → `bg-background` (dark mode compatibility)
-- `Leadership.tsx` — Fixed `bg-white` → `bg-background` (dark mode compatibility)
-- `Devotion.tsx` — Loading state upgraded from italic text to full skeleton layout
-- `SpiritualInsight.tsx` — Added missing `path="/spiritual-insight"` to SEO component
-- `VoiceTempleBots.tsx` — Replaced `@workspace/integrations-openai-ai-react` imports with native MediaRecorder + fetch SSE hooks (no external AI package dependency)
-
-## Google AdSense Fix (Updated May 2026)
-
-- Root cause: `VITE_ADSENSE_CLIENT_ID` env var was not set → `ADSENSE_ENABLED = false`
-- Fix: `AdSense.tsx` hardcodes fallback publisher ID `ca-pub-6817509745706083`
-- Script deduplication guard added; `ins` element ref fixed; consent-change re-render added
-- `VITE_ADSENSE_ENABLE=true` is set in .env
-- **Production consent fix:** `canRender` no longer requires `consentResolved`. Ads now render
-  immediately for new visitors under Google Consent Mode v2 (non-personalized). They are only
-  blocked when a user has *explicitly* denied advertising consent (`consent !== null && consent.advertising === false`).
-- **Push error fix:** Failed `adsbygoogle.push({})` calls no longer set `pushedRef.current = true`,
-  allowing the push to retry on the next render cycle instead of silently giving up.
-
-## AI System Overhaul — Zero External API (Completed May 2026)
-
-All stale OpenAI references removed from production code:
-
-| File | Change |
-|------|--------|
-| `local-ai-engine.ts` | Docstring rewritten; `escalateToOpenAI` renamed to `needsEnrichment` |
-| `routes/chat.ts` | Updated both stream + non-stream handlers to use `needsEnrichment` |
-| `knowledge-ingestion.ts` | Dead `_openai: unknown` parameter renamed to `_unused` |
-| `platform-monitor.ts` | `AITierHealth` interface: removed `openaiEnabled`/`openaiQuotaExceeded`; replaced with `externalAIEnabled: false`. Feature flag renamed from `openai` to `externalAI`. |
-| `routes/ai.ts` | Response fields renamed: `openAiModel` → `externalAIModel`, `openaiEnabled` → `externalAIEnabled` |
-| `cron.ts` | Status object field renamed: `openaiEnabled` → `externalAIEnabled` |
-| `lib/integrations-openai-ai-server/src/client.ts` | Live OpenAI SDK replaced with a stub that throws a descriptive error if called |
-| `Admin.tsx` | Type definition updated; tier label key renamed from `openai` to `external-ai` |
-| `Status.tsx` | `openaiEnabled?` field renamed to `externalAIEnabled?` |
-
-## System Architecture
-
-pnpm monorepo with:
-
-- **Frontend (`@workspace/jctm-platform`):** React 18, Vite 7, Tailwind CSS v4
-- **Backend (`@workspace/api-server`):** Express 5, Drizzle ORM, Pino logging
-- **Database (`@workspace/db`):** Drizzle schema + Neon PostgreSQL
-- **API Types (`@workspace/api-zod`):** Shared Zod schemas
-- **API Hooks (`@workspace/api-client-react`):** TanStack Query wrappers
-
-### Key Features
-
-- **TempleBots** — 3-tier local AI chat assistant with pastoral intelligence, emotional detection, scripture study
-- **Daily Devotions** — 365+ local devotion pool, email delivery, RSS subscription
-- **Temple TV Integration** — YouTube WebSub + RSS + API v3 sync pipeline (2000+ sermons)
-- **Live Streaming** — Adaptive quality, SSE viewer counts, broadcast automation
-- **Giving Portal** — Paystack integration
-- **Global Altar** — Real-time 3D prayer counter (Three.js)
-- **Gallery** — Enterprise bulk upload with GCS, compression, dedup
-- **Events** — Full lifecycle management, multi-channel push/email notifications
-- **Blog Engine** — Local AI content generation, SEO-optimized
-- **Platform Monitor** — `/api/health` with subsystem status, AI tier health, system resources
-- **PWA** — Service worker, push notifications, offline capability
-- **SEO** — Schema.org JSON-LD, Open Graph, sitemaps, canonical URLs, geo meta
-
-### Security
-
-- Helmet, rate limiting, Gzip, scrypt hashing, CORS, JSON body limits
-- Role-based admin (HMAC-signed JWTs for `gallery`, `sermon`, `livestream`)
-- Content moderation gate on all user-generated content (local ML + rule-based)
-
-## Email Infrastructure (SMTP)
-
-**Configuration (Replit Secrets):**
-- `SMTP_HOST` = `mail.jctm.org.ng`
-- `SMTP_PORT` = `587`
-- `SMTP_SECURE` = `false` (STARTTLS)
-- `SMTP_USER` = `info@jctm.org.ng`
-- `SMTP_FROM` = `Jesus Christ Temple Ministry <info@jctm.org.ng>`
-
-**Email flows:** Daily devotion, devotion welcome, member registration, password reset, event reminders, admin SMTP test
-
-## Ministers Conference 2026 — Promo Component System (May 2026)
-
-All Warri Crusade hardcoded promotional components replaced with Ministers Conference 2026 branding (purple/gold theme, #a855f7 / #D4A017).
-
-| Component | File | Purpose |
-|-----------|------|---------|
-| `WarriCrusadeStickyBanner` | `components/event-promo/WarriCrusadeStickyBanner.tsx` | Top dismissible sticky banner — purple/gold, countdown, phase-aware (upcoming → live → ended), defers to LiveBanner & admin EventStickyBar |
-| `CrusadeInlineAd` | `components/event-promo/CrusadeInlineAd.tsx` | Full-width inline ad block above `<Footer/>` — shows conference flyer thumbnail on desktop, countdown chips, register/WhatsApp/Email CTAs |
-| `FloatingJoinCrusadeCTA` | `components/event-promo/FloatingJoinCrusadeCTA.tsx` | Fixed bottom-right FAB — dismissible per session, skips `/conference-registration` route, purple/gold pill |
-| `MinistersConferenceFlyerPopup` | `components/event-promo/MinistersConferenceFlyerPopup.tsx` | Full-screen modal popup — shows official flyer, countdown, details grid, social share + download, session & 24h cooldown aware |
-
-All four are mounted globally in `Layout.tsx`. Campaign window: May 8–10, 2026 (CONF_START = `2026-05-08T07:00:00+01:00`). All auto-hide on `phase === "ended"`.
-Flyer asset: `attached_assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg` (imported via `@assets` alias).
-
-## External Dependencies
-
-- **PostgreSQL:** Neon (production DB)
-- **Google Cloud Storage:** Object storage via Replit App Storage
-- **YouTube Data API v3:** Sermon sync
-- **Paystack:** Giving portal payments
-- **Google AdSense:** `ca-pub-6817509745706083` (hardcoded fallback in AdSense.tsx)
-- **VAPID:** Web push notifications
-- **Leaflet / OpenStreetMap:** Venue maps
-- **Three.js / Framer Motion / Radix UI / Lucide:** UI libraries
-- **Sharp / Uppy:** Image processing and file upload
-
-## Environment Variables Required
-
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | Neon PostgreSQL connection |
-| `YOUTUBE_API_KEY` | YouTube Data API v3 sync |
-| `PAYSTACK_SECRET_KEY` | Giving portal |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web push |
-| `SMTP_HOST` / `SMTP_PASS` | Email delivery |
-| `VITE_ADSENSE_CLIENT_ID` | AdSense (fallback hardcoded) |
-| `VITE_ADSENSE_ENABLE` | Set to `true` |
-| `ADMIN_HEALTH_TOKEN` | Admin-only health endpoint |
-
-**Note:** `OPENAI_API_KEY` is no longer required — all AI runs locally.
+- DB skill: `.local/skills/database/SKILL.md`
+- Workflows skill: `.local/skills/workflows/SKILL.md`
+- Environment secrets: `.local/skills/environment-secrets/SKILL.md`
