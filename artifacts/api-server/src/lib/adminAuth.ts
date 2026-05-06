@@ -136,19 +136,33 @@ export async function isRoleConfigured(role: AdminRole): Promise<boolean> {
   return Boolean(getEnvHash(role) || getEnvPlain(role));
 }
 
-/** Verifies a passphrase against stored credentials (DB → env hash → env plain). */
+/**
+ * Verifies a passphrase against stored credentials.
+ *
+ * Resolution order (env vars are checked FIRST so they always act as a
+ * break-glass override / reset mechanism — useful when DB credentials are
+ * unknown or corrupted):
+ *   1. ADMIN_PASSPHRASE_HASH_{ROLE}  — scrypt hash env var   (overrides DB)
+ *   2. ADMIN_PASSPHRASE_{ROLE}       — plaintext env var      (overrides DB)
+ *   3. Legacy gallery env vars       — GALLERY_ADMIN_PASSPHRASE_HASH / …PASSPHRASE
+ *   4. admin_credentials DB table    — credentials set via the UI
+ *   5. Dev defaults (NODE_ENV !== "production" only)
+ */
 export async function verifyRolePassphrase(role: AdminRole, passphrase: string): Promise<boolean> {
   if (typeof passphrase !== "string" || passphrase.length < 8) return false;
 
-  const dbHash = await getDbHash(role);
-  if (dbHash) return verifyScrypt(passphrase, dbHash);
-
+  // ── Env vars take priority (break-glass reset) ──────────────────────────────
   const envHash = getEnvHash(role);
   if (envHash) return verifyScrypt(passphrase, envHash);
 
   const plain = getEnvPlain(role);
-  if (!plain) return false;
-  return safeEqual(passphrase, plain);
+  if (plain) return safeEqual(passphrase, plain);
+
+  // ── Fall back to DB-stored credential ───────────────────────────────────────
+  const dbHash = await getDbHash(role);
+  if (dbHash) return verifyScrypt(passphrase, dbHash);
+
+  return false;
 }
 
 // ─── Token lifecycle ───────────────────────────────────────────────────────────

@@ -767,5 +767,38 @@ export async function runMigrations(): Promise<void> {
     ON server_downtime_events (started_at DESC)
   `);
 
+  // ── Auto-sync env-var passphrases to DB ─────────────────────────────────────
+  // If ADMIN_PASSPHRASE_{ROLE} is set in the environment, hash it and persist
+  // it to admin_credentials so the credential is durably stored after a reset.
+  // This runs every startup but is idempotent: if the env var is absent the
+  // row is left unchanged. Removing the env var after a successful login is
+  // optional — the DB copy will be used from then on.
+  {
+    const { hashPassphrase } = await import("./adminAuth.js");
+    const syncRoles = ["gallery", "sermon", "livestream"] as const;
+    const envKeys: Record<typeof syncRoles[number], string> = {
+      gallery:    "ADMIN_PASSPHRASE_GALLERY",
+      sermon:     "ADMIN_PASSPHRASE_SERMON",
+      livestream: "ADMIN_PASSPHRASE_LIVESTREAM",
+    };
+    for (const role of syncRoles) {
+      const plain = process.env[envKeys[role]]?.trim();
+      if (plain && plain.length >= 8) {
+        const hash = hashPassphrase(plain);
+        await pool.query(
+          `INSERT INTO admin_credentials (role, passphrase_hash, updated_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (role) DO UPDATE SET passphrase_hash = $2, updated_at = NOW()`,
+          [role, hash],
+        );
+        logger.warn(
+          { role },
+          `Admin passphrase for "${role}" synced from env var ADMIN_PASSPHRASE_${role.toUpperCase()} → DB. ` +
+          `Remove the env var once you have logged in and changed the passphrase via the UI.`,
+        );
+      }
+    }
+  }
+
   logger.info("All migrations complete");
 }
