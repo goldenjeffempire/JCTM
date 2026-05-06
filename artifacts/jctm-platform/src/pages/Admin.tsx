@@ -3757,6 +3757,7 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
   const upcoming = upcomingQuery.data?.events ?? [];
 
   return (
+    <AdminLoginGate role="livestream" auth={auth} title="Event Notification Scheduler">
     <div className="space-y-6">
       <SectionHeader
         title="Event Notification Scheduler"
@@ -4292,6 +4293,7 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
         )}
       </Card>
     </div>
+    </AdminLoginGate>
   );
 }
 

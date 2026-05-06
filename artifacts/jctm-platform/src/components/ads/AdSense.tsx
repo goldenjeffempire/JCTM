@@ -89,7 +89,7 @@ function ensureAdSenseScript() {
   const script = document.createElement("script");
   script.async = true;
   script.crossOrigin = "anonymous";
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`;
   document.head.appendChild(script);
   scriptInjected = true;
 }
