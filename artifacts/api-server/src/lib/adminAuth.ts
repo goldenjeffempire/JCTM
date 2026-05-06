@@ -139,28 +139,31 @@ export async function isRoleConfigured(role: AdminRole): Promise<boolean> {
 /**
  * Verifies a passphrase against stored credentials.
  *
- * Resolution order (env vars are checked FIRST so they always act as a
- * break-glass override / reset mechanism — useful when DB credentials are
- * unknown or corrupted):
- *   1. ADMIN_PASSPHRASE_HASH_{ROLE}  — scrypt hash env var   (overrides DB)
- *   2. ADMIN_PASSPHRASE_{ROLE}       — plaintext env var      (overrides DB)
- *   3. Legacy gallery env vars       — GALLERY_ADMIN_PASSPHRASE_HASH / …PASSPHRASE
- *   4. admin_credentials DB table    — credentials set via the UI
- *   5. Dev defaults (NODE_ENV !== "production" only)
+ * Resolution order — plain-text env var wins so it always acts as a
+ * break-glass reset, then hash env var, then DB, then dev defaults:
+ *   1. ADMIN_PASSPHRASE_{ROLE}       — plaintext env var      (highest priority reset)
+ *   2. ADMIN_PASSPHRASE_HASH_{ROLE}  — scrypt hash env var
+ *   3. admin_credentials DB table    — credentials set via the UI
+ *   4. Dev defaults (NODE_ENV !== "production" only)
  */
 export async function verifyRolePassphrase(role: AdminRole, passphrase: string): Promise<boolean> {
   if (typeof passphrase !== "string" || passphrase.length < 8) return false;
 
-  // ── Env vars take priority (break-glass reset) ──────────────────────────────
-  const envHash = getEnvHash(role);
+  // ── Plain-text env var wins first (break-glass reset) ───────────────────────
+  const cfg = ROLE_ENV[role];
+  const plainEnv = process.env[cfg.plainKey]?.trim() || null;
+  if (plainEnv) return safeEqual(passphrase, plainEnv);
+
+  // ── Scrypt hash env var ──────────────────────────────────────────────────────
+  const envHash = process.env[cfg.hashKey]?.trim() || null;
   if (envHash) return verifyScrypt(passphrase, envHash);
 
-  const plain = getEnvPlain(role);
-  if (plain) return safeEqual(passphrase, plain);
-
-  // ── Fall back to DB-stored credential ───────────────────────────────────────
+  // ── DB-stored credential ────────────────────────────────────────────────────
   const dbHash = await getDbHash(role);
   if (dbHash) return verifyScrypt(passphrase, dbHash);
+
+  // ── Dev defaults ────────────────────────────────────────────────────────────
+  if (process.env.NODE_ENV !== "production") return safeEqual(passphrase, cfg.devDefault);
 
   return false;
 }
