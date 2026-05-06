@@ -1482,15 +1482,17 @@ async function runRSSSync(log: Logger, apiKey?: string): Promise<void> {
     rssBackoffUntil = null; // clear any previous backoff on success
     lastRSSSync = new Date();
 
+    // Always keep Today's Highlight and Latest Broadcast pointing to the newest
+    // upload — runs on every RSS tick so home page sections stay current even
+    // when no new video was inserted in this cycle.
+    refreshFeaturedSermon(log).catch(err => {
+      log.warn({ err }, "refreshFeaturedSermon after RSS sync failed (non-fatal)");
+    });
+
     if (result.inserted > 0) {
       sseBroadcaster.broadcast({
         type: "sync_complete",
         data: { synced: result.inserted, source: "rss" },
-      });
-
-      // New video(s) detected — promote the newest to Today's Highlights & Latest Broadcast
-      refreshFeaturedSermon(log).catch(err => {
-        log.warn({ err }, "refreshFeaturedSermon after RSS sync failed (non-fatal)");
       });
 
       if (apiKey && result.insertedVideoIds.length > 0 &&

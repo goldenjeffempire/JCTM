@@ -1,4 +1,4 @@
-import { db, sermonsTable, pool } from "@workspace/db";
+import { db, sermonsTable, settingsTable, pool } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import type { Logger } from "pino";
 
@@ -613,6 +613,22 @@ export async function refreshFeaturedSermon(log?: Logger): Promise<void> {
       );
       log?.info({ videoId: newest.videoId, title: newest.title }, "Broadcast event inserted for newest video");
     }
+
+    // 4. Auto-sync home page sections — Today's Highlight and Latest Broadcast
+    //    always track the newest upload.  These upserts run on every call so any
+    //    stale admin override is replaced automatically.
+    await db
+      .insert(settingsTable)
+      .values([
+        { key: "home_highlight_video_id", textValue: newest.videoId, updatedAt: new Date() },
+        { key: "home_broadcast_video_id", textValue: newest.videoId, updatedAt: new Date() },
+      ])
+      .onConflictDoUpdate({
+        target: settingsTable.key,
+        set: { textValue: sql`excluded.text_value`, updatedAt: new Date() },
+      });
+
+    log?.info({ videoId: newest.videoId, title: newest.title }, "Home page sections (Today's Highlight + Latest Broadcast) synced to newest video");
   } catch (err) {
     log?.warn({ err }, "refreshFeaturedSermon failed (non-fatal)");
   }
