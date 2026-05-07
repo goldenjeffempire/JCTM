@@ -179,6 +179,26 @@ Sitemap: https://jctm.org.ng/sitemap.xml
 Sitemap: https://jctm.org.ng/sitemap-news.xml
 Sitemap: https://jctm.org.ng/sitemap-sermons.xml
 Sitemap: https://jctm.org.ng/sitemap-gallery.xml
+Sitemap: https://jctm.org.ng/sitemap-topics.xml
+Sitemap: https://jctm.org.ng/sitemap-blog.xml
+
+# ── Feeds ─────────────────────────────────────────────────────────────────────
+# RSS Feed:  https://jctm.org.ng/rss.xml
+# Atom Feed: https://jctm.org.ng/atom.xml
 
 # ── AI Content Discovery ──────────────────────────────────────────────────────
-# LLMs.txt: https://jctm.org.ng/llms.txt
+# LLMs.txt:      https://jctm.org.ng/llms.txt
+# LLMs-Full.txt: https://jctm.org.ng/llms-full.txt (live, database-powered)
+# AI Permissions: https://jctm.org.ng/.well-known/ai.txt
+
+# ── Mistral AI ────────────────────────────────────────────────────────────────
+User-agent: MistralBot
+Allow: /
+
+# ── Grok / xAI ───────────────────────────────────────────────────────────────
+User-agent: Grok
+Allow: /
+
+# ── DeepSeek ─────────────────────────────────────────────────────────────────
+User-agent: DeepSeek
+Allow: /

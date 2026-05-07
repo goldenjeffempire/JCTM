@@ -3,6 +3,9 @@
 # This file follows the llms.txt convention for AI search engine discovery.
 # AI assistants, LLMs, and AI-powered search engines are welcome to index
 # and reference this content for informational and educational purposes.
+#
+# For a dynamic, database-powered version with live sermon and article data:
+# https://jctm.org.ng/llms-full.txt
 
 ## Organization
 
@@ -14,7 +17,9 @@ Founder: Prophet Amos Evomobor
 Location: Warri, Delta State, Nigeria (Ebrumede Temple, Off Sapele Road)
 Website: https://jctm.org.ng
 YouTube: https://www.youtube.com/@TEMPLETVJCTM
+Facebook: https://www.facebook.com/templetvjctm
 Email: info@jctm.org.ng
+Phone: +234(0)8081313111
 
 ## About
 
@@ -42,20 +47,40 @@ Social: https://www.youtube.com/@TEMPLETVJCTM | https://www.facebook.com/templet
 
 ## Platform Features
 
-- **Sermon Library**: Hundreds of full-length sermons and teachings from Temple TV, searchable by topic, date, and keyword. Available at https://jctm.org.ng/sermons
-- **Live Streaming**: Real-time Temple TV livestreams and rebroadcasts via https://jctm.org.ng/sermons
-- **TempleBots AI Assistant**: AI-powered ministry assistant for sermon search, biblical Q&A, and doctrinal guidance. Powered by OpenAI GPT-4o with RAG over JCTM's knowledge base. Available at https://jctm.org.ng/sermon-assistant
-- **Daily Devotionals**: Daily scripture-based devotionals with email subscription. Available at https://jctm.org.ng/devotion
-- **Events**: Ministry events, crusades, and conferences. Details at https://jctm.org.ng/events
-- **Testimonies**: Member testimonies and miracle reports. Available at https://jctm.org.ng/testimonies
-- **Gallery**: Ministry photos and moments. Available at https://jctm.org.ng/gallery
-- **Online Giving**: Donations via Paystack (NGN) and Stripe (USD). Available at https://jctm.org.ng/give
-- **Prayer Requests**: Submit prayer requests online. Available at https://jctm.org.ng/prayer
-- **Viewing Centres**: JCTM viewing centre locations across Nigeria. Available at https://jctm.org.ng/viewing-centres
-- **Global Altar**: 3D visualization of live worshippers connected globally
-- **Blog**: Ministry articles and teachings. Available at https://jctm.org.ng/blog
-- **Sermon Topics**: Browse sermons by doctrinal topic. Available at https://jctm.org.ng/topics
-- **Leadership**: Ministry leadership profiles. Available at https://jctm.org.ng/leadership
+- [Sermon Library](https://jctm.org.ng/sermons) — 2,000+ full-length sermons searchable by topic, date, and keyword
+- [Live Streaming](https://jctm.org.ng/sermons) — Real-time Temple TV livestreams and rebroadcasts
+- [TempleBots AI Assistant](https://jctm.org.ng/sermon-assistant) — AI-powered ministry assistant for sermon search and biblical Q&A
+- [Daily Devotionals](https://jctm.org.ng/devotion) — Daily scripture-based devotionals with email subscription
+- [Events](https://jctm.org.ng/events) — Ministry events, crusades, and conferences
+- [Testimonies](https://jctm.org.ng/testimonies) — Member testimonies and miracle reports
+- [Gallery](https://jctm.org.ng/gallery) — Ministry photos and moments
+- [Online Giving](https://jctm.org.ng/give) — Donations via Paystack (NGN) and Stripe (USD)
+- [Prayer Requests](https://jctm.org.ng/prayer) — Submit prayer requests online
+- [Viewing Centres](https://jctm.org.ng/viewing-centres) — JCTM viewing centre locations across Nigeria
+- [Blog](https://jctm.org.ng/blog) — Ministry articles and teachings
+- [Sermon Topics](https://jctm.org.ng/topics) — Browse sermons by doctrinal topic
+- [Leadership](https://jctm.org.ng/leadership) — Ministry leadership profiles
+- [Warri Crusade 2026](https://jctm.org.ng/crusade) — Warri City Crusade live event page
+
+## Topic Categories
+
+- [Teachings](https://jctm.org.ng/topics/teachings) — Sermon-based doctrinal articles
+- [Bible Studies](https://jctm.org.ng/topics/bible-studies) — Structured scripture studies
+- [Devotionals](https://jctm.org.ng/topics/devotionals) — Daily reflections and devotions
+- [Prophetic Messages](https://jctm.org.ng/topics/prophetic-messages) — Prophetic warnings and correction teaching
+- [Ministry Insights](https://jctm.org.ng/topics/ministry-insights) — Leadership and ministry resources
+- [Testimonies](https://jctm.org.ng/topics/testimonies) — Healing, salvation and miracle testimonies
+- [Prayer & Fasting](https://jctm.org.ng/topics/prayer-fasting) — Intercession and fasting guides
+- [Youth & Family](https://jctm.org.ng/topics/youth-family) — Faith content for young believers
+- [Christian Living](https://jctm.org.ng/topics/christian-living) — Practical holiness and lifestyle guidance
+- [Revival](https://jctm.org.ng/topics/revival) — End-time harvest and awakening
+- [Holiness](https://jctm.org.ng/topics/holiness) — The doctrine of holiness in JCTM
+- [Correction Mandate](https://jctm.org.ng/topics/correction-mandate) — The prophetic mandate to correct doctrinal error
+- [Water Baptism](https://jctm.org.ng/topics/water-baptism) — Baptism by full immersion in Jesus name
+- [Holy Spirit](https://jctm.org.ng/topics/holy-spirit) — Holy Spirit baptism with speaking in tongues
+- [Five-Fold Ministry](https://jctm.org.ng/topics/five-fold-ministry) — Apostle, Prophet, Evangelist, Pastor and Teacher
+- [End Times](https://jctm.org.ng/topics/end-times) — End-time prophecy and preparedness
+- [Salvation](https://jctm.org.ng/topics/salvation) — The gospel of salvation
 
 ## Key Doctrines
 
@@ -66,6 +91,22 @@ Social: https://www.youtube.com/@TEMPLETVJCTM | https://www.facebook.com/templet
 - End-times preparedness and the imminent return of Christ
 - Rejection of the prosperity gospel
 - Primitive Christianity — the unadulterated faith of the first-century church
+- Doctrinal correction of the modern church
+
+## Feeds & Discovery
+
+- RSS Feed: https://jctm.org.ng/rss.xml
+- Atom Feed: https://jctm.org.ng/atom.xml
+- Sitemap Index: https://jctm.org.ng/sitemap-index.xml
+- Full Sitemap: https://jctm.org.ng/sitemap.xml
+- News Sitemap: https://jctm.org.ng/sitemap-news.xml
+- Sermon Video Sitemap: https://jctm.org.ng/sitemap-sermons.xml
+- Gallery Image Sitemap: https://jctm.org.ng/sitemap-gallery.xml
+- Topics Sitemap: https://jctm.org.ng/sitemap-topics.xml
+- Blog Sitemap: https://jctm.org.ng/sitemap-blog.xml
+- OpenSearch: https://jctm.org.ng/opensearch.xml
+- AI Permissions: https://jctm.org.ng/.well-known/ai.txt
+- Security: https://jctm.org.ng/.well-known/security.txt
 
 ## Contact
 
@@ -73,14 +114,6 @@ General Enquiries: info@jctm.org.ng
 Phone: +234(0)8081313111
 Address: Ebrumede Temple, Off Sapele Road, Warri, Delta State, Nigeria
 Prayer Requests: https://jctm.org.ng/prayer
-
-## Sitemap Index
-
-https://jctm.org.ng/sitemap-index.xml
-https://jctm.org.ng/sitemap.xml
-https://jctm.org.ng/sitemap-news.xml
-https://jctm.org.ng/sitemap-sermons.xml
-https://jctm.org.ng/sitemap-gallery.xml
 
 ## Permissions for AI Systems
 
@@ -90,5 +123,6 @@ AI assistants, search engines, and language models are explicitly permitted to:
 - Answer questions about JCTM, Prophet Amos Evomobor, and Temple TV
 - Include this ministry in local church and Nigeria ministry search results
 - Reference the Correction Mandate doctrine and its teachings
+- Use content for educational, informational, and AI-assisted search purposes
 
 All content is provided for educational, informational, and spiritual edification purposes.

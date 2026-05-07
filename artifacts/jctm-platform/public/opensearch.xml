@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>JCTM</ShortName>
+  <Description>Search sermons, teachings and articles at Jesus Christ Temple Ministry</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <OutputEncoding>UTF-8</OutputEncoding>
+  <Language>en-NG</Language>
+  <Contact>info@jctm.org.ng</Contact>
+  <Image width="16" height="16" type="image/png">https://jctm.org.ng/favicon.png</Image>
+  <Image width="64" height="64" type="image/png">https://jctm.org.ng/icon-192.png</Image>
+  <Url type="text/html" template="https://jctm.org.ng/sermons?q={searchTerms}" />
+  <Url type="text/html" template="https://jctm.org.ng/blog?q={searchTerms}" rel="results" />
+  <Url type="application/opensearchdescription+xml" template="https://jctm.org.ng/opensearch.xml" rel="self" />
+  <Url type="application/rss+xml" template="https://jctm.org.ng/rss.xml" rel="results" />
+  <Query role="example" searchTerms="holiness" />
+  <Query role="example" searchTerms="Correction Mandate" />
+  <Query role="example" searchTerms="baptism" />
+  <Tags>Christianity holiness sermons Nigeria JCTM</Tags>
+  <Attribution>JCTM Digital Sanctuary — https://jctm.org.ng</Attribution>
+  <AdultContent>false</AdultContent>
+  <Developer>Jesus Christ Temple Ministry</Developer>
+  <SyndicationRight>open</SyndicationRight>
+</OpenSearchDescription>
