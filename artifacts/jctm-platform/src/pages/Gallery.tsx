@@ -1342,7 +1342,7 @@ export default function Gallery() {
   }, []);
 
   const selectAll = useCallback(() => {
-    setSelectedIds(new Set(images.map(img => img.id)));
+    setSelectedIds(new Set(images.map((img: { id: number }) => img.id)));
   }, [images]);
 
   const deselectAll = useCallback(() => {

@@ -50,8 +50,14 @@ export const ADSENSE_SLOTS = {
   aboutPage:       import.meta.env.VITE_ADSENSE_SLOT_ABOUT             || _homeMid,
   testimoniesPage: import.meta.env.VITE_ADSENSE_SLOT_TESTIMONIES       || _sermonFeed,
   devotionPage:    import.meta.env.VITE_ADSENSE_SLOT_DEVOTION          || _homeMid,
-  topicsPage:      import.meta.env.VITE_ADSENSE_SLOT_TOPICS            || _sermonFeed,
-  leadershipPage:  import.meta.env.VITE_ADSENSE_SLOT_LEADERSHIP        || _homeMid,
+  topicsPage:        import.meta.env.VITE_ADSENSE_SLOT_TOPICS            || _sermonFeed,
+  leadershipPage:    import.meta.env.VITE_ADSENSE_SLOT_LEADERSHIP        || _homeMid,
+  topicDetailPage:   import.meta.env.VITE_ADSENSE_SLOT_TOPIC_DETAIL      || _sermonFeed,
+  scriptureStudy:    import.meta.env.VITE_ADSENSE_SLOT_SCRIPTURE         || _homeMid,
+  spiritualInsight:  import.meta.env.VITE_ADSENSE_SLOT_SPIRITUAL         || _homeMid,
+  galleryPage:       import.meta.env.VITE_ADSENSE_SLOT_GALLERY           || _sermonFeed,
+  crusadePage:       import.meta.env.VITE_ADSENSE_SLOT_CRUSADE           || _sermonFeed,
+  momentsPage:       import.meta.env.VITE_ADSENSE_SLOT_MOMENTS           || _sermonFeed,
 };
 
 function isValidSlot(slot: string | undefined): slot is string {

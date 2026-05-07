@@ -4,7 +4,7 @@ import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
-import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -882,6 +882,7 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
 const MINISTER_CONF_VIDEO_ID = "hQFA1Y9NAcY";
 
 export default function Events() {
+  useAdPageTracker("/events", 1);
   const { data: events, isLoading } = useListEvents({ limit: 20, offset: 0 });
 
   useEffect(() => { document.title = "Events | JCTM Digital Sanctuary"; }, []);

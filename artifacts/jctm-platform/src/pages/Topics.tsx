@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { Badge } from "@/components/ui/badge";
 import {
   Shield, BookOpen, Globe, Heart, Clock, Droplets,
@@ -109,6 +110,7 @@ const stagger = {
 };
 
 export default function Topics() {
+  useAdPageTracker("/topics", 1);
   return (
     <Layout>
       <SEO
@@ -209,6 +211,8 @@ export default function Topics() {
               );
             })}
           </motion.div>
+
+          <AdSlot slot={ADSENSE_SLOTS.topicsPage} minHeight={120} className="mx-auto max-w-5xl mb-10" lazy />
 
           {/* Bottom CTA */}
           <motion.div

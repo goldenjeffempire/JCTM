@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Play, BookOpen, ChevronRight, ExternalLink, ArrowLeft, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { TOPICS } from "./Topics";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -254,6 +255,7 @@ const fadeUp = {
 };
 
 export default function TopicDetail() {
+  useAdPageTracker("/topics/:slug", 1);
   const { slug } = useParams<{ slug: string }>();
   const topic = TOPICS.find(t => t.slug === slug);
   const content = slug ? TOPIC_CONTENT[slug] : undefined;
@@ -478,6 +480,8 @@ export default function TopicDetail() {
               ))}
             </div>
           </motion.div>
+
+          <AdSlot slot={ADSENSE_SLOTS.topicDetailPage} minHeight={120} className="mx-auto max-w-4xl mb-8" lazy />
 
           {/* CTA */}
           <motion.div

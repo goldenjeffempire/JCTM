@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SEO } from "@/components/SEO";
 import { Layout } from "@/components/layout/Layout";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -46,6 +47,7 @@ function renderMarkdown(text: string): React.ReactNode {
 }
 
 export default function SpiritualInsight() {
+  useAdPageTracker("/spiritual-insight", 1);
   const [name, setName] = useState("");
   const [situation, setSituation] = useState("");
   const [category, setCategory] = useState("general");
@@ -319,6 +321,8 @@ export default function SpiritualInsight() {
               )}
             </motion.div>
           )}
+
+          <AdSlot slot={ADSENSE_SLOTS.spiritualInsight} minHeight={100} className="mx-auto max-w-3xl mt-8" lazy />
         </div>
       </div>
     </Layout>

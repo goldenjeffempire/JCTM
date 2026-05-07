@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { StreamPlayer } from "@/components/StreamPlayer";
 
@@ -71,6 +71,7 @@ async function fetchSermonsPage(search: string, offset: number): Promise<SermonI
 }
 
 export default function Sermons() {
+  useAdPageTracker("/sermons", 1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sermons, setSermons] = useState<SermonItem[]>([]);

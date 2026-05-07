@@ -7,7 +7,7 @@ import {
   Send, MessageSquarePlus, Clock,
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -302,6 +302,7 @@ function PrayerWall() {
 }
 
 export default function Prayer() {
+  useAdPageTracker("/prayer", 1);
   const [need, setNeed] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("general");

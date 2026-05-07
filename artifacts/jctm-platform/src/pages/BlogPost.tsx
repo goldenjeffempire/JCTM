@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
-import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -123,6 +123,7 @@ export default function BlogPost() {
   const [shareOpen, setShareOpen] = useState(false);
   const articleRef    = useRef<HTMLDivElement>(null);
   const queryClient   = useQueryClient();
+  useAdPageTracker("/blog/:slug", 2);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery<{ post: FullPost; relatedPosts: RelatedPost[]; breadcrumbSchema: string }>({

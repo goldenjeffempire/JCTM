@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
-import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PAGE_SIZE = 12;
@@ -195,6 +195,7 @@ export default function Blog() {
   const [selectedTag, setSelectedTag]     = useState<string | null>(null);
   const [offset, setOffset]               = useState(0);
   const [showAllTags, setShowAllTags]     = useState(false);
+  useAdPageTracker("/blog", 1);
 
   const { data: categoryData } = useQuery<{ categories: BlogCategory[]; tags: BlogTag[] }>({
     queryKey: ["blog-categories"],

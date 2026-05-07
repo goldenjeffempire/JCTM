@@ -266,7 +266,7 @@ export default function AdminMonetization() {
   if (!token) {
     return (
       <Layout>
-        <SEO title="Monetization Dashboard — Admin | JCTM" noIndex />
+        <SEO title="Monetization Dashboard — Admin | JCTM" description="Admin monetization panel" noIndex />
         <div className="min-h-[80vh] flex items-center justify-center px-4">
           <div className="w-full max-w-sm rounded-2xl border border-border/50 bg-card/80 p-8 shadow-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -303,7 +303,7 @@ export default function AdminMonetization() {
 
   return (
     <Layout>
-      <SEO title="Monetization Dashboard — Admin | JCTM" noIndex />
+      <SEO title="Monetization Dashboard — Admin | JCTM" description="Admin monetization panel" noIndex />
       <div className="container mx-auto px-4 py-10 max-w-6xl space-y-8">
 
         {/* Header */}
@@ -591,6 +591,46 @@ export default function AdminMonetization() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── AdSense Activation Checklist ──────────────────────────────────── */}
+        {activeTab === "ads" && (
+          <div className="rounded-2xl border border-border/50 bg-card/60 p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle2 className="h-5 w-5 text-green-400" />
+              <p className="font-semibold text-sm">AdSense Activation Checklist</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Items marked Done are complete in your codebase. Items marked Action Required need your attention in the Google AdSense dashboard.</p>
+            <div className="space-y-3">
+              {[
+                { done: true,  label: "Publisher ID configured",                    detail: "ca-pub-6817509745706083 set in code and ads.txt" },
+                { done: true,  label: "ads.txt present at /ads.txt",                detail: "Verified: google.com, ca-pub-6817509745706083, DIRECT, f08c47fec0942fa0" },
+                { done: true,  label: "Auto Ads script loaded",                     detail: "Async AdSense script in <head> of index.html" },
+                { done: true,  label: "Consent Mode v2 implemented",                detail: "gtag defaults denied; updated on user consent via CookieConsent" },
+                { done: true,  label: "Display ad slots placed (23 slots, 16 pages)",detail: "Topics, Leadership, TopicDetail, ScriptureStudy, SpiritualInsight, and 11 more pages" },
+                { done: true,  label: "Page view tracker wired to all ad pages",    detail: "useAdPageTracker active on all 16 pages with AdSlot" },
+                { done: true,  label: "CLS prevention on all ad containers",        detail: "minHeight reservation prevents layout shift" },
+                { done: false, label: "Submit site for AdSense review",             detail: "Go to adsense.google.com → Sites → Add site → Submit for review" },
+                { done: false, label: "Complete payment & tax information",         detail: "AdSense dashboard → Payments → Add payment method and tax info" },
+                { done: false, label: "Enable Auto Ads in AdSense dashboard",       detail: "AdSense → Ads → By site → Enable Auto ads toggle" },
+                { done: false, label: "Create individual ad units (optional)",      detail: "AdSense → Ads → By ad unit → Create display ad; copy slot IDs to env vars" },
+                { done: false, label: "Verify domain in Google Search Console",     detail: "search.google.com/search-console → Add property → jctm.org.ng" },
+              ].map(item => (
+                <div key={item.label} className="flex items-start gap-3">
+                  <span className={`mt-0.5 shrink-0 inline-flex items-center justify-center h-5 w-5 rounded-full text-xs font-bold ${item.done ? "bg-green-500/20 text-green-400" : "bg-amber-500/15 text-amber-400"}`}>
+                    {item.done ? "✓" : "!"}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{item.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
+                  </div>
+                  <span className={`ml-auto shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${item.done ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"}`}>
+                    {item.done ? "Done" : "Action Required"}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}

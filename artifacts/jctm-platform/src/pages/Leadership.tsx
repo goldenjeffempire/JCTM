@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ const MINISTRY_VALUES = [
 ];
 
 export default function Leadership() {
+  useAdPageTracker("/leadership", 1);
   return (
     <Layout>
       <SEO
@@ -401,6 +403,7 @@ export default function Leadership() {
                   </div>
                 </div>
               </div>
+              <AdSlot slot={ADSENSE_SLOTS.leadershipPage} minHeight={120} className="mb-6" lazy />
               <VenueMap
                 venue={CHURCH_HQ_VENUE}
                 headerTitle="Ebrumede Temple Location"

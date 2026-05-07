@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
 import { format } from "date-fns";
@@ -19,6 +19,7 @@ interface DailyDevotion {
 }
 
 export default function Devotion() {
+  useAdPageTracker("/devotion", 1);
   const [devotion, setDevotion] = useState<DailyDevotion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");

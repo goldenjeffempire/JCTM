@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { AdSlot, ADSENSE_SLOTS } from "@/components/ads/AdSense";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,6 +173,7 @@ function ReelCard({ testimony, index, likedIds, localLikes, onAmen }: {
 }
 
 export default function Testimonies() {
+  useAdPageTracker("/testimonies", 1);
   const [showForm, setShowForm] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<FormData>({ name: "", email: "", title: "", category: "", content: "", videoUrl: "" });

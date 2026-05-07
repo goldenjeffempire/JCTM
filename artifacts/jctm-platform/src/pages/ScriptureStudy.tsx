@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SEO } from "@/components/SEO";
 import { Layout } from "@/components/layout/Layout";
+import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -53,6 +54,7 @@ function formatMarkdown(text: string): React.ReactNode {
 }
 
 export default function ScriptureStudy() {
+  useAdPageTracker("/scripture-study", 1);
   const [passage, setPassage] = useState("");
   const [question, setQuestion] = useState("");
   const [depth, setDepth] = useState<StudyDepth>("standard");
@@ -393,6 +395,8 @@ export default function ScriptureStudy() {
               )}
             </AnimatePresence>
           </motion.div>
+
+          <AdSlot slot={ADSENSE_SLOTS.scriptureStudy} minHeight={100} className="mx-auto max-w-3xl mt-8" lazy />
 
           {/* Bottom info cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">

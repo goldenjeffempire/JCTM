@@ -11,7 +11,7 @@ import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 import { getOrCreateVisitorId } from "@/lib/visitorId";
 import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
@@ -632,6 +632,7 @@ function IntroCard({
 }
 
 export default function IntroVideos() {
+  useAdPageTracker("/intro-videos", 1);
   const [videos, setVideos] = useState<IntroItem[]>([]);
   const [current, setCurrent] = useState(0);
   const [muted, setMuted] = useState(false);

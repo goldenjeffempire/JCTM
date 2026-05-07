@@ -38,7 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalAltar } from "@/components/GlobalAltar";
 import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
-import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 import { toast } from "sonner";
@@ -3784,6 +3784,7 @@ function GlobalAltarSection() {
 // PAGE ASSEMBLY
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Home() {
+  useAdPageTracker("/", 2);
   return (
     <Layout>
       <Helmet>

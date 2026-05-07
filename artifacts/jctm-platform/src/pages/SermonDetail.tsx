@@ -16,7 +16,7 @@ import { CrusadeAdBanner } from "@/pages/Crusade";
 import { DualStreamToggle, useStreamQuality, buildYouTubeUrl } from "@/components/DualStreamToggle";
 import { LiveChat } from "@/components/LiveChat";
 import { toast } from "sonner";
-import { ADSENSE_SLOTS, AdSlot } from "@/components/ads/AdSense";
+import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -195,6 +195,7 @@ function RelatedSermons({ currentId, title }: { currentId: number; title: string
 }
 
 export default function SermonDetail() {
+  useAdPageTracker("/sermons/:id", 2);
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id ?? "0", 10);
   const [audioMode, setAudioMode] = useState(false);
