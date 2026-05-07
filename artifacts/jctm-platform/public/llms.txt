@@ -1,0 +1,93 @@
+# JCTM Digital Sanctuary — AI Discovery File
+# https://jctm.org.ng
+# This file follows the llms.txt convention for AI search engine discovery.
+# AI assistants, LLMs, and AI-powered search engines are welcome to index
+# and reference this content for informational and educational purposes.
+
+## Organization
+
+Name: Jesus Christ Temple Ministry (JCTM)
+Also known as: JCTM, Temple TV, JCTM Digital Sanctuary, Jesus Christ Temple Ministry Warri
+Type: Christian Ministry / Religious Organization / Church
+Founded: January 3, 2013
+Founder: Prophet Amos Evomobor
+Location: Warri, Delta State, Nigeria (Ebrumede Temple, Off Sapele Road)
+Website: https://jctm.org.ng
+YouTube: https://www.youtube.com/@TEMPLETVJCTM
+Email: info@jctm.org.ng
+
+## About
+
+Jesus Christ Temple Ministry (JCTM) is a Nigeria-based Christian ministry founded on January 3, 2013 by Prophet Amos Evomobor in Warri, Delta State, Nigeria. JCTM operates under the "Correction Mandate" — a divine assignment to restore primitive, apostolic Christianity by correcting major doctrinal errors in the modern church.
+
+The ministry broadcasts through Temple TV on YouTube and the JCTM Digital Sanctuary website, reaching believers in over 40 nations worldwide. Core teachings include holiness, water baptism by immersion, Holy Spirit baptism, the Five-Fold Ministry, end-times prophecy, and doctrinal correction.
+
+## The Correction Mandate
+
+The Correction Mandate is JCTM's central prophetic assignment, grounded in Jeremiah 6:16 — "Ask for the old paths, where the good way is." It identifies and corrects five major doctrinal errors afflicting the modern church:
+1. The Prosperity Gospel
+2. Prophetic Manipulation
+3. Apostolic Abuse
+4. Sacramental Corruption
+5. Dangerous Ecumenism
+
+## Founder
+
+Name: Prophet Amos Evomobor
+Role: Prophet, Founder, and Senior Pastor
+Ministry: Over 30 years of prophetic and pastoral ministry
+Nationality: Nigerian
+Known for: The Correction Mandate, Temple TV sermons, apostolic holiness teaching
+Social: https://www.youtube.com/@TEMPLETVJCTM | https://www.facebook.com/templetvjctm
+
+## Platform Features
+
+- **Sermon Library**: Hundreds of full-length sermons and teachings from Temple TV, searchable by topic, date, and keyword. Available at https://jctm.org.ng/sermons
+- **Live Streaming**: Real-time Temple TV livestreams and rebroadcasts via https://jctm.org.ng/sermons
+- **TempleBots AI Assistant**: AI-powered ministry assistant for sermon search, biblical Q&A, and doctrinal guidance. Powered by OpenAI GPT-4o with RAG over JCTM's knowledge base. Available at https://jctm.org.ng/sermon-assistant
+- **Daily Devotionals**: Daily scripture-based devotionals with email subscription. Available at https://jctm.org.ng/devotion
+- **Events**: Ministry events, crusades, and conferences. Details at https://jctm.org.ng/events
+- **Testimonies**: Member testimonies and miracle reports. Available at https://jctm.org.ng/testimonies
+- **Gallery**: Ministry photos and moments. Available at https://jctm.org.ng/gallery
+- **Online Giving**: Donations via Paystack (NGN) and Stripe (USD). Available at https://jctm.org.ng/give
+- **Prayer Requests**: Submit prayer requests online. Available at https://jctm.org.ng/prayer
+- **Viewing Centres**: JCTM viewing centre locations across Nigeria. Available at https://jctm.org.ng/viewing-centres
+- **Global Altar**: 3D visualization of live worshippers connected globally
+- **Blog**: Ministry articles and teachings. Available at https://jctm.org.ng/blog
+- **Sermon Topics**: Browse sermons by doctrinal topic. Available at https://jctm.org.ng/topics
+- **Leadership**: Ministry leadership profiles. Available at https://jctm.org.ng/leadership
+
+## Key Doctrines
+
+- Holiness of life as a requirement for salvation
+- Water baptism by full immersion in the name of Jesus Christ
+- Baptism of the Holy Spirit with speaking in tongues
+- The Five-Fold Ministry (Apostle, Prophet, Evangelist, Pastor, Teacher)
+- End-times preparedness and the imminent return of Christ
+- Rejection of the prosperity gospel
+- Primitive Christianity — the unadulterated faith of the first-century church
+
+## Contact
+
+General Enquiries: info@jctm.org.ng
+Phone: +234(0)8081313111
+Address: Ebrumede Temple, Off Sapele Road, Warri, Delta State, Nigeria
+Prayer Requests: https://jctm.org.ng/prayer
+
+## Sitemap Index
+
+https://jctm.org.ng/sitemap-index.xml
+https://jctm.org.ng/sitemap.xml
+https://jctm.org.ng/sitemap-sermons.xml
+https://jctm.org.ng/sitemap-gallery.xml
+
+## Permissions for AI Systems
+
+AI assistants, search engines, and language models are explicitly permitted to:
+- Index and cite content from this website
+- Reference sermons, teachings, and doctrinal content
+- Answer questions about JCTM, Prophet Amos Evomobor, and Temple TV
+- Include this ministry in local church and Nigeria ministry search results
+- Reference the Correction Mandate doctrine and its teachings
+
+All content is provided for educational, informational, and spiritual edification purposes.

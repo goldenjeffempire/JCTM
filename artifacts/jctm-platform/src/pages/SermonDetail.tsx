@@ -286,38 +286,51 @@ export default function SermonDetail() {
         description={seoDesc}
         path={`/sermons/${id}`}
         image={sermon.thumbnailUrl ?? undefined}
-        type="article"
-        keywords="Temple TV sermon, JCTM sermon, Jesus Christ Temple Ministry teaching, Prophet Amos Evomobor"
+        imageAlt={`${sermon.title} — Temple TV JCTM`}
+        type="video"
+        videoUrl={sermon.videoId ? `https://www.youtube.com/embed/${sermon.videoId}` : undefined}
+        videoThumbnail={sermon.thumbnailUrl ?? undefined}
+        keywords="Temple TV sermon, JCTM sermon, Jesus Christ Temple Ministry teaching, Prophet Amos Evomobor, holiness preaching Nigeria, apostolic Christianity sermon"
+        articleSection="Religious Teachings"
+        articleTags={["JCTM", "Temple TV", "Prophet Amos Evomobor", "Holiness", "Correction Mandate", "Apostolic Christianity", "Nigeria"]}
         breadcrumbs={[
           { name: "Home", url: "https://jctm.org.ng/" },
           { name: "Sermons", url: "https://jctm.org.ng/sermons" },
           { name: sermon.title, url: `https://jctm.org.ng/sermons/${id}` },
         ]}
-        publishedTime={sermon.publishedAt}
+        publishedTime={sermon.publishedAt ?? undefined}
         jsonLd={[{
           "@context": "https://schema.org",
           "@type": "VideoObject",
+          "@id": `https://jctm.org.ng/sermons/${id}#video`,
           "name": sermon.title,
           "description": sermon.description ?? seoDesc,
-          "thumbnailUrl": sermon.thumbnailUrl,
+          "thumbnailUrl": sermon.thumbnailUrl ?? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg`,
           "uploadDate": sermon.publishedAt,
-          "duration": "PT1H",
           "url": `https://www.youtube.com/watch?v=${sermon.videoId}`,
           "embedUrl": `https://www.youtube.com/embed/${sermon.videoId}`,
           "contentUrl": `https://www.youtube.com/watch?v=${sermon.videoId}`,
           "inLanguage": "en-NG",
+          "isAccessibleForFree": true,
           "publisher": {
             "@type": "ReligiousOrganization",
+            "@id": "https://jctm.org.ng/#organization",
             "name": "Jesus Christ Temple Ministry (JCTM)",
             "url": "https://jctm.org.ng",
+            "logo": { "@type": "ImageObject", "url": "https://jctm.org.ng/favicon.png" },
           },
           "author": {
             "@type": "Person",
+            "@id": "https://jctm.org.ng/#prophet",
             "name": "Prophet Amos Evomobor",
             "url": "https://jctm.org.ng/leadership",
           },
           "genre": "Religious Teaching",
-          "keywords": "JCTM, Temple TV, Prophet Amos Evomobor, holiness, Correction Mandate, apostolic Christianity",
+          "keywords": "JCTM, Temple TV, Prophet Amos Evomobor, holiness, Correction Mandate, apostolic Christianity, primitive Christianity Nigeria",
+          "potentialAction": {
+            "@type": "WatchAction",
+            "target": `https://www.youtube.com/watch?v=${sermon.videoId}`,
+          },
         }]}
       />
 

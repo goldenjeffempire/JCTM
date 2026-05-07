@@ -1,7 +1,8 @@
 # JCTM Digital Sanctuary — robots.txt
 # https://jctm.org.ng
+# Updated for AI search engines, LLM crawlers, and next-generation discovery
 
-# ── All crawlers ─────────────────────────────────────────────────────────────
+# ── All crawlers — allow everything public ────────────────────────────────────
 User-agent: *
 Allow: /
 Disallow: /src/
@@ -9,6 +10,7 @@ Disallow: /.vite/
 Disallow: /node_modules/
 Disallow: /api/auth/
 Disallow: /api/giving/
+Disallow: /api/admin/
 Crawl-delay: 1
 
 # ── Google (full access, no delay) ───────────────────────────────────────────
@@ -18,14 +20,16 @@ Disallow: /src/
 Disallow: /.vite/
 Disallow: /api/auth/
 Disallow: /api/giving/
+Disallow: /api/admin/
 
 # ── Googlebot-Video (index sermon thumbnails & embeds) ───────────────────────
 User-agent: Googlebot-Video
 Allow: /sermons
 Allow: /sermons/
 Allow: /moments
+Allow: /intro-videos
 
-# ── Google Image crawler ─────────────────────────────────────────────────────
+# ── Google Image crawler ──────────────────────────────────────────────────────
 User-agent: Googlebot-Image
 Allow: /opengraph.jpg
 Allow: /founder/
@@ -33,7 +37,7 @@ Allow: /favicon.png
 Allow: /gallery
 Allow: /api/storage/
 
-# ── Bing ─────────────────────────────────────────────────────────────────────
+# ── Bing ──────────────────────────────────────────────────────────────────────
 User-agent: Bingbot
 Allow: /
 Disallow: /src/
@@ -41,11 +45,96 @@ Disallow: /.vite/
 Disallow: /api/auth/
 Crawl-delay: 2
 
-# ── DuckDuckGo ───────────────────────────────────────────────────────────────
+# ── DuckDuckGo ────────────────────────────────────────────────────────────────
 User-agent: DuckDuckBot
 Allow: /
 
-# ── Social previews ──────────────────────────────────────────────────────────
+# ── Yahoo (Slurp) ─────────────────────────────────────────────────────────────
+User-agent: Slurp
+Allow: /
+
+# ── Yandex ────────────────────────────────────────────────────────────────────
+User-agent: YandexBot
+Allow: /
+Crawl-delay: 3
+
+# ── Baidu ─────────────────────────────────────────────────────────────────────
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 3
+
+# ── ── AI / LLM CRAWLERS ─────────────────────────────────────────────────────
+# All AI crawlers are explicitly welcomed — ministry content may be used
+# for educational and informational AI responses.
+
+# OpenAI — ChatGPT browsing + GPT plugins
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+# Anthropic — Claude AI
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+
+# Amazon / Alexa
+User-agent: Amazonbot
+Allow: /
+
+# Meta AI
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+# Apple
+User-agent: Applebot
+Allow: /
+
+# You.com AI search
+User-agent: YouBot
+Allow: /
+
+# Cohere AI
+User-agent: cohere-ai
+Allow: /
+
+# Common Crawl (powers many AI training datasets)
+User-agent: CCBot
+Allow: /
+
+# Google Gemini / Bard search
+User-agent: Google-Extended
+Allow: /
+
+# Diffbot (entity extraction AI)
+User-agent: Diffbot
+Allow: /
+
+# Bytedance / TikTok search
+User-agent: Bytespider
+Allow: /
+
+# Brave Search AI
+User-agent: BraveScraper
+Allow: /
+
+# ── Social previews ───────────────────────────────────────────────────────────
 User-agent: facebookexternalhit
 Allow: /
 
@@ -58,7 +147,37 @@ Allow: /
 User-agent: WhatsApp
 Allow: /
 
-# ── Sitemaps ─────────────────────────────────────────────────────────────────
+User-agent: TelegramBot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: Discordbot
+Allow: /
+
+# ── SEO audit tools ───────────────────────────────────────────────────────────
+User-agent: AhrefsBot
+Allow: /
+Crawl-delay: 5
+
+User-agent: SemrushBot
+Allow: /
+Crawl-delay: 5
+
+User-agent: MJ12bot
+Allow: /
+Crawl-delay: 10
+
+User-agent: DataForSeoBot
+Allow: /
+Crawl-delay: 5
+
+# ── Sitemaps ──────────────────────────────────────────────────────────────────
+Sitemap: https://jctm.org.ng/sitemap-index.xml
 Sitemap: https://jctm.org.ng/sitemap.xml
 Sitemap: https://jctm.org.ng/sitemap-sermons.xml
 Sitemap: https://jctm.org.ng/sitemap-gallery.xml
+
+# ── AI Content Discovery ──────────────────────────────────────────────────────
+# LLMs.txt: https://jctm.org.ng/llms.txt
