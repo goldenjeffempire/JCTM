@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cookie, Shield, BarChart3, Megaphone, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Cookie, Shield, BarChart3, Megaphone, ChevronDown, ChevronUp, ExternalLink, BanIcon } from "lucide-react";
 import { Link } from "wouter";
 import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 
@@ -10,8 +10,9 @@ export type ConsentState = {
   advertising: boolean;
 };
 
-const STORAGE_KEY = "jctm_cookie_consent_v2";
-const LEGACY_KEY = "jctm_cookie_notice_dismissed";
+const STORAGE_KEY     = "jctm_cookie_consent_v2";
+const LEGACY_KEY      = "jctm_cookie_notice_dismissed";
+const CCPA_OPT_KEY    = "jctm_ccpa_optout";
 
 export function getConsentState(): ConsentState | null {
   try {
@@ -24,11 +25,30 @@ export function getConsentState(): ConsentState | null {
   return null;
 }
 
+export function getCcpaOptOut(): boolean {
+  try { return safeLocalGet(CCPA_OPT_KEY) === "1"; } catch { return false; }
+}
+
+function saveCcpaOptOut(optOut: boolean) {
+  try {
+    if (optOut) safeLocalSet(CCPA_OPT_KEY, "1");
+    else localStorage.removeItem(CCPA_OPT_KEY);
+  } catch { /* ignore */ }
+}
+
 function saveConsent(state: ConsentState) {
   try {
     safeLocalSet(STORAGE_KEY, JSON.stringify(state));
     safeLocalSet(LEGACY_KEY, "1");
   } catch { /* ignore */ }
+}
+
+// ─── GPC (Global Privacy Control) detection ──────────────────────────────────
+// If the user's browser sends GPC, treat advertising as opted-out by default.
+function detectGpc(): boolean {
+  try {
+    return !!(navigator as unknown as Record<string, unknown>).globalPrivacyControl;
+  } catch { return false; }
 }
 
 export function useCookieConsent() {
@@ -84,13 +104,48 @@ function Toggle({ checked, onChange, disabled }: ToggleProps) {
   );
 }
 
+// ─── CCPA "Do Not Sell" banner ────────────────────────────────────────────────
+export function CcpaDoNotSellLink({ className = "" }: { className?: string }) {
+  const [opted, setOpted] = useState(getCcpaOptOut);
+
+  function toggle() {
+    const next = !opted;
+    setOpted(next);
+    saveCcpaOptOut(next);
+    if (next) {
+      const current = getConsentState();
+      if (current) {
+        const updated: ConsentState = { ...current, advertising: false };
+        saveConsent(updated);
+        signalConsentToGoogle(updated);
+        dispatchConsentUpdate();
+      }
+    }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className={`inline-flex items-center gap-1 text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground transition-colors ${className}`}
+      aria-label={opted ? "Re-enable personalised ads" : "Do Not Sell or Share My Personal Information"}
+    >
+      <BanIcon className="h-3 w-3" />
+      {opted ? "Personalised ads: off" : "Do Not Sell My Data"}
+    </button>
+  );
+}
+
+// ─── Main CookieConsent Banner ────────────────────────────────────────────────
 export function CookieConsent() {
-  const [visible, setVisible] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [analytics, setAnalytics] = useState(true);
+  const [visible, setVisible]       = useState(false);
+  const [expanded, setExpanded]     = useState(false);
+  const [analytics, setAnalytics]   = useState(true);
   const [advertising, setAdvertising] = useState(true);
 
   useEffect(() => {
+    // Respect GPC signal — pre-set advertising to off
+    if (detectGpc()) setAdvertising(false);
+
     try {
       const saved = getConsentState();
       if (saved) {
@@ -112,9 +167,9 @@ export function CookieConsent() {
     setVisible(false);
   }, []);
 
-  const acceptAll = () => accept({ essential: true, analytics: true, advertising: true });
+  const acceptAll       = () => accept({ essential: true, analytics: true, advertising: !getCcpaOptOut() });
   const acceptEssential = () => accept({ essential: true, analytics: false, advertising: false });
-  const acceptCustom = () => accept({ essential: true, analytics, advertising });
+  const acceptCustom    = () => accept({ essential: true, analytics, advertising: advertising && !getCcpaOptOut() });
 
   return (
     <AnimatePresence>
@@ -158,6 +213,12 @@ export function CookieConsent() {
                         Privacy Policy <ExternalLink className="h-3 w-3" />
                       </Link>
                     </p>
+                    {detectGpc() && (
+                      <p className="mt-2 text-xs text-amber-400 flex items-center gap-1">
+                        <BanIcon className="h-3 w-3" />
+                        Your browser's Global Privacy Control signal was detected — advertising cookies are pre-set to off.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -250,14 +311,14 @@ export function CookieConsent() {
                     Essential Only
                   </button>
 
-                  {expanded ? (
+                  {expanded && (
                     <button
                       onClick={acceptCustom}
                       className="order-3 sm:order-2 flex-1 sm:flex-none sm:min-w-[140px] py-3 px-6 rounded-xl border-2 border-accent/40 text-accent font-semibold text-sm hover:bg-accent/5 active:scale-[0.98] transition-all"
                     >
                       Save My Choices
                     </button>
-                  ) : null}
+                  )}
 
                   <button
                     onClick={() => setExpanded(v => !v)}
@@ -268,11 +329,14 @@ export function CookieConsent() {
                   </button>
                 </div>
 
-                <p className="text-[11px] text-muted-foreground/70 mt-4 text-center">
-                  Jesus Christ Temple Ministry · Warri, Nigeria · By continuing you agree to our{" "}
+                <p className="text-[11px] text-muted-foreground/70 mt-4 text-center flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                  <span>Jesus Christ Temple Ministry · Warri, Nigeria</span>
+                  <span className="hidden sm:inline">·</span>
                   <Link href="/privacy" className="hover:text-muted-foreground underline" onClick={acceptEssential}>
                     Privacy Policy
                   </Link>
+                  <span>·</span>
+                  <CcpaDoNotSellLink />
                 </p>
 
               </div>

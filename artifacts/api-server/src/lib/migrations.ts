@@ -976,5 +976,36 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_view_count_idx ON blog_posts (view_count DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_like_count_idx ON blog_posts (like_count DESC)`);
 
+  // ── Ad page-view tracking ────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ad_page_views (
+      id          serial      PRIMARY KEY,
+      page        text        NOT NULL DEFAULT '/',
+      referrer    text        NOT NULL DEFAULT '',
+      visitor_id  text        NOT NULL DEFAULT '',
+      session_id  text        NOT NULL DEFAULT '',
+      ad_slots_in_view integer NOT NULL DEFAULT 0,
+      consent_level text      NOT NULL DEFAULT 'pending',
+      recorded_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ad_page_views_recorded_at_idx ON ad_page_views (recorded_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ad_page_views_page_idx ON ad_page_views (page, recorded_at DESC)`);
+
+  // ── Partnership / sponsorship inquiries ──────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sponsorship_inquiries (
+      id           serial      PRIMARY KEY,
+      name         text        NOT NULL,
+      email        text        NOT NULL,
+      organization text        NOT NULL DEFAULT '',
+      tier         text        NOT NULL,
+      message      text        NOT NULL DEFAULT '',
+      status       text        NOT NULL DEFAULT 'new',
+      created_at   timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS sponsorship_inquiries_status_idx ON sponsorship_inquiries (status, created_at DESC)`);
+
   logger.info("All migrations complete");
 }

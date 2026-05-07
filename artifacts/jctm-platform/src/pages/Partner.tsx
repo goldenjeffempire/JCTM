@@ -120,15 +120,20 @@ export default function Partner() {
     }
     setSubmitting(true);
     try {
-      await fetch(`${BASE}/api/prayer`, {
+      const res = await fetch(`${BASE}/api/partner/inquiry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          request: `[PARTNERSHIP INQUIRY — ${form.tier}]\n\nOrganization: ${form.organization || "Individual"}\n\nMessage:\n${form.message || "(No additional message provided)"}`,
+          organization: form.organization,
+          tier: form.tier,
+          message: form.message,
         }),
       });
+      if (!res.ok) {
+        throw new Error("Server error");
+      }
       setSubmitted(true);
       toast.success("Partnership inquiry sent! We'll reach out within 48 hours.");
     } catch {
@@ -207,9 +212,9 @@ export default function Partner() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className={`relative rounded-2xl border p-6 flex flex-col space-y-4 ${tier.color} ${tier.popular ? "ring-2 ring-primary/40" : ""}`}
+                className={`relative rounded-2xl border p-6 flex flex-col space-y-4 ${tier.color} ${"popular" in tier && tier.popular ? "ring-2 ring-primary/40" : ""}`}
               >
-                {tier.popular && (
+                {"popular" in tier && tier.popular && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-bold text-primary-foreground">
                     Most Popular
                   </span>

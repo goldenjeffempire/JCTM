@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useCookieConsent } from "./CookieConsent";
 
 declare global {
@@ -8,7 +8,6 @@ declare global {
 }
 
 // ─── Publisher Configuration ──────────────────────────────────────────────────
-// Resolution order: env var → hardcoded fallback (already public in index.html)
 const PUBLISHER_ID = "ca-pub-6817509745706083";
 
 const rawClientId = (
@@ -31,8 +30,6 @@ export const ADSENSE_ENABLED = hasValidClient && enabledInCurrentEnvironment;
 export const ADSENSE_CLIENT_ID = clientId;
 
 // ─── Ad Slot Registry ─────────────────────────────────────────────────────────
-// Slot IDs are baked in as fallbacks so ads work in production builds even when
-// VITE_ADSENSE_SLOT_* env vars are not available in the deployment build context.
 const _homeHero        = import.meta.env.VITE_ADSENSE_SLOT_HOME_HERO         || "7433409715";
 const _homeMid         = import.meta.env.VITE_ADSENSE_SLOT_HOME_MID          || "6447631104";
 const _sermonFeed      = import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED       || "2094061938";
@@ -61,6 +58,17 @@ function isValidSlot(slot: string | undefined): slot is string {
   return Boolean(slot && /^\d+$/.test(slot.trim()));
 }
 
+// ─── Explicit height presets (CLS prevention) ────────────────────────────────
+// Google's CLS policy requires ad containers to have explicit dimensions so
+// the layout does not shift when the ad fills in. Heights map to standard IAB sizes.
+const FORMAT_MIN_HEIGHTS: Record<string, number> = {
+  auto:       90,
+  horizontal: 90,
+  rectangle:  250,
+  vertical:   600,
+  fluid:      120,
+};
+
 interface AdSlotProps {
   slot: string;
   className?: string;
@@ -69,13 +77,68 @@ interface AdSlotProps {
   layout?: string;
   fullWidthResponsive?: boolean;
   lazy?: boolean;
+  label?: string;
+  trackPage?: string;
+}
+
+// ─── Page-view tracker — fires once per page mount ────────────────────────────
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+export function useAdPageTracker(page: string, adSlotsInView: number) {
+  const fired = useRef(false);
+  const consent = useCookieConsent();
+
+  useEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+
+    const consentLevel =
+      consent === null
+        ? "pending"
+        : consent.advertising
+          ? "full"
+          : consent.analytics
+            ? "analytics"
+            : "essential";
+
+    const visitorId = (() => {
+      try {
+        let id = localStorage.getItem("jctm_vid");
+        if (!id) {
+          id = crypto.randomUUID();
+          localStorage.setItem("jctm_vid", id);
+        }
+        return id;
+      } catch { return "anon"; }
+    })();
+
+    const sessionId = (() => {
+      try {
+        let id = sessionStorage.getItem("jctm_sid");
+        if (!id) {
+          id = crypto.randomUUID();
+          sessionStorage.setItem("jctm_sid", id);
+        }
+        return id;
+      } catch { return "anon"; }
+    })();
+
+    fetch(`${BASE_URL}/api/monetization/pageview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        page,
+        referrer: document.referrer,
+        visitorId,
+        sessionId,
+        adSlotsInView,
+        consentLevel,
+      }),
+    }).catch(() => {});
+  }, [page, adSlotsInView, consent]);
 }
 
 // ─── AdSense Script Loader ────────────────────────────────────────────────────
-// Ensures the AdSense script is injected exactly once, regardless of how many
-// <AdSlot /> instances are rendered. If the script tag is already present in
-// the HTML <head> (index.html) this is a no-op — the duplicate URL check
-// prevents double-loading.
 let scriptInjected = false;
 function ensureAdSenseScript() {
   if (scriptInjected) return;
@@ -96,29 +159,27 @@ function ensureAdSenseScript() {
 export function AdSlot({
   slot,
   className = "",
-  minHeight = 250,
+  minHeight,
   format = "auto",
   layout,
   fullWidthResponsive = true,
   lazy = true,
+  label = "Advertisement",
 }: AdSlotProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const insRef = useRef<HTMLModElement | null>(null);
-  const pushedRef = useRef(false);
+  const insRef       = useRef<HTMLModElement | null>(null);
+  const pushedRef    = useRef(false);
   const [shouldLoad, setShouldLoad] = useState(!lazy);
-  const [adKey, setAdKey] = useState(0);
+  const [adKey, setAdKey]           = useState(0);
   const consent = useCookieConsent();
 
-  // Consent Mode v2 compliance:
-  // - When consent === null (user hasn't decided yet), allow rendering.
-  //   Google's Consent Mode will serve non-personalized ads after the
-  //   wait_for_update window expires (2s, configured in index.html).
-  // - Only block ads when the user has EXPLICITLY denied advertising consent.
-  const advertisingExplicitlyDenied = consent !== null && consent.advertising === false;
-  const slotValid = isValidSlot(slot);
-  const canRender = ADSENSE_ENABLED && slotValid && !advertisingExplicitlyDenied;
+  // Explicit container height — prevents CLS (Core Web Vitals / AdSense policy)
+  const reservedHeight = minHeight ?? FORMAT_MIN_HEIGHTS[format] ?? 90;
 
-  // Re-render on consent change (e.g. user accepts or changes preferences)
+  const advertisingExplicitlyDenied = consent !== null && consent.advertising === false;
+  const slotValid  = isValidSlot(slot);
+  const canRender  = ADSENSE_ENABLED && slotValid && !advertisingExplicitlyDenied;
+
   useEffect(() => {
     if (!advertisingExplicitlyDenied) {
       pushedRef.current = false;
@@ -126,7 +187,7 @@ export function AdSlot({
     }
   }, [advertisingExplicitlyDenied]);
 
-  // Lazy-load via IntersectionObserver
+  // Lazy-load with generous rootMargin so ads load before visible
   useEffect(() => {
     if (!canRender || shouldLoad || !lazy) return;
     const element = containerRef.current;
@@ -146,45 +207,37 @@ export function AdSlot({
     return () => observer.disconnect();
   }, [canRender, lazy, shouldLoad]);
 
-  // Push adsbygoogle — exactly once per mounted ins element
-  useEffect(() => {
-    if (!canRender || !shouldLoad || pushedRef.current) return;
+  // Push adsbygoogle exactly once per mounted ins element
+  const push = useCallback(() => {
+    if (pushedRef.current) return;
     const ins = insRef.current;
     if (!ins) return;
-
-    // Don't push if already filled (e.g. after hot-reload)
     if (ins.getAttribute("data-adsbygoogle-status") === "done") {
       pushedRef.current = true;
       return;
     }
-
     ensureAdSenseScript();
+    try {
+      (window.adsbygoogle = window.adsbygoogle ?? []).push({});
+      pushedRef.current = true;
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn("[AdSense] push failed:", err);
+    }
+  }, []);
 
-    const timeoutId = setTimeout(() => {
-      if (pushedRef.current) return;
-      try {
-        (window.adsbygoogle = window.adsbygoogle ?? []).push({});
-        pushedRef.current = true;
-      } catch (err) {
-        // Do NOT set pushedRef.current = true on error — allow retry on next render
-        if (import.meta.env.DEV) {
-          console.warn("[AdSense] push failed (will retry):", err);
-        }
-      }
-    }, 200);
+  useEffect(() => {
+    if (!canRender || !shouldLoad) return;
+    const t = setTimeout(push, 200);
+    return () => clearTimeout(t);
+  }, [canRender, shouldLoad, adKey, push]);
 
-    return () => clearTimeout(timeoutId);
-  }, [canRender, shouldLoad, adKey]);
-
-  // Don't render anything if ads are disabled or slot is invalid
   if (!ADSENSE_ENABLED || !slotValid) return null;
-  // Block only when user has explicitly denied advertising consent
   if (advertisingExplicitlyDenied) return null;
 
   const insProps: Record<string, string | boolean> = {
-    "data-ad-client": ADSENSE_CLIENT_ID,
-    "data-ad-slot": slot.trim(),
-    "data-ad-format": format,
+    "data-ad-client":             ADSENSE_CLIENT_ID,
+    "data-ad-slot":               slot.trim(),
+    "data-ad-format":             format,
     "data-full-width-responsive": fullWidthResponsive ? "true" : "false",
   };
   if (layout) insProps["data-ad-layout"] = layout;
@@ -192,25 +245,34 @@ export function AdSlot({
   return (
     <aside
       ref={containerRef}
-      aria-label="Advertisement"
+      aria-label={label}
       className={`relative overflow-hidden rounded-2xl border border-border/40 bg-muted/20 ${className}`}
-      style={{ minHeight, contain: "layout" }}
+      style={{
+        minHeight: reservedHeight,
+        contain: "layout style",
+      }}
     >
       <p className="absolute left-3 top-2 z-[1] text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50 select-none pointer-events-none">
         Advertisement
       </p>
+
       {shouldLoad ? (
         <ins
           key={adKey}
           ref={insRef as React.Ref<HTMLModElement>}
           className="adsbygoogle"
-          style={{ display: "block", minHeight, width: "100%" }}
+          style={{
+            display: "block",
+            minHeight: reservedHeight,
+            width: "100%",
+          }}
           {...insProps}
         />
       ) : (
         <div
+          aria-hidden
           className="h-full w-full animate-pulse bg-gradient-to-r from-muted/20 via-muted/40 to-muted/20"
-          style={{ minHeight }}
+          style={{ minHeight: reservedHeight }}
         />
       )}
     </aside>
