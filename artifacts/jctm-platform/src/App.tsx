@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { GeoProvider } from "@/contexts/GeoContext";
 import { VoiceTempleBots } from "@/components/VoiceTempleBots";
 import { CookieConsent } from "@/components/ads/CookieConsent";
+import { AdBlockDetector } from "@/components/ads/AdBlockDetector";
 import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 import { BroadcastEngagementSystem } from "@/components/BroadcastEngagementSystem";
 import { useVisitorHeartbeat } from "@/hooks/useVisitorHeartbeat";
@@ -45,6 +46,8 @@ const Gallery = lazy(() => import("@/pages/Gallery"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const ConferenceRegistration = lazy(() => import("@/pages/ConferenceRegistration"));
 const Status = lazy(() => import("@/pages/Status"));
+const AdminMonetization = lazy(() => import("@/pages/AdminMonetization"));
+const Partner = lazy(() => import("@/pages/Partner"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +112,8 @@ function Router() {
         <Route path="/devotion" component={Devotion} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/broadcast" component={Admin} />
+        <Route path="/admin/monetization" component={AdminMonetization} />
+        <Route path="/partner" component={Partner} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/gallery" component={Gallery} />
@@ -138,6 +143,7 @@ function App() {
                 </WouterRouter>
                 <VoiceTempleBots />
                 <CookieConsent />
+                <AdBlockDetector />
                 <PushNotificationPrompt />
                 <BroadcastEngagementSystem />
                 <VisitorHeartbeat />
