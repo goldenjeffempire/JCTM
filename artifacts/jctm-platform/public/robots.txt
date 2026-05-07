@@ -176,6 +176,7 @@ Crawl-delay: 5
 # ── Sitemaps ──────────────────────────────────────────────────────────────────
 Sitemap: https://jctm.org.ng/sitemap-index.xml
 Sitemap: https://jctm.org.ng/sitemap.xml
+Sitemap: https://jctm.org.ng/sitemap-news.xml
 Sitemap: https://jctm.org.ng/sitemap-sermons.xml
 Sitemap: https://jctm.org.ng/sitemap-gallery.xml
 

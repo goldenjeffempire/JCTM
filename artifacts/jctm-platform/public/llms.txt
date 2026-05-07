@@ -78,6 +78,7 @@ Prayer Requests: https://jctm.org.ng/prayer
 
 https://jctm.org.ng/sitemap-index.xml
 https://jctm.org.ng/sitemap.xml
+https://jctm.org.ng/sitemap-news.xml
 https://jctm.org.ng/sitemap-sermons.xml
 https://jctm.org.ng/sitemap-gallery.xml
 

@@ -3,14 +3,14 @@
  *
  * GET /sitemap-index.xml   — Master sitemap index
  * GET /sitemap.xml         — Full XML sitemap: static pages + sermons + blog
+ * GET /sitemap-news.xml    — Google News / Discover sitemap (blog posts)
  * GET /sitemap-sermons.xml — Sermon-only video sitemap for Googlebot-Video
  * GET /sitemap-gallery.xml — Gallery image sitemap
- * GET /llms.txt            — AI/LLM search engine discovery (served from public, fallback here)
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sermonsTable, blogPostsTable, galleryImagesTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, gte, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -98,6 +98,10 @@ router.get("/sitemap-index.xml", (_req: Request, res: Response): void => {
     <lastmod>${now}</lastmod>
   </sitemap>
   <sitemap>
+    <loc>${BASE_URL}/sitemap-news.xml</loc>
+    <lastmod>${now}</lastmod>
+  </sitemap>
+  <sitemap>
     <loc>${BASE_URL}/sitemap-sermons.xml</loc>
     <lastmod>${now}</lastmod>
   </sitemap>
@@ -110,6 +114,78 @@ router.get("/sitemap-index.xml", (_req: Request, res: Response): void => {
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
   res.status(200).send(index);
+});
+
+// ── GET /sitemap-news.xml — Google News & Discover sitemap ───────────────────
+// Google News crawls this for articles published in the past 2 days.
+// Google Discover considers all articles regardless of age.
+// Spec: https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap
+
+router.get("/sitemap-news.xml", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const articles = await db
+      .select({
+        slug: blogPostsTable.slug,
+        title: blogPostsTable.title,
+        publishedAt: blogPostsTable.publishedAt,
+        updatedAt: blogPostsTable.updatedAt,
+        author: blogPostsTable.author,
+        category: blogPostsTable.category,
+        excerpt: blogPostsTable.excerpt,
+      })
+      .from(blogPostsTable)
+      .where(eq(blogPostsTable.published, true))
+      .orderBy(desc(blogPostsTable.publishedAt))
+      .limit(1000);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const entries = articles.map(article => {
+      const pubDate = article.publishedAt
+        ? new Date(article.publishedAt).toISOString()
+        : new Date().toISOString();
+      const lastmod = isoDate(article.updatedAt ?? article.publishedAt, today);
+      const keywords = [
+        "JCTM",
+        "Jesus Christ Temple Ministry",
+        "Temple TV",
+        "Prophet Amos Evomobor",
+        article.category ?? "faith",
+        "holiness",
+        "Nigeria",
+      ].filter(Boolean).join(", ");
+
+      return `  <url>
+    <loc>${xmlEscape(`${BASE_URL}/blog/${article.slug}`)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <news:news>
+      <news:publication>
+        <news:name>JCTM Digital Sanctuary</news:name>
+        <news:language>en</news:language>
+      </news:publication>
+      <news:publication_date>${pubDate}</news:publication_date>
+      <news:title>${xmlEscape(article.title)}</news:title>
+      <news:keywords>${xmlEscape(keywords)}</news:keywords>
+    </news:news>
+  </url>`;
+    });
+
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+
+${entries.join("\n\n")}
+
+</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    // Short cache: Google News checks frequently for fresh articles
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
+    res.status(200).send(sitemap);
+  } catch {
+    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"></urlset>`);
+  }
 });
 
 // ── GET /sitemap.xml ──────────────────────────────────────────────────────────
