@@ -72,6 +72,7 @@ app.use(
           "data:",
           "blob:",
           "https://i.ytimg.com",
+          "https://*.ytimg.com",
           "https://img.youtube.com",
           "https://yt3.ggpht.com",
           "https://yt3.googleusercontent.com",
