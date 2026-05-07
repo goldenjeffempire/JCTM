@@ -662,6 +662,8 @@ const HERO_IMAGES = [
   { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach", title: "Crusade & Evangelism", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry", title: "The Preaching Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img6", src: "/founder/DSC1774.jpg", label: "Prayer", tag: "Intercession", title: "Intercession & Prayer", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img7", src: "/founder/DSC5377.jpg", label: "Anointing", tag: "Prophet", title: "The Anointed Voice", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img8", src: "/founder/DSC5382.jpg", label: "Proclamation", tag: "Apostolic", title: "Apostolic Proclamation", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
 ];
 
 function HeroSection() {
@@ -2070,6 +2072,8 @@ const FOUNDER_PHOTOS = [
   { key: "photo4", src: "/founder/DSC1671.jpg", label: "Crusade" },
   { key: "photo5", src: "/founder/DSC1743.jpg", label: "Ministry" },
   { key: "photo6", src: "/founder/DSC1774.jpg", label: "Prayer" },
+  { key: "photo7", src: "/founder/DSC5377.jpg", label: "Anointing" },
+  { key: "photo8", src: "/founder/DSC5382.jpg", label: "Proclamation" },
 ];
 
 function ProphetSection() {

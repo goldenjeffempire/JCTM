@@ -31,32 +31,30 @@ export const ADSENSE_ENABLED = hasValidClient && enabledInCurrentEnvironment;
 export const ADSENSE_CLIENT_ID = clientId;
 
 // ─── Ad Slot Registry ─────────────────────────────────────────────────────────
+// Slot IDs are baked in as fallbacks so ads work in production builds even when
+// VITE_ADSENSE_SLOT_* env vars are not available in the deployment build context.
+const _homeHero        = import.meta.env.VITE_ADSENSE_SLOT_HOME_HERO         || "7433409715";
+const _homeMid         = import.meta.env.VITE_ADSENSE_SLOT_HOME_MID          || "6447631104";
+const _sermonFeed      = import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED       || "2094061938";
+const _sermonSidebar   = import.meta.env.VITE_ADSENSE_SLOT_SERMON_SIDEBAR    || "2609067251";
+const _liveBelowPlayer = import.meta.env.VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER || "2069402391";
+
 export const ADSENSE_SLOTS = {
-  homeHero:        import.meta.env.VITE_ADSENSE_SLOT_HOME_HERO         ?? "",
-  homeMid:         import.meta.env.VITE_ADSENSE_SLOT_HOME_MID          ?? "",
-  sermonFeed:      import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED       ?? "",
-  sermonSidebar:   import.meta.env.VITE_ADSENSE_SLOT_SERMON_SIDEBAR    ?? "",
-  liveBelowPlayer: import.meta.env.VITE_ADSENSE_SLOT_LIVE_BELOW_PLAYER ?? "",
-  introFeed:       import.meta.env.VITE_ADSENSE_SLOT_INTRO_FEED
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED    ?? "",
-  blogFeed:        import.meta.env.VITE_ADSENSE_SLOT_BLOG_FEED
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED    ?? "",
-  blogPost:        import.meta.env.VITE_ADSENSE_SLOT_BLOG_POST
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_HOME_MID       ?? "",
-  prayerPage:      import.meta.env.VITE_ADSENSE_SLOT_PRAYER
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_HOME_MID       ?? "",
-  eventsPage:      import.meta.env.VITE_ADSENSE_SLOT_EVENTS
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED    ?? "",
-  aboutPage:       import.meta.env.VITE_ADSENSE_SLOT_ABOUT
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_HOME_MID       ?? "",
-  testimoniesPage: import.meta.env.VITE_ADSENSE_SLOT_TESTIMONIES
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED    ?? "",
-  devotionPage:    import.meta.env.VITE_ADSENSE_SLOT_DEVOTION
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_HOME_MID       ?? "",
-  topicsPage:      import.meta.env.VITE_ADSENSE_SLOT_TOPICS
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_SERMON_FEED    ?? "",
-  leadershipPage:  import.meta.env.VITE_ADSENSE_SLOT_LEADERSHIP
-                   ?? import.meta.env.VITE_ADSENSE_SLOT_HOME_MID       ?? "",
+  homeHero:        _homeHero,
+  homeMid:         _homeMid,
+  sermonFeed:      _sermonFeed,
+  sermonSidebar:   _sermonSidebar,
+  liveBelowPlayer: _liveBelowPlayer,
+  introFeed:       import.meta.env.VITE_ADSENSE_SLOT_INTRO_FEED        || _sermonFeed,
+  blogFeed:        import.meta.env.VITE_ADSENSE_SLOT_BLOG_FEED         || _sermonFeed,
+  blogPost:        import.meta.env.VITE_ADSENSE_SLOT_BLOG_POST         || _homeMid,
+  prayerPage:      import.meta.env.VITE_ADSENSE_SLOT_PRAYER            || _homeMid,
+  eventsPage:      import.meta.env.VITE_ADSENSE_SLOT_EVENTS            || _sermonFeed,
+  aboutPage:       import.meta.env.VITE_ADSENSE_SLOT_ABOUT             || _homeMid,
+  testimoniesPage: import.meta.env.VITE_ADSENSE_SLOT_TESTIMONIES       || _sermonFeed,
+  devotionPage:    import.meta.env.VITE_ADSENSE_SLOT_DEVOTION          || _homeMid,
+  topicsPage:      import.meta.env.VITE_ADSENSE_SLOT_TOPICS            || _sermonFeed,
+  leadershipPage:  import.meta.env.VITE_ADSENSE_SLOT_LEADERSHIP        || _homeMid,
 };
 
 function isValidSlot(slot: string | undefined): slot is string {
