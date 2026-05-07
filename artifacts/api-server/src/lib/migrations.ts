@@ -11,6 +11,141 @@ import { logger } from "./logger.js";
  * continue (preDeployCommand should abort; server startup should continue).
  */
 export async function runMigrations(): Promise<void> {
+  // ── Drizzle-managed base tables (must exist before ALTER TABLE statements) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sermon_data (
+      id serial PRIMARY KEY,
+      video_id text NOT NULL UNIQUE,
+      title text NOT NULL,
+      thumbnail_url text NOT NULL,
+      description text,
+      published_at timestamptz NOT NULL,
+      view_count integer,
+      duration text,
+      is_featured boolean NOT NULL DEFAULT false,
+      is_live boolean NOT NULL DEFAULT false,
+      broadcast_ended_at timestamptz,
+      pinned_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS member_auth (
+      id serial PRIMARY KEY,
+      email text NOT NULL UNIQUE,
+      first_name text NOT NULL,
+      last_name text NOT NULL,
+      password_hash text NOT NULL,
+      token text UNIQUE,
+      phone text,
+      role text NOT NULL DEFAULT 'member',
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS member_directory (
+      id serial PRIMARY KEY,
+      first_name text NOT NULL,
+      last_name text NOT NULL,
+      email text,
+      phone text,
+      role text NOT NULL DEFAULT 'member',
+      department text,
+      avatar_url text,
+      bio text,
+      joined_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS testimonies (
+      id serial PRIMARY KEY,
+      name text NOT NULL,
+      email text,
+      title text,
+      content text NOT NULL,
+      video_url text,
+      category text,
+      approved boolean NOT NULL DEFAULT false,
+      like_count integer NOT NULL DEFAULT 0,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS giving_logs (
+      id serial PRIMARY KEY,
+      donor_name text,
+      donor_email text,
+      amount real NOT NULL,
+      currency text NOT NULL DEFAULT 'NGN',
+      purpose text,
+      reference text NOT NULL UNIQUE,
+      status text NOT NULL DEFAULT 'pending',
+      payment_method text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS event_calendar (
+      id serial PRIMARY KEY,
+      title text NOT NULL,
+      description text,
+      start_date timestamptz NOT NULL,
+      end_date timestamptz,
+      location text,
+      event_type text NOT NULL DEFAULT 'service',
+      image_url text,
+      youtube_url text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      notification_enabled boolean NOT NULL DEFAULT true,
+      notification_milestones integer[],
+      notification_pulse_minutes integer,
+      notification_pulse_window_hours integer,
+      notification_paused_until timestamptz
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id serial PRIMARY KEY,
+      title text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id serial PRIMARY KEY,
+      conversation_id integer NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      role text NOT NULL,
+      content text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS knowledge_chunks (
+      id serial PRIMARY KEY,
+      content text NOT NULL,
+      source text NOT NULL,
+      chunk_index integer NOT NULL DEFAULT 0,
+      embedding vector(384),
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gallery_images (
+      id serial PRIMARY KEY,
+      title text NOT NULL DEFAULT '',
+      description text,
+      object_path text NOT NULL,
+      thumbnail_path text,
+      category text NOT NULL DEFAULT 'service',
+      service_date text,
+      alt_text text,
+      is_published boolean NOT NULL DEFAULT true,
+      is_featured boolean NOT NULL DEFAULT false,
+      sort_order integer NOT NULL DEFAULT 0,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+
   // ── Core tables ─────────────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS daily_devotions (
