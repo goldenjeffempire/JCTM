@@ -10,7 +10,6 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { GeoProvider } from "@/contexts/GeoContext";
 import { VoiceTempleBots } from "@/components/VoiceTempleBots";
 import { CookieConsent } from "@/components/ads/CookieConsent";
-import { AdBlockDetector } from "@/components/ads/AdBlockDetector";
 import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 import { BroadcastEngagementSystem } from "@/components/BroadcastEngagementSystem";
 import { useVisitorHeartbeat } from "@/hooks/useVisitorHeartbeat";
@@ -143,7 +142,6 @@ function App() {
                 </WouterRouter>
                 <VoiceTempleBots />
                 <CookieConsent />
-                <AdBlockDetector />
                 <PushNotificationPrompt />
                 <BroadcastEngagementSystem />
                 <VisitorHeartbeat />
