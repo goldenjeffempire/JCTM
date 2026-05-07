@@ -12,6 +12,8 @@ import {
   Star, Mic2, Play, ExternalLink, Clock, MessageSquare, Quote,
   Youtube, Facebook, Mail, CheckCircle2, ChevronDown,
   Tv, Award, TrendingUp, Zap, Radio as LiveIcon, X, Download, Share2,
+  Bot, Send, Bell, ImageIcon, Pen, ChevronLeft, Eye, Camera,
+  BookMarked, BrainCircuit, Loader2, CheckCheck,
 } from "lucide-react";
 import {
   useGetFeaturedSermon, getGetFeaturedSermonQueryKey,
