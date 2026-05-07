@@ -35,7 +35,7 @@ const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_UR
 // ─── Version Stamp ────────────────────────────────────────────────────────────
 // Increment this when the static JCTM_KNOWLEDGE array changes to force
 // re-ingestion even if chunk count looks sufficient.
-const KNOWLEDGE_VERSION = "2.1";
+const KNOWLEDGE_VERSION = "2.3";
 const VERSION_SOURCE = `jctm-version-${KNOWLEDGE_VERSION}`;
 
 // ─── JCTM Knowledge Base ──────────────────────────────────────────────────────
@@ -373,30 +373,52 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
       }
     } catch { /* non-fatal */ }
 
-    // 3. Published blog posts (learn from JCTM written content)
+    // 3. Published blog posts — index + per-article chunks for RAG
     try {
       const blogResult = await client.query<{
-        title: string; excerpt: string; topic: string; tags: string[] | null;
+        slug: string; title: string; excerpt: string | null; topic: string;
+        category: string | null; tags: string[] | null;
       }>(
-        `SELECT title, excerpt, topic, tags
+        `SELECT slug, title, excerpt, topic, category, tags
          FROM blog_posts
          WHERE published = true OR published IS NULL
-         ORDER BY created_at DESC NULLS LAST
-         LIMIT 20`,
+         ORDER BY generated_at DESC NULLS LAST
+         LIMIT 100`,
       );
       if (blogResult.rows.length > 0) {
+        // Aggregate index chunk
         const blogSummaries = blogResult.rows
-          .map(b => `• "${b.title}" [${b.topic ?? "doctrine"}]: ${(b.excerpt ?? "").slice(0, 180)}`)
+          .map(b => `• "${b.title}" [${b.category ?? b.topic}]: ${(b.excerpt ?? "").slice(0, 160)}`)
           .join("\n");
-        const content = `JCTM Blog & Teaching Articles: These are recent published articles from JCTM's ministry blog, covering JCTM's doctrinal positions and pastoral guidance:\n${blogSummaries}\n\nRead all articles at jctm.org.ng/blog. Each article reflects JCTM's commitment to the Correction Mandate and Primitive Christianity under Prophet Amos Evomobor.`;
-        const vectorStr = await generateEmbeddingVector(content);
+        const indexContent = `JCTM Blog & Teaching Articles (${blogResult.rows.length} published): ${blogSummaries}\n\nExplore all articles at jctm.org.ng/blog. Topics covered include holiness, salvation, prayer, fasting, testimonies, revival, family, youth, Bible study, and prophetic messages. Each article reflects JCTM's Correction Mandate and Primitive Christianity teaching under Prophet Amos Evomobor.`;
+        const indexVector = await generateEmbeddingVector(indexContent);
         await client.query(
           `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
            VALUES ($1, 'activity-blog-posts', 0, $2)
            ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
-          [content, vectorStr ?? null],
+          [indexContent, indexVector ?? null],
         );
-        log?.info({ count: blogResult.rows.length }, "Blog posts ingested");
+
+        // Per-article knowledge chunks (up to 80)
+        let articleChunks = 0;
+        for (const b of blogResult.rows.slice(0, 80)) {
+          const articleContent = [
+            `JCTM Ministry Article: "${b.title}"`,
+            `Category: ${b.category ?? b.topic}`,
+            b.tags && b.tags.length > 0 ? `Topics: ${b.tags.join(", ")}` : "",
+            b.excerpt ? `Summary: ${b.excerpt}` : "",
+            `Read at: https://jctm.org.ng/blog/${b.slug}`,
+          ].filter(Boolean).join("\n");
+          const articleVector = await generateEmbeddingVector(articleContent);
+          await client.query(
+            `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+             VALUES ($1, $2, 0, $3)
+             ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+            [articleContent, `blog-${b.slug}`, articleVector ?? null],
+          );
+          articleChunks++;
+        }
+        log?.info({ total: blogResult.rows.length, articleChunks }, "Blog posts and per-article chunks ingested");
       }
     } catch { /* non-fatal */ }
 

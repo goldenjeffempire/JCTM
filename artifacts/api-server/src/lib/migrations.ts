@@ -800,5 +800,46 @@ export async function runMigrations(): Promise<void> {
     }
   }
 
+  // ── Blog engagement columns ──────────────────────────────────────────────────
+  await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS view_count integer NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS like_count integer NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS bookmark_count integer NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS share_count integer NOT NULL DEFAULT 0`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blog_bookmarks (
+      id serial PRIMARY KEY,
+      slug text NOT NULL,
+      visitor_id text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (slug, visitor_id)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blog_likes (
+      id serial PRIMARY KEY,
+      slug text NOT NULL,
+      visitor_id text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (slug, visitor_id)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blog_reading_progress (
+      id serial PRIMARY KEY,
+      slug text NOT NULL,
+      visitor_id text NOT NULL,
+      progress_pct integer NOT NULL DEFAULT 0,
+      completed boolean NOT NULL DEFAULT false,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (slug, visitor_id)
+    )
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_view_count_idx ON blog_posts (view_count DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS blog_posts_like_count_idx ON blog_posts (like_count DESC)`);
+
   logger.info("All migrations complete");
 }
