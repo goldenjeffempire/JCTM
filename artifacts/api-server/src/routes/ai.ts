@@ -388,6 +388,181 @@ router.get("/ai/model-status", (_req: Request, res: Response): void => {
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/recommendations
+// AI-powered content recommendations (sermons + blog + questions)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/recommendations", async (req: Request, res: Response): Promise<void> => {
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
+  const { query = "", history = [] } = req.body as {
+    query?: string;
+    history?: Array<{ role: string; content: string }>;
+  };
+  if (!query.trim() && history.length === 0) {
+    res.status(400).json({ error: "query or history is required." });
+    return;
+  }
+  try {
+    const { getContentRecommendations } = await import("../lib/recommendation-engine.js");
+    const recommendations = await getContentRecommendations(query || "ministry teachings", history);
+    res.json({ ok: true, ...recommendations });
+  } catch (err) {
+    logger.error({ err }, "Recommendations failed");
+    res.status(500).json({ error: "Recommendations temporarily unavailable." });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/ai/trending
+// Trending content across the platform
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get("/ai/trending", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { getTrendingContent } = await import("../lib/recommendation-engine.js");
+    const trending = await getTrendingContent();
+    res.json({ ok: true, ...trending });
+  } catch (err) {
+    logger.error({ err }, "Trending content failed");
+    res.status(500).json({ error: "Trending data temporarily unavailable." });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET  /api/ai/search
+// POST /api/ai/search — Universal semantic search across all content
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function handleSearch(req: Request, res: Response): Promise<void> {
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
+  const q = (req.query?.q as string) || (req.body?.query as string) || "";
+  const types = req.body?.types ?? undefined;
+  const limit = Number(req.query?.limit ?? req.body?.limit ?? 3);
+  if (!q.trim()) {
+    res.status(400).json({ error: "Search query (q) is required." });
+    return;
+  }
+  try {
+    const { universalSearch } = await import("../lib/ai-search.js");
+    const results = await universalSearch(q.trim(), { types, limit: Math.min(limit, 10) });
+    res.json({ ok: true, ...results });
+  } catch (err) {
+    logger.error({ err }, "Universal search failed");
+    res.status(500).json({ error: "Search temporarily unavailable." });
+  }
+}
+router.get("/ai/search", handleSearch);
+router.post("/ai/search", handleSearch);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/sentiment
+// Multi-dimensional sentiment analysis on any text
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/sentiment", (req: Request, res: Response): void => {
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
+  const { text, texts } = req.body as { text?: string; texts?: string[] };
+  if (!text?.trim() && !texts?.length) {
+    res.status(400).json({ error: "text or texts array is required." });
+    return;
+  }
+  try {
+    const { analyzeSentiment, analyzeBatch, aggregateSentiment } = require("../lib/sentiment-engine.js") as typeof import("../lib/sentiment-engine.js");
+    if (texts && texts.length > 0) {
+      const batch = analyzeBatch(texts.slice(0, 50));
+      const aggregate = aggregateSentiment(texts.slice(0, 50));
+      res.json({ ok: true, results: batch, aggregate });
+    } else {
+      const result = analyzeSentiment(text!.trim());
+      res.json({ ok: true, result });
+    }
+  } catch {
+    const { analyzeSentiment } = require("../lib/sentiment-engine.js") as typeof import("../lib/sentiment-engine.js");
+    res.json({ ok: true, result: analyzeSentiment((text ?? "").trim()) });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/prayer-guide
+// Personalized prayer guidance with scripture and declarations
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/prayer-guide", (req: Request, res: Response): void => {
+  if (checkRateLimit(clientIp(req))) {
+    res.status(429).json({ error: "Rate limit exceeded." });
+    return;
+  }
+  const { situation, name, category } = req.body as {
+    situation?: string;
+    name?: string;
+    category?: string;
+  };
+  if (!situation?.trim()) {
+    res.status(400).json({ error: "Please describe your prayer need (situation)." });
+    return;
+  }
+  try {
+    const { generatePrayerGuidance } = require("../lib/prayer-ai.js") as typeof import("../lib/prayer-ai.js");
+    const guidance = generatePrayerGuidance(
+      situation.trim(),
+      name?.trim(),
+      category as Parameters<typeof generatePrayerGuidance>[2],
+    );
+    res.json({ ok: true, guidance });
+  } catch (err) {
+    logger.error({ err }, "Prayer guide failed");
+    res.status(500).json({ error: "Prayer guide temporarily unavailable." });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/ai/personalize
+// Session-based personalization context
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post("/ai/personalize", (req: Request, res: Response): void => {
+  const { sessionId, message } = req.body as { sessionId?: string; message?: string };
+  if (!sessionId) {
+    res.status(400).json({ error: "sessionId is required." });
+    return;
+  }
+  try {
+    const {
+      updateSessionFromMessage,
+      buildPersonalizationContext,
+    } = require("../lib/ai-personalization.js") as typeof import("../lib/ai-personalization.js");
+    if (message?.trim()) updateSessionFromMessage(sessionId, message.trim());
+    const context = buildPersonalizationContext(sessionId);
+    res.json({ ok: true, context });
+  } catch (err) {
+    logger.error({ err }, "Personalization failed");
+    res.status(500).json({ error: "Personalization temporarily unavailable." });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/ai/cache-metrics
+// Response cache statistics (admin)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get("/ai/cache-metrics", async (req: Request, res: Response): Promise<void> => {
+  const isAdmin = req.headers["x-admin-token"] === process.env.ADMIN_HEALTH_TOKEN
+    && !!process.env.ADMIN_HEALTH_TOKEN;
+  if (!isAdmin) {
+    res.status(403).json({ error: "Admin access required." });
+    return;
+  }
+  try {
+    const { getCacheMetrics } = await import("../lib/ai-response-cache.js");
+    res.json({ ok: true, metrics: getCacheMetrics() });
+  } catch (err) {
+    res.status(500).json({ error: "Cache metrics unavailable." });
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/health
 // Full platform health check (comprehensive)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

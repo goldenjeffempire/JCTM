@@ -6,6 +6,9 @@ import pg from "pg";
 import { runLocalInference, streamLocalResponse, ENGINE_METADATA } from "../lib/local-ai-engine.js";
 import { localAIEnhancer } from "../lib/local-ai-enhancer.js";
 import { embed } from "../lib/local-embeddings.js";
+import { cacheGet, cacheSet } from "../lib/ai-response-cache.js";
+import { analyzeSentiment } from "../lib/sentiment-engine.js";
+import { updateSessionFromMessage } from "../lib/ai-personalization.js";
 
 const { Pool } = pg;
 
@@ -517,6 +520,33 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const language = typeof req.body?.language === "string" ? req.body.language : "en";
 
   try {
+    // ── TIER 0: Cache lookup + sentiment analysis + personalization ────────
+    const [cacheResult, sentiment] = await Promise.all([
+      language === "en" ? cacheGet(message) : Promise.resolve({ found: false as const }),
+      Promise.resolve(analyzeSentiment(message)),
+    ]);
+
+    // Update session personalization profile (non-blocking)
+    if (sessionId) {
+      try { updateSessionFromMessage(sessionId, message); } catch { /* non-critical */ }
+    }
+
+    if (cacheResult.found) {
+      const conversationId = await getOrCreateConversation(sessionId ?? undefined);
+      const { cleanReply, action } = extractAction(cacheResult.response);
+      await persistMessages(conversationId, message, cleanReply);
+      res.json(
+        ChatWithTempleBotsResponse.parse({
+          reply: cleanReply,
+          sessionId: String(conversationId),
+          sources: extractSources(cleanReply),
+          action: action ?? undefined,
+          meta: { cached: true, similarity: cacheResult.similarity, tier: cacheResult.tier },
+        }),
+      );
+      return;
+    }
+
     // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
@@ -527,6 +557,8 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       const sources = extractSources(cleanReply);
 
       await persistMessages(conversationId, message, cleanReply);
+      // Cache the response for similar future queries
+      cacheSet(message, cleanReply, "local", localResult.confidence ?? 0.8).catch(() => {});
 
       res.json(
         ChatWithTempleBotsResponse.parse({
@@ -534,6 +566,10 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
           sessionId: String(conversationId),
           sources,
           action: finalAction ?? undefined,
+          meta: {
+            tier: "local",
+            sentiment: { emotion: sentiment.primaryEmotion, urgency: sentiment.urgencyLevel },
+          },
         }),
       );
       return;
@@ -558,6 +594,8 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     const sources = extractSources(cleanReply);
 
     await persistMessages(conversationId, message, cleanReply);
+    // Cache Tier 2 responses for future similar queries
+    cacheSet(message, cleanReply, "local-enhanced", 0.85).catch(() => {});
 
     res.json(
       ChatWithTempleBotsResponse.parse({

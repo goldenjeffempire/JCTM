@@ -3783,6 +3783,746 @@ function GlobalAltarSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// BLOG PREVIEW SECTION
+// ═══════════════════════════════════════════════════════════════════════════
+function BlogPreviewSection() {
+  const { data, isLoading } = useQuery<{ posts: Array<{ slug: string; title: string; excerpt: string | null; category: string | null; readTimeMinutes: number | null; publishedAt: string | null }> }>({
+    queryKey: ["/api/blog?limit=3"],
+    queryFn: () => fetch("/api/blog?limit=3").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const posts = data?.posts ?? [];
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.15 });
+
+  const CATEGORY_COLORS: Record<string, string> = {
+    Doctrine: "from-violet-500 to-purple-600",
+    Prophecy: "from-amber-500 to-orange-500",
+    Holiness: "from-sky-500 to-blue-600",
+    Ministry: "from-emerald-500 to-teal-600",
+    Prayer: "from-pink-500 to-rose-600",
+    default: "from-accent to-blue-500",
+  };
+
+  return (
+    <section ref={ref} className="relative py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f1e 0%, #060b18 100%)" }}>
+      <div className="absolute inset-0 grid-bg opacity-20" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[1px] bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+      <div className="container mx-auto px-4 relative z-10">
+        <motion.div
+          initial="hidden" animate={inView ? "show" : "hidden"} variants={stagger}
+          className="text-center mb-14"
+        >
+          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/25 bg-accent/8 mb-5">
+            <Pen className="w-3.5 h-3.5 text-accent" />
+            <span className="text-accent text-xs font-semibold tracking-widest uppercase">Ministry Articles</span>
+          </motion.div>
+          <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-3">
+            From the{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-sky-400">Digital Pulpit</span>
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-white/45 max-w-xl mx-auto">
+            Deep-dive articles on doctrine, prophecy, and ministry — anchored in Scripture.
+          </motion.p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {isLoading
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-white/8 bg-white/3 h-64 animate-pulse" />
+              ))
+            : posts.slice(0, 3).map((post, i) => {
+                const colorClass = CATEGORY_COLORS[post.category ?? ""] ?? CATEGORY_COLORS.default;
+                return (
+                  <motion.div
+                    key={post.slug}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={inView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ delay: i * 0.12, type: "spring", stiffness: 80, damping: 18 }}
+                  >
+                    <Link href={`/blog/${post.slug}`}>
+                      <div className="group relative rounded-2xl border border-white/8 bg-white/3 overflow-hidden cursor-pointer transition-all duration-300 hover:border-accent/30 hover:bg-white/5 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(56,189,248,0.08)]">
+                        <div className={`h-1 bg-gradient-to-r ${colorClass}`} />
+                        <div className="p-6">
+                          <div className="flex items-center gap-2 mb-4">
+                            {post.category && (
+                              <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-gradient-to-r ${colorClass} text-white`}>
+                                {post.category}
+                              </span>
+                            )}
+                            <span className="text-white/25 text-xs ml-auto flex items-center gap-1">
+                              <Clock className="w-3 h-3" />{post.readTimeMinutes ?? 5} min
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-white text-lg leading-tight mb-3 group-hover:text-sky-300 transition-colors line-clamp-2">
+                            {post.title}
+                          </h3>
+                          {post.excerpt && (
+                            <p className="text-white/45 text-sm leading-relaxed line-clamp-3">{post.excerpt}</p>
+                          )}
+                          <div className="mt-4 flex items-center gap-1 text-accent text-xs font-semibold group-hover:gap-2 transition-all">
+                            Read Article <ArrowRight className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+        </div>
+
+        <div className="text-center">
+          <Link href="/blog">
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-accent/30 text-accent text-sm font-semibold hover:bg-accent/8 transition-all"
+            >
+              Explore All Articles <ArrowRight className="w-4 h-4" />
+            </motion.button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GALLERY PREVIEW SECTION
+// ═══════════════════════════════════════════════════════════════════════════
+function GalleryPreviewSection() {
+  const { data: galleryItems, isLoading } = useQuery<Array<{ id: number; title: string; thumbnailPath: string | null; category: string | null }>>({
+    queryKey: ["/api/gallery?limit=6"],
+    queryFn: () => fetch("/api/gallery?limit=6").then(r => r.json()),
+    staleTime: 10 * 60 * 1000,
+  });
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.1 });
+
+  return (
+    <section ref={ref} className="relative py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, #060b18 0%, #080e1c 100%)" }}>
+      <div className="absolute inset-0 scanlines opacity-[0.015]" />
+      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="container mx-auto px-4 relative z-10">
+        <motion.div
+          initial="hidden" animate={inView ? "show" : "hidden"} variants={stagger}
+          className="text-center mb-14"
+        >
+          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/8 mb-5">
+            <Camera className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-emerald-400 text-xs font-semibold tracking-widest uppercase">Ministry Gallery</span>
+          </motion.div>
+          <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-3">
+            Moments of{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Glory</span>
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-white/45 max-w-xl mx-auto">
+            Photographs capturing God's presence across JCTM services, events, and outreaches worldwide.
+          </motion.p>
+        </motion.div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-10">
+          {isLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={`rounded-xl bg-white/3 animate-pulse ${i === 0 ? "aspect-[4/3]" : "aspect-square"}`} />
+              ))
+            : (galleryItems ?? []).slice(0, 6).map((item, i) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={inView ? { opacity: 1, scale: 1 } : {}}
+                  transition={{ delay: i * 0.08, type: "spring", stiffness: 90, damping: 20 }}
+                  className={`group relative overflow-hidden rounded-xl border border-white/8 cursor-pointer ${i === 0 ? "md:col-span-2 aspect-[16/9]" : "aspect-square"}`}
+                >
+                  {item.thumbnailPath ? (
+                    <img
+                      src={`/api/gallery/file/${item.thumbnailPath}`}
+                      alt={item.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-emerald-900/30 to-teal-900/30 flex items-center justify-center">
+                      <ImageIcon className="w-10 h-10 text-white/20" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                    <p className="text-white text-sm font-semibold line-clamp-1">{item.title}</p>
+                    {item.category && (
+                      <p className="text-emerald-400 text-xs mt-0.5">{item.category}</p>
+                    )}
+                  </div>
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                      <Eye className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+        </div>
+
+        <div className="text-center">
+          <Link href="/gallery">
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-emerald-500/30 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/8 transition-all"
+            >
+              <ImageIcon className="w-4 h-4" /> View Full Gallery
+            </motion.button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI ASSISTANT TEASER
+// ═══════════════════════════════════════════════════════════════════════════
+const DEMO_MESSAGES = [
+  { q: "What is the Correction Mandate?", a: "The Correction Mandate is JCTM's divine assignment — a God-given call to expose five major errors in modern Christianity and restore Primitive Christianity. It's not criticism; it's prophetic reformation." },
+  { q: "How do I grow in holiness?", a: "Holiness begins with surrendering your will to God daily. Study His Word, pray consistently, flee every form of evil, and fellowship with believers who hold the same standard. Hebrews 12:14 says without holiness, no one will see the Lord." },
+  { q: "When is the next JCTM service?", a: "Sunday services are held at Ebrumede Temple, Warri from 8:00 AM – 12:00 PM WAT. All services are also broadcast live on Temple TV (YouTube @TEMPLETVJCTM). See our Events page for special programs." },
+];
+
+function AIAssistantTeaser() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [phase, setPhase] = useState<"question" | "typing" | "answer">("question");
+  const [displayedText, setDisplayedText] = useState("");
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.2 });
+
+  useEffect(() => {
+    if (!inView) return;
+    let timeout: ReturnType<typeof setTimeout>;
+    const msg = DEMO_MESSAGES[activeIdx]!;
+
+    if (phase === "question") {
+      timeout = setTimeout(() => setPhase("typing"), 1200);
+    } else if (phase === "typing") {
+      const answer = msg.a;
+      let i = 0;
+      setDisplayedText("");
+      const interval = setInterval(() => {
+        i++;
+        setDisplayedText(answer.slice(0, i));
+        if (i >= answer.length) {
+          clearInterval(interval);
+          setTimeout(() => setPhase("answer"), 800);
+        }
+      }, 18);
+      return () => clearInterval(interval);
+    } else {
+      timeout = setTimeout(() => {
+        setActiveIdx(prev => (prev + 1) % DEMO_MESSAGES.length);
+        setPhase("question");
+        setDisplayedText("");
+      }, 3500);
+    }
+    return () => clearTimeout(timeout);
+  }, [phase, activeIdx, inView]);
+
+  const msg = DEMO_MESSAGES[activeIdx]!;
+
+  return (
+    <section ref={ref} className="relative py-28 overflow-hidden" style={{ background: "linear-gradient(135deg, #08091a 0%, #0d0e24 50%, #080916 100%)" }}>
+      <div className="absolute inset-0 grid-bg opacity-25" />
+      <div className="absolute inset-0 scanlines opacity-[0.02]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.04]"
+        style={{ background: "radial-gradient(circle, rgba(56,189,248,1) 0%, transparent 70%)" }} />
+
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <motion.div
+            initial="hidden" animate={inView ? "show" : "hidden"} variants={stagger}
+          >
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/30 bg-accent/10 mb-6">
+              <BrainCircuit className="w-3.5 h-3.5 text-accent" />
+              <span className="text-accent text-xs font-bold tracking-widest uppercase">TempleBots AI — Fully Local</span>
+            </motion.div>
+            <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-5 leading-tight">
+              Your Personal{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent via-violet-400 to-sky-300">Ministry Companion</span>
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-white/50 text-lg mb-8 leading-relaxed">
+              TempleBots is JCTM's local AI assistant — trained on sound doctrine, JCTM teachings, and the Word of God. Ask anything about the faith, ministry, or Scripture. Zero external API. Always available.
+            </motion.p>
+            <motion.div variants={fadeUp} className="space-y-3 mb-8">
+              {[
+                { icon: BookMarked, label: "Answers from JCTM's doctrinal knowledge base" },
+                { icon: BrainCircuit, label: "Spiritually-aware responses with Scripture" },
+                { icon: Heart, label: "Compassionate pastoral care in every reply" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-3 text-white/65 text-sm">
+                  <div className="w-6 h-6 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-3 h-3 text-accent" />
+                  </div>
+                  {label}
+                </div>
+              ))}
+            </motion.div>
+            <motion.div variants={fadeUp}>
+              <Link href="/templebots">
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-bold text-white shadow-lg transition-all"
+                  style={{ background: "linear-gradient(135deg, #38BDF8 0%, #7C3AED 100%)", boxShadow: "0 0 30px rgba(56,189,248,0.25)" }}
+                >
+                  <Bot className="w-4 h-4" /> Chat with TempleBots
+                </motion.button>
+              </Link>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ delay: 0.3, type: "spring", stiffness: 70, damping: 20 }}
+            className="relative"
+          >
+            <div
+              className="rounded-3xl border border-white/10 overflow-hidden"
+              style={{
+                background: "rgba(10,15,35,0.8)",
+                backdropFilter: "blur(24px)",
+                boxShadow: "0 0 60px rgba(56,189,248,0.1), inset 0 1px 0 rgba(255,255,255,0.06)",
+              }}
+            >
+              <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/8">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+                </div>
+                <div className="flex items-center gap-2 ml-2">
+                  <div className="w-5 h-5 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center">
+                    <Bot className="w-3 h-3 text-accent" />
+                  </div>
+                  <span className="text-white/50 text-xs font-medium">TempleBots · JCTM</span>
+                </div>
+                <div className="ml-auto flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 text-[10px]">Live</span>
+                </div>
+              </div>
+
+              <div className="p-5 min-h-[220px] flex flex-col gap-4">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`q-${activeIdx}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex justify-end"
+                  >
+                    <div className="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm text-white font-medium"
+                      style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.2), rgba(124,58,237,0.2))", border: "1px solid rgba(56,189,248,0.2)" }}>
+                      {msg.q}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+
+                {phase !== "question" && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot className="w-3.5 h-3.5 text-accent" />
+                    </div>
+                    <div className="flex-1 max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm text-white/80 leading-relaxed border border-white/8"
+                      style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <AnimatePresence mode="wait">
+                        {phase === "typing" ? (
+                          <motion.span key="typing" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                            {displayedText}
+                            <span className="inline-block w-0.5 h-4 bg-accent ml-0.5 animate-pulse align-middle" />
+                          </motion.span>
+                        ) : (
+                          <motion.span key="answer" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                            {msg.a}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-5 py-3.5 border-t border-white/8 flex items-center gap-3">
+                <div className="flex-1 h-9 rounded-xl border border-white/10 bg-white/4 px-4 flex items-center">
+                  <span className="text-white/20 text-xs">Ask anything about JCTM or Scripture…</span>
+                </div>
+                <button className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+                  style={{ background: "linear-gradient(135deg, #38BDF8, #7C3AED)" }}>
+                  <Send className="w-3.5 h-3.5 text-white" />
+                </button>
+              </div>
+            </div>
+
+            <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full opacity-20 blur-2xl"
+              style={{ background: "radial-gradient(circle, #38BDF8, transparent)" }} />
+            <div className="absolute -top-4 -left-4 w-20 h-20 rounded-full opacity-15 blur-xl"
+              style={{ background: "radial-gradient(circle, #7C3AED, transparent)" }} />
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRAYER WALL SECTION
+// ═══════════════════════════════════════════════════════════════════════════
+function PrayerWallSection() {
+  const [form, setForm] = useState({ name: "", request: "", category: "general", isAnonymous: false });
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.1 });
+
+  const { data: prayers = [] } = useQuery<Array<{ id: number; name: string | null; request: string; category: string; pray_count: number; is_anonymous?: boolean }>>({
+    queryKey: ["/api/prayer/requests?limit=5"],
+    queryFn: () => fetch("/api/prayer/requests?limit=5").then(r => r.json()).then(d => Array.isArray(d) ? d : (d.requests ?? d.data ?? [])),
+    staleTime: 3 * 60 * 1000,
+  });
+
+  const PRAYER_CATEGORIES = ["general", "healing", "deliverance", "provision", "guidance", "family", "salvation", "protection", "gratitude"];
+  const CATEGORY_ICONS: Record<string, string> = {
+    healing: "🙏", deliverance: "⛓️", provision: "💰", guidance: "🧭",
+    family: "👨‍👩‍👧", salvation: "✝️", protection: "🛡️", gratitude: "🌟", general: "❤️",
+  };
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.request.trim() || form.request.trim().length < 15) {
+      toast.error("Please write at least 15 characters for your prayer request.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/prayer/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.isAnonymous ? "Anonymous" : (form.name.trim() || "Anonymous"),
+          request: form.request.trim(),
+          category: form.category,
+          isAnonymous: form.isAnonymous,
+        }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        toast.success("Your prayer request has been submitted. The JCTM prayer team will stand with you.");
+      } else {
+        toast.error("Could not submit prayer request. Please try again.");
+      }
+    } catch {
+      toast.error("Network error. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section ref={ref} className="relative py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, #080e1c 0%, #0a0a1e 100%)" }}>
+      <div className="absolute inset-0 grid-bg opacity-20" />
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
+      <div className="absolute top-1/2 right-0 w-72 h-72 rounded-full blur-3xl opacity-[0.06]"
+        style={{ background: "radial-gradient(circle, #7C3AED, transparent)" }} />
+
+      <div className="container mx-auto px-4 relative z-10">
+        <motion.div
+          initial="hidden" animate={inView ? "show" : "hidden"} variants={stagger}
+          className="text-center mb-14"
+        >
+          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-violet-500/25 bg-violet-500/8 mb-5">
+            <Heart className="w-3.5 h-3.5 text-violet-400" />
+            <span className="text-violet-400 text-xs font-semibold tracking-widest uppercase">Global Prayer Wall</span>
+          </motion.div>
+          <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-3">
+            We Stand{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-pink-400">With You</span>
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-white/45 max-w-xl mx-auto">
+            Submit your prayer request to the JCTM prayer community. You are not alone.
+          </motion.p>
+        </motion.div>
+
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ delay: 0.2, type: "spring", stiffness: 80, damping: 18 }}
+          >
+            <div
+              className="rounded-2xl border border-white/10 p-6"
+              style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(16px)" }}
+            >
+              <h3 className="text-white font-bold text-lg mb-5 flex items-center gap-2">
+                <Heart className="w-4 h-4 text-violet-400" /> Submit a Prayer Request
+              </h3>
+
+              {submitted ? (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-8">
+                  <div className="w-14 h-14 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center mx-auto mb-4">
+                    <CheckCheck className="w-6 h-6 text-violet-400" />
+                  </div>
+                  <p className="text-white font-semibold mb-2">Prayer Request Submitted</p>
+                  <p className="text-white/50 text-sm">The JCTM prayer team will stand in agreement with you. God hears every cry of faith.</p>
+                  <button
+                    onClick={() => { setSubmitted(false); setForm({ name: "", request: "", category: "general", isAnonymous: false }); }}
+                    className="mt-5 text-violet-400 text-sm hover:text-violet-300 transition-colors"
+                  >
+                    Submit another request
+                  </button>
+                </motion.div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-white/50 text-xs uppercase tracking-wider block mb-1.5">Your Name (optional)</label>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      disabled={form.isAnonymous}
+                      placeholder="Your name or leave blank"
+                      className="w-full rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-white text-sm placeholder:text-white/25 focus:outline-none focus:border-violet-500/40 transition-colors disabled:opacity-40"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs uppercase tracking-wider block mb-1.5">Category</label>
+                    <select
+                      value={form.category}
+                      onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                      className="w-full rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/40 transition-colors"
+                      style={{ background: "rgba(255,255,255,0.04)" }}
+                    >
+                      {PRAYER_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat} style={{ background: "#0a0f1e" }}>
+                          {CATEGORY_ICONS[cat]} {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs uppercase tracking-wider block mb-1.5">Your Prayer Request</label>
+                    <textarea
+                      value={form.request}
+                      onChange={e => setForm(f => ({ ...f, request: e.target.value }))}
+                      placeholder="Share your need with the JCTM prayer community…"
+                      rows={4}
+                      className="w-full rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-white text-sm placeholder:text-white/25 focus:outline-none focus:border-violet-500/40 transition-colors resize-none"
+                    />
+                    <p className="text-white/25 text-xs mt-1">{form.request.length}/500 characters</p>
+                  </div>
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.isAnonymous}
+                      onChange={e => setForm(f => ({ ...f, isAnonymous: e.target.checked }))}
+                      className="w-4 h-4 rounded border-white/20 accent-violet-500"
+                    />
+                    <span className="text-white/50 text-sm">Submit anonymously</span>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={submitting || form.request.trim().length < 15}
+                    className="w-full py-3 rounded-xl font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #7C3AED, #DB2777)" }}
+                  >
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
+                    {submitting ? "Submitting…" : "Submit Prayer Request"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ delay: 0.3, type: "spring", stiffness: 80, damping: 18 }}
+            className="space-y-3"
+          >
+            <h3 className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Users className="w-3.5 h-3.5" /> Community Prayer Wall
+            </h3>
+            {prayers.length === 0 ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-white/8 bg-white/2 p-4 h-20 animate-pulse" />
+              ))
+            ) : (
+              prayers.map((prayer, i) => (
+                <motion.div
+                  key={prayer.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={inView ? { opacity: 1, y: 0 } : {}}
+                  transition={{ delay: 0.3 + i * 0.08 }}
+                  className="rounded-xl border border-white/8 bg-white/3 p-4 hover:border-violet-500/20 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-violet-500/15 border border-violet-500/20 flex items-center justify-center flex-shrink-0 text-sm">
+                      {CATEGORY_ICONS[prayer.category] ?? "🙏"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-white/70 text-xs font-semibold">{prayer.is_anonymous ? "Anonymous" : (prayer.name ?? "Believer")}</span>
+                        <span className="text-white/25 text-[10px] capitalize">{prayer.category}</span>
+                      </div>
+                      <p className="text-white/50 text-xs leading-relaxed line-clamp-2">{prayer.request}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-violet-400/60 text-[10px] flex-shrink-0">
+                      <Heart className="w-3 h-3" /> {prayer.pray_count ?? 0}
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+            <div className="text-center mt-4">
+              <Link href="/prayer">
+                <span className="text-violet-400 text-xs hover:text-violet-300 transition-colors">
+                  View all prayer requests →
+                </span>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEWSLETTER SECTION
+// ═══════════════════════════════════════════════════════════════════════════
+function NewsletterSection() {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.15 });
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.includes("@")) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/devotion/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        toast.success("Subscribed! Daily devotions will arrive in your inbox.");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error ?? "Subscription failed. Please try again.");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section ref={ref} className="relative py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0a1e 0%, #06080f 100%)" }}>
+      <div className="absolute inset-0 grid-bg opacity-15" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[200px] opacity-10 blur-3xl rounded-full"
+        style={{ background: "linear-gradient(90deg, #38BDF8, #7C3AED)" }} />
+
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-2xl mx-auto text-center">
+          <motion.div
+            initial="hidden" animate={inView ? "show" : "hidden"} variants={stagger}
+          >
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-500/25 bg-amber-500/8 mb-6">
+              <Bell className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-amber-400 text-xs font-semibold tracking-widest uppercase">Daily Devotion</span>
+            </motion.div>
+            <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
+              Start Every Day{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">With the Word</span>
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-white/45 text-lg mb-8">
+              Receive daily devotions, prophetic words, and Scripture declarations from JCTM directly in your inbox — free, forever.
+            </motion.p>
+
+            {submitted ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="rounded-2xl border border-amber-500/25 bg-amber-500/8 p-8"
+              >
+                <div className="w-14 h-14 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-4">
+                  <CheckCheck className="w-7 h-7 text-amber-400" />
+                </div>
+                <p className="text-white font-bold text-xl mb-2">You're Subscribed!</p>
+                <p className="text-white/50">Your first devotion is on its way. Check your inbox — and your spam folder just in case.</p>
+              </motion.div>
+            ) : (
+              <motion.form variants={fadeUp} onSubmit={handleSubmit} className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Your first name (optional)"
+                    className="flex-1 h-12 rounded-xl border border-white/10 bg-white/5 px-5 text-white text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
+                  />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="Your email address"
+                    required
+                    className="flex-1 h-12 rounded-xl border border-white/10 bg-white/5 px-5 text-white text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-500/40 transition-colors"
+                  />
+                </div>
+                <motion.button
+                  type="submit"
+                  disabled={submitting}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full h-12 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)", boxShadow: "0 0 30px rgba(245,158,11,0.2)" }}
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                  {submitting ? "Subscribing…" : "Subscribe to Daily Devotions — Free"}
+                </motion.button>
+                <p className="text-white/25 text-xs">No spam. Unsubscribe anytime. We respect your inbox.</p>
+              </motion.form>
+            )}
+
+            <motion.div variants={fadeUp} className="grid grid-cols-3 gap-4 mt-10 pt-8 border-t border-white/8">
+              {[
+                { icon: BookMarked, label: "Daily Scripture", sub: "Fresh Word every morning" },
+                { icon: Heart, label: "Prophetic Word", sub: "From Prophet Amos' teachings" },
+                { icon: Sparkles, label: "Prayer Focus", sub: "Daily prayer declaration" },
+              ].map(({ icon: Icon, label, sub }) => (
+                <div key={label} className="text-center">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center mx-auto mb-2">
+                    <Icon className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <p className="text-white/70 text-xs font-semibold">{label}</p>
+                  <p className="text-white/30 text-[10px] mt-0.5">{sub}</p>
+                </div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PAGE ASSEMBLY
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Home() {
@@ -3858,6 +4598,11 @@ export default function Home() {
       <GlobalReach />
       <GlobalAltarSection />
       <GivingBand />
+      <BlogPreviewSection />
+      <GalleryPreviewSection />
+      <AIAssistantTeaser />
+      <PrayerWallSection />
+      <NewsletterSection />
       <NewcomerSection />
       <ConnectSection />
       <TimelineTeaser />

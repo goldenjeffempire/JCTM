@@ -86,7 +86,7 @@ const STOP_WORDS = new Set([
   "can", "all", "one", "more", "out", "up", "about", "than", "also",
 ]);
 
-function tfidfEmbed(text: string): EmbeddingVector {
+export function tfidfEmbed(text: string): EmbeddingVector {
   const tokens = tokenize(text).filter(t => !STOP_WORDS.has(t));
   const vec = new Float64Array(VOCAB_SIZE);
 
