@@ -35,6 +35,7 @@ import videoEventsRouter from "./videoEvents";
 import eventNotificationsRouter from "./eventNotifications";
 import homeVideosRouter from "./homeVideos";
 import monetizationRouter from "./monetization";
+import journeyRouter from "./journey";
 
 const router: IRouter = Router();
 
@@ -76,6 +77,7 @@ router.use(videoEventsRouter);
 router.use(eventNotificationsRouter);
 router.use(homeVideosRouter);
 router.use(monetizationRouter);
+router.use(journeyRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

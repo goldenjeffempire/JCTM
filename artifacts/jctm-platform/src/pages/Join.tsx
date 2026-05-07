@@ -4,10 +4,12 @@ import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import {
   User, LogIn, LogOut, BookOpen, Heart, ChevronRight,
   CheckCircle, Eye, EyeOff, Church, Edit3, Save, X,
-  Key, Phone, Shield,
+  Key, Phone, Shield, Star, Flame, ArrowRight, Gift,
+  TrendingUp, Award, Compass, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { safeLocalGet, safeLocalRemove, safeLocalSet } from "@/lib/utils";
@@ -24,13 +26,40 @@ interface Member {
   createdAt: string;
 }
 
+interface JourneySummary {
+  ok: boolean;
+  member: { firstName: string; lastName: string; email: string; daysMember: number; joinedAt: string };
+  activity: { testimonies: number; givingCount: number; givingTotal: number };
+  maturity: { level: string; score: number; nextLevel: string; progressPct: number };
+  badges: Array<{ id: string; label: string; icon: string; earned: boolean; desc: string }>;
+  earnedBadges: number;
+  totalBadges: number;
+  nextSteps: Array<{ label: string; href: string; desc: string; icon: string }>;
+}
+
 type View = "register" | "login" | "dashboard" | "edit-profile";
+type DashTab = "overview" | "journey";
+
+const MATURITY_COLORS: Record<string, string> = {
+  Seeker: "from-amber-400 to-orange-500",
+  Believer: "from-blue-400 to-cyan-500",
+  Faithful: "from-violet-500 to-purple-600",
+  Rooted: "from-emerald-400 to-teal-600",
+};
+const MATURITY_BG: Record<string, string> = {
+  Seeker: "bg-amber-50 border-amber-200 text-amber-700",
+  Believer: "bg-blue-50 border-blue-200 text-blue-700",
+  Faithful: "bg-violet-50 border-violet-200 text-violet-700",
+  Rooted: "bg-emerald-50 border-emerald-200 text-emerald-700",
+};
 
 export default function Join() {
   const [view, setView] = useState<View>("register");
+  const [dashTab, setDashTab] = useState<DashTab>("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [member, setMember] = useState<Member | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
 
@@ -40,9 +69,10 @@ export default function Join() {
 
   useEffect(() => {
     document.title = "Join | JCTM Digital Sanctuary";
-    const token = safeLocalGet("jctm_token");
-    if (token) {
-      fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    const t = safeLocalGet("jctm_token");
+    if (t) {
+      setToken(t);
+      fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${t}` } })
         .then(r => r.json())
         .then(data => {
           if (data.id) {
@@ -53,6 +83,16 @@ export default function Join() {
         .catch(() => { safeLocalRemove("jctm_token"); });
     }
   }, []);
+
+  const { data: journey, isLoading: journeyLoading } = useQuery<JourneySummary>({
+    queryKey: ["/api/journey/summary", token],
+    queryFn: () =>
+      fetch(`${BASE}/api/journey/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.json()),
+    enabled: !!token && view === "dashboard" && dashTab === "journey",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +113,7 @@ export default function Join() {
       const data = await res.json();
       if (res.ok) {
         safeLocalSet("jctm_token", data.token);
+        setToken(data.token);
         setMember(data.member);
         setView("dashboard");
         toast.success("Welcome to the JCTM Digital Sanctuary!");
@@ -95,6 +136,7 @@ export default function Join() {
       const data = await res.json();
       if (res.ok) {
         safeLocalSet("jctm_token", data.token);
+        setToken(data.token);
         setMember(data.member);
         setView("dashboard");
         toast.success("Welcome back to the Sanctuary!");
@@ -108,6 +150,7 @@ export default function Join() {
   const handleLogout = () => {
     safeLocalRemove("jctm_token");
     setMember(null);
+    setToken(null);
     setView("login");
     setLoginForm({ email: "", password: "" });
     toast.info("Signed out successfully.");
@@ -128,9 +171,8 @@ export default function Join() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = safeLocalGet("jctm_token");
-    if (!token) return;
-
+    const t = safeLocalGet("jctm_token");
+    if (!t) return;
     if (editForm.newPassword && editForm.newPassword.length < 6) {
       setError("New password must be at least 6 characters.");
       return;
@@ -139,7 +181,6 @@ export default function Join() {
       setError("Current password required to change password.");
       return;
     }
-
     setLoading(true); setError("");
     try {
       const payload: Record<string, string> = {
@@ -151,13 +192,9 @@ export default function Join() {
         payload.currentPassword = editForm.currentPassword;
         payload.newPassword = editForm.newPassword;
       }
-
       const res = await fetch(`${BASE}/api/auth/profile`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -198,10 +235,13 @@ export default function Join() {
           </p>
         </motion.div>
 
-        <div className="max-w-md mx-auto">
+        <div className="max-w-lg mx-auto">
           <AnimatePresence mode="wait">
+
+            {/* ─── DASHBOARD ─── */}
             {view === "dashboard" && member ? (
               <motion.div key="dashboard" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+
                 {/* Profile card */}
                 <div className="glass-panel rounded-2xl p-7 border border-accent/20 text-center">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-accent/20">
@@ -217,8 +257,6 @@ export default function Join() {
                     <CheckCircle className="h-3.5 w-3.5" />
                     {member.role === "admin" ? "Administrator" : "Verified Digital Member"}
                   </div>
-
-                  {/* Edit profile button */}
                   <button
                     onClick={openEditProfile}
                     className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent transition-colors mx-auto"
@@ -227,40 +265,230 @@ export default function Join() {
                   </button>
                 </div>
 
-                {/* Member resources */}
-                <div className="glass-panel rounded-2xl p-6 border border-border/50">
-                  <h3 className="font-semibold text-primary mb-4">Member Resources</h3>
-                  <div className="space-y-3">
-                    {[
-                      { icon: <BookOpen className="h-4 w-4" />, label: "Sermon Archive", desc: "Access all past sermons", href: "/sermons" },
-                      { icon: <Heart className="h-4 w-4" />, label: "Testimony Vault", desc: "Read & share testimonies", href: "/testimonies" },
-                      { icon: <ChevronRight className="h-4 w-4" />, label: "Correction Timeline", desc: "Study the 5 corrections", href: "/correction-timeline" },
-                    ].map(item => (
-                      <a key={item.label} href={item.href} className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group">
-                        <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                          {item.icon}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-primary text-sm">{item.label}</p>
-                          <p className="text-xs text-muted-foreground">{item.desc}</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
-                      </a>
-                    ))}
-                    {member.role === "admin" && (
-                      <a href="/admin/broadcast" className="flex items-center gap-4 p-3 rounded-xl hover:bg-accent/10 transition-colors group border border-accent/20">
-                        <div className="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
-                          <Shield className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-accent text-sm">Admin Panel</p>
-                          <p className="text-xs text-muted-foreground">Manage platform content</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-accent" />
-                      </a>
-                    )}
-                  </div>
+                {/* Tabs */}
+                <div className="flex gap-1 p-1 bg-muted rounded-xl">
+                  {(["overview", "journey"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setDashTab(tab)}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                        dashTab === tab
+                          ? "bg-white shadow text-primary"
+                          : "text-muted-foreground hover:text-primary"
+                      }`}
+                    >
+                      {tab === "overview" ? <><BookOpen className="h-3.5 w-3.5" /> Resources</> : <><Star className="h-3.5 w-3.5" /> My Journey</>}
+                    </button>
+                  ))}
                 </div>
+
+                <AnimatePresence mode="wait">
+
+                  {/* ── OVERVIEW TAB ── */}
+                  {dashTab === "overview" && (
+                    <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+                      <div className="glass-panel rounded-2xl p-6 border border-border/50">
+                        <h3 className="font-semibold text-primary mb-4">Member Resources</h3>
+                        <div className="space-y-3">
+                          {[
+                            { icon: <BookOpen className="h-4 w-4" />, label: "Sermon Archive", desc: "Access all past sermons", href: "/sermons" },
+                            { icon: <Heart className="h-4 w-4" />, label: "Testimony Vault", desc: "Read & share testimonies", href: "/testimonies" },
+                            { icon: <ChevronRight className="h-4 w-4" />, label: "Correction Timeline", desc: "Study the 5 corrections", href: "/correction-timeline" },
+                          ].map(item => (
+                            <a key={item.label} href={item.href} className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group">
+                              <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                                {item.icon}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-primary text-sm">{item.label}</p>
+                                <p className="text-xs text-muted-foreground">{item.desc}</p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
+                            </a>
+                          ))}
+                          {member.role === "admin" && (
+                            <a href="/admin/broadcast" className="flex items-center gap-4 p-3 rounded-xl hover:bg-accent/10 transition-colors group border border-accent/20">
+                              <div className="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
+                                <Shield className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-accent text-sm">Admin Panel</p>
+                                <p className="text-xs text-muted-foreground">Manage platform content</p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-accent" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ── JOURNEY TAB ── */}
+                  {dashTab === "journey" && (
+                    <motion.div key="journey" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
+
+                      {journeyLoading ? (
+                        <div className="glass-panel rounded-2xl p-10 border border-border/50 text-center">
+                          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">Loading your journey…</p>
+                        </div>
+                      ) : journey?.ok ? (
+                        <>
+                          {/* Spiritual Maturity Card */}
+                          <div className="glass-panel rounded-2xl p-6 border border-border/50 overflow-hidden relative">
+                            <div className={`absolute inset-0 bg-gradient-to-br ${MATURITY_COLORS[journey.maturity.level] ?? "from-accent to-primary"} opacity-5`} />
+                            <div className="relative">
+                              <div className="flex items-center justify-between mb-4">
+                                <div>
+                                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Spiritual Maturity</p>
+                                  <h3 className="text-2xl font-serif font-bold text-primary">{journey.maturity.level}</h3>
+                                </div>
+                                <span className={`text-3xl`}>
+                                  {journey.maturity.level === "Seeker" ? "🌱" : journey.maturity.level === "Believer" ? "🕊️" : journey.maturity.level === "Faithful" ? "⚡" : "🌳"}
+                                </span>
+                              </div>
+
+                              {/* Maturity progress bar */}
+                              <div className="mb-3">
+                                <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                                  <span>{journey.maturity.level}</span>
+                                  {journey.maturity.level !== "Rooted" && <span>{journey.maturity.nextLevel}</span>}
+                                </div>
+                                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                                  <motion.div
+                                    className={`h-full rounded-full bg-gradient-to-r ${MATURITY_COLORS[journey.maturity.level] ?? "from-accent to-primary"}`}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(100, journey.maturity.progressPct)}%` }}
+                                    transition={{ duration: 1.2, ease: "easeOut" }}
+                                  />
+                                </div>
+                                {journey.maturity.level !== "Rooted" && (
+                                  <p className="text-xs text-muted-foreground mt-1.5">
+                                    {journey.maturity.progressPct}% toward {journey.maturity.nextLevel}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Maturity levels row */}
+                              <div className="flex gap-1.5 mt-3">
+                                {["Seeker", "Believer", "Faithful", "Rooted"].map((lvl, i) => {
+                                  const levels = ["Seeker", "Believer", "Faithful", "Rooted"];
+                                  const currentIdx = levels.indexOf(journey.maturity.level);
+                                  const isPast = i <= currentIdx;
+                                  return (
+                                    <div key={lvl} className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-medium border transition-all ${isPast ? `${MATURITY_BG[lvl]} border-current` : "bg-muted/50 border-border/30 text-muted-foreground/50"}`}>
+                                      {lvl}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Activity Stats */}
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              { label: "Days in Faith", value: journey.member.daysMember, icon: <Flame className="h-4 w-4" />, color: "text-orange-500" },
+                              { label: "Testimonies", value: journey.activity.testimonies, icon: <Star className="h-4 w-4" />, color: "text-amber-500" },
+                              { label: "Kingdom Gifts", value: journey.activity.givingCount, icon: <Gift className="h-4 w-4" />, color: "text-emerald-500" },
+                            ].map(stat => (
+                              <div key={stat.label} className="glass-panel rounded-xl p-4 border border-border/40 text-center">
+                                <div className={`${stat.color} flex justify-center mb-2`}>{stat.icon}</div>
+                                <div className="text-2xl font-bold text-primary font-mono">{stat.value}</div>
+                                <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stat.label}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Achievement Badges */}
+                          <div className="glass-panel rounded-2xl p-5 border border-border/50">
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="font-semibold text-primary flex items-center gap-2">
+                                <Award className="h-4 w-4 text-accent" /> Achievement Badges
+                              </h4>
+                              <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                                {journey.earnedBadges}/{journey.totalBadges} earned
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2.5">
+                              {journey.badges.map(badge => (
+                                <motion.div
+                                  key={badge.id}
+                                  initial={{ scale: 0.95, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                                    badge.earned
+                                      ? "bg-gradient-to-br from-accent/5 to-primary/5 border-accent/25"
+                                      : "bg-muted/30 border-border/30 opacity-40 grayscale"
+                                  }`}
+                                >
+                                  <span className="text-xl leading-none">{badge.icon}</span>
+                                  <div className="min-w-0">
+                                    <p className={`text-xs font-semibold truncate ${badge.earned ? "text-primary" : "text-muted-foreground"}`}>{badge.label}</p>
+                                    <p className="text-[10px] text-muted-foreground leading-tight">{badge.desc}</p>
+                                  </div>
+                                  {badge.earned && <CheckCircle className="h-3.5 w-3.5 text-accent flex-shrink-0 ml-auto" />}
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Next Steps */}
+                          <div className="glass-panel rounded-2xl p-5 border border-border/50">
+                            <h4 className="font-semibold text-primary flex items-center gap-2 mb-4">
+                              <Compass className="h-4 w-4 text-accent" /> Recommended Next Steps
+                            </h4>
+                            <div className="space-y-2.5">
+                              {journey.nextSteps.map((step, i) => (
+                                <motion.a
+                                  key={step.label}
+                                  href={step.href}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.1 }}
+                                  className="flex items-center gap-3 p-3.5 rounded-xl bg-muted/40 hover:bg-accent/5 border border-border/30 hover:border-accent/30 transition-all group"
+                                >
+                                  <span className="text-xl leading-none">{step.icon}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-primary">{step.label}</p>
+                                    <p className="text-xs text-muted-foreground">{step.desc}</p>
+                                  </div>
+                                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors flex-shrink-0" />
+                                </motion.a>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* AI Growth Insight */}
+                          <div className="rounded-2xl p-5 bg-gradient-to-br from-accent/10 to-primary/10 border border-accent/20">
+                            <div className="flex items-start gap-3">
+                              <Sparkles className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-semibold text-primary mb-1">AI Spiritual Insight</p>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {journey.maturity.level === "Seeker"
+                                    ? "You are just beginning your journey in the Digital Sanctuary. The Word of God says 'draw near to God and He will draw near to you.' Explore the sermon archive and let the teaching of the Correction Mandate take root."
+                                    : journey.maturity.level === "Believer"
+                                    ? "Your faith is taking shape. As you continue to walk in the light of the Correction, consider sharing a testimony — your story strengthens the body of Christ and honours what God has done."
+                                    : journey.maturity.level === "Faithful"
+                                    ? "You are walking faithfully in the Sanctuary. The Scriptures say 'the path of the righteous is like the morning sun.' Keep sowing into the kingdom and standing on the prophetic word over your life."
+                                    : "You are deeply rooted — a pillar in this digital expression of the ministry. Continue to disciple others, intercede for the harvest, and live as a living testimony of the Correction Mandate."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="glass-panel rounded-2xl p-8 border border-border/50 text-center">
+                          <TrendingUp className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                          <p className="text-sm font-medium text-primary mb-1">Journey data unavailable</p>
+                          <p className="text-xs text-muted-foreground">Please try again in a moment.</p>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                </AnimatePresence>
 
                 <Button
                   onClick={handleLogout}
@@ -270,6 +498,7 @@ export default function Join() {
                   <LogOut className="h-4 w-4" /> Sign Out
                 </Button>
               </motion.div>
+
             ) : view === "edit-profile" ? (
               <motion.div key="edit-profile" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <div className="glass-panel rounded-2xl p-8 border border-border/50">
@@ -384,6 +613,7 @@ export default function Join() {
                   </form>
                 </div>
               </motion.div>
+
             ) : view === "register" ? (
               <motion.div key="register" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <div className="glass-panel rounded-2xl p-8 border border-border/50">
@@ -436,6 +666,7 @@ export default function Join() {
                   </form>
                 </div>
               </motion.div>
+
             ) : (
               <motion.div key="login" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <div className="glass-panel rounded-2xl p-8 border border-border/50">
@@ -471,10 +702,17 @@ export default function Join() {
                     <Button type="submit" disabled={loading} className="w-full bg-accent text-white hover:bg-accent/90 rounded-full h-11 font-semibold shadow-lg shadow-accent/20">
                       <LogIn className="h-4 w-4 mr-2" /> {loading ? "Signing in..." : "Sign In"}
                     </Button>
+                    <p className="text-center text-xs text-muted-foreground">
+                      Not a member?{" "}
+                      <button type="button" onClick={() => { setView("register"); setError(""); }} className="text-accent hover:underline font-medium">
+                        Join now →
+                      </button>
+                    </p>
                   </form>
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
       </div>
