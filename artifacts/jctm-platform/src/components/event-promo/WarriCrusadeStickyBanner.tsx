@@ -47,7 +47,7 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
 // ── Campaign constants ───────────────────────────────────────────────────────
 const CAMPAIGN_SLUG       = "ministers-conference-2026";
-const CAMPAIGN_START      = new Date("2026-05-08T07:00:00+01:00");
+const CAMPAIGN_START      = new Date("2026-05-08T08:00:00+01:00"); // 8:00 AM WAT
 const CAMPAIGN_END        = new Date("2026-05-10T21:00:00+01:00");
 const CAMPAIGN_LOCATION   = "JCTM Auditorium, Ebrumede Roundabout, Effurun";
 const CAMPAIGN_DATE_LABEL = "May 8–10, 2026 · 8:00 AM (WAT)";

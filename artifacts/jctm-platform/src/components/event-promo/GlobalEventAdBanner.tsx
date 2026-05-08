@@ -56,8 +56,8 @@ const FALLBACK_EVENT = {
   ctaHref: "/conference-registration",
   // 2026-05-08T07:00:00Z = 8:00 AM WAT (WAT is UTC+1)
   startAtIso: "2026-05-08T07:00:00Z",
-  // 2026-05-10T21:00:00Z = 10:00 PM WAT — conference closes
-  endAtIso: "2026-05-10T21:00:00Z",
+  // 2026-05-10T20:00:00Z = 9:00 PM WAT — conference closes
+  endAtIso: "2026-05-10T20:00:00Z",
 };
 
 // ── Static styles (allocated once at module scope) ─────────────────────────

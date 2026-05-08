@@ -18,7 +18,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ChevronRight, X, Radio } from "lucide-react";
 
-const CONF_START_MS   = new Date("2026-05-08T07:00:00+01:00").getTime();
+const CONF_START_MS   = new Date("2026-05-08T08:00:00+01:00").getTime(); // 8:00 AM WAT
 const CONF_END_MS     = new Date("2026-05-10T21:00:00+01:00").getTime();
 const SESSION_HIDE_KEY = "jctm:ministers-conf-2026:fab-hidden";
 const SHOW_DELAY_MS   = 1500;

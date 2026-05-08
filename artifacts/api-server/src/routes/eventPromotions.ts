@@ -349,8 +349,8 @@ router.post(
           location: "JCTM Auditorium, Ebrumede Roundabout",
           ctaText: "Register for Conference",
           ctaUrl: "/conference-registration",
-          startAt: new Date("2026-05-08T07:00:00Z"),
-          endAt: new Date("2026-05-10T21:00:00Z"),
+          startAt: new Date("2026-05-08T07:00:00Z"),   // 8:00 AM WAT
+          endAt: new Date("2026-05-10T20:00:00Z"),     // 9:00 PM WAT
           status: "active",
           showBanner: true,
           showPopup: true,
