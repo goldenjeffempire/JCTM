@@ -262,7 +262,14 @@ export default function Give() {
               <Star className="h-6 w-6 text-accent mb-3" />
               <h3 className="font-serif font-bold text-primary mb-2">Where Your Gift Goes</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["Spreading the Genuine Gospel Of Christ"].map(item => (
+                {[
+                  "Temple TV broadcasts reaching 40+ nations",
+                  "The Correction Mandate outreach & teachings",
+                  "Warri crusades, revivals & local programmes",
+                  "Printing of discipleship & doctrinal materials",
+                  "Ministry workers serving full-time in the gospel",
+                  "Spreading the genuine apostolic Gospel of Christ",
+                ].map(item => (
                   <li key={item} className="flex items-start gap-2"><span className="text-accent mt-0.5">✓</span>{item}</li>
                 ))}
               </ul>

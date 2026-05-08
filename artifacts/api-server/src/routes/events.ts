@@ -19,40 +19,49 @@ router.get("/events", async (req, res): Promise<void> => {
 
   const { limit = 20, offset = 0 } = parsed.data;
 
-  const events = await db
-    .select()
-    .from(eventsTable)
-    .orderBy(asc(eventsTable.startDate))
-    .limit(limit)
-    .offset(offset);
+  try {
+    const events = await db
+      .select()
+      .from(eventsTable)
+      .orderBy(asc(eventsTable.startDate))
+      .limit(limit)
+      .offset(offset);
 
-  const serializeEvent = (e: typeof events[0]) => ({
-    ...e,
-    startDate: e.startDate instanceof Date ? e.startDate.toISOString() : e.startDate,
-    endDate: e.endDate instanceof Date ? e.endDate.toISOString() : e.endDate,
-    createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
-  });
-  res.json(ListEventsResponse.parse(events.map(serializeEvent)));
+    const serializeEvent = (e: typeof events[0]) => ({
+      ...e,
+      startDate: e.startDate instanceof Date ? e.startDate.toISOString() : e.startDate,
+      endDate: e.endDate instanceof Date ? e.endDate.toISOString() : e.endDate,
+      createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
+    });
+    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    res.json(ListEventsResponse.parse(events.map(serializeEvent)));
+  } catch {
+    res.status(500).json({ error: "Failed to load events" });
+  }
 });
 
 router.get("/events/upcoming", async (req, res): Promise<void> => {
   const now = new Date();
 
-  const events = await db
-    .select()
-    .from(eventsTable)
-    .where(gte(eventsTable.startDate, now))
-    .orderBy(asc(eventsTable.startDate))
-    .limit(4);
+  try {
+    const events = await db
+      .select()
+      .from(eventsTable)
+      .where(gte(eventsTable.startDate, now))
+      .orderBy(asc(eventsTable.startDate))
+      .limit(4);
 
-  const serialized = events.map(e => ({
-    ...e,
-    startDate: e.startDate instanceof Date ? e.startDate.toISOString() : e.startDate,
-    endDate: e.endDate instanceof Date ? e.endDate.toISOString() : e.endDate,
-    createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
-  }));
-  res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200");
-  res.json(GetUpcomingEventsResponse.parse(serialized));
+    const serialized = events.map(e => ({
+      ...e,
+      startDate: e.startDate instanceof Date ? e.startDate.toISOString() : e.startDate,
+      endDate: e.endDate instanceof Date ? e.endDate.toISOString() : e.endDate,
+      createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
+    }));
+    res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200");
+    res.json(GetUpcomingEventsResponse.parse(serialized));
+  } catch {
+    res.status(500).json({ error: "Failed to load upcoming events" });
+  }
 });
 
 router.post("/events", async (req, res): Promise<void> => {
@@ -62,21 +71,25 @@ router.post("/events", async (req, res): Promise<void> => {
     return;
   }
 
-  const [event] = await db
-    .insert(eventsTable)
-    .values({
-      ...parsed.data,
-      startDate: new Date(parsed.data.startDate),
-      endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
-    })
-    .returning();
+  try {
+    const [event] = await db
+      .insert(eventsTable)
+      .values({
+        ...parsed.data,
+        startDate: new Date(parsed.data.startDate),
+        endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
+      })
+      .returning();
 
-  res.status(201).json({
-    ...event,
-    startDate: event.startDate instanceof Date ? event.startDate.toISOString() : event.startDate,
-    endDate: event.endDate instanceof Date ? event.endDate.toISOString() : event.endDate,
-    createdAt: event.createdAt instanceof Date ? event.createdAt.toISOString() : event.createdAt,
-  });
+    res.status(201).json({
+      ...event,
+      startDate: event.startDate instanceof Date ? event.startDate.toISOString() : event.startDate,
+      endDate: event.endDate instanceof Date ? event.endDate.toISOString() : event.endDate,
+      createdAt: event.createdAt instanceof Date ? event.createdAt.toISOString() : event.createdAt,
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to create event" });
+  }
 });
 
 export default router;

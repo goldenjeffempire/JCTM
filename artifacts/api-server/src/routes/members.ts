@@ -34,19 +34,26 @@ router.get("/members", async (req, res): Promise<void> => {
       ]
     : [];
 
-  const members = await db
-    .select()
-    .from(membersTable)
-    .where(conditions.length > 0 ? or(...conditions) : undefined)
-    .orderBy(desc(membersTable.joinedAt))
-    .limit(limit)
-    .offset(offset);
+  try {
+    const members = await db
+      .select()
+      .from(membersTable)
+      .where(conditions.length > 0 ? or(...conditions) : undefined)
+      .orderBy(desc(membersTable.joinedAt))
+      .limit(limit)
+      .offset(offset);
 
-  const serialized = members.map(m => ({
-    ...m,
-    joinedAt: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : m.joinedAt,
-  }));
-  res.json(ListMembersResponse.parse(serialized));
+    const serialized = members.map(m => ({
+      ...m,
+      joinedAt: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : m.joinedAt,
+    }));
+    if (!search) {
+      res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    }
+    res.json(ListMembersResponse.parse(serialized));
+  } catch {
+    res.status(500).json({ error: "Failed to load members" });
+  }
 });
 
 router.post("/members", async (req, res): Promise<void> => {

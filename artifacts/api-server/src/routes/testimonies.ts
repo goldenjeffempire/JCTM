@@ -34,19 +34,26 @@ router.get("/testimonies", async (req, res): Promise<void> => {
     conditions.push(eq(testimoniesTable.category, category));
   }
 
-  const testimonies = await db
-    .select()
-    .from(testimoniesTable)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(testimoniesTable.createdAt))
-    .limit(limit)
-    .offset(offset);
+  try {
+    const testimonies = await db
+      .select()
+      .from(testimoniesTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(testimoniesTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-  const serialized = testimonies.map(t => ({
-    ...t,
-    createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
-  }));
-  res.json(ListTestimoniesResponse.parse(serialized));
+    const serialized = testimonies.map(t => ({
+      ...t,
+      createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
+    }));
+    if (!all) {
+      res.setHeader("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+    }
+    res.json(ListTestimoniesResponse.parse(serialized));
+  } catch {
+    res.status(500).json({ error: "Failed to load testimonies" });
+  }
 });
 
 // ── POST /api/testimonies ─────────────────────────────────────────────────────

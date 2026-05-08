@@ -139,6 +139,7 @@ router.get("/prayer/requests", async (_req: Request, res: Response): Promise<voi
        ORDER BY created_at DESC
        LIMIT 30`
     );
+    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: "Failed to load prayer requests" });
