@@ -151,6 +151,26 @@ function ReelCard({ testimony, index, likedIds, localLikes, onAmen }: {
                 </div>
                 <span className="text-white/60 text-[10px] font-medium">Amen</span>
               </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={() => {
+                  const preview = testimony.content.length > 200
+                    ? testimony.content.slice(0, 200) + "…"
+                    : testimony.content;
+                  const text = encodeURIComponent(
+                    (testimony.title ? `"${testimony.title}" — ` : "") +
+                    `${testimony.name}'s testimony:\n\n"${preview}"\n\n🙏 Read more testimonies at jctm.org.ng/testimonies`,
+                  );
+                  window.open(`https://wa.me/?text=${text}`, "_blank", "noopener");
+                }}
+                className="flex flex-col items-center gap-0.5"
+              >
+                <div className="h-11 w-11 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shadow-lg hover:bg-green-500/20 transition-all">
+                  <Share2 className="h-5 w-5 text-white/70" />
+                </div>
+                <span className="text-white/60 text-[10px] font-medium">Share</span>
+              </motion.button>
             </div>
           </div>
 

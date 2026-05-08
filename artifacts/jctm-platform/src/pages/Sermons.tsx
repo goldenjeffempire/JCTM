@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X, Lock, Share2, Link2, CheckCheck } from "lucide-react";
+import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X, Lock, Share2, Link2, CheckCheck, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
+import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { StreamPlayer } from "@/components/StreamPlayer";
 
@@ -83,6 +84,18 @@ export default function Sermons() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [livePlaying, setLivePlaying] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<SermonItem[]>(
+    () => safeLocalGet<SermonItem[]>("jctm_recently_played") ?? [],
+  );
+
+  const addToRecentlyPlayed = useCallback((sermon: SermonItem) => {
+    setRecentlyPlayed(prev => {
+      const filtered = prev.filter(s => s.videoId !== sermon.videoId);
+      const updated = [sermon, ...filtered].slice(0, 5);
+      safeLocalSet("jctm_recently_played", updated);
+      return updated;
+    });
+  }, []);
 
   // Real-time live/rebroadcast state via SSE — no polling needed
   const liveStatus = useLivestreamStatus();
@@ -455,6 +468,83 @@ export default function Sermons() {
             )}
           </AnimatePresence>
 
+          {/* Continue Watching rail */}
+          <AnimatePresence>
+            {recentlyPlayed.length > 0 && (
+              <motion.div
+                key="recently-played"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ type: "spring", stiffness: 200, damping: 22 }}
+                className="mb-6"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-accent" />
+                    <span className="text-sm font-semibold text-foreground">Continue Watching</span>
+                    <span className="text-[11px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+                      {recentlyPlayed.length} sermon{recentlyPlayed.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setRecentlyPlayed([]); safeLocalSet("jctm_recently_played", []); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {recentlyPlayed.map((sermon) => {
+                    const isPlaying = playingId === sermon.videoId;
+                    return (
+                      <motion.button
+                        key={sermon.videoId}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => { setPlayingId(sermon.videoId); setLivePlaying(false); }}
+                        className={`group flex-shrink-0 w-48 rounded-xl overflow-hidden border text-left transition-all ${
+                          isPlaying
+                            ? "border-accent/60 ring-1 ring-accent/40 shadow-[0_0_20px_rgba(56,189,248,0.15)]"
+                            : "border-border/40 hover:border-accent/30"
+                        }`}
+                        style={{ background: "rgba(255,255,255,0.03)" }}
+                      >
+                        <div className="relative" style={{ aspectRatio: "16/9" }}>
+                          <img
+                            src={sermon.thumbnailUrl}
+                            alt={sermon.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-all ${
+                              isPlaying
+                                ? "bg-accent/80"
+                                : "bg-black/60 border border-white/20 opacity-0 group-hover:opacity-100"
+                            }`}>
+                              {isPlaying
+                                ? <Volume2 className="h-4 w-4 text-white" />
+                                : <Play className="h-3.5 w-3.5 text-white fill-white ml-0.5" />}
+                            </div>
+                          </div>
+                          {isPlaying && (
+                            <div className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-accent/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                              Now Playing
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2.5">
+                          <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">{sermon.title}</p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Stats row */}
           <div className="flex flex-wrap gap-3 mb-6">
             {stats && (
@@ -611,7 +701,12 @@ export default function Sermons() {
                         sermon={sermon}
                         index={i}
                         playingId={playingId}
-                        onPlay={(id) => { setPlayingId(id); setLivePlaying(false); }}
+                        onPlay={(id) => {
+                          setPlayingId(id);
+                          setLivePlaying(false);
+                          const sermon = sermons.find(s => s.videoId === id);
+                          if (sermon) addToRecentlyPlayed(sermon);
+                        }}
                         onClose={() => setPlayingId(null)}
                       />
                       {(i === 3 || ((i + 1) % 16 === 0 && i < filteredSermons.length - 1)) && (
