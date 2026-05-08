@@ -94,14 +94,18 @@ router.get("/gallery/stream", (req, res): void => {
 });
 
 router.get("/gallery/featured", async (_req, res): Promise<void> => {
-  const images = await db
-    .select()
-    .from(galleryImagesTable)
-    .where(eq(galleryImagesTable.isPublished, true))
-    .orderBy(desc(galleryImagesTable.isFeatured), desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
+  try {
+    const images = await db
+      .select()
+      .from(galleryImagesTable)
+      .where(eq(galleryImagesTable.isPublished, true))
+      .orderBy(desc(galleryImagesTable.isFeatured), desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt));
 
-  res.setHeader("Cache-Control", "no-store");
-  res.json(ListFeaturedGalleryImagesResponse.parse(images.map(serializeImage)));
+    res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    res.json(ListFeaturedGalleryImagesResponse.parse(images.map(serializeImage)));
+  } catch {
+    res.status(500).json({ error: "Failed to load featured gallery images" });
+  }
 });
 
 router.post("/gallery/admin/login", async (req, res): Promise<void> => {
@@ -125,21 +129,26 @@ router.get("/gallery/admin/session", async (req, res): Promise<void> => {
 });
 
 router.get("/gallery/categories", async (_req, res): Promise<void> => {
-  const rows = await db
-    .select({ category: galleryImagesTable.category })
-    .from(galleryImagesTable)
-    .where(eq(galleryImagesTable.isPublished, true))
-    .groupBy(galleryImagesTable.category)
-    .orderBy(sql`lower(${galleryImagesTable.category})`);
+  try {
+    const rows = await db
+      .select({ category: galleryImagesTable.category })
+      .from(galleryImagesTable)
+      .where(eq(galleryImagesTable.isPublished, true))
+      .groupBy(galleryImagesTable.category)
+      .orderBy(sql`lower(${galleryImagesTable.category})`);
 
-  const categories = Array.from(
-    new Set([
-      ...DEFAULT_GALLERY_CATEGORIES,
-      ...rows.map((row) => row.category).filter(Boolean),
-    ]),
-  );
+    const categories = Array.from(
+      new Set([
+        ...DEFAULT_GALLERY_CATEGORIES,
+        ...rows.map((row) => row.category).filter(Boolean),
+      ]),
+    );
 
-  res.json(categories);
+    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    res.json(categories);
+  } catch {
+    res.status(500).json({ error: "Failed to load gallery categories" });
+  }
 });
 
 router.get("/gallery", async (req, res): Promise<void> => {
@@ -169,16 +178,20 @@ router.get("/gallery", async (req, res): Promise<void> => {
     );
   }
 
-  const images = await db
-    .select()
-    .from(galleryImagesTable)
-    .where(and(...conditions))
-    .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt))
-    .limit(limit)
-    .offset(offset);
+  try {
+    const images = await db
+      .select()
+      .from(galleryImagesTable)
+      .where(and(...conditions))
+      .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-  res.setHeader("Cache-Control", "public, max-age=10, stale-while-revalidate=60");
-  res.json(ListGalleryImagesResponse.parse(images.map(serializeImage)));
+    res.setHeader("Cache-Control", "public, max-age=10, stale-while-revalidate=60");
+    res.json(ListGalleryImagesResponse.parse(images.map(serializeImage)));
+  } catch {
+    res.status(500).json({ error: "Failed to load gallery images" });
+  }
 });
 
 // ─── Single image create ────────────────────────────────────────────────────

@@ -29,31 +29,40 @@ router.get("/giving", async (req, res): Promise<void> => {
   const limit  = Math.min(Math.max(Number(req.query.limit  ?? 50), 1), 200);
   const offset = Math.max(Number(req.query.offset ?? 0), 0);
 
-  const logs = await db
-    .select()
-    .from(givingLogsTable)
-    .orderBy(desc(givingLogsTable.createdAt))
-    .limit(limit)
-    .offset(offset);
+  try {
+    const logs = await db
+      .select()
+      .from(givingLogsTable)
+      .orderBy(desc(givingLogsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-  res.setHeader("Cache-Control", "no-store");
-  res.json(ListGivingLogsResponse.parse(logs));
+    res.setHeader("Cache-Control", "no-store");
+    res.json(ListGivingLogsResponse.parse(logs));
+  } catch {
+    res.status(500).json({ error: "Failed to load giving logs" });
+  }
 });
 
 router.get("/giving/stats", async (_req, res): Promise<void> => {
-  const [stats] = await db
-    .select({
-      totalAmount: sum(givingLogsTable.amount),
-      totalDonations: count(givingLogsTable.id),
-    })
-    .from(givingLogsTable)
-    .where(eq(givingLogsTable.status, "success"));
+  try {
+    const [stats] = await db
+      .select({
+        totalAmount: sum(givingLogsTable.amount),
+        totalDonations: count(givingLogsTable.id),
+      })
+      .from(givingLogsTable)
+      .where(eq(givingLogsTable.status, "success"));
 
-  res.json(GetGivingStatsResponse.parse({
-    totalAmount: parseFloat(String(stats?.totalAmount ?? 0)),
-    totalDonations: stats?.totalDonations ?? 0,
-    recentCount: stats?.totalDonations ?? 0,
-  }));
+    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    res.json(GetGivingStatsResponse.parse({
+      totalAmount: parseFloat(String(stats?.totalAmount ?? 0)),
+      totalDonations: stats?.totalDonations ?? 0,
+      recentCount: stats?.totalDonations ?? 0,
+    }));
+  } catch {
+    res.status(500).json({ error: "Failed to load giving stats" });
+  }
 });
 
 router.post("/giving", async (req, res): Promise<void> => {

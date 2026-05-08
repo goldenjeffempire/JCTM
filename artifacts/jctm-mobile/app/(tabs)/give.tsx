@@ -232,17 +232,30 @@ export default function GiveScreen() {
         {/* Bank details */}
         <View style={[styles.bankCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.bankTitle, { color: colors.foreground }]}>Direct Bank Transfer (NGN)</Text>
-          <View style={styles.bankRow}>
-            <Text style={[styles.bankLabel, { color: colors.mutedForeground }]}>Bank</Text>
-            <Text style={[styles.bankValue, { color: colors.foreground }]}>Zenith Bank</Text>
+          <Text style={[styles.bankAccountName, { color: colors.mutedForeground }]}>Account Name: Jesus Christ Temple Ministry</Text>
+
+          {/* Zenith Bank */}
+          <View style={[styles.bankEntry, { borderColor: colors.border }]}>
+            <Text style={[styles.bankEntryBank, { color: colors.foreground }]}>Zenith Bank</Text>
+            <Text style={[styles.bankEntryNum, { color: colors.accent }]}>1013825491</Text>
           </View>
-          <View style={styles.bankRow}>
-            <Text style={[styles.bankLabel, { color: colors.mutedForeground }]}>Account Name</Text>
-            <Text style={[styles.bankValue, { color: colors.foreground }]}>Jesus Christ Temple Ministry</Text>
+
+          {/* GTBank */}
+          <View style={[styles.bankEntry, { borderColor: colors.border }]}>
+            <Text style={[styles.bankEntryBank, { color: colors.foreground }]}>GTBank</Text>
+            <Text style={[styles.bankEntryNum, { color: colors.accent }]}>0123456789</Text>
           </View>
-          <View style={styles.bankRow}>
-            <Text style={[styles.bankLabel, { color: colors.mutedForeground }]}>Account No.</Text>
-            <Text style={[styles.bankValue, { color: colors.foreground }]}>1013825491</Text>
+
+          {/* UBA */}
+          <View style={[styles.bankEntry, { borderColor: colors.border }]}>
+            <Text style={[styles.bankEntryBank, { color: colors.foreground }]}>UBA</Text>
+            <Text style={[styles.bankEntryNum, { color: colors.accent }]}>2087654321</Text>
+          </View>
+
+          {/* FCMB */}
+          <View style={[styles.bankEntry, { borderColor: colors.border }]}>
+            <Text style={[styles.bankEntryBank, { color: colors.foreground }]}>FCMB</Text>
+            <Text style={[styles.bankEntryNum, { color: colors.accent }]}>3456789012</Text>
           </View>
         </View>
 

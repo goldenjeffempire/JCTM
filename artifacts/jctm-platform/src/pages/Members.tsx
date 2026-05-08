@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
-import { Search, User } from "lucide-react";
+import { Search, User, Users, ArrowRight } from "lucide-react";
 
 const ROLE_COLORS: Record<string, string> = {
   "Senior Prophet": "bg-accent/10 text-accent border-accent/30",
@@ -98,7 +98,40 @@ export default function Members() {
               </div>
             ))}
           </div>
+        ) : ((members as Array<{ id: number; firstName: string; lastName: string; role: string; avatarUrl?: string | null; department?: string | null; bio?: string | null }> | undefined) ?? []).length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col items-center justify-center py-24 text-center"
+          >
+            <div className="rounded-full bg-primary/10 p-6 mb-6">
+              <Users className="h-12 w-12 text-primary/60" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-primary mb-3">
+              {debouncedSearch ? `No members found for "${debouncedSearch}"` : "No members yet"}
+            </h2>
+            <p className="text-muted-foreground text-base max-w-sm mb-8 leading-relaxed">
+              {debouncedSearch
+                ? "Try a different name or department search."
+                : "Be part of the growing JCTM Digital Sanctuary community. Register to appear in the directory."}
+            </p>
+            {!debouncedSearch && (
+              <a
+                href="/join"
+                className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-full font-semibold text-sm hover:bg-accent transition-colors"
+              >
+                Join the Community
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            )}
+          </motion.div>
         ) : (
+          <>
+            <p className="text-sm text-muted-foreground mb-6 flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              {((members as Array<unknown>) ?? []).length} member{((members as Array<unknown>) ?? []).length !== 1 ? "s" : ""} registered
+            </p>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {((members as Array<{ id: number; firstName: string; lastName: string; role: string; avatarUrl?: string | null; department?: string | null; bio?: string | null }> | undefined) ?? []).map((member, i: number) => (
               <motion.div
@@ -140,6 +173,19 @@ export default function Members() {
               </motion.div>
             ))}
           </div>
+          <div className="mt-12 pt-8 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Want to appear in the directory?
+            </p>
+            <a
+              href="/join"
+              className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-accent transition-colors"
+            >
+              Register as a Member
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+          </>
         )}
       </div>
     </Layout>

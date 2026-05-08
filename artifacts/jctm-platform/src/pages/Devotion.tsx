@@ -4,6 +4,8 @@ import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSens
 import { SEO } from "@/components/SEO";
 import DevotionEmailSubscribe from "@/components/DevotionEmailSubscribe";
 import { format } from "date-fns";
+import { Copy, Share2, Check } from "lucide-react";
+import { toast } from "sonner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -25,6 +27,7 @@ export default function Devotion() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DailyDevotion[]>([]);
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const today = new Date();
   const dateLabel = format(today, "EEEE, MMMM d, yyyy");
@@ -199,25 +202,53 @@ export default function Devotion() {
               </div>
             </section>
 
-            <div className="pt-6 border-t border-border/70 flex flex-wrap gap-x-6 gap-y-3 text-[15px] font-semibold">
+            <div className="pt-6 border-t border-border/70 flex flex-wrap items-center gap-3">
               <a
                 href="/scripture-study"
-                className="text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors"
+                className="text-[15px] font-semibold text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors"
               >
                 Study this scripture
               </a>
               <a
                 href="/prayer"
-                className="text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors"
+                className="text-[15px] font-semibold text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors"
               >
                 Generate a prayer
               </a>
               <button
                 onClick={load}
-                className="text-primary/60 underline underline-offset-4 decoration-primary/30 hover:text-primary hover:decoration-primary/60 transition-colors"
+                className="text-[15px] font-semibold text-primary/60 underline underline-offset-4 decoration-primary/30 hover:text-primary hover:decoration-primary/60 transition-colors"
               >
                 Reload
               </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const text = `${devotion.title}\n\n"${devotion.scripture}" — ${devotion.reference}\n\nDeclaration: "${devotion.declaration}"\n\nJCTM Daily Devotion · jctm.org.ng/devotion`;
+                    navigator.clipboard.writeText(text).then(() => {
+                      setCopied(true);
+                      toast.success("Devotion copied to clipboard");
+                      setTimeout(() => setCopied(false), 2500);
+                    }).catch(() => toast.error("Could not copy"));
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary/60 border border-border rounded-full px-3 py-1.5 hover:text-primary hover:border-primary/40 transition-colors"
+                  title="Copy devotion"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <button
+                  onClick={() => {
+                    const text = encodeURIComponent(`"${devotion.scripture}" — ${devotion.reference}\n\nDeclaration: "${devotion.declaration}"\n\nJCTM Daily Devotion · jctm.org.ng/devotion`);
+                    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary/60 border border-border rounded-full px-3 py-1.5 hover:text-green-700 hover:border-green-400 transition-colors"
+                  title="Share on WhatsApp"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  Share
+                </button>
+              </div>
             </div>
 
             <section className="mt-10 pt-8 border-t border-border/70">
