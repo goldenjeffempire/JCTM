@@ -10,19 +10,32 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// pg-connection-string emits a deprecation warning when it encounters
-// sslmode=prefer/require/verify-ca, because those values will change semantics
-// in pg v9.  Normalise the URL to sslmode=verify-full (the current behaviour)
-// before handing it to Pool so the warning is never triggered.
 function normalizeDbUrl(url: string): string {
+  const isLocal =
+    url.includes("localhost") ||
+    url.includes("127.0.0.1") ||
+    url.includes("helium");
+
+  if (isLocal) {
+    return url.replace(/[?&]sslmode=[^&]*/g, "");
+  }
+
   return url.replace(
     /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
     (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
   );
 }
 
+const normalizedUrl = normalizeDbUrl(process.env.DATABASE_URL!);
+
+const isLocal =
+  normalizedUrl.includes("localhost") ||
+  normalizedUrl.includes("127.0.0.1") ||
+  normalizedUrl.includes("helium");
+
 export const pool = new Pool({
-  connectionString: normalizeDbUrl(process.env.DATABASE_URL!),
+  connectionString: normalizedUrl,
+  ssl: isLocal ? false : { rejectUnauthorized: true },
 });
 export const db = drizzle(pool, { schema });
 
