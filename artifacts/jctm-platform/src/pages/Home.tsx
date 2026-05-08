@@ -3974,16 +3974,15 @@ function AIAssistantTeaser() {
               ))}
             </motion.div>
             <motion.div variants={fadeUp}>
-              <Link href="/templebots">
-                <motion.button
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-bold text-white shadow-lg transition-all"
-                  style={{ background: "linear-gradient(135deg, #38BDF8 0%, #7C3AED 100%)", boxShadow: "0 0 30px rgba(56,189,248,0.25)" }}
-                >
-                  <Bot className="w-4 h-4" /> Chat with TempleBots
-                </motion.button>
-              </Link>
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => window.dispatchEvent(new CustomEvent("jctm:open-templebots"))}
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-bold text-white shadow-lg transition-all cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #38BDF8 0%, #7C3AED 100%)", boxShadow: "0 0 30px rgba(56,189,248,0.25)" }}
+              >
+                <Bot className="w-4 h-4" /> Chat with TempleBots
+              </motion.button>
             </motion.div>
           </motion.div>
 
