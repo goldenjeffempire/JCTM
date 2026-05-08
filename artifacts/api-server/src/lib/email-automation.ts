@@ -6,12 +6,16 @@
  *  • HMAC-signed unsubscribe token generation/verification
  *  • Global opt-out list management (email_unsubscribes table)
  *  • email_send_log tracking (best-effort, never blocks delivery)
- *  • checkAndSendConferencePreReminder() — fires at 6:00–6:09 AM WAT on conference days
- *  • checkAndSendConferenceLiveEmail()   — cron fallback at 8:00–8:04 AM WAT
- *  • triggerConferenceLiveEmail()        — event-based, called when admin goes live
+ *  • checkAndSendConferencePreReminder()       — fires at 6:00–6:09 AM WAT on conference days
+ *  • checkAndSendConferenceLiveEmail()         — cron fallback at 8:00–8:04 AM WAT
+ *  • triggerConferenceLiveEmail()              — event-based, called when admin goes live
+ *  • checkAndSendConferenceMorningBulkEmail()  — fires at 7:00–7:09 AM WAT on Days 2 & 3
+ *                                               (May 9–10) to all 104 ministry recipients
  */
 
 import crypto from "crypto";
+import { spawn } from "child_process";
+import { resolve } from "path";
 import { pool } from "@workspace/db";
 import { logger } from "./logger.js";
 import type { Logger } from "pino";
@@ -327,4 +331,127 @@ export async function checkAndSendConferenceLiveEmail(
     log.warn({ err }, "Conference live cron fallback failed"),
   );
   log.debug({ dateStr }, "Conference live cron fallback check complete");
+}
+
+// ─── Conference morning bulk email — Days 2 & 3 auto-trigger ─────────────────
+// Fires at 7:00–7:09 AM WAT on May 9 and May 10, 2026 (Days 2 and 3).
+// Spawns send-bulk-emails.mjs from the workspace root, which sends both the
+// daily devotion AND the conference reminder to all 104 ministry recipients.
+// Deduplication: in-memory flag (fast path) + email_send_log campaign_key check
+// (survives server restarts within the same day's 7 AM window).
+
+/** WAT dates for Days 2 and 3 only — Day 1 was sent manually */
+const CONFERENCE_BULK_DAYS = new Set(["2026-05-09", "2026-05-10"]);
+const MORNING_BULK_HOUR_WAT = 7; // 7:00 AM WAT = 06:00 UTC
+
+const firedBulkMorning = new Set<string>(); // "bulk-morning-2026-05-09"
+
+async function bulkMorningAlreadySent(dateStr: string): Promise<boolean> {
+  const campaignKey = `conference-2026-bulk-morning-${dateStr}`;
+  try {
+    const r = await pool.query<{ id: number }>(
+      `SELECT id FROM email_send_log
+       WHERE campaign_key = $1 AND status = 'sent'
+       LIMIT 1`,
+      [campaignKey],
+    );
+    return r.rows.length > 0;
+  } catch {
+    return false; // On DB error, let the spawn attempt proceed
+  }
+}
+
+/**
+ * Called every minute from the cron tick.
+ * Fires once at 7:00–7:09 AM WAT on May 9 and May 10, 2026.
+ * Spawns send-bulk-emails.mjs (all 104 recipients, no batch args = full list).
+ */
+export async function checkAndSendConferenceMorningBulkEmail(
+  log: Logger = logger,
+): Promise<void> {
+  const { dateStr, hour, minute } = getWatTime();
+
+  // Only on Days 2 and 3
+  if (!CONFERENCE_BULK_DAYS.has(dateStr)) return;
+
+  // Only during the 7:00–7:09 AM WAT window
+  if (hour !== MORNING_BULK_HOUR_WAT || minute > 9) return;
+
+  const memKey = `bulk-morning-${dateStr}`;
+  if (firedBulkMorning.has(memKey)) return;
+
+  // DB check — survives restarts within the same 10-min window
+  if (await bulkMorningAlreadySent(dateStr)) {
+    firedBulkMorning.add(memKey);
+    return;
+  }
+
+  // Optimistic lock — prevents parallel ticks within the same process from
+  // double-spawning. If the spawn fails, the memKey is removed so the next
+  // minute tick can retry.
+  firedBulkMorning.add(memKey);
+
+  const campaignKey = `conference-2026-bulk-morning-${dateStr}`;
+  log.info(
+    { dateStr, hour, minute, campaignKey },
+    "Firing scheduled Ministers Conference morning bulk email (Days 2 & 3)",
+  );
+
+  // The server is always started from the workspace root
+  // (NODE_ENV=production node artifacts/api-server/dist/index.mjs),
+  // so process.cwd() is the workspace root where send-bulk-emails.mjs lives.
+  const workspaceRoot = process.cwd();
+  const scriptPath = resolve(workspaceRoot, "send-bulk-emails.mjs");
+
+  try {
+    await new Promise<void>((res, rej) => {
+      const child = spawn("node", [scriptPath], {
+        cwd: workspaceRoot,
+        stdio: "pipe",
+        env: { ...process.env },
+      });
+
+      child.stdout?.on("data", (chunk: Buffer) => {
+        const text = chunk.toString().trim();
+        if (text) log.info({ script: "send-bulk-emails", output: text }, "bulk-email stdout");
+      });
+
+      child.stderr?.on("data", (chunk: Buffer) => {
+        const text = chunk.toString().trim();
+        if (text) log.warn({ script: "send-bulk-emails", output: text }, "bulk-email stderr");
+      });
+
+      child.on("close", (code: number | null) => {
+        if (code === 0) {
+          res();
+        } else {
+          rej(new Error(`send-bulk-emails.mjs exited with code ${code}`));
+        }
+      });
+
+      child.on("error", rej);
+    });
+
+    // Write the dedup anchor to the DB so a restart within the same window
+    // won't re-send. A single synthetic row represents the whole batch.
+    await pool.query(
+      `INSERT INTO email_send_log
+         (email_type, recipient_email, campaign_key, status, sent_at)
+       VALUES ('conference_bulk_morning', 'all-recipients', $1, 'sent', now())
+       ON CONFLICT DO NOTHING`,
+      [campaignKey],
+    );
+
+    log.info(
+      { campaignKey, dateStr },
+      "Ministers Conference morning bulk email broadcast complete — all recipients served",
+    );
+  } catch (err) {
+    // Remove optimistic lock so the next minute tick can retry
+    firedBulkMorning.delete(memKey);
+    log.error(
+      { err, campaignKey, scriptPath },
+      "Ministers Conference morning bulk email broadcast failed — will retry next minute",
+    );
+  }
 }
