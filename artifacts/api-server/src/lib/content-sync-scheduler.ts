@@ -26,17 +26,19 @@ import {
   ingestMinistryShorts,
   ingestMinistryFAQs,
 } from "./knowledge-ingestion.js";
+import { transcribeSermonBatch } from "./sermon-transcription.js";
 import { logger as rootLogger } from "./logger.js";
 
 // ─── Intervals ────────────────────────────────────────────────────────────────
 
-const SERMON_SYNC_MS       = 30 * 60 * 1000;  // 30 min
-const ACTIVITY_SYNC_MS     = 15 * 60 * 1000;  // 15 min
-const DEVOTION_SYNC_MS     = 60 * 60 * 1000;  // 60 min
-const LIVESTREAM_SYNC_MS   =  5 * 60 * 1000;  //  5 min
-const CONFERENCE_SYNC_MS   = 30 * 60 * 1000;  // 30 min
-const SHORTS_SYNC_MS       = 60 * 60 * 1000;  // 60 min
-const FAQ_SYNC_MS          = 24 * 60 * 60 * 1000; // 24 hr
+const SERMON_SYNC_MS        = 30 * 60 * 1000;        // 30 min
+const ACTIVITY_SYNC_MS      = 15 * 60 * 1000;        // 15 min
+const DEVOTION_SYNC_MS      = 60 * 60 * 1000;        // 60 min
+const LIVESTREAM_SYNC_MS    =  5 * 60 * 1000;        //  5 min
+const CONFERENCE_SYNC_MS    = 30 * 60 * 1000;        // 30 min
+const SHORTS_SYNC_MS        = 60 * 60 * 1000;        // 60 min
+const FAQ_SYNC_MS           = 24 * 60 * 60 * 1000;   // 24 hr
+const TRANSCRIPT_SYNC_MS    =  4 * 60 * 60 * 1000;   //  4 hr
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ const syncStats: Record<string, { lastRun: Date | null; runs: number; errors: nu
   conferences:  { lastRun: null, runs: 0, errors: 0 },
   shorts:       { lastRun: null, runs: 0, errors: 0 },
   faqs:         { lastRun: null, runs: 0, errors: 0 },
+  transcripts:  { lastRun: null, runs: 0, errors: 0 },
 };
 
 // ─── Runner helper ────────────────────────────────────────────────────────────
@@ -137,17 +140,29 @@ export function startContentSyncScheduler(log: Logger = rootLogger): void {
   faqHandle.unref();
   handles.push(faqHandle);
 
+  // ── Sermon Transcription (4 hr) — captions + GPT-4o enrichment ──────────
+  const transcriptHandle = setInterval(
+    () => runSync("transcripts", async (l) => {
+      const result = await transcribeSermonBatch(20, l);
+      l.info({ ...result }, "Transcript sync batch complete");
+    }, log),
+    TRANSCRIPT_SYNC_MS,
+  );
+  transcriptHandle.unref();
+  handles.push(transcriptHandle);
+
   log.info(
     {
       jobs: Object.keys(syncStats).length,
       intervals: {
-        sermons: `${SERMON_SYNC_MS / 60000}min`,
-        activity: `${ACTIVITY_SYNC_MS / 60000}min`,
+        sermons:     `${SERMON_SYNC_MS / 60000}min`,
+        activity:    `${ACTIVITY_SYNC_MS / 60000}min`,
         devotionals: `${DEVOTION_SYNC_MS / 60000}min`,
-        livestream: `${LIVESTREAM_SYNC_MS / 60000}min`,
+        livestream:  `${LIVESTREAM_SYNC_MS / 60000}min`,
         conferences: `${CONFERENCE_SYNC_MS / 60000}min`,
-        shorts: `${SHORTS_SYNC_MS / 60000}min`,
-        faqs: `${FAQ_SYNC_MS / 3600000}hr`,
+        shorts:      `${SHORTS_SYNC_MS / 60000}min`,
+        faqs:        `${FAQ_SYNC_MS / 3600000}hr`,
+        transcripts: `${TRANSCRIPT_SYNC_MS / 3600000}hr`,
       },
     },
     "AI content sync scheduler started — all content types will sync continuously",

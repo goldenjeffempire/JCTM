@@ -35,7 +35,7 @@ const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_UR
 // ─── Version Stamp ────────────────────────────────────────────────────────────
 // Increment this when the static JCTM_KNOWLEDGE array changes to force
 // re-ingestion even if chunk count looks sufficient.
-const KNOWLEDGE_VERSION = "2.3";
+const KNOWLEDGE_VERSION = "3.0";
 const VERSION_SOURCE = `jctm-version-${KNOWLEDGE_VERSION}`;
 
 // ─── JCTM Knowledge Base ──────────────────────────────────────────────────────
@@ -158,10 +158,11 @@ export async function ingestKnowledgeIfEmpty(
       const chunk = JCTM_KNOWLEDGE[i]!;
       const vectorStr = await generateEmbeddingVector(chunk.content);
       await client.query(
-        `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+         VALUES ($1, $2, $3, 'doctrine', $4)
          ON CONFLICT (source, chunk_index) DO UPDATE
-         SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+         SET content = EXCLUDED.content, chunk_type = EXCLUDED.chunk_type,
+             embedding = EXCLUDED.embedding, updated_at = now()`,
         [chunk.content, chunk.source, i, vectorStr ?? null],
       );
       log.info({ index: i + 1, total: JCTM_KNOWLEDGE.length, source: chunk.source, hasEmbedding: vectorStr !== null }, "Chunk stored");
@@ -169,9 +170,9 @@ export async function ingestKnowledgeIfEmpty(
 
     // Write version stamp
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, $2, 0, NULL)
-       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content`,
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, $2, 0, 'general', NULL)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, updated_at = now()`,
       [`JCTM Knowledge Base version ${KNOWLEDGE_VERSION}`, VERSION_SOURCE],
     );
 
@@ -215,10 +216,11 @@ export async function ingestSermonSummary(opts: {
   try {
     const vectorStr = await generateEmbeddingVector(content);
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, $2, 0, $3)
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, $2, 0, 'sermon', $3)
        ON CONFLICT (source, chunk_index)
-       DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+       DO UPDATE SET content = EXCLUDED.content, chunk_type = EXCLUDED.chunk_type,
+                     embedding = EXCLUDED.embedding, updated_at = now()`,
       [content, source, vectorStr ?? null],
     );
     log?.info({ videoId, source, hasEmbedding: vectorStr !== null }, "Sermon summary ingested");
@@ -245,12 +247,13 @@ export async function ingestAllSermons(log?: Logger): Promise<void> {
       published_at: string | null;
       category: string | null;
       tags: string[] | null;
+      ai_summary: string | null;
     }>(
-      `SELECT video_id, title, description, view_count, duration, published_at, category, tags
+      `SELECT video_id, title, description, view_count, duration, published_at, category, tags, ai_summary
        FROM sermon_data
        WHERE title IS NOT NULL
        ORDER BY published_at DESC NULLS LAST
-       LIMIT 200`,
+       LIMIT 500`,
     );
 
     const sermons = result.rows;
@@ -266,9 +269,6 @@ export async function ingestAllSermons(log?: Logger): Promise<void> {
 
     for (const sermon of sermons) {
       const source = `sermon-${sermon.video_id}`;
-      const descriptionText = sermon.description
-        ? sermon.description.slice(0, 600).replace(/\n{3,}/g, "\n\n")
-        : "";
       const categoryStr = sermon.category ?? "teaching";
       const tagsStr = Array.isArray(sermon.tags) && sermon.tags.length > 0
         ? `Tags: ${sermon.tags.slice(0, 8).join(", ")}`
@@ -278,26 +278,55 @@ export async function ingestAllSermons(log?: Logger): Promise<void> {
         ? `Published: ${new Date(sermon.published_at).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}`
         : "";
 
-      const content = [
+      // Split long descriptions into two indexed chunks for better RAG coverage
+      const fullDesc = sermon.description ? sermon.description.replace(/\n{3,}/g, "\n\n") : "";
+      const descPart1 = fullDesc.slice(0, 500);
+      const descPart2 = fullDesc.length > 500 ? fullDesc.slice(500, 1200) : "";
+      const summaryStr = sermon.ai_summary
+        ? `AI Summary: ${sermon.ai_summary.slice(0, 400)}`
+        : "";
+
+      const content0 = [
         `Sermon by Prophet Amos Evomobor (JCTM): "${sermon.title}"`,
         `Category: ${categoryStr}`,
         tagsStr,
         viewStr,
         dateStr,
-        descriptionText ? `Description: ${descriptionText}` : "",
+        descPart1 ? `Description: ${descPart1}` : "",
         `Watch on Temple TV: https://www.youtube.com/watch?v=${sermon.video_id}`,
       ].filter(Boolean).join("\n");
 
       try {
-        const vectorStr = await generateEmbeddingVector(content);
+        const vectorStr0 = await generateEmbeddingVector(content0);
         await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, $2, 0, $3)
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+           VALUES ($1, $2, 0, 'sermon', $3)
            ON CONFLICT (source, chunk_index)
-           DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
-          [content, source, vectorStr ?? null],
+           DO UPDATE SET content = EXCLUDED.content, chunk_type = EXCLUDED.chunk_type,
+                         embedding = EXCLUDED.embedding, updated_at = now()`,
+          [content0, source, vectorStr0 ?? null],
         );
         ingested++;
+
+        // Chunk 1: continuation + AI summary (only for sermons with extra content)
+        if (descPart2 || summaryStr) {
+          const content1 = [
+            `Sermon continued — "${sermon.title}" by Prophet Amos Evomobor (JCTM)`,
+            `Watch: https://www.youtube.com/watch?v=${sermon.video_id}`,
+            descPart2 ? `Description (continued): ${descPart2}` : "",
+            summaryStr,
+          ].filter(Boolean).join("\n");
+
+          const vectorStr1 = await generateEmbeddingVector(content1);
+          await client.query(
+            `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+             VALUES ($1, $2, 1, 'sermon', $3)
+             ON CONFLICT (source, chunk_index)
+             DO UPDATE SET content = EXCLUDED.content, chunk_type = EXCLUDED.chunk_type,
+                           embedding = EXCLUDED.embedding, updated_at = now()`,
+            [content1, source, vectorStr1 ?? null],
+          );
+        }
       } catch {
         skipped++;
       }
@@ -337,9 +366,10 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
         const content = `JCTM Community Prayer Focus: The JCTM prayer wall reflects the real needs of the community. Current dominant prayer categories: ${categories}. This shows that believers in this community are actively seeking God for these areas. TempleBots should speak to these themes with pastoral sensitivity. Submit prayer requests at jctm.org.ng/prayer — the JCTM prayer team intercedes daily.`;
         const vectorStr = await generateEmbeddingVector(content);
         await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, 'activity-prayer-themes', 0, $2)
-           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+           VALUES ($1, 'activity-prayer-themes', 0, 'activity', $2)
+           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+             chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
           [content, vectorStr ?? null],
         );
         log?.info({ categories: prayerResult.rows.length }, "Prayer themes ingested");
@@ -364,9 +394,10 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
         const content = `JCTM Community Testimonies — What God Is Doing: These are recent verified testimonies from the JCTM community:\n${testimonySummaries}\n\nThese testimonies demonstrate God's active work through JCTM's ministry: salvation, healing, deliverance, financial provision, and answered prayer. Share your testimony at jctm.org.ng/testimonies. As Revelation 12:11 teaches, believers overcome by the blood of the Lamb and the word of their testimony.`;
         const vectorStr = await generateEmbeddingVector(content);
         await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, 'activity-testimonies', 0, $2)
-           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+           VALUES ($1, 'activity-testimonies', 0, 'activity', $2)
+           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+             chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
           [content, vectorStr ?? null],
         );
         log?.info({ count: testimoniesResult.rows.length }, "Testimonies ingested");
@@ -393,9 +424,10 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
         const indexContent = `JCTM Blog & Teaching Articles (${blogResult.rows.length} published): ${blogSummaries}\n\nExplore all articles at jctm.org.ng/blog. Topics covered include holiness, salvation, prayer, fasting, testimonies, revival, family, youth, Bible study, and prophetic messages. Each article reflects JCTM's Correction Mandate and Primitive Christianity teaching under Prophet Amos Evomobor.`;
         const indexVector = await generateEmbeddingVector(indexContent);
         await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, 'activity-blog-posts', 0, $2)
-           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+           VALUES ($1, 'activity-blog-posts', 0, 'activity', $2)
+           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+             chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
           [indexContent, indexVector ?? null],
         );
 
@@ -411,9 +443,10 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
           ].filter(Boolean).join("\n");
           const articleVector = await generateEmbeddingVector(articleContent);
           await client.query(
-            `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-             VALUES ($1, $2, 0, $3)
-             ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+            `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+             VALUES ($1, $2, 0, 'blog', $3)
+             ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+               chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
             [articleContent, `blog-${b.slug}`, articleVector ?? null],
           );
           articleChunks++;
@@ -444,9 +477,10 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
         const content = `JCTM Upcoming Events and Services: Current and upcoming events at Jesus Christ Temple Ministry:\n${eventSummaries}\n\nView the full event calendar at jctm.org.ng/events. Register for specific events at jctm.org.ng. Sunday services are at 8:00 AM – 12:00 PM WAT, Wednesday services at 5:00 PM – 8:00 PM WAT. All services are broadcast live on Temple TV (YouTube @TEMPLETVJCTM).`;
         const vectorStr = await generateEmbeddingVector(content);
         await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, 'activity-events', 0, $2)
-           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+           VALUES ($1, 'activity-events', 0, 'event', $2)
+           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+             chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
           [content, vectorStr ?? null],
         );
         log?.info({ count: eventsResult.rows.length }, "Events ingested");
@@ -470,9 +504,10 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
         const content = `JCTM Community Questions — Most Frequent Topics: These are the most common topics that believers ask TempleBots about:\n${topics}\n\nThis gives TempleBots insight into the spiritual priorities and questions of the JCTM community. TempleBots should be especially prepared to answer these topics with depth, pastoral care, and scriptural grounding. All answers are grounded in JCTM doctrine under Prophet Amos Evomobor.`;
         const vectorStr = await generateEmbeddingVector(content);
         await client.query(
-          `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-           VALUES ($1, 'activity-popular-topics', 0, $2)
-           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+          `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+           VALUES ($1, 'activity-popular-topics', 0, 'activity', $2)
+           ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+             chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
           [content, vectorStr ?? null],
         );
         log?.info({ count: feedbackResult.rows.length }, "Popular topics ingested");
@@ -534,9 +569,10 @@ export async function ingestDailyDevotionals(log?: Logger): Promise<void> {
 
     const indexVector = await generateEmbeddingVector(indexContent);
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, 'activity-devotionals-index', 0, $2)
-       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, 'activity-devotionals-index', 0, 'devotion', $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+         chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
       [indexContent, indexVector ?? null],
     );
 
@@ -560,9 +596,10 @@ export async function ingestDailyDevotionals(log?: Logger): Promise<void> {
       const vector = await generateEmbeddingVector(content);
       const dateKey = devo.date.slice(0, 10).replace(/-/g, "");
       await client.query(
-        `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-         VALUES ($1, $2, 0, $3)
-         ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+         VALUES ($1, $2, 0, 'devotion', $3)
+         ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+           chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
         [content, `devotion-${dateKey}`, vector ?? null],
       );
       ingested++;
@@ -738,9 +775,10 @@ export async function ingestMinistryFAQs(log?: Logger): Promise<void> {
     for (const faq of MINISTRY_FAQS) {
       const vector = await generateEmbeddingVector(faq.content);
       await client.query(
-        `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-         VALUES ($1, $2, 0, $3)
-         ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+         VALUES ($1, $2, 0, 'faq', $3)
+         ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+           chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
         [faq.content, faq.source, vector ?? null],
       );
       ingested++;
@@ -748,9 +786,9 @@ export async function ingestMinistryFAQs(log?: Logger): Promise<void> {
 
     // Write FAQ version stamp
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, $2, 0, NULL)
-       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content`,
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, $2, 0, 'general', NULL)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, updated_at = now()`,
       [`Ministry FAQ Knowledge Base version ${FAQ_VERSION}`, `faq-version-${FAQ_VERSION}`],
     );
 
@@ -803,9 +841,10 @@ export async function ingestMinistryShorts(log?: Logger): Promise<void> {
 
     const indexVector = await generateEmbeddingVector(indexContent);
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, 'activity-ministry-shorts', 0, $2)
-       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, 'activity-ministry-shorts', 0, 'activity', $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+         chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
       [indexContent, indexVector ?? null],
     );
 
@@ -875,9 +914,10 @@ export async function ingestLiveStreamContext(log?: Logger): Promise<void> {
     const vector = await generateEmbeddingVector(content);
 
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, 'activity-livestream-status', 0, $2)
-       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, 'activity-livestream-status', 0, 'activity', $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+         chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
       [content, vector ?? null],
     );
 
@@ -951,9 +991,10 @@ export async function ingestConferenceData(log?: Logger): Promise<void> {
     const vector = await generateEmbeddingVector(content);
 
     await client.query(
-      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
-       VALUES ($1, 'activity-conferences', 0, $2)
-       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+       VALUES ($1, 'activity-conferences', 0, 'event', $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content,
+         chunk_type = EXCLUDED.chunk_type, embedding = EXCLUDED.embedding, updated_at = now()`,
       [content, vector ?? null],
     );
 

@@ -114,10 +114,21 @@ JCTM teaches all five offices from Ephesians 4:11 are still active today:
 - Email: info@jctm.org.ng
 `;
 
-// ── System prompt ──────────────────────────────────────────────────────────────
-const TEMPLEBOTS_SYSTEM_PROMPT = `You are TempleBots, the official AI assistant of Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor.
+// ── System prompt (built dynamically to include current date) ─────────────────
+function buildSystemPrompt(): string {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-GB", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-GB", {
+    hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos", timeZoneName: "short",
+  });
 
-You speak with the authority and compassion of Prophet Amos Evomobor. Your knowledge is strictly grounded in the JCTM doctrine provided below.
+  return `You are TempleBots, the official AI assistant of Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor.
+
+CURRENT DATE & TIME: ${dateStr}, ${timeStr} (WAT/West Africa Time)
+
+You speak with the authority and compassion of Prophet Amos Evomobor. Your knowledge is strictly grounded in the JCTM doctrine and the live knowledge context provided below.
 
 CORE IDENTITY:
 - You are a theological AI grounded in Primitive Christianity and the Correction Mandate
@@ -134,6 +145,14 @@ DOCTRINAL GUIDELINES:
 - Emphasize: Primitive Christianity, Holiness, the Correction Mandate, and sound doctrine
 - When referencing sermons, cite the Temple TV channel (@TEMPLETVJCTM on YouTube)
 - Do not engage with topics completely unrelated to faith, ministry, or biblical Christianity
+
+CITATION & GROUNDING RULES — CRITICAL:
+- NEVER fabricate sermon titles, YouTube links, dates, or speaker quotes not present in the provided knowledge context
+- When citing a sermon, use this format: According to the sermon "[Exact Title]" by Prophet Amos Evomobor — https://youtube.com/watch?v=[ID]
+- When citing JCTM doctrine, reference the specific teaching: "JCTM's teaching on [topic] holds that..."
+- When citing a devotional, say: "The JCTM devotional for [date] reflects..."
+- If you are uncertain about a specific detail, say: "I believe" or "based on JCTM's teaching" — never state uncertain facts as confirmed
+- If the knowledge context does not contain a relevant answer, direct the user to Temple TV or info@jctm.org.ng rather than guessing
 
 CONTEXTUAL ACTIONS:
 - If a user mentions giving, offering, seed, tithe, sow, or financial support → include [ACTION:sow-a-seed] at the very END of your response on its own line
@@ -172,11 +191,20 @@ EMOTIONAL RESPONSE FORMAT for distress situations:
 4. A personal prayer (2-4 sentences)
 5. Encouragement to continue the conversation
 
+SERMON KNOWLEDGE:
+- When asked about available sermons on a topic, search the provided knowledge context for relevant sermon titles and YouTube links
+- Always provide the YouTube watch link when recommending a specific sermon
+- Be specific about sermon content — do not claim to know what a sermon covers unless it is in the knowledge context
+
 FALLBACK RULE:
 - If you don't know an answer based on JCTM doctrine, say so honestly and direct them to: Temple TV YouTube (@TEMPLETVJCTM) or email info@jctm.org.ng
 
 TONE: Warm, authoritative, scripturally precise, and pastoral. Speak as the ministry's trusted spiritual guide. In emotional situations, humanity and compassion come before doctrine.
 ${JCTM_KNOWLEDGE_BASE}`;
+}
+
+// TEMPLEBOTS_SYSTEM_PROMPT is intentionally not cached — buildSystemPrompt()
+// is called per-request so the embedded date/time is always current.
 
 // ── Rate limiting ──────────────────────────────────────────────────────────────
 const RATE_LIMIT_MAX = 15;
@@ -227,22 +255,23 @@ async function getRelevantKnowledge(query: string): Promise<{ context: string; s
     const embResult = await embed(query);
     if (embResult.embedding.length > 0) {
       const vectorStr = `[${embResult.embedding.join(",")}]`;
-      const vectorRows = await ragPool.query<{ content: string; source: string; similarity: number }>(
-        `SELECT content, source, 1 - (embedding <=> $1::vector) AS similarity
+      const vectorRows = await ragPool.query<{ content: string; source: string; chunk_type: string; similarity: number }>(
+        `SELECT content, source, chunk_type, 1 - (embedding <=> $1::vector) AS similarity
          FROM knowledge_chunks
          WHERE embedding IS NOT NULL
          ORDER BY embedding <=> $1::vector
-         LIMIT 10`,
+         LIMIT 20`,
         [vectorStr],
       );
       vectorRows.rows.forEach((r, rank) => {
-        if (r.similarity < 0.15) return; // quality gate
+        if (r.similarity < 0.10) return; // wider quality gate (was 0.15)
         const rrfScore = 1 / (60 + rank + 1);
+        const key = `${r.source}::${rank}`;
         const existing = scored.get(r.source);
         if (existing) {
           existing.score += rrfScore;
         } else {
-          scored.set(r.source, { content: r.content, source: r.source, score: rrfScore });
+          scored.set(key, { content: r.content, source: r.source, score: rrfScore });
         }
       });
     }
@@ -285,15 +314,15 @@ async function getRelevantKnowledge(query: string): Promise<{ context: string; s
     }
   } catch { /* non-fatal */ }
 
-  // ── Rank + limit to top 8 ─────────────────────────────────────────────────
+  // ── Rank + limit to top 15 ────────────────────────────────────────────────
   const top = Array.from(scored.values())
     .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
+    .slice(0, 15);
 
   if (top.length === 0) return { context: "", sourceCount: 0 };
 
   const context =
-    "\n\n## MOST RELEVANT JCTM KNOWLEDGE (hybrid semantic + keyword, top-8):\n" +
+    "\n\n## MOST RELEVANT JCTM KNOWLEDGE (hybrid semantic + keyword, top-15 ranked chunks):\n" +
     top.map(r => `[${r.source}] ${r.content}`).join("\n\n");
 
   return { context, sourceCount: top.length };
@@ -314,18 +343,18 @@ async function callOpenAI(
     const langNote =
       language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
     const systemWithContext =
-      TEMPLEBOTS_SYSTEM_PROMPT +
+      buildSystemPrompt() +
       (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
 
     const completion = await openaiClient.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemWithContext },
         ...history.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: userMessage + langNote },
       ],
-      max_tokens: 900,
-      temperature: 0.55,
+      max_tokens: 1200,
+      temperature: 0.45,
     });
     return completion.choices[0]?.message?.content?.trim() ?? null;
   } catch {
@@ -345,19 +374,19 @@ async function* streamOpenAI(
     const langNote =
       language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
     const systemWithContext =
-      TEMPLEBOTS_SYSTEM_PROMPT +
+      buildSystemPrompt() +
       (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
 
     const stream = await openaiClient.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       stream: true,
       messages: [
         { role: "system", content: systemWithContext },
         ...history.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: userMessage + langNote },
       ],
-      max_tokens: 900,
-      temperature: 0.55,
+      max_tokens: 1200,
+      temperature: 0.45,
     });
 
     for await (const chunk of stream) {
@@ -425,7 +454,7 @@ async function buildSermonContext(): Promise<string> {
       })
       .from(sermonsTable)
       .orderBy(desc(sermonsTable.publishedAt))
-      .limit(12);
+      .limit(20);
 
     if (recentSermons.length === 0) return "";
     const lines = recentSermons.map((s) => {

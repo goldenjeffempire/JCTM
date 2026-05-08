@@ -1110,5 +1110,50 @@ export async function runMigrations(): Promise<void> {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS ksl_content_type_idx ON knowledge_sync_log (content_type, synced_at DESC)`);
 
+  // ── knowledge_chunks: metadata columns for RAG quality & observability ─────
+  await pool.query(`ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS chunk_type text NOT NULL DEFAULT 'general'`);
+  await pool.query(`ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS metadata jsonb`);
+  await pool.query(`ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS knowledge_chunks_chunk_type_idx ON knowledge_chunks (chunk_type)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS knowledge_chunks_source_idx    ON knowledge_chunks (source)`);
+
+  // ── sermon_data: transcript pipeline columns ─────────────────────────────
+  await pool.query(`ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS transcript text`);
+  await pool.query(`ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS transcript_status text NOT NULL DEFAULT 'none'`);
+  await pool.query(`ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS transcript_source text`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS sermon_data_transcript_idx ON sermon_data (transcript_status, published_at DESC)`);
+
+  // ── Upgraded pgvector similarity search function (returns chunk_type) ─────
+  // DROP IF EXISTS first because we changed the return type (added chunk_type);
+  // CREATE OR REPLACE fails when the return row type changes.
+  try {
+    await pool.query(`DROP FUNCTION IF EXISTS search_knowledge_chunks(vector, integer) CASCADE`);
+    await pool.query(`
+      CREATE FUNCTION search_knowledge_chunks(
+        query_embedding vector(384),
+        match_count integer DEFAULT 15
+      )
+      RETURNS TABLE (
+        id integer,
+        content text,
+        source text,
+        chunk_type text,
+        similarity float
+      )
+      LANGUAGE sql STABLE
+      AS $$
+        SELECT id, content, source, chunk_type,
+               1 - (embedding <=> query_embedding) AS similarity
+        FROM knowledge_chunks
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> query_embedding
+        LIMIT match_count;
+      $$
+    `);
+    logger.info("Upgraded pgvector similarity search function (with chunk_type)");
+  } catch (fnErr) {
+    logger.warn({ err: fnErr }, "Could not upgrade pgvector search function (non-fatal)");
+  }
+
   logger.info("All migrations complete");
 }
