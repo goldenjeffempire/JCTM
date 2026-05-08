@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
-import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video, ExternalLink } from "lucide-react";
+import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
 
@@ -18,200 +17,104 @@ const OVERSEER_IMAGES = [
 ];
 
 function OverseerSlideshow() {
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [imgHovered, setImgHovered] = useState<string | null>(null);
-  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
-
   const n = OVERSEER_IMAGES.length;
-  const leftImages = [0, 1, 2].map(offset => OVERSEER_IMAGES[(activeSlide + offset) % n]);
-  const rightImages = [3, 4, 5].map(offset => OVERSEER_IMAGES[(activeSlide + offset) % n]);
+  const slotDuration = 4.5;
+  const fadeDuration = 1.2;
+  const total = n * slotDuration;
 
-  useEffect(() => {
-    if (isPaused) return;
-    const t = setInterval(() => setActiveSlide(prev => (prev + 1) % n), 6000);
-    return () => clearInterval(t);
-  }, [isPaused, n]);
+  const pct = (s: number) => +((s / total) * 100).toFixed(3);
+  const fadeInEnd    = pct(fadeDuration);
+  const fadeOutStart = pct(slotDuration - fadeDuration);
+  const fadeOutEnd   = pct(slotDuration);
 
-  const goPrev = () => setActiveSlide(prev => (prev - 1 + n) % n);
-  const goNext = () => setActiveSlide(prev => (prev + 1) % n);
-
-  const handlePointerDown = (e: React.PointerEvent) => setSwipeStartX(e.clientX);
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (swipeStartX === null) return;
-    const diff = e.clientX - swipeStartX;
-    if (Math.abs(diff) > 60) diff < 0 ? goNext() : goPrev();
-    setSwipeStartX(null);
-  };
+  const css = `
+    @keyframes jctmCrossfade {
+      0%, 100%          { opacity: 0; }
+      ${fadeInEnd}%     { opacity: 1; }
+      ${fadeOutStart}%  { opacity: 1; }
+      ${fadeOutEnd}%    { opacity: 0; }
+    }
+    @keyframes jctmKenBurns {
+      0%             { transform: scale(1.09) translate(2%, 1%); }
+      ${fadeOutEnd}% { transform: scale(1.01) translate(-1.5%, -0.5%); }
+      100%           { transform: scale(1.09) translate(2%, 1%); }
+    }
+    @keyframes jctmLabelIn {
+      0%, ${(pct(fadeDuration * 0.5))}%  { opacity: 0; transform: translateY(6px); }
+      ${fadeInEnd}%                       { opacity: 1; transform: translateY(0); }
+      ${fadeOutStart}%                    { opacity: 1; transform: translateY(0); }
+      ${fadeOutEnd}%                      { opacity: 0; transform: translateY(-4px); }
+      100%                                { opacity: 0; transform: translateY(6px); }
+    }
+    @keyframes jctmProgressFill {
+      0%             { transform: scaleX(0); }
+      ${fadeOutEnd}% { transform: scaleX(1); }
+      100%           { transform: scaleX(0); }
+    }
+  `;
 
   return (
-    <div
-      className="relative flex flex-col items-center gap-4 px-8 py-8 select-none w-full"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-    >
-      <div className="flex gap-3 items-start">
-        {/* Left column — 3 floating cards with blur-glow and negative tilt */}
-        <div className="flex flex-col gap-3">
-          {leftImages.map((img, i) => (
-            <motion.div
-              key={i}
-              animate={{ y: [0, i % 2 === 0 ? 12 : -12, 0] }}
-              transition={{ duration: 7 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.8 }}
-              className="cursor-pointer"
-              whileHover={{ scale: 1.06, transition: { duration: 0.3 } } as never}
-              whileTap={{ scale: 0.97 } as never}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: css }} />
+      <div className="relative w-full h-full min-h-[380px] overflow-hidden select-none">
+        {OVERSEER_IMAGES.map((img, i) => {
+          const delay = `${(i * slotDuration).toFixed(1)}s`;
+          return (
+            <div
+              key={img.key}
+              className="absolute inset-0"
+              style={{ opacity: 0, animation: `jctmCrossfade ${total}s ease-in-out ${delay} infinite` }}
             >
-              <div className="relative" style={{ transform: `rotate(${[-4, -2, -5][i]}deg)`, marginLeft: [0, 16, 4][i] }}>
-                <motion.div
-                  animate={{ opacity: [0.4, 0.8, 0.4] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: i * 0.6 }}
-                  className="absolute -inset-3 rounded-2xl blur-xl"
-                  style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.3), rgba(56,189,248,0.2))" }}
-                />
-                <div
-                  className="relative w-24 h-32 rounded-2xl overflow-hidden shadow-xl border-2 border-white/90"
-                  style={{ boxShadow: "0 20px 60px rgba(0,51,102,0.2), 0 0 0 1px rgba(56,189,248,0.12)" }}
-                  onMouseEnter={() => setImgHovered(img.key)}
-                  onMouseLeave={() => setImgHovered(null)}
-                >
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
-                    <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)", backgroundSize: "200% 100%", animation: "slideShimmer 1.6s infinite" }} />
-                  </div>
-                  <AnimatePresence mode="wait">
-                    <motion.img
-                      key={img.key}
-                      src={img.src}
-                      alt={img.label}
-                      initial={{ opacity: 0, scale: 1.08 }}
-                      animate={{ opacity: 1, scale: imgHovered === img.key ? 1.12 : 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.7, ease: "easeInOut" }}
-                      className="w-full h-full object-cover absolute inset-0"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => { if ("fallback" in img && (img as { fallback?: string }).fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }}
-                    />
-                  </AnimatePresence>
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
-                  <motion.div
-                    animate={{ opacity: imgHovered === img.key ? 1 : 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
-                      <ExternalLink className="h-2.5 w-2.5 text-white" />
-                    </div>
-                  </motion.div>
-                  <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={img.key}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.4 }}
-                      >
-                        <p className="text-white font-serif font-bold text-[10px] leading-tight">{img.label}</p>
-                        <p className="text-accent text-[8px] font-semibold">{img.tag}</p>
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-                </div>
+              <img
+                src={img.src}
+                alt={img.label}
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{
+                  willChange: "transform",
+                  animation: `jctmKenBurns ${total}s ease-in-out ${delay} infinite`,
+                }}
+                loading={i < 2 ? "eager" : "lazy"}
+                decoding="async"
+                onError={(e) => {
+                  const fb = (img as { fallback?: string }).fallback;
+                  if (fb) (e.target as HTMLImageElement).src = fb;
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#001a33]/90 via-[#001a33]/20 to-transparent" />
+              <div
+                className="absolute bottom-8 left-5 right-5 z-10"
+                style={{ opacity: 0, animation: `jctmLabelIn ${total}s ease-in-out ${delay} infinite` }}
+              >
+                <span className="inline-block bg-accent/25 backdrop-blur-sm border border-accent/35 text-accent text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full mb-2">
+                  {img.tag}
+                </span>
+                <p className="text-white font-serif font-bold text-sm leading-snug drop-shadow-lg">
+                  {img.label}
+                </p>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            </div>
+          );
+        })}
 
-        {/* Right column — 3 floating cards with conic-gradient spinner and positive tilt */}
-        <div className="flex flex-col gap-3">
-          {rightImages.map((img, i) => (
-            <motion.div
-              key={i}
-              animate={{ y: [0, i % 2 === 0 ? -12 : 12, 0] }}
-              transition={{ duration: 6.5 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.9 }}
-              className="cursor-pointer"
-              whileHover={{ scale: 1.06, transition: { duration: 0.3 } } as never}
-              whileTap={{ scale: 0.97 } as never}
-            >
-              <div className="relative" style={{ transform: `rotate(${[4, 2, 5][i]}deg)`, marginRight: [0, 16, 4][i] }}>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 20 + i * 4, repeat: Infinity, ease: "linear" }}
-                  className="absolute -inset-2 rounded-2xl opacity-50"
-                  style={{ background: "conic-gradient(from 0deg, rgba(56,189,248,0.4), rgba(0,51,102,0.15), rgba(56,189,248,0.4))", filter: "blur(5px)" }}
-                />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/25 to-transparent z-10" />
+
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div className="flex h-[3px] overflow-hidden">
+            {OVERSEER_IMAGES.map((img, i) => (
+              <div key={img.key} className="flex-1 relative bg-white/10">
                 <div
-                  className="relative w-24 h-32 rounded-2xl overflow-hidden shadow-xl border-2 border-white/90"
-                  style={{ boxShadow: "0 20px 60px rgba(0,51,102,0.18), 0 0 0 1px rgba(56,189,248,0.12)" }}
-                  onMouseEnter={() => setImgHovered(img.key)}
-                  onMouseLeave={() => setImgHovered(null)}
-                >
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
-                    <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)", backgroundSize: "200% 100%", animation: "slideShimmer 1.6s infinite" }} />
-                  </div>
-                  <AnimatePresence mode="wait">
-                    <motion.img
-                      key={img.key}
-                      src={img.src}
-                      alt={img.label}
-                      initial={{ opacity: 0, scale: 1.08 }}
-                      animate={{ opacity: 1, scale: imgHovered === img.key ? 1.12 : 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.7, ease: "easeInOut" }}
-                      className="w-full h-full object-cover absolute inset-0"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => { if ("fallback" in img && (img as { fallback?: string }).fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }}
-                    />
-                  </AnimatePresence>
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
-                  <motion.div
-                    animate={{ opacity: imgHovered === img.key ? 1 : 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
-                      <ExternalLink className="h-2.5 w-2.5 text-white" />
-                    </div>
-                  </motion.div>
-                  <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={img.key}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.4 }}
-                      >
-                        <p className="text-white font-serif font-bold text-[10px] leading-tight">{img.label}</p>
-                        <p className="text-accent text-[8px] font-semibold">{img.tag}</p>
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-                </div>
+                  className="absolute inset-0 bg-accent origin-left"
+                  style={{
+                    transform: "scaleX(0)",
+                    animation: `jctmProgressFill ${total}s linear ${(i * slotDuration).toFixed(1)}s infinite`,
+                  }}
+                />
               </div>
-            </motion.div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-
-      {/* Dot indicators */}
-      <div className="flex gap-1.5">
-        {OVERSEER_IMAGES.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveSlide(i)}
-            className={`rounded-full transition-all duration-300 ${i === activeSlide ? "w-4 h-1.5 bg-accent" : "w-1.5 h-1.5 bg-primary/20 hover:bg-accent/40"}`}
-            aria-label={`Go to slide ${i + 1}`}
-          />
-        ))}
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -380,8 +283,8 @@ export default function About() {
           {/* Founder section */}
           <div className="glass-panel rounded-2xl mb-10" style={{ overflow: "visible" }}>
             <div className="flex flex-col md:flex-row">
-              {/* Rotating photo slideshow */}
-              <div className="md:w-80 shrink-0 bg-gradient-to-br from-primary/5 to-accent/5 flex items-center justify-center rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none overflow-hidden">
+              {/* Continuous crossfade slideshow */}
+              <div className="md:w-80 shrink-0 rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none overflow-hidden self-stretch min-h-[380px]">
                 <OverseerSlideshow />
               </div>
 
