@@ -359,33 +359,9 @@ export async function runMigrations(): Promise<void> {
     logger.warn({ err: idxErr }, "Could not create ivfflat index (non-fatal)");
   }
 
-  // ── pgvector cosine similarity search function ──────────────────────────────
-  try {
-    await pool.query(`
-      CREATE OR REPLACE FUNCTION search_knowledge_chunks(
-        query_embedding vector(384),
-        match_count integer DEFAULT 5
-      )
-      RETURNS TABLE (
-        id integer,
-        content text,
-        source text,
-        similarity float
-      )
-      LANGUAGE sql STABLE
-      AS $$
-        SELECT id, content, source,
-               1 - (embedding <=> query_embedding) AS similarity
-        FROM knowledge_chunks
-        WHERE embedding IS NOT NULL
-        ORDER BY embedding <=> query_embedding
-        LIMIT match_count;
-      $$
-    `);
-    logger.info("pgvector similarity search function created");
-  } catch (fnErr) {
-    logger.warn({ err: fnErr }, "Could not create similarity search function — pgvector may not be available");
-  }
+  // NOTE: search_knowledge_chunks is created/upgraded below with the full
+  // return type (including chunk_type). No earlier CREATE OR REPLACE here
+  // to avoid "cannot change return type of existing function" errors.
 
   // ── Sermon AI metadata enrichment columns ──────────────────────────────────
   await pool.query(`ALTER TABLE sermon_data ADD COLUMN IF NOT EXISTS ai_summary text`);
@@ -1199,7 +1175,7 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS edl_campaign_key_idx  ON email_delivery_log (campaign_key, sent_at DESC) WHERE campaign_key IS NOT NULL`);
   await pool.query(`CREATE INDEX IF NOT EXISTS edl_status_idx        ON email_delivery_log (status, sent_at DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS edl_email_date_idx    ON email_delivery_log (lower(email), email_type, sent_at DESC)`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS edl_dedup_idx         ON email_delivery_log (subscriber_id, email_type, CAST(sent_at AS date)) WHERE status = 'sent'`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_dedup_idx         ON email_delivery_log (subscriber_id, email_type, sent_at) WHERE status = 'sent'`);
 
   logger.info("All migrations complete");
 }
