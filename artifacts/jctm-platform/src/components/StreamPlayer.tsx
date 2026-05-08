@@ -11,13 +11,14 @@
  *  - Network quality badge
  *  - Stall detection and live-edge recovery
  *  - Exponential backoff error recovery
+ *  - Fullscreen support (native API + YouTube)
  */
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Settings, Wifi, WifiOff, Signal, AlertCircle, RefreshCw,
-  Activity, Zap, Radio, Tv2,
+  Activity, Zap, Radio, Tv2, Maximize2, Minimize2,
 } from "lucide-react";
 import { useStreamPlayer } from "@/hooks/useStreamPlayer";
 import { buildStreamSources, detectNetworkQuality, type NetworkQuality } from "@/lib/stream-config";
@@ -192,6 +193,29 @@ function StreamStatusOverlay({
   return null;
 }
 
+// ─── Fullscreen Button ────────────────────────────────────────────────────────
+
+function FullscreenButton({
+  isFullscreen,
+  onToggle,
+}: {
+  isFullscreen: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onToggle(); }}
+      title={isFullscreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}
+      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/50 border border-white/15 text-white/70 hover:text-white hover:bg-white/20 hover:border-white/30 transition-all backdrop-blur-sm"
+    >
+      {isFullscreen
+        ? <Minimize2 className="w-4 h-4" />
+        : <Maximize2 className="w-4 h-4" />
+      }
+    </button>
+  );
+}
+
 // ─── Player Controls Bar ──────────────────────────────────────────────────────
 
 interface PlayerControlsProps {
@@ -204,8 +228,10 @@ interface PlayerControlsProps {
   latencyMs: number;
   isLive: boolean;
   showQuality: boolean;
+  isFullscreen: boolean;
   onToggleQuality: () => void;
   onSeekLive: () => void;
+  onToggleFullscreen: () => void;
 }
 
 function PlayerControls({
@@ -218,8 +244,10 @@ function PlayerControls({
   latencyMs,
   isLive,
   showQuality,
+  isFullscreen,
   onToggleQuality,
   onSeekLive,
+  onToggleFullscreen,
 }: PlayerControlsProps) {
   const isNative = engine !== "youtube";
 
@@ -250,30 +278,78 @@ function PlayerControls({
         )}
       </div>
 
-      {/* Right: quality + network */}
-      {isNative && (
-        <div className="flex items-center gap-2">
-          <NetworkBadge quality={networkQuality} />
-          {bitrateMbps > 0 && (
-            <span className="text-[10px] text-white/30 font-mono tabular-nums hidden sm:inline">
-              {bitrateMbps.toFixed(1)} Mbps
-            </span>
-          )}
-          <button
-            onClick={onToggleQuality}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${
-              showQuality
-                ? "bg-sky-500/20 border-sky-500/40 text-sky-300"
-                : "bg-black/50 border-white/15 text-white/70 hover:text-white hover:border-white/25"
-            } backdrop-blur-sm`}
-          >
-            <Settings className={`w-3 h-3 ${showQuality ? "text-sky-400" : ""}`} />
-            <span>{isAuto ? "Auto" : currentQualityName}</span>
-          </button>
-        </div>
-      )}
+      {/* Right: quality + network + fullscreen */}
+      <div className="flex items-center gap-2">
+        {isNative && (
+          <>
+            <NetworkBadge quality={networkQuality} />
+            {bitrateMbps > 0 && (
+              <span className="text-[10px] text-white/30 font-mono tabular-nums hidden sm:inline">
+                {bitrateMbps.toFixed(1)} Mbps
+              </span>
+            )}
+            <button
+              onClick={onToggleQuality}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${
+                showQuality
+                  ? "bg-sky-500/20 border-sky-500/40 text-sky-300"
+                  : "bg-black/50 border-white/15 text-white/70 hover:text-white hover:border-white/25"
+              } backdrop-blur-sm`}
+            >
+              <Settings className={`w-3 h-3 ${showQuality ? "text-sky-400" : ""}`} />
+              <span>{isAuto ? "Auto" : currentQualityName}</span>
+            </button>
+          </>
+        )}
+
+        {/* Fullscreen button — always shown */}
+        <FullscreenButton isFullscreen={isFullscreen} onToggle={onToggleFullscreen} />
+      </div>
     </div>
   );
+}
+
+// ─── Fullscreen hook ──────────────────────────────────────────────────────────
+
+function useFullscreen(containerRef: React.RefObject<HTMLElement | null>) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if ((el as any).webkitRequestFullscreen) {
+          (el as any).webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      }
+    } catch {
+      // Fullscreen blocked by browser (e.g. sandboxed iframe)
+    }
+  }, [containerRef]);
+
+  return { isFullscreen, toggleFullscreen };
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -292,10 +368,14 @@ export function StreamPlayer({
   onError,
 }: StreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [showQuality, setShowQuality] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const controlsTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [networkQuality, setNetworkQuality] = useState<string>(detectNetworkQuality());
+  const lastTapRef = useRef<number>(0);
+
+  const { isFullscreen, toggleFullscreen } = useFullscreen(containerRef);
 
   // Build ordered source list
   const sources = buildStreamSources({
@@ -329,8 +409,21 @@ export function StreamPlayer({
     return () => clearInterval(id);
   }, []);
 
+  // Keyboard shortcut: F = toggle fullscreen, Escape handled by browser
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [toggleFullscreen]);
+
   // Controls auto-hide
-  const handleMouseMove = useCallback(() => {
+  const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
     controlsTimerRef.current = setTimeout(() => {
@@ -338,6 +431,10 @@ export function StreamPlayer({
       setShowQuality(false);
     }, 3000);
   }, []);
+
+  const handleMouseMove = useCallback(() => {
+    showControlsTemporarily();
+  }, [showControlsTemporarily]);
 
   const handleMouseLeave = useCallback(() => {
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
@@ -347,12 +444,34 @@ export function StreamPlayer({
     }, 1500);
   }, []);
 
+  // Double-click or double-tap to toggle fullscreen
+  const handleDoubleClick = useCallback(() => {
+    toggleFullscreen();
+  }, [toggleFullscreen]);
+
+  // Touch: single tap = show controls, double tap = fullscreen
+  const handleTouchStart = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      toggleFullscreen();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      showControlsTemporarily();
+    }
+  }, [toggleFullscreen, showControlsTemporarily]);
+
   // If we're using YouTube (no HLS/DASH available), render the iframe
   const shouldUseYouTube = isUsingYoutube || (!hlsManifestUrl && !dashManifestUrl && youtubeVideoId);
 
   if (shouldUseYouTube && youtubeVideoId) {
     return (
-      <div className={`relative w-full h-full bg-black ${className}`}>
+      <div
+        ref={containerRef}
+        className={`relative w-full h-full bg-black ${className} group`}
+        onDoubleClick={handleDoubleClick}
+        onTouchStart={handleTouchStart}
+      >
         <iframe
           src={buildYouTubeUrl(youtubeVideoId, "high", {
             autoplay: autoPlay,
@@ -367,6 +486,11 @@ export function StreamPlayer({
           className="w-full h-full absolute inset-0 border-0"
           onLoad={onLoad}
         />
+
+        {/* Fullscreen button — bottom-right, visible on hover */}
+        <div className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+          <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
+        </div>
 
         {/* YouTube ABR badge */}
         <div className="absolute bottom-3 left-3 pointer-events-none">
@@ -385,10 +509,12 @@ export function StreamPlayer({
 
   return (
     <div
+      ref={containerRef}
       className={`relative w-full h-full bg-black overflow-hidden ${className}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={handleMouseMove}
+      onTouchStart={handleTouchStart}
+      onDoubleClick={handleDoubleClick}
       onClick={() => setShowQuality(false)}
     >
       {/* ── Video Element ─────────────────────────────────────────────────── */}
@@ -446,8 +572,10 @@ export function StreamPlayer({
                 latencyMs={metrics.latencyMs}
                 isLive={isLive}
                 showQuality={showQuality}
+                isFullscreen={isFullscreen}
                 onToggleQuality={() => setShowQuality(p => !p)}
                 onSeekLive={seekToLiveEdge}
+                onToggleFullscreen={toggleFullscreen}
               />
             </div>
           </motion.div>
@@ -470,7 +598,7 @@ export function StreamPlayer({
       {/* ── Buffer Health Bar ──────────────────────────────────────────────── */}
       <BufferHealthBar health={metrics.bufferHealth} playerState={playerState} />
 
-      {/* ── Engine/source label (always visible, bottom-left) ─────────────── */}
+      {/* ── Engine/source label (always visible, top-right) ───────────────── */}
       {engine !== "idle" && engine !== "youtube" && playerState === "playing" && (
         <div className="absolute top-2 right-2 pointer-events-none z-10">
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase backdrop-blur-md
