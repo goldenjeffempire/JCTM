@@ -1,10 +1,219 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
-import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video } from "lucide-react";
+import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video, ExternalLink } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
-const prophetAmosImg = "/founder/prophet-portrait.jpg";
+
+const OVERSEER_IMAGES = [
+  { key: "img1", src: "/founder/DSC3371.webp", fallback: "/founder/DSC3371.jpg", label: "Prophetic Word", tag: "Prophet" },
+  { key: "img2", src: "/founder/DSC3376.webp", fallback: "/founder/DSC3376.jpg", label: "Apostolic Voice", tag: "Ministry" },
+  { key: "img3", src: "/founder/DSC1657.jpg", label: "Worship", tag: "Praise" },
+  { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach" },
+  { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry" },
+  { key: "img6", src: "/founder/DSC1774.jpg", label: "Prayer", tag: "Intercession" },
+  { key: "img7", src: "/founder/DSC5377.jpg", label: "Anointing", tag: "Prophet" },
+  { key: "img8", src: "/founder/DSC5382.jpg", label: "Proclamation", tag: "Apostolic" },
+];
+
+function OverseerSlideshow() {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [imgHovered, setImgHovered] = useState<string | null>(null);
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+
+  const n = OVERSEER_IMAGES.length;
+  const leftImages = [0, 1, 2].map(offset => OVERSEER_IMAGES[(activeSlide + offset) % n]);
+  const rightImages = [3, 4, 5].map(offset => OVERSEER_IMAGES[(activeSlide + offset) % n]);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const t = setInterval(() => setActiveSlide(prev => (prev + 1) % n), 6000);
+    return () => clearInterval(t);
+  }, [isPaused, n]);
+
+  const goPrev = () => setActiveSlide(prev => (prev - 1 + n) % n);
+  const goNext = () => setActiveSlide(prev => (prev + 1) % n);
+
+  const handlePointerDown = (e: React.PointerEvent) => setSwipeStartX(e.clientX);
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (swipeStartX === null) return;
+    const diff = e.clientX - swipeStartX;
+    if (Math.abs(diff) > 60) diff < 0 ? goNext() : goPrev();
+    setSwipeStartX(null);
+  };
+
+  return (
+    <div
+      className="relative flex flex-col items-center gap-4 px-8 py-8 select-none w-full"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
+      <div className="flex gap-3 items-start">
+        {/* Left column — 3 floating cards with blur-glow and negative tilt */}
+        <div className="flex flex-col gap-3">
+          {leftImages.map((img, i) => (
+            <motion.div
+              key={i}
+              animate={{ y: [0, i % 2 === 0 ? 12 : -12, 0] }}
+              transition={{ duration: 7 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.8 }}
+              className="cursor-pointer"
+              whileHover={{ scale: 1.06, transition: { duration: 0.3 } } as never}
+              whileTap={{ scale: 0.97 } as never}
+            >
+              <div className="relative" style={{ transform: `rotate(${[-4, -2, -5][i]}deg)`, marginLeft: [0, 16, 4][i] }}>
+                <motion.div
+                  animate={{ opacity: [0.4, 0.8, 0.4] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: i * 0.6 }}
+                  className="absolute -inset-3 rounded-2xl blur-xl"
+                  style={{ background: "linear-gradient(135deg, rgba(0,51,102,0.3), rgba(56,189,248,0.2))" }}
+                />
+                <div
+                  className="relative w-24 h-32 rounded-2xl overflow-hidden shadow-xl border-2 border-white/90"
+                  style={{ boxShadow: "0 20px 60px rgba(0,51,102,0.2), 0 0 0 1px rgba(56,189,248,0.12)" }}
+                  onMouseEnter={() => setImgHovered(img.key)}
+                  onMouseLeave={() => setImgHovered(null)}
+                >
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)", backgroundSize: "200% 100%", animation: "slideShimmer 1.6s infinite" }} />
+                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={img.key}
+                      src={img.src}
+                      alt={img.label}
+                      initial={{ opacity: 0, scale: 1.08 }}
+                      animate={{ opacity: 1, scale: imgHovered === img.key ? 1.12 : 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.7, ease: "easeInOut" }}
+                      className="w-full h-full object-cover absolute inset-0"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => { if ("fallback" in img && (img as { fallback?: string }).fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }}
+                    />
+                  </AnimatePresence>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
+                  <motion.div
+                    animate={{ opacity: imgHovered === img.key ? 1 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
+                      <ExternalLink className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  </motion.div>
+                  <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={img.key}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        <p className="text-white font-serif font-bold text-[10px] leading-tight">{img.label}</p>
+                        <p className="text-accent text-[8px] font-semibold">{img.tag}</p>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Right column — 3 floating cards with conic-gradient spinner and positive tilt */}
+        <div className="flex flex-col gap-3">
+          {rightImages.map((img, i) => (
+            <motion.div
+              key={i}
+              animate={{ y: [0, i % 2 === 0 ? -12 : 12, 0] }}
+              transition={{ duration: 6.5 + i * 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.9 }}
+              className="cursor-pointer"
+              whileHover={{ scale: 1.06, transition: { duration: 0.3 } } as never}
+              whileTap={{ scale: 0.97 } as never}
+            >
+              <div className="relative" style={{ transform: `rotate(${[4, 2, 5][i]}deg)`, marginRight: [0, 16, 4][i] }}>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20 + i * 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute -inset-2 rounded-2xl opacity-50"
+                  style={{ background: "conic-gradient(from 0deg, rgba(56,189,248,0.4), rgba(0,51,102,0.15), rgba(56,189,248,0.4))", filter: "blur(5px)" }}
+                />
+                <div
+                  className="relative w-24 h-32 rounded-2xl overflow-hidden shadow-xl border-2 border-white/90"
+                  style={{ boxShadow: "0 20px 60px rgba(0,51,102,0.18), 0 0 0 1px rgba(56,189,248,0.12)" }}
+                  onMouseEnter={() => setImgHovered(img.key)}
+                  onMouseLeave={() => setImgHovered(null)}
+                >
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)", backgroundSize: "200% 100%", animation: "slideShimmer 1.6s infinite" }} />
+                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={img.key}
+                      src={img.src}
+                      alt={img.label}
+                      initial={{ opacity: 0, scale: 1.08 }}
+                      animate={{ opacity: 1, scale: imgHovered === img.key ? 1.12 : 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.7, ease: "easeInOut" }}
+                      className="w-full h-full object-cover absolute inset-0"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => { if ("fallback" in img && (img as { fallback?: string }).fallback) (e.target as HTMLImageElement).src = (img as { fallback: string }).fallback; }}
+                    />
+                  </AnimatePresence>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/75 via-transparent to-transparent" />
+                  <motion.div
+                    animate={{ opacity: imgHovered === img.key ? 1 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 border border-white/30">
+                      <ExternalLink className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  </motion.div>
+                  <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={img.key}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        <p className="text-white font-serif font-bold text-[10px] leading-tight">{img.label}</p>
+                        <p className="text-accent text-[8px] font-semibold">{img.tag}</p>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex gap-1.5">
+        {OVERSEER_IMAGES.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveSlide(i)}
+            className={`rounded-full transition-all duration-300 ${i === activeSlide ? "w-4 h-1.5 bg-accent" : "w-1.5 h-1.5 bg-primary/20 hover:bg-accent/40"}`}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const DOCTRINES = [
   {
@@ -169,21 +378,11 @@ export default function About() {
           </div>
 
           {/* Founder section */}
-          <div className="glass-panel rounded-2xl overflow-hidden mb-10">
+          <div className="glass-panel rounded-2xl mb-10" style={{ overflow: "visible" }}>
             <div className="flex flex-col md:flex-row">
-              {/* Photo */}
-              <div className="md:w-72 shrink-0 bg-gradient-to-br from-primary/5 to-accent/5 flex items-center justify-center p-8 md:p-0">
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-accent/20 to-primary/20 blur-xl scale-110" />
-                  <img
-                    src={prophetAmosImg}
-                    alt="Prophet Amos Evomobor — Overseer, JCTM"
-                    className="relative w-56 md:w-full md:h-full object-cover object-top rounded-2xl md:rounded-none shadow-2xl"
-                    style={{ maxHeight: "420px" }}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
+              {/* Rotating photo slideshow */}
+              <div className="md:w-80 shrink-0 bg-gradient-to-br from-primary/5 to-accent/5 flex items-center justify-center rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none overflow-hidden">
+                <OverseerSlideshow />
               </div>
 
               {/* Bio */}
