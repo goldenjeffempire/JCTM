@@ -96,6 +96,7 @@ export function TempleBots() {
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
   const [whisper, setWhisper] = useState<{ section: string; message: string; cta: string } | null>(null);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>(QUICK_LINKS.slice(0, 5));
+  const [homepageChips, setHomepageChips] = useState<string[] | null>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -210,6 +211,14 @@ export function TempleBots() {
     void fetchSuggestedQuestions(history);
   }, [isStreaming, messages, fetchSuggestedQuestions]);
 
+  const HOMEPAGE_CHIPS = [
+    "Tell me about holiness",
+    "Upcoming events",
+    "How do I give?",
+    "Who is Prophet Amos?",
+    "How can I join JCTM?",
+  ];
+
   const handleOpen = useCallback((initialMessage?: string) => {
     setIsOpen(true);
     setNotification(null);
@@ -217,6 +226,7 @@ export function TempleBots() {
     setWhisper(null);
     if (initialMessage) {
       setTimeout(() => setInput(initialMessage), 300);
+      setHomepageChips(HOMEPAGE_CHIPS);
     }
   }, []);
 
@@ -235,6 +245,7 @@ export function TempleBots() {
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
     setInput("");
+    setHomepageChips(null);
 
     const userMsgId = Date.now().toString();
     const botMsgId = `${userMsgId}-bot`;
@@ -558,6 +569,39 @@ export function TempleBots() {
                   )}
                 </div>
               ))}
+
+              {/* Homepage quick-reply chips — shown only before first exchange */}
+              <AnimatePresence>
+                {homepageChips && messages.length <= 1 && !isStreaming && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ delay: 0.25, type: "spring", stiffness: 260, damping: 22 }}
+                    className="flex flex-col gap-2"
+                  >
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="h-2.5 w-2.5 text-accent" />
+                      Quick starts
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {homepageChips.map((chip, i) => (
+                        <motion.button
+                          key={chip}
+                          initial={{ opacity: 0, scale: 0.88 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.3 + i * 0.06, type: "spring", stiffness: 280, damping: 20 }}
+                          onClick={() => { setHomepageChips(null); sendMessage(chip); }}
+                          disabled={isStreaming}
+                          className="text-[11px] font-medium text-accent bg-accent/8 hover:bg-accent/18 active:scale-95 border border-accent/25 px-3 py-1.5 rounded-full whitespace-nowrap transition-all disabled:opacity-50 shadow-sm"
+                        >
+                          {chip}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Thinking indicator while waiting for first delta */}
               {isStreaming && messages[messages.length - 1]?.content === "" && (
