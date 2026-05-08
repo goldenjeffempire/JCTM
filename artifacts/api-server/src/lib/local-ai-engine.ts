@@ -52,6 +52,32 @@ export type JCTMIntent =
   | "healing_miracles"
   | "new_believer"
   | "testimony_sharing"
+  // v3 intents
+  | "lords_supper"
+  | "great_commission"
+  | "christian_lifestyle"
+  | "evangelism"
+  | "prayer_life"
+  | "forgiveness"
+  | "christian_suffering"
+  | "heaven_afterlife"
+  | "hell_judgment"
+  | "faith_works"
+  | "anointing"
+  | "worship_music"
+  | "christian_parenting"
+  | "sabbath_sunday"
+  | "biblical_authority"
+  | "prosperity_expose"
+  | "false_prophets"
+  | "rapture_detailed"
+  | "antichrist_mark"
+  | "new_birth"
+  | "church_discipline"
+  | "intercessory_prayer"
+  | "dreams_visions"
+  | "digital_sanctuary"
+  | "tongues_gifts"
   | "unknown";
 
 export interface LocalInferenceResult {
@@ -1013,6 +1039,372 @@ Find a mature believer who can walk alongside you, answer your questions, and pr
   },
 
   {
+    id: "lords_supper",
+    intent: "lords_supper",
+    keywords: ["lord's supper", "holy communion", "lord's table", "eucharist", "breaking bread", "bread and wine", "communion service", "take communion", "transubstantiation"],
+    weight: 1.0,
+    response: `**The Lord's Supper (Holy Communion)** is a sacred ordinance — not a ritual, but a living memorial of Christ's sacrifice.
+
+**1 Corinthians 11:23-26** — *"The Lord Jesus on the night in which He was betrayed took bread; and when He had given thanks, He broke it and said, Take, eat; this is My body which is broken for you; do this in remembrance of Me."*
+
+**JCTM's teaching on Holy Communion:**
+
+🍞 **The Bread** — represents Christ's body, broken for our healing and redemption (Isaiah 53:5)
+🍷 **The Cup** — represents His blood shed for the remission of sins (Matthew 26:28)
+✝️ **It is a memorial** — not a re-sacrifice of Christ. He died once for all (Hebrews 9:26-28)
+🚫 **JCTM rejects transubstantiation** — the Catholic doctrine that the elements literally become Christ's flesh and blood. This is identified as sacramental corruption.
+
+**Who should partake:** Born-again believers who have examined themselves (1 Corinthians 11:27-29). Unworthy partaking brings judgment — approach with reverence and self-examination.
+
+The Lord's Supper is practised regularly in JCTM services at Ebrumede Temple.`,
+    enrichment: "Lord's Supper is a memorial of Christ's sacrifice. Bread = His body, cup = His blood. JCTM rejects transubstantiation. 1 Corinthians 11:23-26. Self-examination required. Practised in JCTM services.",
+  },
+  {
+    id: "great_commission",
+    intent: "great_commission",
+    keywords: ["great commission", "make disciples", "go into the world", "preach the gospel", "evangelism", "soul winning", "win souls", "share the gospel", "lead someone to christ", "gospel outreach", "missionary"],
+    weight: 1.0,
+    response: `**The Great Commission** is the final command of Jesus — the supreme assignment of every believer:
+
+> *"Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, teaching them to observe all things that I have commanded you."* — Matthew 28:18-20
+
+This is not optional for disciples — it is the core mission of the church.
+
+**JCTM fulfils the Great Commission through:**
+
+📺 **Temple TV** — reaching 40+ nations digitally via @TEMPLETVJCTM on YouTube
+🏟️ **Crusades** — Warri City Crusade 2026: thousands reached with the gospel in the open air
+📡 **Viewing Centres** — multiplying the reach across Nigeria and beyond
+🌐 **Digital Sanctuary** — 24/7 ministry access via jctm.org.ng
+🤖 **TempleBots** — AI ministry assistant making the gospel accessible to seekers globally
+
+**Your role:** Mark 16:15 — *"Go into all the world and preach the gospel to every creature."* Share your testimony, invite people to Temple TV, and bring the unsaved to JCTM crusades and services.`,
+    enrichment: "Great Commission: Matthew 28:18-20. Make disciples of all nations. JCTM fulfils it through Temple TV, crusades, viewing centres, Digital Sanctuary, TempleBots. Every believer called to share the gospel.",
+  },
+  {
+    id: "christian_lifestyle",
+    intent: "christian_lifestyle",
+    keywords: ["christian lifestyle", "how should christians live", "modest dressing", "worldliness", "social media", "movies", "alcohol", "dress code", "christian standards", "music choices", "entertainment", "what can christians watch", "lifestyle"],
+    weight: 0.9,
+    response: `**The Christian Lifestyle** is not legalism — it is the natural expression of genuine transformation by the Holy Spirit.
+
+**2 Corinthians 5:17:** *"If anyone is in Christ, he is a new creation; old things have passed away; behold, all things have become new."*
+
+**JCTM's practical standards for holy living:**
+
+👗 **Dress modestly** — the body is God's temple (1 Corinthians 6:19-20). Immodest, sexually provocative, or worldly dressing contradicts your witness
+📱 **Social media** — use responsibly. No gossip, sexual display, or worldly conformity
+🎬 **Entertainment** — filter by Philippians 4:8: whatever is true, noble, just, pure, lovely, of good report
+🍺 **Alcohol** — total abstinence is JCTM's position (Proverbs 20:1, Ephesians 5:18)
+🎵 **Music** — reject what promotes sin; embrace what lifts your spirit toward God
+🗣️ **Speech** — no corrupt communication (Ephesians 4:29)
+
+**Romans 12:2:** *"Do not be conformed to this world, but be transformed by the renewing of your mind."*
+
+This is not about external rules — it flows from a heart that loves God and takes His Word seriously.`,
+    enrichment: "Christian lifestyle: modesty, no worldliness, social media stewardship, no alcohol, godly entertainment, pure speech. Romans 12:2. Not legalism but genuine transformation. JCTM teaches practical holiness.",
+  },
+  {
+    id: "forgiveness",
+    intent: "forgiveness",
+    keywords: ["forgiveness", "forgive", "unforgiveness", "how to forgive", "can't forgive", "bitter", "bitterness", "offended", "been hurt", "hurt me deeply", "holding grudge", "grudge", "forgive and forget", "reconciliation"],
+    weight: 0.9,
+    response: `**Forgiveness** is one of the most important — and most misunderstood — commands in scripture.
+
+**Matthew 6:14-15:** *"If you forgive men their trespasses, your heavenly Father will also forgive you. But if you do not forgive men their trespasses, neither will your Father forgive your trespasses."*
+
+This is not an option — unforgiveness blocks your own forgiveness and opens the door to spiritual bondage.
+
+**Key truths about forgiveness:**
+
+✋ **Forgiveness is a decision, not a feeling** — you choose to release, even before the emotion follows
+🔓 **Forgiveness is releasing the offender to God** — not condoning what they did, not automatic trust
+💔 **Bitterness is spiritual poison** — Hebrews 12:15: "a root of bitterness causes trouble and defiles many"
+🤝 **Reconciliation requires two parties** — forgiveness requires only you
+
+**The ultimate model:** On the cross, Jesus said: *"Father, forgive them, for they know not what they do."* (Luke 23:34) — He forgave those actively crucifying Him.
+
+**Joseph's example** (Genesis 50:20): *"You intended to harm me, but God intended it for good."*
+
+If you are struggling to forgive someone, 🙏 submit a prayer request at **jctm.org.ng/prayer** — the JCTM intercession team will stand with you.`,
+    enrichment: "Forgiveness is a decision not a feeling. Matthew 6:14-15 — unforgiveness blocks God's forgiveness. Releasing offenders to God. Bitterness poisons you. Jesus and Joseph are models. Prayer support available.",
+  },
+  {
+    id: "heaven_afterlife",
+    intent: "heaven_afterlife",
+    keywords: ["heaven", "afterlife", "life after death", "what happens when we die", "eternity", "eternal life", "new jerusalem", "paradise", "will i go to heaven", "streets of gold", "eternal home", "resurrection body"],
+    weight: 0.9,
+    response: `**Heaven is real** — the eternal home of all who are genuinely born again and have lived holy lives before God.
+
+**John 14:2-3:** *"In My Father's house are many mansions; if it were not so, I would have told you. I go to prepare a place for you."*
+
+**What scripture reveals about heaven:**
+
+✨ **Direct presence of God** — Revelation 22:4: *"They shall see His face"* — the beatific vision, unmediated communion with God
+🕊️ **No more suffering** — Revelation 21:4: *"God will wipe away every tear from their eyes; there shall be no more death, nor sorrow, nor crying"*
+🌟 **Glorified resurrection body** — incorruptible, immortal, spiritual (1 Corinthians 15:42-44)
+🏙️ **New Jerusalem** — Revelation 21:1-3 describes a city of glory coming down from God
+🎶 **Worship and service** — Revelation 7:15: serving God day and night in His temple
+
+**Who enters:** Only those whose names are written in the Lamb's Book of Life (Revelation 21:27). JCTM does not teach universalism — not everyone goes to heaven regardless of how they lived.
+
+The Christian's greatest motivation is the eternal reward ahead. **2 Timothy 4:7-8:** *"I have fought the good fight... there is laid up for me the crown of righteousness."*`,
+    enrichment: "Heaven is real. John 14:2-3. God's direct presence, no suffering, glorified body. New Jerusalem. Revelation 21-22. Only born-again believers enter. Not universalism. Eternal reward awaits the faithful.",
+  },
+  {
+    id: "hell_judgment",
+    intent: "hell_judgment",
+    keywords: ["hell", "eternal punishment", "lake of fire", "judgment", "hellfire", "is hell real", "what is hell", "eternal damnation", "second death", "condemned", "fire and brimstone", "does god send people to hell"],
+    weight: 0.9,
+    response: `**Hell is real** — and JCTM teaches it plainly because the gospel's urgency depends on it.
+
+**Matthew 25:41:** *"Depart from Me, you cursed, into the everlasting fire prepared for the devil and his angels."*
+
+**What scripture reveals about hell:**
+
+🔥 **The Lake of Fire** — Revelation 20:14-15: the ultimate destination of the unrepentant — "the second death"
+😰 **Conscious torment** — Luke 16:23-24: the rich man in Hades was in "torments" and felt pain — it is not annihilation
+🌑 **Eternal separation from God** — 2 Thessalonians 1:9: "everlasting destruction from the presence of the Lord"
+♾️ **Eternal duration** — Mark 9:44: *"where their worm does not die and the fire is not quenched"*
+
+**JCTM rejects:**
+- **Annihilationism** — the idea that souls cease to exist at death (not supported by scripture)
+- **Universalism** — that God eventually saves everyone (contradicts Matthew 25:46)
+- **Purgatory** — the Catholic doctrine of a place of purifying after death (Hebrews 9:27)
+
+**The urgency of the gospel:** Hell is why JCTM preaches without compromise. God *"desires all men to be saved"* (1 Timothy 2:4) — and has made the way through Jesus Christ alone (John 3:16-18).
+
+Today is the day of salvation. 2 Corinthians 6:2.`,
+    enrichment: "Hell is real and eternal. Conscious torment (Luke 16). Lake of Fire. Second death. JCTM rejects annihilationism and universalism. The gospel's urgency is grounded in hell's reality. Salvation through Christ alone.",
+  },
+  {
+    id: "faith_works",
+    intent: "faith_works",
+    keywords: ["faith and works", "faith without works", "works-based salvation", "james 2", "saved by faith", "grace and works", "can works save you", "how are we saved", "cheap grace", "antinomianism", "earn salvation"],
+    weight: 1.0,
+    response: `**Faith vs. Works** — one of the most important theological balances in the New Testament.
+
+**The apparent tension:**
+- **Ephesians 2:8-9:** *"By grace you have been saved through faith... not of works"* — salvation is not earned
+- **James 2:17:** *"Faith by itself, if it does not have works, is dead"* — genuine faith produces action
+
+**These are NOT contradictions — here's the resolution:**
+
+Paul (Ephesians 2) speaks of works as the **ground of justification** — no work can merit salvation before God.
+James speaks of works as the **evidence of genuine faith** — saving faith always produces transformed behaviour.
+
+**JCTM warns against two errors:**
+
+❌ **Works-based salvation** — trusting religious deeds (church attendance, giving, fasting) to earn justification. This is the error of Roman Catholicism and legalistic religion.
+
+❌ **Cheap grace (antinomianism)** — claiming faith while living lawlessly. 1 John 2:4: *"He who says 'I know Him' and does not keep His commandments is a liar."*
+
+✅ **The biblical balance:** Saved by grace, through faith, for good works (Ephesians 2:8-10). True faith changes you. Titus 2:14 — Christ redeemed us to be *"zealous for good works."*`,
+    enrichment: "Faith saves, not works (Ephesians 2:8-9). But genuine faith produces works (James 2:17). Warnings against works-based salvation (Catholic error) and cheap grace (antinomianism). Titus 2:14.",
+  },
+  {
+    id: "worship_music",
+    intent: "worship_music",
+    keywords: ["worship music", "praise music", "christian music", "worship songs", "music in church", "secular music", "can christians listen to secular music", "praise and worship", "worship style", "contemporary worship", "jctm worship"],
+    weight: 0.85,
+    response: `**Worship is the purpose for which humanity was created** — and music is one of its most powerful expressions.
+
+**John 4:24:** *"God is Spirit, and those who worship Him must worship in spirit and in truth."*
+
+**JCTM's position on worship music:**
+
+📖 **Doctrinal content is supreme** — lyrics must be theologically sound. Entertainment-style worship that promotes the prosperity gospel, sensuality, or theological error is rejected.
+
+🎵 **Colossians 3:16** — *"Teaching and admonishing one another in psalms and hymns and spiritual songs, singing with grace in your hearts to the Lord."*
+
+🙏 **Purpose over performance** — music at JCTM should lead congregants into God's presence, not showcase musicians
+
+⚠️ **Secular music with immoral content** — incompatible with a consecrated life. Philippians 4:8 is the filter.
+
+**The praise-to-worship flow:**
+- 🥁 **Praise** — bold, joyful declaration of God's greatness (Psalm 150)
+- 🕊️ **Worship** — intimate adoration of God's person (John 4:23)
+
+**Psalm 100:4:** *"Enter His gates with thanksgiving and His courts with praise."*
+
+JCTM's worship services at Ebrumede Temple blend traditional hymns with contemporary praise — always with content supremacy over style.`,
+    enrichment: "Worship in spirit and truth (John 4:24). Lyrics must be doctrinally sound. Purpose over performance. Psalms, hymns, spiritual songs (Colossians 3:16). Praise leads into worship. JCTM worship is content-focused.",
+  },
+  {
+    id: "rapture_detailed",
+    intent: "rapture_detailed",
+    keywords: ["rapture", "caught up", "be ready", "rapture ready", "pre-trib", "post-trib", "when is the rapture", "will i be raptured", "tribulation period", "second coming", "1 thessalonians 4", "caught up together", "harpazo"],
+    weight: 1.0,
+    response: `**The Rapture** is the imminent, supernatural event in which Jesus Christ will catch away born-again, holy-living believers to meet Him in the air — before the tribulation.
+
+**1 Thessalonians 4:16-17:** *"The Lord Himself will descend from heaven with a shout... and the dead in Christ will rise first. Then we who are alive and remain shall be caught up together with them in the clouds to meet the Lord in the air."*
+
+**JCTM's position: Pre-Tribulation Rapture**
+
+✅ Genuine, consecrated believers are removed BEFORE the 7-year tribulation
+✅ This is why holiness and readiness matter NOW — not theoretical future preparation
+⚠️ Not everyone who calls themselves Christian will be raptured — only those living holy (Matthew 24:40-41)
+
+**After the rapture:**
+- The Holy Spirit's restraining work is withdrawn (2 Thessalonians 2:7)
+- The Antichrist rises and signs a peace covenant with Israel
+- The Great Tribulation begins (7 years of global suffering — Revelation 6-19)
+- The mark of the beast (666) is enforced — **do NOT receive it**
+- Christ returns to earth with His saints at His Second Coming (Revelation 19:11-16)
+
+**JCTM 2026 Crusade Theme:** *"Be Ready for Rapture: Tribulation Is Coming! Run For Your Soul!"*
+
+📺 Watch end-times teachings: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Pre-tribulation rapture (1 Thessalonians 4:16-17). Only holy-living believers caught up. Antichrist rises after rapture. Tribulation 7 years. Second Coming after tribulation. Don't take the mark of the beast.",
+  },
+  {
+    id: "antichrist_mark",
+    intent: "antichrist_mark",
+    keywords: ["antichrist", "mark of the beast", "666", "beast", "false prophet", "new world order", "one world government", "chip implant", "digital id", "revelation 13", "tribulation", "son of perdition", "man of sin"],
+    weight: 1.0,
+    response: `**The Antichrist** is a coming world leader who will deceive the nations during the 7-year tribulation — and the mark of the beast (666) is his most dangerous tool.
+
+**Revelation 13:16-18:** *"He causes all, both small and great, rich and poor, free and slave, to receive a mark on their right hand or on their foreheads, and that no one may buy or sell except one who has the mark."*
+
+**Key biblical facts about the Antichrist:**
+
+👤 A real human being — not symbolic (2 Thessalonians 2:3-4: "the man of sin... the son of perdition")
+🌍 He will control the global economy through the mark system
+⛪ He will enter the rebuilt Jewish temple and declare himself to be God (2 Thessalonians 2:4)
+❌ He will be destroyed by Christ at the Second Coming (2 Thessalonians 2:8)
+
+**About the mark (666):**
+⚠️ **DO NOT RECEIVE IT UNDER ANY CIRCUMSTANCES**
+Revelation 14:9-11: *"If anyone worships the beast and receives his mark... he shall be tormented with fire and brimstone... and they have no rest day or night."* — This is eternal damnation.
+
+**JCTM's warning:** The global cashless economy, digital ID systems, and push toward central bank digital currencies may be laying infrastructure for this system. Stay vigilant. Live ready. The rapture removes believers before this mark is enforced.`,
+    enrichment: "Antichrist is a real person (2 Thessalonians 2:3-4). Controls global economy with 666 mark. Do NOT take the mark — Revelation 14:9-11 says eternal damnation. Destroyed by Christ at Second Coming. Cashless economy may be preparation.",
+  },
+  {
+    id: "digital_sanctuary",
+    intent: "digital_sanctuary",
+    keywords: ["digital sanctuary", "website", "jctm website", "jctm.org", "online platform", "templebots", "scripture study", "devotions online", "give online", "watch online", "jctm app", "digital ministry"],
+    weight: 0.9,
+    response: `**The JCTM Digital Sanctuary** (jctm.org.ng) is the official online ministry platform — bringing every dimension of JCTM's ministry to your screen, wherever you are in the world.
+
+**🌐 What's available at jctm.org.ng:**
+
+📖 **Sermon Library** — Browse 400+ teachings from Prophet Amos Evomobor, filtered by topic, date, or series
+📺 **Live Streaming** — Watch Sunday (8 AM WAT) and midweek (5 PM WAT) services LIVE
+🤖 **TempleBots AI** — Your 24/7 AI ministry assistant for spiritual guidance, doctrine, and prayer support
+🌍 **Global Altar** — A real-time 3D visualization of believers worshipping worldwide simultaneously
+📜 **Testimonies** — Submit and read community testimonies of God's faithfulness
+📅 **Events** — Register for crusades, conferences, and gatherings
+💛 **Give Online** — Paystack (Naira) and Stripe (international) giving portal
+📖 **Scripture Study** — AI-powered deep Bible study and contextual teaching
+🙏 **Prayer Requests** — Submit personal needs to the JCTM intercession team
+📰 **Daily Devotionals** — Subscribe to morning devotionals by email
+
+**For technical support:** info@jctm.org.ng
+**Temple TV YouTube:** https://www.youtube.com/@TEMPLETVJCTM`,
+    enrichment: "Digital Sanctuary features: sermon library, live streaming, TempleBots AI, Global Altar, testimonies, events, giving, scripture study, prayer requests, devotionals. At jctm.org.ng. Temple TV on YouTube @TEMPLETVJCTM.",
+  },
+  {
+    id: "tongues_gifts",
+    intent: "tongues_gifts",
+    keywords: ["speaking in tongues", "gift of tongues", "spiritual gifts", "1 corinthians 12", "gifts of the spirit", "word of knowledge", "word of wisdom", "prophecy gift", "gift of healing", "discernment", "are tongues for today", "cessationism"],
+    weight: 1.0,
+    response: `**The Gifts of the Spirit** (1 Corinthians 12:7-11) are supernatural endowments given by the Holy Spirit to individual believers for the common good of the church.
+
+**The nine gifts:** Word of wisdom, word of knowledge, faith, gifts of healings, working of miracles, prophecy, discerning of spirits, different kinds of tongues, interpretation of tongues.
+
+**JCTM's position:** All nine gifts are still fully operational today — cessationism (the view that gifts ended with the apostles) is not biblically supported.
+
+**Tongues specifically — two distinct purposes:**
+
+🙏 **Private prayer tongues** — praying in the Spirit for personal edification (1 Corinthians 14:4, Jude 20). Encouraged for all Spirit-baptized believers.
+
+📣 **Public tongues in church** — MUST be accompanied by interpretation (1 Corinthians 14:27-28). Without an interpreter, the speaker must remain silent.
+
+**JCTM warnings:**
+- ⚠️ Counterfeit tongues — manufactured emotionally, not Spirit-generated
+- ⚠️ Uncontrolled public tongues without interpretation — disorderly (1 Corinthians 14:33)
+- ⚠️ Tongues as the only measure of spirituality — 1 Corinthians 13:1: even tongues without love is "sounding brass"
+
+All gifts must operate in **love and order** within the assembly. The greatest gift is love (1 Corinthians 13).`,
+    enrichment: "Nine spiritual gifts still active today. Tongues: private prayer (1 Corinthians 14:4) and public with interpretation (1 Corinthians 14:27-28). JCTM rejects cessationism and counterfeit tongues. Love is greatest gift.",
+  },
+  {
+    id: "biblical_authority",
+    intent: "biblical_authority",
+    keywords: ["is the bible true", "bible authority", "bible is word of god", "scripture is inspired", "inerrancy", "infallibility", "bible vs tradition", "can i trust the bible", "which bible translation", "kjv vs nkjv", "is the bible reliable"],
+    weight: 0.95,
+    response: `**The Bible is the supreme and final authority** on all matters of faith, doctrine, and Christian living — this is the cornerstone of JCTM's entire ministry.
+
+**2 Timothy 3:16-17:** *"All Scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness, that the man of God may be complete, thoroughly equipped for every good work."*
+
+**JCTM's doctrine of scripture:**
+
+📖 **Divine Inspiration** — God breathed His Word through human authors (2 Peter 1:21: "holy men of God spoke as they were moved by the Holy Spirit")
+✅ **Inerrancy** — the original manuscripts are without error
+🔒 **Sufficiency** — the Bible contains everything necessary for salvation and godly living — nothing may be added (Revelation 22:18-19)
+⚖️ **Final Authority** — no prophecy, tradition, church decree, or personal experience can override the written Word
+
+**Why this matters:** The Correction Mandate is grounded here. Every error JCTM corrects is measured against the plumb line of scripture. When the church drifts, the Bible calls it back.
+
+**On translations:** JCTM primarily uses the **King James Version (KJV)** and **New King James Version (NKJV)** for their faithfulness to the received text (Textus Receptus / Masoretic Text). Modern critical-text translations (NIV, ESV) are used for reference but with discernment.`,
+    enrichment: "Bible is supreme authority (2 Timothy 3:16-17). Divine inspiration, inerrancy, sufficiency, final authority. No prophecy or tradition can override scripture. JCTM uses KJV and NKJV. Correction Mandate grounded in biblical authority.",
+  },
+  {
+    id: "prosperity_expose",
+    intent: "prosperity_expose",
+    keywords: ["prosperity gospel", "word of faith", "name it claim it", "kenneth copeland", "kenneth hagin", "benny hinn", "creflo dollar", "seed faith", "hundredfold return", "positive confession", "decree and declare", "prosperity preacher", "health and wealth"],
+    weight: 1.0,
+    response: `**The Prosperity Gospel is a False Gospel** — and JCTM's Correction Mandate specifically targets it as one of the five major errors deceiving the global church.
+
+**Core claims of the Prosperity Gospel (and JCTM's biblical refutation):**
+
+❌ *"God always wants you financially wealthy"*
+✅ Philippians 4:11-12 — Paul learned contentment in both poverty AND abundance. Wealth is NOT the measure of God's blessing.
+
+❌ *"Sow a seed of $1,000 and receive a hundredfold return"*
+✅ 2 Corinthians 9:7 — Give as you purpose in your heart, not from compulsion. Giving is worship, not a financial investment.
+
+❌ *"Confess it and possess it — your words create your reality"*
+✅ Isaiah 55:8-9 — God's thoughts are not our thoughts. Faith is not a force that moves God through our words.
+
+❌ *"Sickness means lack of faith or unconfessed sin"*
+✅ 2 Corinthians 12:7-9 — Paul's thorn in the flesh remained despite prayer. John 9:3 — the blind man's condition was not due to sin.
+
+**Key proponents JCTM identifies as spreading this error:** Kenneth Hagin, Kenneth Copeland, Benny Hinn, Creflo Dollar, and many Nigerian prosperity preachers.
+
+**1 Timothy 6:5-10:** Those who believe *"godliness is a means of gain... the love of money is a root of all kinds of evil."*
+
+📺 Watch Prophet Amos' refutation: **YouTube @TEMPLETVJCTM**`,
+    enrichment: "Prosperity gospel is a false gospel (one of 5 Correction Mandate errors). Financial wealth is not always God's will. Giving is not a financial investment. Positive confession errors. Proponents: Copeland, Hagin, Hinn. 1 Timothy 6:5-10.",
+  },
+  {
+    id: "false_prophets",
+    intent: "false_prophets",
+    keywords: ["false prophet", "how to identify false prophets", "false teachers", "fake pastor", "test the spirits", "wolves in sheep clothing", "fake church", "fake man of god", "manipulative pastor", "prophet asking for money", "is my pastor false"],
+    weight: 1.0,
+    response: `**False Prophets are among the most dangerous threats** to the body of Christ today — and identifying them is essential to spiritual survival.
+
+**Matthew 7:15-16:** *"Beware of false prophets, who come to you in sheep's clothing, but inwardly they are ravenous wolves. You will know them by their fruits."*
+
+**Red flags of a false prophet or false teacher:**
+
+🚩 **Money-conditioned prophecy** — *"Give $100 and I'll release your prophetic word"* — genuine prophets don't sell spiritual gifts
+🚩 **Consistently failed prophecies** — Deuteronomy 18:22: *"If the thing does not happen or come to pass... the prophet has spoken it presumptuously"*
+🚩 **Lifestyle inconsistency** — personal immorality, secret sin, lavish excess while congregation suffers
+🚩 **Scripture contradiction** — any teaching that contradicts the clear text of the Bible (Galatians 1:8)
+🚩 **Control and fear** — manipulating congregants through fear of curses if they leave
+🚩 **Celebrity-building** — pointing to themselves rather than to Christ
+
+**1 John 4:1:** *"Beloved, do not believe every spirit, but test the spirits, whether they are of God."*
+
+**The test:** Does it align with scripture? Does it come to pass? Does the prophet live holy?
+
+**Prophet Amos Evomobor's** prophetic office is confirmed by decades of documented accuracy, holy living, and complete alignment with the written Word — not by marketing or self-promotion.`,
+    enrichment: "False prophets: money-conditioned prophecy, failed predictions, lifestyle inconsistency, scripture contradiction, control and fear, celebrity-building. Matthew 7:15-16. 1 John 4:1. Test by fruit, prophetic accuracy, and scriptural alignment.",
+  },
+
+  {
     id: "testimony_sharing",
     intent: "testimony_sharing",
     keywords: [
@@ -1228,10 +1620,10 @@ export async function* streamLocalResponse(
 // ─── Engine metadata ─────────────────────────────────────────────────────────
 
 export const ENGINE_METADATA = {
-  version: "2.0.0",
+  version: "3.0.0",
   knowledgeEntries: KNOWLEDGE_INDEX.length,
   confidenceThreshold: CONFIDENCE_THRESHOLD,
   escalationThreshold: ESCALATION_THRESHOLD,
   intentsSupported: [...new Set(KNOWLEDGE_INDEX.map(e => e.intent))],
-  description: "JCTM Local AI Engine v2 — 32 intents, activity learning, sermon RAG, fully local",
+  description: "JCTM Local AI Engine v3 — 57 intents, expanded doctrine coverage, sermon RAG, fully local",
 };

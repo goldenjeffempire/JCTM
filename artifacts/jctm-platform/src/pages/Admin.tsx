@@ -85,7 +85,7 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email" | "knowledge";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -100,6 +100,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }
   { id: "ads",          label: "AdSense",      icon: <DollarSign className="w-4 h-4" /> },
   { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
   { id: "email",        label: "Email",        icon: <Mail className="w-4 h-4" /> },
+  { id: "knowledge",    label: "AI Knowledge", icon: <Database className="w-4 h-4" /> },
 ];
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
@@ -5205,6 +5206,296 @@ interface AdSenseRuntime {
   measuredAt: string;
 }
 
+// ─── Knowledge Base Admin Section ─────────────────────────────────────────────
+
+interface KnowledgeStats {
+  totalChunks: number;
+  embeddedChunks: number;
+  byType: Record<string, number>;
+  recentSources: { source: string; chunk_type: string; updated_at: string }[];
+}
+
+interface IngestResult {
+  success: boolean; source: string; chunksStored: number; embeddingsGenerated: number;
+  chunks: { chunkIndex: number; hasEmbedding: boolean; preview: string }[];
+}
+
+interface TranscriptResult {
+  success: boolean; source: string; sermon_title: string; chunksStored: number;
+  embeddingsGenerated: number; message: string;
+}
+
+function KnowledgeSection({ auth }: { auth: AdminAuth }) {
+  // Stats
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<KnowledgeStats>({
+    queryKey: ["admin-knowledge-stats"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/knowledge/stats`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    refetchInterval: 20_000,
+  });
+
+  // Ingest form state
+  const [ingestText, setIngestText]   = useState("");
+  const [ingestSrc, setIngestSrc]     = useState("");
+  const [ingestLabel, setIngestLabel] = useState("");
+  const [ingestType, setIngestType]   = useState("doctrine");
+  const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
+  const [ingestErr, setIngestErr]     = useState("");
+
+  // Transcript form state
+  const [txTitle, setTxTitle]       = useState("");
+  const [txPrch, setTxPrch]         = useState("Prophet Amos Evomobor");
+  const [txDate, setTxDate]         = useState("");
+  const [txVid, setTxVid]           = useState("");
+  const [txText, setTxText]         = useState("");
+  const [txResult, setTxResult]     = useState<TranscriptResult | null>(null);
+  const [txErr, setTxErr]           = useState("");
+
+  // Speech-to-text state
+  const [sttActive, setSttActive] = useState(false);
+  const [sttSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+  const recognitionRef = useRef<unknown>(null);
+
+  const startSpeechCapture = useCallback(() => {
+    const SR = (window as Record<string, unknown>)["SpeechRecognition"] as (new () => SpeechRecognition) | undefined
+      ?? (window as Record<string, unknown>)["webkitSpeechRecognition"] as (new () => SpeechRecognition) | undefined;
+    if (!SR) return;
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-NG";
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = Array.from(e.results)
+        .map((r: SpeechRecognitionResult) => r[0]!.transcript)
+        .join(" ");
+      setTxText(transcript);
+    };
+    rec.onend = () => setSttActive(false);
+    rec.start();
+    recognitionRef.current = rec;
+    setSttActive(true);
+  }, []);
+
+  const stopSpeechCapture = useCallback(() => {
+    (recognitionRef.current as SpeechRecognition | null)?.stop();
+    setSttActive(false);
+  }, []);
+
+  const [ingestBusy, setIngestBusy] = useState(false);
+  const [syncBusy, setSyncBusy]     = useState(false);
+  const [txBusy, setTxBusy]         = useState(false);
+
+  const handleIngest = async () => {
+    setIngestErr(""); setIngestResult(null); setIngestBusy(true);
+    try {
+      const r = await fetch(`${BASE}/api/admin/knowledge/ingest`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: ingestText, source: ingestSrc, label: ingestLabel, chunk_type: ingestType }),
+      });
+      const json = await r.json();
+      if (!r.ok) { setIngestErr(json.error ?? "Ingestion failed"); return; }
+      setIngestResult(json);
+      refetchStats();
+      toast.success(`Ingested ${json.chunksStored} chunk(s) with ${json.embeddingsGenerated} embedding(s)`);
+    } catch { setIngestErr("Network error"); } finally { setIngestBusy(false); }
+  };
+
+  const handleTranscript = async () => {
+    setTxErr(""); setTxResult(null); setTxBusy(true);
+    try {
+      const r = await fetch(`${BASE}/api/admin/knowledge/transcript`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: txText, sermon_title: txTitle, preacher: txPrch, date: txDate, video_id: txVid }),
+      });
+      const json = await r.json();
+      if (!r.ok) { setTxErr(json.error ?? "Failed"); return; }
+      setTxResult(json);
+      refetchStats();
+      toast.success(json.message);
+    } catch { setTxErr("Network error"); } finally { setTxBusy(false); }
+  };
+
+  const handleSync = async () => {
+    setSyncBusy(true);
+    try {
+      const r = await fetch(`${BASE}/api/admin/knowledge/sync`, { method: "POST", credentials: "include" });
+      const json = await r.json();
+      if (r.ok) { refetchStats(); toast.success("Full knowledge sync complete"); }
+      else toast.error(json.error ?? "Sync failed");
+    } catch { toast.error("Network error"); } finally { setSyncBusy(false); }
+  };
+
+  const typeOptions = ["doctrine", "sermon", "testimony", "devotional", "event", "faq", "ministry", "manual"];
+
+  return (
+    <AdminLoginGate role="sermon" auth={auth} title="AI Knowledge Base">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SectionHeader title="AI Knowledge Base" description="Real-time knowledge management — paste text, ingest sermon transcripts, or trigger full re-sync" />
+          <button onClick={handleSync} disabled={syncBusy} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors disabled:opacity-50">
+            {syncBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Full Sync
+          </button>
+        </div>
+
+        {/* ── Stats ── */}
+        {statsLoading && <div className="flex items-center gap-2 text-muted-foreground text-sm py-6 justify-center"><Loader2 className="w-4 h-4 animate-spin" /> Loading stats…</div>}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <MetricCard label="Total Chunks" value={stats.totalChunks.toLocaleString()} icon={<Database className="w-4 h-4" />} />
+            <MetricCard label="Embedded" value={`${stats.embeddedChunks}/${stats.totalChunks}`} icon={<Sparkles className="w-4 h-4" />} />
+            <MetricCard label="Content Types" value={Object.keys(stats.byType).length} icon={<Layers className="w-4 h-4" />} />
+            <MetricCard label="Coverage %" value={stats.totalChunks > 0 ? `${Math.round((stats.embeddedChunks / stats.totalChunks) * 100)}%` : "0%"} icon={<Activity className="w-4 h-4" />} />
+          </div>
+        )}
+
+        {stats && Object.keys(stats.byType).length > 0 && (
+          <Card>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-primary" /> Chunks by Content Type</h3>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(stats.byType).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                <span key={type} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border bg-muted text-foreground">
+                  {type} <span className="font-mono text-primary font-bold">{count}</span>
+                </span>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* ── Ingest Text Form ── */}
+        <Card>
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Plus className="w-4 h-4 text-primary" /> Ingest New Content</h3>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                value={ingestSrc} onChange={e => setIngestSrc(e.target.value)}
+                placeholder="source-id (e.g. jctm-2026-teaching)"
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                value={ingestLabel} onChange={e => setIngestLabel(e.target.value)}
+                placeholder="Label (optional, e.g. 'JCTM 2026 Crusade Sermon')"
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <select
+                value={ingestType} onChange={e => setIngestType(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <textarea
+              value={ingestText} onChange={e => setIngestText(e.target.value)}
+              rows={6} placeholder="Paste any JCTM ministry content here — doctrine, teaching notes, sermon points, devotionals, event information, ministry updates... The system will auto-chunk and embed it for TempleBots."
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+            />
+            {ingestErr && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {ingestErr}</p>}
+            {ingestResult && (
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-300">
+                <p className="font-semibold mb-1">✓ Ingested: {ingestResult.source}</p>
+                <p>{ingestResult.chunksStored} chunk(s) stored · {ingestResult.embeddingsGenerated} embedding(s) generated</p>
+              </div>
+            )}
+            <button
+              onClick={handleIngest}
+              disabled={ingestBusy || !ingestText.trim() || !ingestSrc.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors"
+            >
+              {ingestBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              Ingest Content
+            </button>
+          </div>
+        </Card>
+
+        {/* ── Sermon Transcript Form ── */}
+        <Card>
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Tv2 className="w-4 h-4 text-primary" /> Sermon Transcript Ingestion</h3>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                value={txTitle} onChange={e => setTxTitle(e.target.value)}
+                placeholder="Sermon title (required)"
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                value={txPrch} onChange={e => setTxPrch(e.target.value)}
+                placeholder="Preacher"
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                value={txDate} onChange={e => setTxDate(e.target.value)}
+                placeholder="Date (e.g. 4 May 2026)"
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                value={txVid} onChange={e => setTxVid(e.target.value)}
+                placeholder="YouTube Video ID (optional)"
+                className="px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            <div className="relative">
+              <textarea
+                value={txText} onChange={e => setTxText(e.target.value)}
+                rows={8} placeholder="Paste sermon transcript here — or use the microphone button to capture speech in real time while listening to the sermon..."
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+              />
+              {sttSupported && (
+                <button
+                  onClick={sttActive ? stopSpeechCapture : startSpeechCapture}
+                  title={sttActive ? "Stop speech capture" : "Start speech-to-text capture"}
+                  className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white transition-all ${sttActive ? "bg-red-500 animate-pulse" : "bg-primary/70 hover:bg-primary"}`}
+                >
+                  {sttActive ? <span className="text-[10px] font-bold">■</span> : <span className="text-[10px]">🎙</span>}
+                </button>
+              )}
+            </div>
+            {sttActive && <p className="text-xs text-red-400 flex items-center gap-1.5"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> Listening — speak clearly near your microphone. Click ■ to stop.</p>}
+            {!sttSupported && <p className="text-xs text-muted-foreground">Speech-to-text not available in this browser. Use Chrome for best results.</p>}
+
+            {txErr && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {txErr}</p>}
+            {txResult && (
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-300">
+                <p className="font-semibold mb-1">✓ {txResult.message}</p>
+                <p>{txResult.chunksStored} segment(s) · {txResult.embeddingsGenerated} embedding(s)</p>
+              </div>
+            )}
+            <button
+              onClick={handleTranscript}
+              disabled={txBusy || !txText.trim() || !txTitle.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors"
+            >
+              {txBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+              Ingest Transcript
+            </button>
+          </div>
+        </Card>
+
+        {/* ── Recent Sources ── */}
+        {stats && stats.recentSources.length > 0 && (
+          <Card>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Recent Knowledge Sources</h3>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {stats.recentSources.map(s => (
+                <div key={s.source} className="flex items-center gap-3 text-xs py-1.5 border-b border-border/40 last:border-0">
+                  <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] bg-muted border border-border text-muted-foreground font-mono shrink-0">{s.chunk_type}</span>
+                  <span className="flex-1 truncate font-mono text-foreground/80">{s.source}</span>
+                  <span className="text-muted-foreground shrink-0">{new Date(s.updated_at).toLocaleDateString("en-NG")}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
+    </AdminLoginGate>
+  );
+}
+
 function AdSenseDiagnosticsSection({ auth }: { auth: AdminAuth }) {
   const { data: config, isLoading, refetch, isRefetching } = useQuery<AdSenseConfig>({
     queryKey: ["admin-adsense-diagnostics"],
@@ -6440,6 +6731,7 @@ export default function Admin() {
               {section === "ads"         && <AdSenseDiagnosticsSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
               {section === "email"       && <EmailCampaignSection auth={livestreamAuth} />}
+              {section === "knowledge"   && <KnowledgeSection auth={sermonAuth} />}
             </motion.div>
           </AnimatePresence>
         </main>
