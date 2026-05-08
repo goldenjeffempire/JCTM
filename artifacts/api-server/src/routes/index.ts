@@ -38,6 +38,8 @@ import monetizationRouter from "./monetization";
 import journeyRouter from "./journey";
 import conferenceNotifyRouter from "./conferenceNotify";
 import conferenceCampaignRouter from "./conferenceCampaign";
+import emailUnsubscribeRouter from "./emailUnsubscribe";
+import emailAnalyticsRouter from "./emailAnalytics";
 
 const router: IRouter = Router();
 
@@ -82,6 +84,8 @@ router.use(monetizationRouter);
 router.use(journeyRouter);
 router.use(conferenceNotifyRouter);
 router.use(conferenceCampaignRouter);
+router.use(emailUnsubscribeRouter);
+router.use(emailAnalyticsRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

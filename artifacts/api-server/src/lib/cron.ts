@@ -8,6 +8,7 @@ import { runEventNotificationTick, setEventNotificationIntervalMs } from "./even
 import { startEventNotificationWorker, stopEventNotificationWorker } from "./event-notification-worker.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl, verifyEmailTransport } from "./email-engine.js";
+import { checkAndSendConferencePreReminder, checkAndSendConferenceLiveEmail } from "./email-automation.js";
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
 import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
@@ -1666,6 +1667,12 @@ export function startCron(log: Logger, websubUrl?: string): void {
       );
       processScheduledBroadcasts(log).catch(err =>
         log.warn({ err }, "Scheduled broadcasts tick error"),
+      );
+      checkAndSendConferencePreReminder(log).catch(err =>
+        log.warn({ err }, "Conference pre-event reminder cron tick error"),
+      );
+      checkAndSendConferenceLiveEmail(log).catch(err =>
+        log.warn({ err }, "Conference live email cron fallback tick error"),
       );
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");

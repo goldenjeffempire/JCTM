@@ -17,6 +17,7 @@
  *  • Campaign-level sent / failed / skipped counters
  */
 
+import crypto from "crypto";
 import { pool } from "@workspace/db";
 import {
   isEmailConfigured,
@@ -26,6 +27,21 @@ import {
 import { logger } from "./logger.js";
 import type { Logger } from "pino";
 import nodemailer from "nodemailer";
+
+// ─── Internal HMAC unsubscribe token ─────────────────────────────────────────
+// Mirrors the logic in email-automation.ts but kept local to avoid circular deps.
+
+function _buildUnsubToken(email: string): string {
+  const secret =
+    process.env.SESSION_SECRET ||
+    process.env.JWT_SECRET ||
+    "jctm-email-unsub-2026";
+  return crypto
+    .createHmac("sha256", secret)
+    .update(email.trim().toLowerCase())
+    .digest("hex")
+    .slice(0, 32);
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -93,6 +109,10 @@ async function loadUnsubscribedEmails(): Promise<Set<string>> {
     SELECT lower(trim(email)) AS email
     FROM event_notification_subscribers
     WHERE is_active = false AND email IS NOT NULL AND email != ''
+    UNION
+    SELECT email
+    FROM email_unsubscribes
+    WHERE email IS NOT NULL AND email != ''
   `);
   return new Set(result.rows.map((r) => r.email));
 }
@@ -700,7 +720,8 @@ export function processCampaignInBackground(
 
         const settledResults = await Promise.allSettled(
           batch.rows.map(async (row) => {
-            const unsubUrl = `${reminderOpts.ministryWebsite}/unsubscribe?email=${encodeURIComponent(row.email)}`;
+            const sig = _buildUnsubToken(row.email);
+            const unsubUrl = `${reminderOpts.ministryWebsite}/api/unsubscribe?email=${encodeURIComponent(row.email)}&sig=${sig}`;
             const { subject, text, html } = renderConferenceReminderEmail({
               ...reminderOpts,
               recipientName: row.recipient_name,
@@ -915,3 +936,345 @@ export async function launchConferenceCampaign(
   return { campaignId, totalRecipients: recipients.length, skipped: skippedCount };
 }
 
+// ─── Live notification template ───────────────────────────────────────────────
+
+export interface ConferenceLiveEmailOpts {
+  recipientName?: string | null;
+  conferenceTitle: string;
+  serviceTitle: string;
+  liveUrl: string;
+  unsubscribeUrl: string;
+  ministryWebsite: string;
+}
+
+export function renderConferenceLiveEmail(opts: ConferenceLiveEmailOpts): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const { recipientName, conferenceTitle, serviceTitle, liveUrl, unsubscribeUrl } = opts;
+  const greeting = recipientName ? `Dear ${escapeHtml(recipientName)},` : "Dear Beloved,";
+  const subject = `🔴 WE ARE LIVE — ${conferenceTitle} | JCTM`;
+
+  const text = [
+    `🔴 WE ARE LIVE NOW`,
+    ``,
+    `${conferenceTitle}`,
+    ``,
+    greeting.replace(/&[a-z]+;/g, "").replace(/&#[0-9]+;/g, ""),
+    ``,
+    `The Ministers Conference is LIVE right now on Temple TV. Join us from wherever you are.`,
+    ``,
+    `Service: ${serviceTitle}`,
+    ``,
+    `JOIN THE STREAM: ${liveUrl}`,
+    ``,
+    `God bless you,`,
+    `The JCTM Digital Sanctuary Team`,
+    `Jesus Christ Temple Ministry, Warri, Nigeria`,
+    ``,
+    `──────────────────────────────────`,
+    `To stop receiving these notifications, unsubscribe here: ${unsubscribeUrl}`,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f5f0;padding:32px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0"
+             style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08);">
+
+        <!-- LIVE banner -->
+        <tr>
+          <td style="background:#c62828;padding:8px 24px;text-align:center;">
+            <span style="color:#ffffff;font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">
+              🔴 LIVE NOW
+            </span>
+          </td>
+        </tr>
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#1a1a2e;padding:36px 40px 32px;text-align:center;">
+            <div style="color:#cc4444;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;font-weight:600;">
+              Jesus Christ Temple Ministry
+            </div>
+            <h1 style="color:#ffffff;font-size:26px;margin:0;line-height:1.25;font-weight:700;">
+              ${escapeHtml(conferenceTitle)}
+            </h1>
+            <div style="color:#c62828;font-size:15px;font-weight:700;margin-top:10px;letter-spacing:.5px;">
+              APOSTOLIC FIRE — LIVE ON TEMPLE TV
+            </div>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px 28px;">
+            <p style="color:#444;font-size:16px;margin:0 0 16px;">${greeting}</p>
+            <p style="color:#333;font-size:16px;line-height:1.65;margin:0 0 24px;">
+              The <strong>Ministers Conference is LIVE right now</strong> on Temple TV.
+              The fire of the Holy Spirit is falling. <strong>Join us from wherever you are</strong>
+              and receive your apostolic impartation.
+            </p>
+            <p style="color:#555;font-size:14px;margin:0 0 8px;font-weight:600;">
+              Now streaming:
+            </p>
+            <p style="color:#1a1a2e;font-size:16px;margin:0 0 28px;font-weight:700;">
+              ${escapeHtml(serviceTitle)}
+            </p>
+
+            <!-- CTA -->
+            <div style="text-align:center;margin:0 0 32px;">
+              <a href="${liveUrl}"
+                 style="display:inline-block;background:#c62828;color:#ffffff;font-size:17px;
+                        font-weight:700;padding:16px 40px;border-radius:8px;text-decoration:none;
+                        letter-spacing:.3px;">
+                🔴 JOIN THE STREAM NOW
+              </a>
+            </div>
+
+            <p style="color:#666;font-size:14px;line-height:1.6;margin:0 0 8px;">
+              Can't watch right now? The service will be available as a replay on our channel
+              after the broadcast ends.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8f8f8;border-top:1px solid #eeeeee;padding:20px 40px;text-align:center;">
+            <p style="color:#999;font-size:12px;margin:0 0 6px;">
+              Jesus Christ Temple Ministry · Warri, Delta State, Nigeria
+            </p>
+            <p style="color:#bbb;font-size:11px;margin:0;">
+              <a href="${unsubscribeUrl}" style="color:#bbb;text-decoration:underline;">Unsubscribe</a>
+              &nbsp;·&nbsp;
+              <a href="https://jctm.org.ng" style="color:#bbb;text-decoration:none;">jctm.org.ng</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  return { subject, text, html };
+}
+
+// ─── Live notification background worker ─────────────────────────────────────
+
+export function processLiveCampaignInBackground(
+  campaignId: number,
+  liveOpts: Omit<ConferenceLiveEmailOpts, "recipientName" | "unsubscribeUrl">,
+  log: Logger = logger,
+): void {
+  if (activeCampaigns.has(campaignId)) {
+    log.warn({ campaignId }, "Live campaign already running — skipping duplicate trigger");
+    return;
+  }
+
+  activeCampaigns.add(campaignId);
+
+  void (async () => {
+    try {
+      await updateCampaignStatus(campaignId, { status: "running", startedAt: new Date() });
+      log.info({ campaignId }, "Live notification campaign worker started");
+
+      let sent = 0;
+      let failed = 0;
+      let skipped = 0;
+      let offset = 0;
+
+      while (true) {
+        const batch = await pool.query<{
+          id: string;
+          email: string;
+          recipient_name: string | null;
+          source: string;
+          attempts: number;
+        }>(
+          `UPDATE conference_campaign_recipients
+             SET status = 'processing', attempts = attempts + 1
+           WHERE id IN (
+             SELECT id FROM conference_campaign_recipients
+             WHERE campaign_id = $1 AND status = 'pending'
+             ORDER BY id ASC
+             LIMIT $2
+             FOR UPDATE SKIP LOCKED
+           )
+           RETURNING id, email, recipient_name, source, attempts`,
+          [campaignId, PROCESS_BATCH],
+        );
+
+        if (batch.rows.length === 0) break;
+
+        const settledResults = await Promise.allSettled(
+          batch.rows.map(async (row) => {
+            const sig = _buildUnsubToken(row.email);
+            const unsubUrl = `${liveOpts.ministryWebsite}/api/unsubscribe?email=${encodeURIComponent(row.email)}&sig=${sig}`;
+            const { subject, text, html } = renderConferenceLiveEmail({
+              ...liveOpts,
+              recipientName: row.recipient_name,
+              unsubscribeUrl: unsubUrl,
+            });
+
+            await sendWithRetry(
+              {
+                from: process.env.SMTP_FROM || "Jesus Christ Temple Ministry <info@jctm.org.ng>",
+                to: row.email,
+                subject,
+                text,
+                html,
+                headers: {
+                  "X-Mailer": "JCTM Digital Sanctuary",
+                  "X-Campaign": "ministers-conference-2026-live",
+                  "List-Unsubscribe": `<${unsubUrl}>`,
+                  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                },
+                ...(process.env.SMTP_REPLY_TO ? { replyTo: process.env.SMTP_REPLY_TO } : {}),
+              },
+              log,
+              `live-campaign:${campaignId}:${row.email}`,
+            );
+
+            return row.id;
+          }),
+        );
+
+        const updatePromises: Promise<unknown>[] = [];
+        for (let i = 0; i < batch.rows.length; i++) {
+          const row = batch.rows[i]!;
+          const result = settledResults[i]!;
+          if (result.status === "fulfilled") {
+            sent++;
+            updatePromises.push(
+              pool.query(
+                `UPDATE conference_campaign_recipients SET status = 'sent', sent_at = now() WHERE id = $1`,
+                [row.id],
+              ).catch(() => null),
+            );
+          } else {
+            const errMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            if (row.attempts >= MAX_ATTEMPTS) {
+              failed++;
+              updatePromises.push(
+                pool.query(
+                  `UPDATE conference_campaign_recipients SET status = 'failed', error = $2 WHERE id = $1`,
+                  [row.id, errMsg.slice(0, 500)],
+                ).catch(() => null),
+              );
+            } else {
+              updatePromises.push(
+                pool.query(
+                  `UPDATE conference_campaign_recipients SET status = 'pending', error = $2 WHERE id = $1`,
+                  [row.id, errMsg.slice(0, 500)],
+                ).catch(() => null),
+              );
+            }
+          }
+        }
+        await Promise.allSettled(updatePromises);
+
+        await pool.query(
+          `UPDATE conference_campaigns SET sent = $2, failed = $3, skipped = $4 WHERE id = $1`,
+          [campaignId, sent, failed, skipped],
+        ).catch(() => null);
+
+        offset += batch.rows.length;
+        log.info({ campaignId, offset, sent, failed }, "Live campaign batch processed");
+
+        await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS));
+      }
+
+      await updateCampaignStatus(campaignId, {
+        status: "completed",
+        sent,
+        failed,
+        skipped,
+        completedAt: new Date(),
+        error: null,
+      });
+
+      log.info({ campaignId, sent, failed, skipped }, "Live notification campaign completed");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.error({ err, campaignId }, "Live campaign worker fatal error");
+      await updateCampaignStatus(campaignId, {
+        status: "failed",
+        completedAt: new Date(),
+        error: msg.slice(0, 1000),
+      }).catch(() => null);
+    } finally {
+      activeCampaigns.delete(campaignId);
+    }
+  })();
+}
+
+// ─── Live notification orchestrator ──────────────────────────────────────────
+
+export interface LaunchLiveNotificationOpts {
+  campaignKey: string;
+  conferenceTitle: string;
+  serviceTitle: string;
+  liveUrl: string;
+  ministryWebsite?: string;
+  log?: Logger;
+}
+
+/**
+ * Aggregates all emails, filters unsubscribes, creates/resets campaign record,
+ * and fires the background live-notification worker. Returns immediately.
+ */
+export async function launchConferenceLiveNotification(
+  opts: LaunchLiveNotificationOpts,
+): Promise<{ campaignId: number; totalRecipients: number; skipped: number }> {
+  const log = opts.log ?? logger;
+  const base = opts.ministryWebsite ?? getPublicBaseUrl();
+
+  if (!isEmailConfigured()) {
+    throw new Error("SMTP is not configured — cannot launch live notification campaign");
+  }
+
+  log.info({ campaignKey: opts.campaignKey }, "Launching conference LIVE notification campaign");
+
+  const emailMap = await aggregateAllEmails(log);
+  const unsubscribed = await loadUnsubscribedEmails();
+
+  const recipients: CampaignRecipient[] = [];
+  let skippedCount = 0;
+  for (const [email, { name, source }] of emailMap) {
+    if (unsubscribed.has(email)) { skippedCount++; continue; }
+    recipients.push({ email, name, source });
+  }
+
+  log.info(
+    { campaignKey: opts.campaignKey, total: emailMap.size, afterFilter: recipients.length, unsubscribed: skippedCount },
+    "Live notification recipients filtered",
+  );
+
+  const campaignId = await createCampaign(opts.campaignKey, opts.conferenceTitle);
+  await bulkEnqueueRecipients(campaignId, recipients);
+  await updateCampaignStatus(campaignId, { totalRecipients: recipients.length, skipped: skippedCount });
+
+  processLiveCampaignInBackground(
+    campaignId,
+    {
+      conferenceTitle: opts.conferenceTitle,
+      serviceTitle: opts.serviceTitle,
+      liveUrl: opts.liveUrl,
+      ministryWebsite: base,
+    },
+    log,
+  );
+
+  return { campaignId, totalRecipients: recipients.length, skipped: skippedCount };
+}

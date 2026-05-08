@@ -15,6 +15,8 @@ import {
 } from "../lib/push-manager.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
 import { streamPipeline } from "../lib/stream-pipeline.js";
+import { triggerConferenceLiveEmail } from "../lib/email-automation.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -1079,6 +1081,18 @@ router.post("/livestream/status", requireAdminRole("livestream"), async (req, re
   await persistManualLivestreamOverride(livestreamState);
 
   broadcastStatus(livestreamState);
+
+  // Fire conference live-service email notification if stream just went live
+  if (isLive) {
+    triggerConferenceLiveEmail(
+      logger,
+      title ?? null,
+      streamUrl ?? null,
+      extractedVideoId,
+    ).catch((err) =>
+      logger.warn({ err }, "Conference live email trigger failed (non-fatal)"),
+    );
+  }
 
   res.json(UpdateLivestreamStatusResponse.parse(livestreamState));
 });

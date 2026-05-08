@@ -1044,5 +1044,31 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS ccr_campaign_status_idx ON conference_campaign_recipients (campaign_id, status)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ccr_pending_idx ON conference_campaign_recipients (campaign_id, id ASC) WHERE status = 'pending'`);
 
+  // ── Email send log — tracks every outbound email for delivery analytics ──────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_send_log (
+      id             serial      PRIMARY KEY,
+      email_type     text        NOT NULL,
+      recipient_email text       NOT NULL,
+      campaign_key   text,
+      status         text        NOT NULL DEFAULT 'sent',
+      error          text,
+      sent_at        timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS email_send_log_type_idx     ON email_send_log (email_type, sent_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS email_send_log_campaign_idx ON email_send_log (campaign_key, sent_at DESC) WHERE campaign_key IS NOT NULL`);
+
+  // ── Global email opt-out list — checked by all campaign workers ───────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_unsubscribes (
+      id               serial      PRIMARY KEY,
+      email            text        NOT NULL UNIQUE,
+      source           text        NOT NULL DEFAULT 'campaign',
+      unsubscribed_at  timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS email_unsubscribes_email_idx ON email_unsubscribes (email)`);
+
   logger.info("All migrations complete");
 }
