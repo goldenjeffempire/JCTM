@@ -11,6 +11,7 @@ import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
 import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
 import { runMigrations } from "./lib/migrations.js";
 import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
+import { bootstrapSubscribers } from "./lib/subscriber-manager.js";
 import { pool } from "@workspace/db";
 
 const rawPort = process.env["PORT"] ?? "8080";
@@ -62,6 +63,11 @@ const server = app.listen(port, async (err) => {
   } catch (err) {
     logger.warn({ err }, "Blog library seeding failed — continuing startup");
   }
+
+  // ── Subscriber registry bootstrap (seed + legacy sync — idempotent) ────────
+  bootstrapSubscribers(logger).catch((err) =>
+    logger.warn({ err }, "Subscriber bootstrap failed — continuing startup"),
+  );
 
   // ── Admin passphrase config check ─────────────────────────────────────────
   const adminRoles: AdminRole[] = ["gallery", "sermon", "livestream"];

@@ -1155,5 +1155,51 @@ export async function runMigrations(): Promise<void> {
     logger.warn({ err: fnErr }, "Could not upgrade pgvector search function (non-fatal)");
   }
 
+  // ── Unified subscriber registry (single source of truth for all email sends) ─
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscribers (
+      id               serial      PRIMARY KEY,
+      email            text        NOT NULL UNIQUE,
+      name             text,
+      is_active        boolean     NOT NULL DEFAULT true,
+      unsubscribe_token text       NOT NULL UNIQUE,
+      source           text        NOT NULL DEFAULT 'manual',
+      subscribed_at    timestamptz NOT NULL DEFAULT now(),
+      unsubscribed_at  timestamptz,
+      last_sent_at     timestamptz,
+      last_email_type  text,
+      total_sent       integer     NOT NULL DEFAULT 0,
+      total_failed     integer     NOT NULL DEFAULT 0,
+      updated_at       timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_active_idx        ON subscribers (is_active) WHERE is_active = true`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_email_idx         ON subscribers (lower(trim(email)))`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_source_idx        ON subscribers (source, subscribed_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_last_sent_idx     ON subscribers (last_sent_at DESC) WHERE last_sent_at IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_subscribed_at_idx ON subscribers (subscribed_at DESC)`);
+
+  // ── Per-recipient delivery tracking for every outbound email ─────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_delivery_log (
+      id            bigserial   PRIMARY KEY,
+      subscriber_id integer     REFERENCES subscribers(id) ON DELETE SET NULL,
+      email         text        NOT NULL,
+      email_type    text        NOT NULL,
+      campaign_key  text,
+      status        text        NOT NULL DEFAULT 'sent',
+      message_id    text,
+      error         text,
+      attempts      integer     NOT NULL DEFAULT 1,
+      sent_at       timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_email_type_idx    ON email_delivery_log (email_type, sent_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_subscriber_idx    ON email_delivery_log (subscriber_id, sent_at DESC) WHERE subscriber_id IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_campaign_key_idx  ON email_delivery_log (campaign_key, sent_at DESC) WHERE campaign_key IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_status_idx        ON email_delivery_log (status, sent_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_email_date_idx    ON email_delivery_log (lower(email), email_type, sent_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS edl_dedup_idx         ON email_delivery_log (subscriber_id, email_type, CAST(sent_at AS date)) WHERE status = 'sent'`);
+
   logger.info("All migrations complete");
 }

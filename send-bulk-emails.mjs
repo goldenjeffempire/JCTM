@@ -527,14 +527,53 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. Load recipient list
-  console.log("\n[2/5] Loading recipient list from ./emails…");
-  const emailsPath = resolve(__dirname, "emails");
-  const raw = readFileSync(emailsPath, "utf8");
-  const allEmailsFull = raw
-    .split("\n")
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => e && e.includes("@"));
+  // 2. Load recipient list — from production DB subscribers table (primary)
+  //    Falls back to the root `emails` file if the DB table is empty.
+  console.log("\n[2/5] Loading recipient list from production database (subscribers table)…");
+
+  let allEmailsFull = [];
+
+  // Try the unified subscribers table first
+  try {
+    const subRes = await pool.query(`
+      SELECT lower(trim(s.email)) AS email
+      FROM subscribers s
+      WHERE s.is_active = true
+        AND trim(s.email) != ''
+        AND NOT EXISTS (
+          SELECT 1 FROM email_unsubscribes eu
+          WHERE lower(trim(eu.email)) = lower(trim(s.email))
+        )
+      ORDER BY s.subscribed_at ASC
+    `);
+    allEmailsFull = subRes.rows.map((r) => r.email).filter(Boolean);
+    console.log(`      Loaded ${allEmailsFull.length} active subscribers from production DB.`);
+  } catch (dbErr) {
+    console.warn("      WARNING: Could not query subscribers table:", dbErr.message);
+    console.warn("      Falling back to root emails file…");
+  }
+
+  // Fallback to the emails file if DB returned nothing
+  if (allEmailsFull.length === 0) {
+    try {
+      const emailsPath = resolve(__dirname, "emails");
+      const raw = readFileSync(emailsPath, "utf8");
+      const fileEmails = raw
+        .split("\n")
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e && e.includes("@"));
+      // Filter out opted-out addresses
+      for (const e of fileEmails) {
+        const optedOut = await isUnsubscribed(e);
+        if (!optedOut) allEmailsFull.push(e);
+      }
+      console.log(`      Loaded ${allEmailsFull.length} recipients from emails file (after opt-out filter).`);
+    } catch (fileErr) {
+      console.error("      FAILED to load emails file:", fileErr.message);
+      process.exit(1);
+    }
+  }
+
   const allEmails = allEmailsFull.slice(BATCH_START, BATCH_END === Infinity ? undefined : BATCH_END);
   console.log(`      Total: ${allEmailsFull.length} — Processing: ${BATCH_START}–${Math.min(BATCH_END, allEmailsFull.length) - 1} (${allEmails.length} recipients)`);
 

@@ -120,18 +120,19 @@ async function loadUnsubscribedEmails(): Promise<Set<string>> {
 // ─── Email aggregation ────────────────────────────────────────────────────────
 
 /**
- * Queries every table that contains email addresses and returns a deduplicated
- * Map keyed by lowercase email → { name, source }.
+ * Queries every email source and returns a deduplicated Map keyed by
+ * lowercase email → { name, source }.
  *
- * Table priority order (later entries override name only, not inclusion):
- *   1. event_notification_subscribers (active opt-in)
- *   2. devotion_subscribers (active opt-in)
- *   3. conference_registrations (registered for this exact event)
- *   4. member_auth (registered Digital Sanctuary members)
+ * Priority order (first wins for source attribution; name is filled in if missing):
+ *   0. subscribers (unified registry — primary source, includes ministry_list seed)
+ *   1. event_notification_subscribers (active opt-in, legacy)
+ *   2. devotion_subscribers (active opt-in, legacy)
+ *   3. conference_registrations
+ *   4. member_auth
  *   5. giving_logs (donors)
- *   6. testimonies (community members who shared)
- *   7. member_directory (church directory)
- *   8. sponsorship_inquiries (partnership contacts)
+ *   6. testimonies (approved)
+ *   7. member_directory
+ *   8. sponsorship_inquiries
  */
 export async function aggregateAllEmails(
   log: Logger = logger,
@@ -149,20 +150,26 @@ export async function aggregateAllEmails(
     if (!emailMap.has(key)) {
       emailMap.set(key, { name, source });
     } else if (name && !emailMap.get(key)!.name) {
-      // Update name if we now have one and previously didn't
       emailMap.get(key)!.name = name;
     }
   }
 
   const queries = await Promise.allSettled([
-    // 1. Event notification subscribers (active)
+    // 0. Unified subscriber registry (primary — includes ministry_list seed)
+    pool.query<{ email: string; name: string | null; source: string }>(
+      `SELECT lower(trim(email)) AS email, name, source
+       FROM subscribers
+       WHERE is_active = true AND email IS NOT NULL AND email != ''
+       LIMIT 100000`,
+    ),
+    // 1. Event notification subscribers (active, legacy)
     pool.query<{ email: string }>(
       `SELECT lower(trim(email)) AS email
        FROM event_notification_subscribers
        WHERE is_active = true AND email IS NOT NULL AND email != ''
        LIMIT 50000`,
     ),
-    // 2. Devotion subscribers (active)
+    // 2. Devotion subscribers (active, legacy)
     pool.query<{ email: string; name: string | null }>(
       `SELECT lower(trim(email)) AS email, name
        FROM devotion_subscribers
@@ -213,8 +220,14 @@ export async function aggregateAllEmails(
     ),
   ]);
 
-  // Process results in priority order
-  const [evtSubs, devSubs, confReg, members, donors, testimonies, directory, sponsorships] = queries;
+  const [unified, evtSubs, devSubs, confReg, members, donors, testimonies, directory, sponsorships] = queries;
+
+  // 0. Unified registry — primary source
+  if (unified.status === "fulfilled") {
+    for (const row of unified.value.rows) add(row.email, row.name, row.source ?? "subscribers");
+  } else {
+    log.warn({ err: unified.reason }, "Campaign: subscribers (unified) query failed");
+  }
 
   if (evtSubs.status === "fulfilled") {
     for (const row of evtSubs.value.rows) add(row.email, null, "event_notification_subscribers");
@@ -272,6 +285,7 @@ export async function aggregateAllEmails(
 
   log.info(
     {
+      unified: unified.status === "fulfilled" ? unified.value.rowCount : 0,
       evtSubs: evtSubs.status === "fulfilled" ? evtSubs.value.rowCount : 0,
       devSubs: devSubs.status === "fulfilled" ? devSubs.value.rowCount : 0,
       confReg: confReg.status === "fulfilled" ? confReg.value.rowCount : 0,

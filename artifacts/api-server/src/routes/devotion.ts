@@ -293,38 +293,54 @@ router.post(
       const today = new Date().toISOString().split("T")[0]!;
       const { devotion } = await ensureDevotionForDate(today, logger);
 
-      const subs = await pool.query<{
-        id: number; email: string; name: string | null; unsubscribe_token: string;
-      }>(
-        `SELECT id, email, name, unsubscribe_token
-         FROM devotion_subscribers
-         WHERE is_active = true
-           AND (last_sent_date IS NULL OR last_sent_date != $1)`,
-        [today],
-      );
+      const {
+        getActiveSubscribersMissedToday,
+        makeUnsubscribeUrl,
+        recordDelivery,
+      } = await import("../lib/subscriber-manager.js");
 
-      if (subs.rows.length === 0) {
+      const base = getPublicBaseUrl();
+      const subscribers = await getActiveSubscribersMissedToday("devotion", logger);
+
+      if (subscribers.length === 0) {
         res.json({ ok: true, sent: 0, failed: 0, total: 0, note: "All subscribers already received today's devotion." });
         return;
       }
 
-      let sent = 0, failed = 0;
-      for (const sub of subs.rows) {
-        const unsubUrl = `${getPublicBaseUrl()}/api/devotion/unsubscribe?token=${encodeURIComponent(sub.unsubscribe_token)}`;
+      let sent = 0;
+      let failed = 0;
+
+      for (const sub of subscribers) {
+        const unsubUrl = makeUnsubscribeUrl(sub.email, base);
         const ok = await sendDevotionEmail(sub.email, devotion, unsubUrl, logger);
         if (ok) {
           sent++;
+          await recordDelivery({
+            subscriberId: sub.id,
+            email: sub.email,
+            emailType: "devotion",
+            campaignKey: `devotion-${today}`,
+            status: "sent",
+          }, logger);
+          // Also update legacy devotion_subscribers last_sent_date for compatibility
           await pool.query(
-            `UPDATE devotion_subscribers SET last_sent_date = $1 WHERE id = $2`,
-            [today, sub.id],
-          );
+            `UPDATE devotion_subscribers SET last_sent_date = $1 WHERE lower(trim(email)) = $2`,
+            [today, sub.email.toLowerCase()],
+          ).catch(() => null);
         } else {
           failed++;
+          await recordDelivery({
+            subscriberId: sub.id,
+            email: sub.email,
+            emailType: "devotion",
+            campaignKey: `devotion-${today}`,
+            status: "failed",
+          }, logger);
         }
         await new Promise((r) => setTimeout(r, 200));
       }
 
-      res.json({ ok: true, sent, failed, total: subs.rows.length });
+      res.json({ ok: true, sent, failed, total: subscribers.length });
     } catch (err) {
       logger.warn({ err }, "devotion admin broadcast-now failed");
       res.status(500).json({ error: "Broadcast failed. Check server logs." });

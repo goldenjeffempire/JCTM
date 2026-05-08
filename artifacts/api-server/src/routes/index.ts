@@ -41,6 +41,7 @@ import conferenceCampaignRouter from "./conferenceCampaign";
 import emailUnsubscribeRouter from "./emailUnsubscribe";
 import emailAnalyticsRouter from "./emailAnalytics";
 import aiIntelligenceRouter from "./aiIntelligence";
+import subscribersRouter from "./subscribers";
 
 const router: IRouter = Router();
 
@@ -88,6 +89,7 @@ router.use(conferenceCampaignRouter);
 router.use(emailUnsubscribeRouter);
 router.use(emailAnalyticsRouter);
 router.use(aiIntelligenceRouter);
+router.use(subscribersRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

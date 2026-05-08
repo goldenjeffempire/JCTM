@@ -109,31 +109,16 @@ export async function isGloballyUnsubscribed(email: string): Promise<boolean> {
 }
 
 /**
- * Adds email to the global opt-out list and deactivates any active
- * devotion/event subscriptions for that address.
+ * Adds email to the global opt-out list and deactivates the subscriber
+ * across ALL tables: subscribers, devotion_subscribers,
+ * event_notification_subscribers, and email_unsubscribes.
  */
 export async function addGlobalUnsubscribe(
   email: string,
   source: string = "campaign",
 ): Promise<void> {
-  const e = email.trim().toLowerCase();
-  await pool.query(
-    `INSERT INTO email_unsubscribes (email, source)
-     VALUES ($1, $2)
-     ON CONFLICT (email) DO NOTHING`,
-    [e, source],
-  );
-  // Deactivate opt-in subscriptions so routine emails stop too
-  await Promise.allSettled([
-    pool.query(
-      "UPDATE devotion_subscribers SET is_active = false WHERE lower(trim(email)) = $1",
-      [e],
-    ),
-    pool.query(
-      "UPDATE event_notification_subscribers SET is_active = false WHERE lower(trim(email)) = $1",
-      [e],
-    ),
-  ]);
+  const { deactivateSubscriber } = await import("./subscriber-manager.js");
+  await deactivateSubscriber(email, source, logger);
 }
 
 // ─── Email send log ───────────────────────────────────────────────────────────
