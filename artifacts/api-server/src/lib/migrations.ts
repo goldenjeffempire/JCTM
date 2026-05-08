@@ -1177,5 +1177,29 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS edl_email_date_idx    ON email_delivery_log (lower(email), email_type, sent_at DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS edl_dedup_idx         ON email_delivery_log (subscriber_id, email_type, sent_at) WHERE status = 'sent'`);
 
+  // ── Persistent AI User Memory ─────────────────────────────────────────────────
+  // Cross-session memory store for TempleBots — persists name, prayer needs,
+  // spiritual maturity, topics of interest, and key personal insights across
+  // multiple conversations. Keyed by session_fingerprint (anonymous) or member_id.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_ai_memory (
+      id                  serial       PRIMARY KEY,
+      session_fingerprint text         NOT NULL UNIQUE,
+      member_id           integer      REFERENCES member_auth(id) ON DELETE SET NULL,
+      detected_name       text,
+      prayer_needs        text[]       NOT NULL DEFAULT '{}',
+      topics_of_interest  text[]       NOT NULL DEFAULT '{}',
+      spiritual_maturity  text         NOT NULL DEFAULT 'seeker',
+      key_insights        text[]       NOT NULL DEFAULT '{}',
+      message_count       integer      NOT NULL DEFAULT 0,
+      conversation_count  integer      NOT NULL DEFAULT 0,
+      last_active_at      timestamptz  NOT NULL DEFAULT now(),
+      created_at          timestamptz  NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS uam_member_id_idx      ON user_ai_memory (member_id) WHERE member_id IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS uam_last_active_idx    ON user_ai_memory (last_active_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS uam_maturity_idx       ON user_ai_memory (spiritual_maturity)`);
+
   logger.info("All migrations complete");
 }

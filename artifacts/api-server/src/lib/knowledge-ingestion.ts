@@ -35,7 +35,7 @@ const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_UR
 // ─── Version Stamp ────────────────────────────────────────────────────────────
 // Increment this when the static JCTM_KNOWLEDGE array changes to force
 // re-ingestion even if chunk count looks sufficient.
-const KNOWLEDGE_VERSION = "3.0";
+const KNOWLEDGE_VERSION = "4.0";
 const VERSION_SOURCE = `jctm-version-${KNOWLEDGE_VERSION}`;
 
 // ─── JCTM Knowledge Base ──────────────────────────────────────────────────────
@@ -1010,6 +1010,121 @@ export async function ingestConferenceData(log?: Logger): Promise<void> {
 // Orchestrates a complete re-ingestion of all content types in the correct order.
 // Safe to call at any time — all operations are idempotent upserts.
 
+// ─── Ingest Testimonies ────────────────────────────────────────────────────────
+// Pulls approved community testimonies and encodes them as knowledge chunks.
+// These help TempleBots answer questions about what God is doing at JCTM and
+// encourage users who are seeking testimonies of healing, salvation, provision.
+
+export async function ingestTestimonies(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query<{
+      id: number;
+      title: string;
+      content: string;
+      category: string;
+      author_name: string | null;
+      created_at: string;
+    }>(
+      `SELECT id, title, content, category, author_name, created_at
+       FROM testimonies
+       WHERE approved = true AND content IS NOT NULL AND length(content) > 50
+       ORDER BY created_at DESC LIMIT 40`,
+    );
+
+    if (result.rows.length === 0) {
+      log?.info("No approved testimonies found — skipping testimony ingestion");
+      return;
+    }
+
+    let upserted = 0;
+    for (const row of result.rows) {
+      const dateStr = new Date(row.created_at).toLocaleDateString("en-GB", {
+        day: "numeric", month: "long", year: "numeric",
+      });
+      const author = row.author_name ? ` shared by ${row.author_name}` : "";
+      const chunkContent = `JCTM Community Testimony [${row.category}]${author} (${dateStr}):\n"${row.title}"\n${row.content.slice(0, 600)}`;
+      const vector = await generateEmbeddingVector(chunkContent);
+      const source = `testimony-${row.id}`;
+
+      await client.query(
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+         VALUES ($1, $2, 0, 'testimony', $3)
+         ON CONFLICT (source, chunk_index) DO UPDATE
+           SET content = EXCLUDED.content, embedding = EXCLUDED.embedding, updated_at = now()`,
+        [chunkContent, source, vector ?? null],
+      );
+      upserted++;
+    }
+
+    log?.info({ upserted, total: result.rows.length }, "Community testimonies ingested into knowledge base");
+  } catch (err) {
+    log?.warn({ err }, "Testimony ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Ingest Blog Posts ────────────────────────────────────────────────────────
+// Pulls published blog posts (Ministry Moments / articles) into the RAG index.
+
+export async function ingestBlogPosts(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query<{
+      id: number;
+      title: string;
+      content: string;
+      excerpt: string | null;
+      category: string | null;
+      author: string | null;
+      published_at: string | null;
+    }>(
+      `SELECT id, title, content, excerpt, category, author, published_at
+       FROM blog_posts
+       WHERE published = true AND content IS NOT NULL AND length(content) > 100
+       ORDER BY published_at DESC NULLS LAST LIMIT 30`,
+    );
+
+    if (result.rows.length === 0) {
+      log?.info("No published blog posts found — skipping blog ingestion");
+      return;
+    }
+
+    let upserted = 0;
+    for (const row of result.rows) {
+      const dateStr = row.published_at
+        ? new Date(row.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+        : "recent";
+      const author = row.author ? ` by ${row.author}` : "";
+      const category = row.category ? ` [${row.category}]` : "";
+      const body = row.excerpt ?? row.content.slice(0, 500);
+      const chunkContent = `JCTM Ministry Article${category}${author} (${dateStr}):\n"${row.title}"\n${body}`;
+      const vector = await generateEmbeddingVector(chunkContent);
+      const source = `blog-${row.id}`;
+
+      await client.query(
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+         VALUES ($1, $2, 0, 'blog', $3)
+         ON CONFLICT (source, chunk_index) DO UPDATE
+           SET content = EXCLUDED.content, embedding = EXCLUDED.embedding, updated_at = now()`,
+        [chunkContent, source, vector ?? null],
+      );
+      upserted++;
+    }
+
+    log?.info({ upserted, total: result.rows.length }, "Blog posts ingested into knowledge base");
+  } catch (err) {
+    log?.warn({ err }, "Blog post ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Full Content Sync ─────────────────────────────────────────────────────────
+// Orchestrates a complete re-ingestion of all content types in the correct order.
+// Safe to call at any time — all operations are idempotent upserts.
+
 export async function runFullContentSync(log?: Logger): Promise<{
   sermons: boolean;
   activity: boolean;
@@ -1018,12 +1133,15 @@ export async function runFullContentSync(log?: Logger): Promise<{
   shorts: boolean;
   livestream: boolean;
   conferences: boolean;
+  testimonies: boolean;
+  blogPosts: boolean;
 }> {
   const results = {
     sermons: false, activity: false, devotionals: false,
     faqs: false, shorts: false, livestream: false, conferences: false,
+    testimonies: false, blogPosts: false,
   };
-  log?.info("Starting full AI knowledge content sync...");
+  log?.info("Starting full AI knowledge content sync (v4 — 9 content types)...");
   const t0 = Date.now();
 
   await Promise.allSettled([
@@ -1034,8 +1152,10 @@ export async function runFullContentSync(log?: Logger): Promise<{
     ingestMinistryShorts(log).then(() => { results.shorts = true; }),
     ingestLiveStreamContext(log).then(() => { results.livestream = true; }),
     ingestConferenceData(log).then(() => { results.conferences = true; }),
+    ingestTestimonies(log).then(() => { results.testimonies = true; }),
+    ingestBlogPosts(log).then(() => { results.blogPosts = true; }),
   ]);
 
-  log?.info({ ...results, durationMs: Date.now() - t0 }, "Full AI knowledge content sync complete");
+  log?.info({ ...results, durationMs: Date.now() - t0 }, "Full AI knowledge content sync v4 complete");
   return results;
 }

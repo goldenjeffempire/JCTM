@@ -1,5 +1,5 @@
 import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds, refreshFeaturedSermon } from "./youtube-sync.js";
-import { ingestAllSermons, ingestActivityLearning, runFullContentSync } from "./knowledge-ingestion.js";
+import { ingestAllSermons, ingestActivityLearning, ingestTestimonies, ingestBlogPosts, runFullContentSync } from "./knowledge-ingestion.js";
 import { startContentSyncScheduler, stopContentSyncScheduler } from "./content-sync-scheduler.js";
 import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
@@ -26,6 +26,7 @@ let rssCronHandle:       ReturnType<typeof setInterval> | null = null;
 let websubCronHandle:    ReturnType<typeof setInterval> | null = null;
 let metadataCronHandle:  ReturnType<typeof setInterval> | null = null;
 let reminderCronHandle:  ReturnType<typeof setInterval> | null = null;
+let aiKnowledgeRefreshHandle: ReturnType<typeof setInterval> | null = null;
 let apiStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
@@ -38,6 +39,7 @@ let quotaPausedUntil: number | null = null;
 let rssBackoffUntil: number | null = null;
 const RSS_404_BACKOFF_MS = 30 * 60 * 1000; // 30 min cooldown after 404 (hosting IP restriction)
 let lastWebSubRenewal: Date | null = null;
+let lastAIKnowledgeRefresh: Date | null = null;
 let webSubCallbackUrl: string | null = null;
 let lastRSSSync: Date | null = null;
 let lastAPISync: Date | null = null;
@@ -316,6 +318,10 @@ export function getCronState() {
     ai: {
       mode: "local",
       externalAIEnabled: false,
+      lastKnowledgeRefresh: lastAIKnowledgeRefresh?.toISOString() ?? null,
+      nextKnowledgeRefresh: lastAIKnowledgeRefresh
+        ? new Date(lastAIKnowledgeRefresh.getTime() + 6 * 60 * 60 * 1000).toISOString()
+        : null,
     },
     lastSyncError: lastSyncError ?? null,
     running: {
@@ -1591,6 +1597,37 @@ export function startCron(log: Logger, websubUrl?: string): void {
     runFullContentSync(log).catch(err => log.warn({ err }, "Startup full content sync failed (non-fatal)"));
   }, 90_000);
 
+  // ── AI Knowledge Refresh — every 6 hours ─────────────────────────────────
+  // Incrementally re-indexes sermons, testimonies, blog posts, and activity
+  // learning so TempleBots always has current ministry knowledge without a
+  // full sync (which is heavier and only needed at startup / major deploys).
+  const AI_KNOWLEDGE_REFRESH_MS = 6 * 60 * 60 * 1000;
+  setTimeout(() => {
+    Promise.allSettled([
+      ingestAllSermons(log),
+      ingestActivityLearning(log),
+      ingestTestimonies(log),
+      ingestBlogPosts(log),
+    ]).then(() => {
+      lastAIKnowledgeRefresh = new Date();
+      log.info("AI knowledge incremental refresh complete (sermons, activity, testimonies, blog)");
+    }).catch(err => log.warn({ err }, "AI knowledge refresh startup failed (non-fatal)"));
+
+    aiKnowledgeRefreshHandle = setInterval(() => {
+      Promise.allSettled([
+        ingestAllSermons(log),
+        ingestActivityLearning(log),
+        ingestTestimonies(log),
+        ingestBlogPosts(log),
+      ]).then(() => {
+        lastAIKnowledgeRefresh = new Date();
+        log.info("AI knowledge 6h incremental refresh complete");
+      }).catch(err => log.warn({ err }, "AI knowledge 6h refresh failed (non-fatal)"));
+    }, AI_KNOWLEDGE_REFRESH_MS);
+    if (aiKnowledgeRefreshHandle) aiKnowledgeRefreshHandle.unref();
+    log.info({ intervalMs: AI_KNOWLEDGE_REFRESH_MS }, "AI knowledge 6h refresh scheduler started");
+  }, 3 * 60 * 1000); // start first refresh after 3 minutes (after startup sync settles)
+
   // ── Continuous AI content sync scheduler ──────────────────────────────────
   // Starts after 2-min delay to let the initial startup sync complete first.
   setTimeout(() => {
@@ -1792,7 +1829,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
 export function stopCron(): void {
   stopEventNotificationWorker();
   stopContentSyncScheduler();
-  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle, aiKnowledgeRefreshHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]
     .forEach(h => h && clearTimeout(h));

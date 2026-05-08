@@ -9,8 +9,29 @@ import { localAIEnhancer } from "../lib/local-ai-enhancer.js";
 import { embed } from "../lib/local-embeddings.js";
 import { cacheGet, cacheSet } from "../lib/ai-response-cache.js";
 import { analyzeSentiment } from "../lib/sentiment-engine.js";
-import { updateSessionFromMessage } from "../lib/ai-personalization.js";
+import { updateSessionFromMessage, buildPersonalizationContext } from "../lib/ai-personalization.js";
 import { runFullContentSync } from "../lib/knowledge-ingestion.js";
+import {
+  classifyIntent,
+  applyIntentWeights,
+  buildIntentSystemNote,
+  isOffTopic,
+  type RagChunkWithType,
+} from "../lib/ai-intent-classifier.js";
+import {
+  loadUserMemory,
+  updateUserMemory,
+  buildMemoryContext,
+  extractPrayerNeed,
+} from "../lib/ai-user-memory.js";
+import {
+  checkQuerySafety,
+  detectManipulation,
+  MANIPULATION_RESPONSE,
+  extractScriptureReferences,
+  checkResponseGrounding,
+} from "../lib/ai-safety.js";
+import { buildAugmentedHistory } from "../lib/ai-conversation-summarizer.js";
 
 const { Pool } = pg;
 
@@ -114,8 +135,33 @@ JCTM teaches all five offices from Ephesians 4:11 are still active today:
 - Email: info@jctm.org.ng
 `;
 
-// ── System prompt (built dynamically to include current date) ─────────────────
-function buildSystemPrompt(): string {
+// ── Cached known video IDs for grounding checks ───────────────────────────────
+const knownVideoIdCache: { ids: Set<string>; expiresAt: number } = {
+  ids: new Set(),
+  expiresAt: 0,
+};
+
+async function getKnownVideoIds(): Promise<Set<string>> {
+  if (knownVideoIdCache.expiresAt > Date.now()) return knownVideoIdCache.ids;
+  try {
+    const rows = await ragPool.query<{ video_id: string }>(
+      `SELECT video_id FROM sermon_data LIMIT 500`,
+    );
+    const ids = new Set(rows.rows.map(r => r.video_id));
+    knownVideoIdCache.ids = ids;
+    knownVideoIdCache.expiresAt = Date.now() + 10 * 60_000;
+    return ids;
+  } catch {
+    return new Set();
+  }
+}
+
+// ── System prompt (built dynamically to include current date + context) ────────
+function buildSystemPrompt(options?: {
+  memoryContext?: string;
+  intentNote?: string;
+  personalizationNote?: string;
+}): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-GB", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -123,6 +169,10 @@ function buildSystemPrompt(): string {
   const timeStr = now.toLocaleTimeString("en-GB", {
     hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos", timeZoneName: "short",
   });
+
+  const memoryBlock = options?.memoryContext ?? "";
+  const intentBlock = options?.intentNote ? `\n\n## QUERY CONTEXT:\n${options.intentNote}` : "";
+  const personBlock = options?.personalizationNote ? `\n\n## USER PROFILE:\n${options.personalizationNote}` : "";
 
   return `You are TempleBots, the official AI assistant of Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor.
 
@@ -200,7 +250,7 @@ FALLBACK RULE:
 - If you don't know an answer based on JCTM doctrine, say so honestly and direct them to: Temple TV YouTube (@TEMPLETVJCTM) or email info@jctm.org.ng
 
 TONE: Warm, authoritative, scripturally precise, and pastoral. Speak as the ministry's trusted spiritual guide. In emotional situations, humanity and compassion come before doctrine.
-${JCTM_KNOWLEDGE_BASE}`;
+${JCTM_KNOWLEDGE_BASE}${memoryBlock}${intentBlock}${personBlock}`;
 }
 
 // TEMPLEBOTS_SYSTEM_PROMPT is intentionally not cached — buildSystemPrompt()
@@ -241,14 +291,16 @@ function getClientIp(req: Request): string {
 }
 
 // ── RAG: Hybrid search — vector similarity + full-text keyword (RRF fusion) ────
-// Returns top-8 chunks ranked by Reciprocal Rank Fusion of both retrieval methods.
-// A chunk scoring in both vector and keyword gets a boosted score.
-// Threshold: 0.15 similarity (wider recall than previous 0.2).
+// Returns top-15 chunks ranked by Reciprocal Rank Fusion of both retrieval
+// methods, then re-ranked by intent-based chunk_type weights for precision.
+// A chunk scoring in both vector and keyword gets a cross-method boost.
+// Threshold: 0.10 similarity (wide recall, intent re-ranking provides precision).
 
-interface RagChunk { content: string; source: string; score: number }
-
-async function getRelevantKnowledge(query: string): Promise<{ context: string; sourceCount: number }> {
-  const scored = new Map<string, RagChunk>(); // key = source
+async function getRelevantKnowledge(
+  query: string,
+  intentWeights?: Record<string, number>,
+): Promise<{ context: string; sourceCount: number }> {
+  const scored = new Map<string, RagChunkWithType>();
 
   // ── Tier A: pgvector cosine similarity ────────────────────────────────────
   try {
@@ -264,14 +316,18 @@ async function getRelevantKnowledge(query: string): Promise<{ context: string; s
         [vectorStr],
       );
       vectorRows.rows.forEach((r, rank) => {
-        if (r.similarity < 0.10) return; // wider quality gate (was 0.15)
+        if (r.similarity < 0.10) return;
         const rrfScore = 1 / (60 + rank + 1);
-        const key = `${r.source}::${rank}`;
         const existing = scored.get(r.source);
         if (existing) {
           existing.score += rrfScore;
         } else {
-          scored.set(key, { content: r.content, source: r.source, score: rrfScore });
+          scored.set(r.source, {
+            content: r.content,
+            source: r.source,
+            chunk_type: r.chunk_type ?? "doctrine",
+            score: rrfScore,
+          });
         }
       });
     }
@@ -288,8 +344,8 @@ async function getRelevantKnowledge(query: string): Promise<{ context: string; s
     if (words.length > 0) {
       const conditions = words.map((_, i) => `content ILIKE $${i + 1}`).join(" OR ");
       const params = words.map(w => `%${w}%`);
-      const kwRows = await ragPool.query<{ content: string; source: string }>(
-        `SELECT content, source FROM knowledge_chunks WHERE (${conditions}) LIMIT 10`,
+      const kwRows = await ragPool.query<{ content: string; source: string; chunk_type: string }>(
+        `SELECT content, source, chunk_type FROM knowledge_chunks WHERE (${conditions}) LIMIT 10`,
         params,
       );
       kwRows.rows.forEach((r, rank) => {
@@ -298,32 +354,44 @@ async function getRelevantKnowledge(query: string): Promise<{ context: string; s
         if (existing) {
           existing.score += rrfScore; // cross-method boost
         } else {
-          scored.set(r.source, { content: r.content, source: r.source, score: rrfScore });
+          scored.set(r.source, {
+            content: r.content,
+            source: r.source,
+            chunk_type: r.chunk_type ?? "doctrine",
+            score: rrfScore,
+          });
         }
       });
     } else {
-      // No valid words — pull a few general chunks as context
-      const fallback = await ragPool.query<{ content: string; source: string }>(
-        `SELECT content, source FROM knowledge_chunks LIMIT 4`,
+      const fallback = await ragPool.query<{ content: string; source: string; chunk_type: string }>(
+        `SELECT content, source, chunk_type FROM knowledge_chunks LIMIT 4`,
       );
       fallback.rows.forEach(r => {
         if (!scored.has(r.source)) {
-          scored.set(r.source, { content: r.content, source: r.source, score: 0.005 });
+          scored.set(r.source, {
+            content: r.content,
+            source: r.source,
+            chunk_type: r.chunk_type ?? "doctrine",
+            score: 0.005,
+          });
         }
       });
     }
   } catch { /* non-fatal */ }
 
-  // ── Rank + limit to top 15 ────────────────────────────────────────────────
-  const top = Array.from(scored.values())
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 15);
+  // ── Intent-weighted re-ranking + limit to top 15 ──────────────────────────
+  const rawChunks = Array.from(scored.values());
+  const reranked = intentWeights
+    ? applyIntentWeights(rawChunks, intentWeights)
+    : rawChunks.sort((a, b) => b.score - a.score);
+
+  const top = reranked.slice(0, 15);
 
   if (top.length === 0) return { context: "", sourceCount: 0 };
 
   const context =
-    "\n\n## MOST RELEVANT JCTM KNOWLEDGE (hybrid semantic + keyword, top-15 ranked chunks):\n" +
-    top.map(r => `[${r.source}] ${r.content}`).join("\n\n");
+    "\n\n## MOST RELEVANT JCTM KNOWLEDGE (hybrid semantic + keyword + intent-ranked, top-15 chunks):\n" +
+    top.map(r => `[${r.source}|${r.chunk_type}] ${r.content}`).join("\n\n");
 
   return { context, sourceCount: top.length };
 }
@@ -332,25 +400,34 @@ async function getRelevantKnowledge(query: string): Promise<{ context: string; s
 // Falls back gracefully to local AI if OpenAI is unavailable, rate-limited,
 // or if the API key is not set. Response is always JCTM-grounded via RAG context.
 
-async function callOpenAI(
-  userMessage: string,
-  history: Array<{ role: "user" | "assistant"; content: string }>,
-  ragContext: string,
-  language: string,
-): Promise<string | null> {
+interface OpenAICallOptions {
+  userMessage: string;
+  history: Array<{ role: "user" | "assistant"; content: string }>;
+  ragContext: string;
+  language: string;
+  memoryContext?: string;
+  intentNote?: string;
+  personalizationNote?: string;
+}
+
+async function callOpenAI(opts: OpenAICallOptions): Promise<string | null> {
   if (!openaiClient) return null;
+  const { userMessage, history, ragContext, language, memoryContext, intentNote, personalizationNote } = opts;
   try {
     const langNote =
       language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
     const systemWithContext =
-      buildSystemPrompt() +
+      buildSystemPrompt({ memoryContext, intentNote, personalizationNote }) +
       (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
+
+    // Use summarized history to stay within context window efficiently
+    const augmentedHistory = buildAugmentedHistory(history);
 
     const completion = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemWithContext },
-        ...history.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
+        ...augmentedHistory.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: userMessage + langNote },
       ],
       max_tokens: 1200,
@@ -363,26 +440,24 @@ async function callOpenAI(
 }
 
 // OpenAI streaming variant — yields text chunks for SSE
-async function* streamOpenAI(
-  userMessage: string,
-  history: Array<{ role: "user" | "assistant"; content: string }>,
-  ragContext: string,
-  language: string,
-): AsyncGenerator<string, void, unknown> {
+async function* streamOpenAI(opts: OpenAICallOptions): AsyncGenerator<string, void, unknown> {
   if (!openaiClient) return;
+  const { userMessage, history, ragContext, language, memoryContext, intentNote, personalizationNote } = opts;
   try {
     const langNote =
       language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
     const systemWithContext =
-      buildSystemPrompt() +
+      buildSystemPrompt({ memoryContext, intentNote, personalizationNote }) +
       (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
+
+    const augmentedHistory = buildAugmentedHistory(history);
 
     const stream = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       stream: true,
       messages: [
         { role: "system", content: systemWithContext },
-        ...history.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
+        ...augmentedHistory.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: userMessage + langNote },
       ],
       max_tokens: 1200,
@@ -692,21 +767,33 @@ async function buildLocalEnrichedResponse(
   sessionId: string | undefined,
   language: string,
   localEnrichmentContext: string,
+  intentWeights?: Record<string, number>,
+  memoryContext?: string,
+  intentNote?: string,
+  personalizationNote?: string,
 ): Promise<{ reply: string; conversationId: number; tier: string; sourceChunks: number; openaiUsed: boolean }> {
   const [sermonContext, ragResult, activityContext, conversationId] = await Promise.all([
     buildSermonContext(),
-    getRelevantKnowledge(userMessage),
+    getRelevantKnowledge(userMessage, intentWeights),
     buildActivityContext(),
     getOrCreateConversation(sessionId),
   ]);
 
-  const dbHistory = await loadConversationHistory(conversationId, 10);
-  const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-10);
+  const dbHistory = await loadConversationHistory(conversationId, 20);
+  const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-20);
 
-  // ── Tier 2.5: OpenAI GPT-4o-mini (when API key available) ────────────────
+  // ── Tier 2.5: OpenAI GPT-4o (when API key available) ─────────────────────
   if (openaiClient) {
     const openAIContext = [sermonContext, ragResult.context, activityContext].filter(Boolean).join("\n");
-    const openAIReply = await callOpenAI(userMessage, history, openAIContext, language);
+    const openAIReply = await callOpenAI({
+      userMessage,
+      history,
+      ragContext: openAIContext,
+      language,
+      memoryContext,
+      intentNote,
+      personalizationNote,
+    });
     if (openAIReply) {
       return { reply: openAIReply, conversationId, tier: "openai", sourceChunks: ragResult.sourceCount, openaiUsed: true };
     }
@@ -714,12 +801,14 @@ async function buildLocalEnrichedResponse(
   }
 
   // ── Tier 2: Local enriched AI (fallback) ─────────────────────────────────
+  const recentHistory = buildAugmentedHistory(history);
   const fullContext = [
     sermonContext,
     ragResult.context,
     activityContext,
+    memoryContext ? `\n\nUser Memory:\n${memoryContext}` : "",
     localEnrichmentContext ? `\n\nLocal AI Engine Analysis:\n${localEnrichmentContext}` : "",
-    history.slice(-4).map(h => `${h.role === "user" ? "User" : "TempleBots"}: ${h.content.slice(0, 200)}`).join("\n"),
+    recentHistory.slice(-4).map(h => `${h.role === "user" ? "User" : "TempleBots"}: ${h.content.slice(0, 200)}`).join("\n"),
   ].filter(Boolean).join("\n");
 
   const langName = SUPPORTED_LANGUAGE_NAMES[language] ?? "English";
@@ -727,7 +816,7 @@ async function buildLocalEnrichedResponse(
 
   const reply = await localAIEnhancer({
     query: userMessage + langNote,
-    conversationHistory: history,
+    conversationHistory: recentHistory,
     ragContext: fullContext,
   });
 
@@ -752,6 +841,51 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const language = typeof req.body?.language === "string" ? req.body.language : "en";
 
   try {
+    // ── Safety Gate — manipulative / harmful query detection ──────────────
+    if (detectManipulation(message)) {
+      res.json(
+        ChatWithTempleBotsResponse.parse({
+          reply: MANIPULATION_RESPONSE,
+          sessionId: sessionId ?? "0",
+          sources: [],
+          meta: { tier: "safety-redirect", cached: false },
+        }),
+      );
+      return;
+    }
+
+    const safetyResult = checkQuerySafety(message);
+    if (safetyResult.level === "crisis" || safetyResult.level === "blocked") {
+      const conversationId = await getOrCreateConversation(sessionId ?? undefined);
+      const reply = safetyResult.redirectResponse ?? "Please contact JCTM directly at info@jctm.org.ng for support.";
+      await persistMessages(conversationId, message, reply);
+      res.json(
+        ChatWithTempleBotsResponse.parse({
+          reply,
+          sessionId: String(conversationId),
+          sources: [],
+          meta: { tier: "safety-crisis", crisisType: safetyResult.crisisType },
+        }),
+      );
+      return;
+    }
+
+    if (safetyResult.level === "redirect") {
+      res.json(
+        ChatWithTempleBotsResponse.parse({
+          reply: safetyResult.redirectResponse!,
+          sessionId: sessionId ?? "0",
+          sources: [],
+          meta: { tier: "safety-redirect" },
+        }),
+      );
+      return;
+    }
+
+    // ── Intent Classification ─────────────────────────────────────────────
+    const intentResult = classifyIntent(message);
+    const intentNote = buildIntentSystemNote(intentResult);
+
     // ── TIER 0: Cache lookup + sentiment analysis + personalization ────────
     const [cacheResult, sentiment] = await Promise.all([
       language === "en" ? cacheGet(message) : Promise.resolve({ found: false as const }),
@@ -762,6 +896,28 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     if (sessionId) {
       try { updateSessionFromMessage(sessionId, message); } catch { /* non-critical */ }
     }
+
+    // ── Load persistent user memory (non-blocking) ────────────────────────
+    const sessionFingerprint = sessionId ?? ip;
+    const [userMemory] = await Promise.all([
+      loadUserMemory(sessionFingerprint).catch(() => null),
+    ]);
+    const memCtx = buildMemoryContext(userMemory);
+    const personCtx = buildPersonalizationContext(sessionFingerprint);
+    const personalizationNote = personCtx.dominantTopics.length > 0
+      ? `User journey: ${personCtx.journeyStage} | Topics of interest: ${personCtx.dominantTopics.join(", ")}`
+      : undefined;
+
+    // ── Fire-and-forget memory update ─────────────────────────────────────
+    const prayerNeed = extractPrayerNeed(message);
+    updateUserMemory({
+      sessionFingerprint,
+      detectedName: userMemory?.detectedName ?? null,
+      newPrayerNeed: prayerNeed,
+      topicsOfInterest: personCtx.dominantTopics,
+      spiritualMaturity: personCtx.spiritualMaturity,
+      incrementMessages: true,
+    }).catch(() => {});
 
     if (cacheResult.found) {
       const conversationId = await getOrCreateConversation(sessionId ?? undefined);
@@ -782,14 +938,14 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
-    if (!localResult.needsEnrichment && localResult.response && language === "en") {
+    if (!localResult.needsEnrichment && !intentResult.requiresOpenAI && localResult.response && language === "en") {
       const conversationId = await getOrCreateConversation(sessionId ?? undefined);
       const { cleanReply, action } = extractAction(localResult.response);
       const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
       const sources = extractSources(cleanReply);
+      const scriptures = extractScriptureReferences(cleanReply);
 
       await persistMessages(conversationId, message, cleanReply);
-      // Cache the response for similar future queries
       cacheSet(message, cleanReply, "local", localResult.confidence ?? 0.8).catch(() => {});
 
       res.json(
@@ -801,6 +957,8 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
           meta: {
             tier: "local",
             sentiment: { emotion: sentiment.primaryEmotion, urgency: sentiment.urgencyLevel },
+            intent: intentResult.intent,
+            scriptures: scriptures.length > 0 ? scriptures : undefined,
           },
         }),
       );
@@ -821,17 +979,28 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         sessionId ?? undefined,
         language,
         localResult.enrichmentContext ?? "",
+        intentResult.chunkTypeWeights,
+        memCtx.contextBlock || undefined,
+        intentNote || undefined,
+        personalizationNote,
       );
 
     const { cleanReply, action } = extractAction(rawReply);
     const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
+    const scriptures = extractScriptureReferences(cleanReply);
     const latencyMs = Date.now() - t0;
 
+    // Grounding check (non-blocking, informational)
+    getKnownVideoIds().then(videoIds => {
+      const grounding = checkResponseGrounding(cleanReply, videoIds);
+      if (!grounding.isGrounded && grounding.warnings.length > 0) {
+        req.log.warn({ warnings: grounding.warnings, query: message.slice(0, 80) }, "AI response grounding warning");
+      }
+    }).catch(() => {});
+
     await persistMessages(conversationId, message, cleanReply);
-    // Cache responses for future similar queries
     cacheSet(message, cleanReply, tier, 0.85).catch(() => {});
-    // Log interaction for monitoring (non-blocking)
     logAIInteraction({
       sessionId: sessionId ?? undefined,
       query: message,
@@ -840,7 +1009,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       sourceChunks,
       cacheHit: false,
       openaiUsed,
-      intent: localResult.enrichmentContext ? "enriched" : undefined,
+      intent: intentResult.intent,
       sentiment: sentiment.primaryEmotion,
       language,
       action: finalAction,
@@ -852,7 +1021,13 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         sessionId: String(conversationId),
         sources,
         action: finalAction ?? undefined,
-        meta: { tier, sourceChunks, openaiUsed },
+        meta: {
+          tier,
+          sourceChunks,
+          openaiUsed,
+          intent: intentResult.intent,
+          scriptures: scriptures.length > 0 ? scriptures : undefined,
+        },
       }),
     );
   } catch (err: unknown) {
@@ -900,14 +1075,80 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
   res.on("close", () => controller.abort());
 
   try {
+    // ── Safety Gate ────────────────────────────────────────────────────────
+    if (detectManipulation(message)) {
+      if (!res.writableEnded) {
+        for await (const chunk of streamLocalResponse(MANIPULATION_RESPONSE)) {
+          send({ delta: chunk });
+        }
+        send({ done: true, sessionId: sessionId ?? "0", sources: [], action: null });
+        res.end();
+      }
+      clearTimeout(timeout);
+      return;
+    }
+
+    const safetyResult = checkQuerySafety(message);
+    if (safetyResult.redirectResponse) {
+      if (safetyResult.level === "crisis") {
+        const conversationId = await getOrCreateConversation(sessionId ?? undefined);
+        await persistMessages(conversationId, message, safetyResult.redirectResponse);
+        for await (const chunk of streamLocalResponse(safetyResult.redirectResponse)) {
+          if (!res.writableEnded) send({ delta: chunk });
+        }
+        if (!res.writableEnded) {
+          send({ done: true, sessionId: String(conversationId), sources: [], action: null });
+          res.end();
+        }
+      } else {
+        for await (const chunk of streamLocalResponse(safetyResult.redirectResponse)) {
+          if (!res.writableEnded) send({ delta: chunk });
+        }
+        if (!res.writableEnded) {
+          send({ done: true, sessionId: sessionId ?? "0", sources: [], action: null });
+          res.end();
+        }
+      }
+      clearTimeout(timeout);
+      return;
+    }
+
+    // ── Intent + Session + Memory (parallel) ──────────────────────────────
+    const intentResult = classifyIntent(message);
+    const intentNote = buildIntentSystemNote(intentResult);
+    const sessionFingerprint = sessionId ?? ip;
+
+    if (sessionId) {
+      try { updateSessionFromMessage(sessionId, message); } catch { /* non-critical */ }
+    }
+
+    const [userMemory] = await Promise.all([
+      loadUserMemory(sessionFingerprint).catch(() => null),
+    ]);
+    const memCtx = buildMemoryContext(userMemory);
+    const personCtx = buildPersonalizationContext(sessionFingerprint);
+    const personalizationNote = personCtx.dominantTopics.length > 0
+      ? `User journey: ${personCtx.journeyStage} | Topics: ${personCtx.dominantTopics.join(", ")}`
+      : undefined;
+
+    const prayerNeed = extractPrayerNeed(message);
+    updateUserMemory({
+      sessionFingerprint,
+      newPrayerNeed: prayerNeed,
+      topicsOfInterest: personCtx.dominantTopics,
+      spiritualMaturity: personCtx.spiritualMaturity,
+      incrementMessages: true,
+    }).catch(() => {});
+
     // ── TIER 1: Local AI Engine ────────────────────────────────────────────
     const localResult = runLocalInference(message);
 
-    if (!localResult.needsEnrichment && localResult.response && language === "en") {
+    if (!localResult.needsEnrichment && !intentResult.requiresOpenAI && localResult.response && language === "en") {
       const conversationId = await getOrCreateConversation(sessionId ?? undefined);
       const { cleanReply, action } = extractAction(localResult.response);
       const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
       const sources = extractSources(cleanReply);
+      const scriptures = extractScriptureReferences(cleanReply);
 
       for await (const chunk of streamLocalResponse(cleanReply)) {
         if (!res.writableEnded) send({ delta: chunk });
@@ -916,7 +1157,13 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
       await persistMessages(conversationId, message, cleanReply);
 
       if (!res.writableEnded) {
-        send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
+        send({
+          done: true,
+          sessionId: String(conversationId),
+          sources,
+          action: finalAction,
+          meta: { intent: intentResult.intent, scriptures: scriptures.length > 0 ? scriptures : undefined },
+        });
         res.end();
       }
       clearTimeout(timeout);
@@ -933,17 +1180,25 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     if (openaiClient) {
       const [sermonCtx, ragResult, activityCtx, conversationId] = await Promise.all([
         buildSermonContext(),
-        getRelevantKnowledge(message),
+        getRelevantKnowledge(message, intentResult.chunkTypeWeights),
         buildActivityContext(),
         getOrCreateConversation(sessionId ?? undefined),
       ]);
-      const dbHistory = await loadConversationHistory(conversationId, 10);
-      const hist = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-10);
+      const dbHistory = await loadConversationHistory(conversationId, 20);
+      const hist = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-20);
       const openAIContext = [sermonCtx, ragResult.context, activityCtx].filter(Boolean).join("\n");
 
       let openAIFullReply = "";
       let openAIWorked = false;
-      for await (const chunk of streamOpenAI(message, hist, openAIContext, language)) {
+      for await (const chunk of streamOpenAI({
+        userMessage: message,
+        history: hist,
+        ragContext: openAIContext,
+        language,
+        memoryContext: memCtx.contextBlock || undefined,
+        intentNote: intentNote || undefined,
+        personalizationNote,
+      })) {
         openAIWorked = true;
         openAIFullReply += chunk;
         if (!res.writableEnded) send({ delta: chunk });
@@ -953,6 +1208,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
         const { cleanReply, action } = extractAction(openAIFullReply);
         const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
         const sources = extractSources(cleanReply);
+        const scriptures = extractScriptureReferences(cleanReply);
         await persistMessages(conversationId, message, cleanReply);
         logAIInteraction({
           sessionId: sessionId ?? undefined,
@@ -962,11 +1218,18 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
           sourceChunks: ragResult.sourceCount,
           cacheHit: false,
           openaiUsed: true,
+          intent: intentResult.intent,
           language,
           action: finalAction,
         }).catch(() => {});
         if (!res.writableEnded) {
-          send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
+          send({
+            done: true,
+            sessionId: String(conversationId),
+            sources,
+            action: finalAction,
+            meta: { intent: intentResult.intent, scriptures: scriptures.length > 0 ? scriptures : undefined },
+          });
           res.end();
         }
         clearTimeout(timeout);
@@ -982,13 +1245,17 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
       sessionId ?? undefined,
       language,
       localResult.enrichmentContext ?? "",
+      intentResult.chunkTypeWeights,
+      memCtx.contextBlock || undefined,
+      intentNote || undefined,
+      personalizationNote,
     );
 
     const { cleanReply, action } = extractAction(rawReply);
     const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
+    const scriptures = extractScriptureReferences(cleanReply);
 
-    // Stream the local response word-by-word
     for await (const chunk of streamLocalResponse(cleanReply)) {
       if (!res.writableEnded) send({ delta: chunk });
     }
@@ -996,7 +1263,13 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
     await persistMessages(conversationId, message, cleanReply);
 
     if (!res.writableEnded) {
-      send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
+      send({
+        done: true,
+        sessionId: String(conversationId),
+        sources,
+        action: finalAction,
+        meta: { intent: intentResult.intent, scriptures: scriptures.length > 0 ? scriptures : undefined },
+      });
       res.end();
     }
   } catch (err: unknown) {

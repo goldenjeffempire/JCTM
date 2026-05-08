@@ -1,9 +1,9 @@
 /**
- * AI Intelligence Admin Routes — JCTM TempleBots Observability
+ * AI Intelligence Admin Routes — JCTM TempleBots Observability v4
  *
  * Endpoints for monitoring, managing, and improving the TempleBots AI system.
- * These routes expose knowledge base stats, interaction metrics, and admin
- * controls for the sermon transcription pipeline and knowledge sync.
+ * Exposes knowledge base stats, interaction metrics, user memory analytics,
+ * intent classification stats, safety event logs, and admin controls.
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -14,6 +14,7 @@ import {
   transcribeSermonBatch,
   resetFailedTranscriptions,
 } from "../lib/sermon-transcription.js";
+import { getMemoryStats } from "../lib/ai-user-memory.js";
 
 const { Pool } = pg;
 const router: IRouter = Router();
@@ -237,6 +238,87 @@ router.get("/admin/ai/knowledge", async (req: Request, res: Response): Promise<v
     });
   } catch (err) {
     res.status(500).json({ error: "Knowledge query failed", detail: String(err) });
+  }
+});
+
+// ─── GET /api/admin/ai/memory ─────────────────────────────────────────────────
+// Returns aggregate stats about the persistent user memory system.
+
+router.get("/admin/ai/memory", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [memStats, recentRes] = await Promise.all([
+      getMemoryStats(),
+      pool.query<{
+        detected_name: string | null;
+        spiritual_maturity: string;
+        message_count: number;
+        conversation_count: number;
+        last_active_at: string;
+        topics_of_interest: string[];
+      }>(
+        `SELECT detected_name, spiritual_maturity, message_count, conversation_count,
+                last_active_at, topics_of_interest
+         FROM user_ai_memory
+         ORDER BY last_active_at DESC LIMIT 10`,
+      ),
+    ]);
+
+    res.json({
+      aggregate: memStats,
+      recentProfiles: recentRes.rows.map(r => ({
+        name: r.detected_name ?? "Anonymous",
+        spiritualMaturity: r.spiritual_maturity,
+        messageCount: r.message_count,
+        conversationCount: r.conversation_count,
+        lastActiveAt: r.last_active_at,
+        topTopics: (r.topics_of_interest ?? []).slice(0, 3),
+      })),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Memory stats query failed", detail: String(err) });
+  }
+});
+
+// ─── GET /api/admin/ai/intents ────────────────────────────────────────────────
+// Returns the intent distribution from recent AI interactions.
+
+router.get("/admin/ai/intents", async (req: Request, res: Response): Promise<void> => {
+  const days = Math.min(parseInt(String(req.query["days"] ?? "7"), 10), 90);
+  try {
+    const [intentRes, topQueriesRes] = await Promise.all([
+      pool.query<{ intent: string; count: string; avg_latency: string }>(
+        `SELECT intent, COUNT(*) as count, ROUND(AVG(latency_ms)) as avg_latency
+         FROM ai_interactions
+         WHERE created_at >= NOW() - INTERVAL '${days} days'
+           AND intent IS NOT NULL AND intent != ''
+         GROUP BY intent ORDER BY count DESC`,
+      ),
+      pool.query<{ query: string; intent: string; tier: string; created_at: string }>(
+        `SELECT query, intent, tier, created_at
+         FROM ai_interactions
+         WHERE created_at >= NOW() - INTERVAL '${days} days' AND intent IS NOT NULL
+         ORDER BY created_at DESC LIMIT 20`,
+      ),
+    ]);
+
+    res.json({
+      period: `${days}d`,
+      intentDistribution: intentRes.rows.map(r => ({
+        intent: r.intent,
+        count: parseInt(r.count, 10),
+        avgLatencyMs: parseFloat(r.avg_latency ?? "0"),
+      })),
+      recentByIntent: topQueriesRes.rows.map(r => ({
+        query: r.query.slice(0, 80),
+        intent: r.intent,
+        tier: r.tier,
+        createdAt: r.created_at,
+      })),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Intent stats query failed", detail: String(err) });
   }
 });
 
