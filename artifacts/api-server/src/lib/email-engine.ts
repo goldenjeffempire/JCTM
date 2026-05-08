@@ -147,7 +147,7 @@ const SEND_RETRY_BACKOFF_MS = [500, 2_000, 8_000];
  * messageId on success or throws the last error on permanent failure /
  * exhausted retries. All errors are recorded in the health state.
  */
-async function sendWithRetry(
+export async function sendWithRetry(
   options: SendMailOptions,
   log: Logger,
   attemptLabel = "email",

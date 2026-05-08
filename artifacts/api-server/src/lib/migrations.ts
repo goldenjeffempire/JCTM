@@ -1008,5 +1008,41 @@ export async function runMigrations(): Promise<void> {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS sponsorship_inquiries_status_idx ON sponsorship_inquiries (status, created_at DESC)`);
 
+  // ── Conference Email Campaigns ────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS conference_campaigns (
+      id               serial      PRIMARY KEY,
+      campaign_key     text        NOT NULL UNIQUE,
+      conference_title text        NOT NULL,
+      status           text        NOT NULL DEFAULT 'pending',
+      total_recipients integer     NOT NULL DEFAULT 0,
+      sent             integer     NOT NULL DEFAULT 0,
+      failed           integer     NOT NULL DEFAULT 0,
+      skipped          integer     NOT NULL DEFAULT 0,
+      started_at       timestamptz,
+      completed_at     timestamptz,
+      error            text,
+      created_at       timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS conference_campaigns_status_idx ON conference_campaigns (status, created_at DESC)`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS conference_campaign_recipients (
+      id             serial      PRIMARY KEY,
+      campaign_id    integer     NOT NULL REFERENCES conference_campaigns(id) ON DELETE CASCADE,
+      email          text        NOT NULL,
+      recipient_name text,
+      source         text        NOT NULL DEFAULT 'unknown',
+      status         text        NOT NULL DEFAULT 'pending',
+      attempts       integer     NOT NULL DEFAULT 0,
+      sent_at        timestamptz,
+      error          text,
+      created_at     timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ccr_campaign_status_idx ON conference_campaign_recipients (campaign_id, status)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ccr_pending_idx ON conference_campaign_recipients (campaign_id, id ASC) WHERE status = 'pending'`);
+
   logger.info("All migrations complete");
 }
