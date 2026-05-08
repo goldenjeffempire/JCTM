@@ -1,0 +1,50 @@
+2026-05-08T12:00:32.006673287Z dist/public/assets/AdminMonetization-Ddu6QSnx.js                                            26.38 kB
+2026-05-08T12:00:32.006675257Z dist/public/assets/Sermons-qYWIy7nM.js                                                      26.67 kB
+2026-05-08T12:00:32.006677227Z dist/public/assets/styling-utils-Qm4_4bAc.js                                                27.30 kB
+2026-05-08T12:00:32.006679217Z dist/public/assets/Events-D59nDhnv.js                                                       33.29 kB
+2026-05-08T12:00:32.006681637Z dist/public/assets/notifications-DQDEJcFR.js                                                33.42 kB
+2026-05-08T12:00:32.006683847Z dist/public/assets/lucide-react-CAGBlecW.js                                                 35.83 kB
+2026-05-08T12:00:32.006685757Z dist/public/assets/TopicDetail-D7_-XCMq.js                                                  37.23 kB
+2026-05-08T12:00:32.006687637Z dist/public/assets/tanstack-query-BU1Oz4Mf.js                                               38.97 kB
+2026-05-08T12:00:32.006689568Z dist/public/assets/Gallery-xd1aazPr.js                                                      43.11 kB
+2026-05-08T12:00:32.006691497Z dist/public/assets/radix-ui-C5A0Nu2V.js                                                     68.67 kB
+2026-05-08T12:00:32.006693468Z dist/public/assets/MinistrySlideshow-BSCiq6GL.js                                            72.41 kB
+2026-05-08T12:00:32.006695438Z dist/public/assets/ConferenceRegistration-C9plpN3F.js                                       75.97 kB
+2026-05-08T12:00:32.006697328Z dist/public/assets/index-48DwRX06.js                                                       107.84 kB
+2026-05-08T12:00:32.006699298Z dist/public/assets/vision_bundle-5rKQB4cz.js                                               131.55 kB
+2026-05-08T12:00:32.006701258Z dist/public/assets/framer-motion-Dy9m-IOP.js                                               132.34 kB
+2026-05-08T12:00:32.006703218Z dist/public/assets/VenueMapLeaflet-D-T6BTrM.js                                             157.17 kB
+2026-05-08T12:00:32.006705138Z dist/public/assets/Layout-C9FXVZlU.js                                                      189.55 kB
+2026-05-08T12:00:32.006709888Z dist/public/assets/react-core-ChxAltXm.js                                                  191.68 kB
+2026-05-08T12:00:32.006711938Z dist/public/assets/Home-kGB1lz3h.js                                                        243.98 kB
+2026-05-08T12:00:32.006722978Z dist/public/assets/Admin-CqRTYjvA.js                                                       259.64 kB
+2026-05-08T12:00:32.006726389Z dist/public/assets/charts-DqpsCAVr.js                                                      441.62 kB
+2026-05-08T12:00:32.006729509Z dist/public/assets/three-core-B75t31X0.js                                                  725.67 kB
+2026-05-08T12:00:32.006732349Z dist/public/assets/dash.all.min-Wi5j2k_C.js                                                991.96 kB
+2026-05-08T12:00:32.006735579Z dist/public/assets/three-react-DO52nqUB.js                                               1,772.01 kB
+2026-05-08T12:00:32.010821129Z ✓ built in 20.12s
+2026-05-08T12:00:33.05247766Z 
+2026-05-08T12:00:33.05250319Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-05-08T12:00:33.052507421Z > node ./build.mjs
+2026-05-08T12:00:33.052510191Z 
+2026-05-08T12:00:33.605555962Z 
+2026-05-08T12:00:33.605579562Z   dist/index.mjs                   3.1mb ⚠️
+2026-05-08T12:00:33.605582292Z   dist/migrate.mjs               947.2kb
+2026-05-08T12:00:33.605584432Z   dist/pino-worker.mjs           153.4kb
+2026-05-08T12:00:33.605586322Z   dist/pino-file.mjs             142.0kb
+2026-05-08T12:00:33.605588392Z   dist/pino-pretty.mjs           114.5kb
+2026-05-08T12:00:33.605590472Z   dist/thread-stream-worker.mjs    7.3kb
+2026-05-08T12:00:33.605592432Z 
+2026-05-08T12:00:33.605594993Z ⚡ Done in 482ms
+2026-05-08T12:00:33.761442763Z {"level":30,"time":1778241633760,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","msg":"Running pre-deploy migrations…"}
+2026-05-08T12:00:35.27889105Z {"level":30,"time":1778241635278,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","msg":"pgvector extension and similarity index ready"}
+2026-05-08T12:00:37.358459842Z {"level":30,"time":1778241637358,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","currentDim":380,"msg":"Migrating knowledge_chunks.embedding from vector(1536) to vector(384)"}
+2026-05-08T12:00:37.636915379Z {"level":30,"time":1778241637636,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","msg":"Embedding column migrated to vector(384) — knowledge base will be re-ingested"}
+2026-05-08T12:00:37.784684933Z {"level":40,"time":1778241637782,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","err":{"type":"DatabaseError","message":"cannot change return type of existing function","stack":"error: cannot change return type of existing function\n    at /opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async runMigrations (file:///opt/render/project/src/artifacts/api-server/dist/migrate.mjs:25848:5)\n    at async main (file:///opt/render/project/src/artifacts/api-server/dist/migrate.mjs:26570:5)","length":223,"name":"error","severity":"ERROR","code":"42P13","detail":"Row type defined by OUT parameters is different.","hint":"Use DROP FUNCTION search_knowledge_chunks(vector,integer) first.","file":"pg_proc.c","line":"441","routine":"ProcedureCreate"},"msg":"Could not create similarity search function — pgvector may not be available"}
+2026-05-08T12:00:42.357893271Z {"level":40,"time":1778241642357,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","role":"gallery","msg":"Admin passphrase for \"gallery\" synced from env var ADMIN_PASSPHRASE_GALLERY → DB. Remove the env var once you have logged in and changed the passphrase via the UI."}
+2026-05-08T12:00:42.467529927Z {"level":40,"time":1778241642467,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","role":"sermon","msg":"Admin passphrase for \"sermon\" synced from env var ADMIN_PASSPHRASE_SERMON → DB. Remove the env var once you have logged in and changed the passphrase via the UI."}
+2026-05-08T12:00:42.570894409Z {"level":40,"time":1778241642570,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","role":"livestream","msg":"Admin passphrase for \"livestream\" synced from env var ADMIN_PASSPHRASE_LIVESTREAM → DB. Remove the env var once you have logged in and changed the passphrase via the UI."}
+2026-05-08T12:00:45.302473323Z {"level":30,"time":1778241645302,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","msg":"Upgraded pgvector similarity search function (with chunk_type)"}
+2026-05-08T12:00:46.161179698Z {"level":50,"time":1778241646160,"pid":78,"hostname":"bld-d7ut07a8qa3s73alkdm0-vqgk8","err":{"type":"DatabaseError","message":"functions in index expression must be marked IMMUTABLE","stack":"error: functions in index expression must be marked IMMUTABLE\n    at /opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async runMigrations (file:///opt/render/project/src/artifacts/api-server/dist/migrate.mjs:26558:3)\n    at async main (file:///opt/render/project/src/artifacts/api-server/dist/migrate.mjs:26570:5)","length":120,"name":"error","severity":"ERROR","code":"42P17","file":"indexcmds.c","line":"1948","routine":"ComputeIndexAttrs"},"msg":"Pre-deploy migrations FAILED — aborting deploy"}
+2026-05-08T12:00:46.19976328Z ==> Build failed 😞
+2026-05-08T12:00:46.199796061Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
