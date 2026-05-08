@@ -1,0 +1,85 @@
+Send automated event notification emails to all email addresses contained in the email file, ensuring complete, reliable, and failure-safe delivery to every recipient without omission.
+All outgoing emails must strictly use the official sending address:
+info@jctm.org.ng
+
+🔧 Content & Branding Requirements
+
+
+Ensure all email content fully aligns with the official Ministers Conference flyer details, with zero inconsistencies or outdated information.
+
+
+Embed or attach the official uploaded flyer image in every email.
+
+
+Remove all Replit or external development URLs completely and replace every reference link with:
+https://jctm.org.ng
+
+
+
+📅 Dynamic Event Subject Logic
+The email subject must dynamically adjust based on real-time event status:
+
+
+Before start time:
+“REMINDER: Ministers Conference Day 1 Starting Soon”
+
+
+After the event begins:
+“REMINDER: Ministers Conference Day 1 Happening Now”
+
+
+For subsequent days, automatically update and cycle through:
+
+
+Day 1
+
+
+Day 2
+
+
+Day 3
+
+
+
+
+Ensure this logic persists until the full 3-day Ministers Conference is completed, with accurate real-time tracking of event progression.
+
+📩 Additional Email Requirements
+
+
+Ensure all emails are professionally structured, cleanly formatted, and aligned with official ministry branding.
+
+
+Optimize all email templates for full responsiveness across mobile, tablet, and desktop devices.
+
+
+Guarantee consistent rendering across major email clients.
+
+
+
+📖 Daily Devotional Automation
+
+
+Automatically send the daily devotional for today to all email addresses in the email file.
+
+
+Ensure full delivery with no omissions, duplicates, or failures.
+
+
+Maintain consistent formatting and spiritual tone aligned with ministry standards.
+
+
+
+❌ Content Cleanup Requirement
+Remove and replace the following outdated template entirely:
+
+“Upcoming at JCTM · Starts tomorrow
+Minister Conference 2026
+When: Friday, 8 May 2026 · 8:00 am – 8:00 pm (GMT+1)
+Where: Ebrumede Temple, JCTM Headquarters, Warri, Delta State
+Three days of ministerial equipping, prophetic impartation, and doctrinal grounding for ministers and leaders. Services begin at 8:00 AM daily (WAT).
+Watch & RSVP
+You're receiving this because you opted in to event reminders from Jesus Christ Temple Ministry.
+Jesus Christ Temple Ministry · Warri, Nigeria · Unsubscribe”
+
+Replace it with a fully updated, enterprise-grade, professionally written version consistent with the current Ministers Conference event and branding.
