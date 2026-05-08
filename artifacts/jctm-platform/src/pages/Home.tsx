@@ -3887,96 +3887,6 @@ function BlogPreviewSection() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GALLERY PREVIEW SECTION
-// ═══════════════════════════════════════════════════════════════════════════
-function GalleryPreviewSection() {
-  const { data: galleryItems, isLoading } = useQuery<Array<{ id: number; title: string; thumbnailPath: string | null; category: string | null }>>({
-    queryKey: ["/api/gallery?limit=6"],
-    queryFn: () => fetch("/api/gallery?limit=6").then(r => r.json()),
-    staleTime: 10 * 60 * 1000,
-  });
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, amount: 0.1 });
-
-  return (
-    <section ref={ref} className="relative py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, #060b18 0%, #080e1c 100%)" }}>
-      <div className="absolute inset-0 scanlines opacity-[0.015]" />
-      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      <div className="container mx-auto px-4 relative z-10">
-        <motion.div
-          initial="hidden" animate={inView ? "show" : "hidden"} variants={stagger}
-          className="text-center mb-14"
-        >
-          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/8 mb-5">
-            <Camera className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-emerald-400 text-xs font-semibold tracking-widest uppercase">Ministry Gallery</span>
-          </motion.div>
-          <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-serif font-bold text-white mb-3">
-            Moments of{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Glory</span>
-          </motion.h2>
-          <motion.p variants={fadeUp} className="text-white/45 max-w-xl mx-auto">
-            Photographs capturing God's presence across JCTM services, events, and outreaches worldwide.
-          </motion.p>
-        </motion.div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-10">
-          {isLoading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className={`rounded-xl bg-white/3 animate-pulse ${i === 0 ? "aspect-[4/3]" : "aspect-square"}`} />
-              ))
-            : (galleryItems ?? []).slice(0, 6).map((item, i) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, scale: 0.92 }}
-                  animate={inView ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ delay: i * 0.08, type: "spring", stiffness: 90, damping: 20 }}
-                  className={`group relative overflow-hidden rounded-xl border border-white/8 cursor-pointer ${i === 0 ? "md:col-span-2 aspect-[16/9]" : "aspect-square"}`}
-                >
-                  {item.thumbnailPath ? (
-                    <img
-                      src={`/api/gallery/file/${item.thumbnailPath}`}
-                      alt={item.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-emerald-900/30 to-teal-900/30 flex items-center justify-center">
-                      <ImageIcon className="w-10 h-10 text-white/20" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <p className="text-white text-sm font-semibold line-clamp-1">{item.title}</p>
-                    {item.category && (
-                      <p className="text-emerald-400 text-xs mt-0.5">{item.category}</p>
-                    )}
-                  </div>
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                      <Eye className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-        </div>
-
-        <div className="text-center">
-          <Link href="/gallery">
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-emerald-500/30 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/8 transition-all"
-            >
-              <ImageIcon className="w-4 h-4" /> View Full Gallery
-            </motion.button>
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AI ASSISTANT TEASER
@@ -4599,7 +4509,6 @@ export default function Home() {
       <GlobalAltarSection />
       <GivingBand />
       <BlogPreviewSection />
-      <GalleryPreviewSection />
       <AIAssistantTeaser />
       <PrayerWallSection />
       <NewsletterSection />
