@@ -3977,7 +3977,7 @@ function AIAssistantTeaser() {
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => window.dispatchEvent(new CustomEvent("jctm:open-templebots"))}
+                onClick={() => window.dispatchEvent(new CustomEvent("jctm:open-templebots", { detail: { message: "Hello TempleBots! I just discovered the Digital Sanctuary. Can you introduce me to JCTM and the Correction Mandate?" } }))}
                 className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-bold text-white shadow-lg transition-all cursor-pointer"
                 style={{ background: "linear-gradient(135deg, #38BDF8 0%, #7C3AED 100%)", boxShadow: "0 0 30px rgba(56,189,248,0.25)" }}
               >
