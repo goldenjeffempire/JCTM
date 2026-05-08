@@ -12,6 +12,13 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const STREAM_URL = `${BASE}/api/chat/stream`;
 const SUGGEST_URL = `${BASE}/api/ai/suggested-questions`;
+const BIBLE_VOD_URL = `${BASE}/api/bible/verse-of-day`;
+
+interface DailyVerse { reference: string; text: string; book: string; translation: string }
+
+function formatVerseCard(v: DailyVerse): string {
+  return `📖 **Today's Word — ${v.reference}** (${v.translation})\n\n*"${v.text}"*\n\nLet this scripture anchor your heart today. Would you like me to help you reflect on it, study the context, or find related teachings from JCTM?`;
+}
 
 interface Message {
   id: string;
@@ -102,6 +109,16 @@ export function TempleBots() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const historyRef = useRef<HistoryEntry[]>([]);
+  const dailyVerseRef = useRef<DailyVerse | null>(null);
+
+  // Fetch and cache the daily verse once on mount
+  useEffect(() => {
+    if (dailyVerseRef.current) return;
+    fetch(BIBLE_VOD_URL)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: DailyVerse | null) => { if (d?.reference && d.text) dailyVerseRef.current = d; })
+      .catch(() => {});
+  }, []);
 
   // Track conversation history for context
   useEffect(() => {
@@ -125,6 +142,20 @@ export function TempleBots() {
     setMessages([{ id: "1", role: "bot", content: getContextualGreeting(location) }]);
     setSessionId(undefined);
     historyRef.current = [];
+
+    // On the Home page — inject the Verse of the Day as a second bot message
+    // after a short delay so it feels like TempleBots is proactively sharing the Word.
+    if (location === "/" || location === "") {
+      const timer = setTimeout(() => {
+        const verse = dailyVerseRef.current;
+        if (!verse) return;
+        setMessages(prev => [
+          ...prev,
+          { id: `vod-${Date.now()}`, role: "bot", content: formatVerseCard(verse) },
+        ]);
+      }, 950);
+      return () => clearTimeout(timer);
+    }
   }, [location]);
 
   useEffect(() => {
