@@ -5,6 +5,7 @@ export const devotionSubscribersTable = pgTable(
   {
     id: serial("id").primaryKey(),
     email: text("email").notNull().unique(),
+    name: text("name"),
     unsubscribeToken: text("unsubscribe_token").notNull().unique(),
     isActive: boolean("is_active").notNull().default(true),
     subscribedAt: timestamp("subscribed_at", { withTimezone: true }).notNull().defaultNow(),

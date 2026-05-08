@@ -569,6 +569,7 @@ export async function runMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS devotion_subscribers_active_idx
     ON devotion_subscribers (is_active) WHERE is_active = true
   `);
+  await pool.query(`ALTER TABLE devotion_subscribers ADD COLUMN IF NOT EXISTS name text`);
 
   // ── Event Promotions (Time-driven event lifecycle engine) ───────────────────
   await pool.query(`

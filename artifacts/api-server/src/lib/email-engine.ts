@@ -325,97 +325,154 @@ export function renderDevotionEmail(d: DailyDevotion, unsubscribeUrl: string): {
   text: string;
   html: string;
 } {
+  const base = getPublicBaseUrl();
   const subject = `Daily Devotion — ${d.title}`;
+
+  // Format date nicely (e.g. "Thursday, May 8, 2026")
+  let formattedDate = d.date;
+  try {
+    formattedDate = new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+    });
+  } catch { /* use raw date */ }
 
   const text = [
     `JCTM Digital Sanctuary — Daily Devotion`,
-    `${d.date}`,
+    formattedDate,
     ``,
-    `${d.title}`,
-    `${d.scripture}  (${d.reference})`,
+    d.title,
+    ``,
+    `"${d.scripture}"`,
+    `— ${d.reference}`,
     ``,
     `REFLECTION`,
     d.reflection,
     ``,
-    `PROPHETIC WORD`,
+    `PROPHETIC WORD — Through Prophet Amos Evomobor`,
     d.propheticWord,
     ``,
     `PRAYER FOCUS`,
     d.prayerFocus,
     ``,
-    `DECLARATION`,
-    d.declaration,
+    `DECLARATION (Speak this aloud)`,
+    `"${d.declaration}"`,
     ``,
     `— Jesus Christ Temple Ministry, Warri, Nigeria`,
+    `Read devotions online: ${base}/devotion`,
     ``,
-    `Read more devotions: ${getPublicBaseUrl()}/devotion`,
-    `Unsubscribe: ${unsubscribeUrl}`,
+    `To unsubscribe: ${unsubscribeUrl}`,
   ].join("\n");
 
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
-        <tr><td style="padding:28px 32px 18px 32px;border-bottom:1px solid #e5e7eb;">
-          <p style="margin:0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">JCTM Digital Sanctuary</p>
-          <p style="margin:4px 0 0 0;font-size:13px;color:#6b7280;">${escapeHtml(d.date)}</p>
-        </td></tr>
+<meta name="color-scheme" content="light">
+<title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;-webkit-font-smoothing:antialiased;">
 
-        <tr><td style="padding:28px 32px 8px 32px;">
-          <h1 style="margin:0 0 12px 0;font-size:26px;line-height:1.25;color:#0f172a;font-weight:700;">${escapeHtml(d.title)}</h1>
-          <blockquote style="margin:0 0 6px 0;padding:14px 16px;background:#f1f5f9;border-left:4px solid #0f172a;border-radius:4px;color:#0f172a;font-style:italic;font-size:15px;line-height:1.6;">${escapeHtml(d.scripture)}</blockquote>
-          <p style="margin:6px 0 18px 0;font-size:13px;color:#475569;">— ${escapeHtml(d.reference)}</p>
-        </td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px 40px;">
+<tr><td align="center">
 
-        <tr><td style="padding:0 32px 6px 32px;">
-          <h2 style="margin:8px 0 10px 0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;font-weight:600;">Reflection</h2>
-          ${paragraphs(d.reflection)}
-        </td></tr>
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
-        <tr><td style="padding:0 32px 6px 32px;">
-          <h2 style="margin:14px 0 10px 0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;font-weight:600;">Prophetic Word</h2>
-          ${paragraphs(d.propheticWord)}
-        </td></tr>
+    <!-- HEADER -->
+    <tr><td style="background:#0f172a;border-radius:16px 16px 0 0;padding:28px 36px 24px;">
+      <p style="margin:0 0 4px 0;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#64748b;font-weight:600;">Jesus Christ Temple Ministry</p>
+      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Daily Devotion</p>
+      <p style="margin:8px 0 0 0;font-size:13px;color:#94a3b8;">${escapeHtml(formattedDate)}</p>
+    </td></tr>
 
-        <tr><td style="padding:0 32px 6px 32px;">
-          <h2 style="margin:14px 0 10px 0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;font-weight:600;">Prayer Focus</h2>
-          ${paragraphs(d.prayerFocus)}
-        </td></tr>
+    <!-- BODY -->
+    <tr><td style="background:#ffffff;padding:36px 36px 8px;">
 
-        <tr><td style="padding:0 32px 24px 32px;">
-          <h2 style="margin:14px 0 10px 0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;font-weight:600;">Declaration</h2>
-          ${paragraphs(d.declaration)}
-        </td></tr>
+      <!-- Title -->
+      <h1 style="margin:0 0 24px 0;font-size:28px;line-height:1.2;color:#0f172a;font-weight:800;letter-spacing:-0.02em;">${escapeHtml(d.title)}</h1>
 
-        <tr><td style="padding:18px 32px 28px 32px;border-top:1px solid #e5e7eb;background:#fafafa;">
-          <p style="margin:0 0 10px 0;font-size:13px;color:#475569;">Jesus Christ Temple Ministry · Warri, Nigeria</p>
-          <p style="margin:0;font-size:12px;color:#6b7280;">
-            <a href="${escapeHtml(getPublicBaseUrl())}/devotion" style="color:#2563eb;text-decoration:none;">Read on the web</a>
-            &nbsp;·&nbsp;
-            <a href="${escapeHtml(unsubscribeUrl)}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>
-          </p>
+      <!-- Scripture -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+        <tr>
+          <td width="4" style="background:linear-gradient(180deg,#0f172a 0%,#334155 100%);border-radius:4px;">&nbsp;</td>
+          <td style="padding:16px 20px;background:#f8fafc;border-radius:0 8px 8px 0;">
+            <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;font-weight:600;">Scripture</p>
+            <p style="margin:0 0 10px 0;font-size:17px;font-style:italic;line-height:1.6;color:#0f172a;">${escapeHtml(d.scripture)}</p>
+            <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#475569;">— ${escapeHtml(d.reference)}</p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Reflection -->
+      <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Reflection</p>
+      <div style="margin-bottom:28px;font-size:15px;line-height:1.8;color:#374151;">${paragraphs(d.reflection)}</div>
+
+      <!-- Prophetic Word -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+        <tr><td style="background:#fef9f0;border:1px solid #fed7aa;border-radius:10px;padding:20px 22px;">
+          <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;font-weight:600;">Prophetic Word</p>
+          <div style="font-size:15px;line-height:1.75;color:#78350f;font-style:italic;">${paragraphs(d.propheticWord)}</div>
+          <p style="margin:10px 0 0 0;font-size:11px;color:#a16207;font-weight:600;">— Through Prophet Amos Evomobor · JCTM</p>
         </td></tr>
       </table>
+
+      <!-- Prayer Focus -->
+      <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Prayer Focus</p>
+      <div style="margin-bottom:28px;font-size:15px;line-height:1.8;color:#374151;">${paragraphs(d.prayerFocus)}</div>
+
+      <!-- Declaration -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+        <tr><td style="background:#0f172a;border-radius:10px;padding:22px 24px;">
+          <p style="margin:0 0 10px 0;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#64748b;font-weight:600;">Declaration — Speak this aloud</p>
+          <p style="margin:0;font-size:17px;font-style:italic;font-weight:600;line-height:1.55;color:#f8fafc;">&ldquo;${escapeHtml(d.declaration)}&rdquo;</p>
+        </td></tr>
+      </table>
+
     </td></tr>
+
+    <!-- CTA -->
+    <tr><td style="background:#ffffff;padding:0 36px 32px;text-align:center;">
+      <a href="${escapeHtml(base)}/devotion"
+         style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:50px;font-size:14px;font-weight:700;letter-spacing:0.02em;margin-top:4px;">
+        Read on the web →
+      </a>
+    </td></tr>
+
+    <!-- FOOTER -->
+    <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0 0 16px 16px;padding:22px 36px;">
+      <p style="margin:0 0 8px 0;font-size:13px;color:#475569;font-weight:600;">Jesus Christ Temple Ministry</p>
+      <p style="margin:0 0 12px 0;font-size:12px;color:#94a3b8;line-height:1.6;">
+        Ebrumede Roundabout, Effurun, Delta State, Nigeria<br>
+        <a href="${escapeHtml(base)}" style="color:#64748b;text-decoration:none;">jctm.org.ng</a>
+        &nbsp;·&nbsp;
+        <a href="${escapeHtml(base)}/devotion" style="color:#64748b;text-decoration:none;">More Devotions</a>
+      </p>
+      <p style="margin:0;font-size:11px;color:#cbd5e1;">
+        You're receiving this because you subscribed to the JCTM Daily Devotion.
+        &nbsp;<a href="${escapeHtml(unsubscribeUrl)}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+      </p>
+    </td></tr>
+
   </table>
+</td></tr>
+</table>
 </body></html>`;
 
   return { subject, text, html };
 }
 
-export function renderWelcomeEmail(unsubscribeUrl: string): {
+export function renderWelcomeEmail(unsubscribeUrl: string, name?: string): {
   subject: string;
   text: string;
   html: string;
 } {
   const subject = "You're subscribed to JCTM Daily Devotion";
   const base = getPublicBaseUrl();
+  const greeting = name ? `Hello ${name},` : "Welcome,";
   const text = [
-    `Welcome to JCTM Daily Devotion.`,
+    greeting,
+    ``,
+    `You're now subscribed to the JCTM Daily Devotion.`,
     ``,
     `Each morning we'll send you the day's devotion — scripture, reflection,`,
     `prophetic word, prayer focus, and a declaration of faith.`,
