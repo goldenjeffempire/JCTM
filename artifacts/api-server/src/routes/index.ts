@@ -42,6 +42,7 @@ import emailUnsubscribeRouter from "./emailUnsubscribe";
 import emailAnalyticsRouter from "./emailAnalytics";
 import aiIntelligenceRouter from "./aiIntelligence";
 import subscribersRouter from "./subscribers";
+import bibleRouter from "./bible";
 
 const router: IRouter = Router();
 
@@ -90,6 +91,7 @@ router.use(emailUnsubscribeRouter);
 router.use(emailAnalyticsRouter);
 router.use(aiIntelligenceRouter);
 router.use(subscribersRouter);
+router.use(bibleRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

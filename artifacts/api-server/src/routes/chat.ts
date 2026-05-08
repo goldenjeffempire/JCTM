@@ -32,6 +32,7 @@ import {
   checkResponseGrounding,
 } from "../lib/ai-safety.js";
 import { buildAugmentedHistory } from "../lib/ai-conversation-summarizer.js";
+import { fetchScriptureForRAG } from "../lib/bible-seed.js";
 
 const { Pool } = pg;
 
@@ -515,6 +516,34 @@ async function logAIInteraction(data: {
   } catch { /* non-critical — never block a response for logging */ }
 }
 
+// ── Bible-Aware RAG Context Builder ──────────────────────────────────────────
+// Detects scripture references in user's message, fetches exact KJV text from
+// the bible_verses table, and returns a formatted context block for injection
+// into the GPT-4o system prompt. This prevents hallucinated scripture quotes.
+
+const SCRIPTURE_EXTRACT_RE =
+  /\b([1-3]?\s*(?:genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalm|psalms|proverbs|ecclesiastes|song(?:\s+of\s+solomon)?|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation))\s+\d+(?::\d+(?:-\d+)?)?/gi;
+
+async function buildBibleContext(query: string): Promise<string> {
+  try {
+    const rawRefs = Array.from(new Set(
+      (query.match(SCRIPTURE_EXTRACT_RE) ?? []).map(r => r.trim()),
+    )).slice(0, 5); // max 5 refs per query
+
+    if (rawRefs.length === 0) return "";
+
+    const resolved = await Promise.all(rawRefs.map(ref => fetchScriptureForRAG(ref)));
+    const found = resolved.filter(Boolean) as string[];
+
+    if (found.length === 0) return "";
+
+    return "\n\n## EXACT BIBLE TEXT (KJV) — Ground ALL scripture quotes in this:\n" +
+      found.map(v => `📖 ${v}`).join("\n");
+  } catch {
+    return "";
+  }
+}
+
 // ── Recent sermon context ─────────────────────────────────────────────────────
 // Includes title + first 200 chars of description so the AI can reference
 // sermon content, not just titles.
@@ -772,10 +801,11 @@ async function buildLocalEnrichedResponse(
   intentNote?: string,
   personalizationNote?: string,
 ): Promise<{ reply: string; conversationId: number; tier: string; sourceChunks: number; openaiUsed: boolean }> {
-  const [sermonContext, ragResult, activityContext, conversationId] = await Promise.all([
+  const [sermonContext, ragResult, activityContext, bibleContext, conversationId] = await Promise.all([
     buildSermonContext(),
     getRelevantKnowledge(userMessage, intentWeights),
     buildActivityContext(),
+    buildBibleContext(userMessage),
     getOrCreateConversation(sessionId),
   ]);
 
@@ -784,7 +814,7 @@ async function buildLocalEnrichedResponse(
 
   // ── Tier 2.5: OpenAI GPT-4o (when API key available) ─────────────────────
   if (openaiClient) {
-    const openAIContext = [sermonContext, ragResult.context, activityContext].filter(Boolean).join("\n");
+    const openAIContext = [bibleContext, sermonContext, ragResult.context, activityContext].filter(Boolean).join("\n");
     const openAIReply = await callOpenAI({
       userMessage,
       history,
@@ -803,6 +833,7 @@ async function buildLocalEnrichedResponse(
   // ── Tier 2: Local enriched AI (fallback) ─────────────────────────────────
   const recentHistory = buildAugmentedHistory(history);
   const fullContext = [
+    bibleContext,
     sermonContext,
     ragResult.context,
     activityContext,
@@ -1178,15 +1209,16 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
 
     // Try OpenAI streaming first when API key is set
     if (openaiClient) {
-      const [sermonCtx, ragResult, activityCtx, conversationId] = await Promise.all([
+      const [sermonCtx, ragResult, activityCtx, bibleCtx, conversationId] = await Promise.all([
         buildSermonContext(),
         getRelevantKnowledge(message, intentResult.chunkTypeWeights),
         buildActivityContext(),
+        buildBibleContext(message),
         getOrCreateConversation(sessionId ?? undefined),
       ]);
       const dbHistory = await loadConversationHistory(conversationId, 20);
       const hist = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-20);
-      const openAIContext = [sermonCtx, ragResult.context, activityCtx].filter(Boolean).join("\n");
+      const openAIContext = [bibleCtx, sermonCtx, ragResult.context, activityCtx].filter(Boolean).join("\n");
 
       let openAIFullReply = "";
       let openAIWorked = false;

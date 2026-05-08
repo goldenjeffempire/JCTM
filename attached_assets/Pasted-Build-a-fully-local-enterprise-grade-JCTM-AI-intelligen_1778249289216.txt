@@ -1,0 +1,171 @@
+Build a fully local, enterprise-grade JCTM AI intelligence system with capabilities comparable to ChatGPT and Gemini, but completely self-hosted with zero external AI integrations, APIs, or third-party inference services.
+Requirements:
+
+
+Ensure all AI responses are strictly focused on:
+
+
+JCTM teachings
+
+
+Prophet Amos’ preaching and correction mandate
+
+
+Sermons and doctrines
+
+
+Ministry events and announcements
+
+
+Church activities
+
+
+Spiritual guidance and Christian teachings
+
+
+Historical, current, and upcoming ministry activities
+
+
+
+
+Build a complete local ministry knowledge engine that continuously ingests and understands:
+
+
+Sermon videos and transcripts
+
+
+Live streams
+
+
+Website pages
+
+
+Devotionals
+
+
+Events and schedules
+
+
+Announcements
+
+
+Media uploads
+
+
+Ministry archives
+
+
+FAQs
+
+
+Overseer/ministry information
+
+
+
+
+Integrate the full NKJV Bible locally from Genesis to Revelation with:
+
+
+Verse retrieval
+
+
+Scripture search
+
+
+Bible teaching capabilities
+
+
+Contextual scripture explanations
+
+
+Topic-based teachings
+
+
+Sermon-style spiritual guidance
+
+
+Cross-reference understanding
+
+
+
+
+Ensure all teachings and responses remain aligned with the doctrine, correction mandate, and spiritual direction preached by Prophet Amos.
+
+
+Implement advanced local AI architecture including:
+
+
+Local LLM inference
+
+
+RAG + vector database
+
+
+Semantic search
+
+
+Speech-to-text sermon processing
+
+
+Contextual memory
+
+
+Ministry-aware reasoning
+
+
+Long-context conversations
+
+
+Intelligent response grounding
+
+
+
+
+Ensure the AI behaves as a real-time digital ministry assistant fully aware of:
+
+
+Past activities
+
+
+Ongoing live activities
+
+
+Upcoming programs
+
+
+Church schedules
+
+
+Current ministry updates
+
+
+
+
+Optimize the system for:
+
+
+Low latency
+
+
+High scalability
+
+
+GPU acceleration
+
+
+Intelligent caching
+
+
+Queue processing
+
+
+Enterprise-grade reliability
+
+
+Monitoring and observability
+
+
+
+
+Ensure the platform is fully production-ready, secure, self-hosted, offline-capable, and independent from all external AI providers or cloud AI dependencies.
+

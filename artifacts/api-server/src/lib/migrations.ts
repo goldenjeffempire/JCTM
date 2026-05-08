@@ -1201,5 +1201,29 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS uam_last_active_idx    ON user_ai_memory (last_active_at DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS uam_maturity_idx       ON user_ai_memory (spiritual_maturity)`);
 
+  // ── Bible verses database (KJV — public domain) ──────────────────────────────
+  // Stores key Bible verses with full-text search index for the TempleBots
+  // Bible-aware RAG pipeline and the /api/bible/* endpoints.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bible_verses (
+      id          serial      PRIMARY KEY,
+      book        text        NOT NULL,
+      book_abbrev text        NOT NULL,
+      testament   text        NOT NULL DEFAULT 'OT',
+      chapter     integer     NOT NULL,
+      verse       integer     NOT NULL,
+      text        text        NOT NULL,
+      UNIQUE(book_abbrev, chapter, verse)
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS bible_verses_book_chapter_idx ON bible_verses(book_abbrev, chapter)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS bible_verses_ref_idx          ON bible_verses(book_abbrev, chapter, verse)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS bible_verses_testament_idx    ON bible_verses(testament)`);
+  try {
+    await pool.query(`CREATE INDEX IF NOT EXISTS bible_verses_fts_idx ON bible_verses USING gin(to_tsvector('english', text))`);
+  } catch {
+    // GIN index may fail if pg_trgm unavailable — non-fatal, ILIKE fallback active
+  }
+
   logger.info("All migrations complete");
 }

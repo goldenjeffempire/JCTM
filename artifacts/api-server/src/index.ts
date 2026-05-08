@@ -9,6 +9,7 @@ import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
 import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
+import { seedBibleDatabase } from "./lib/bible-seed.js";
 import { runMigrations } from "./lib/migrations.js";
 import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
 import { bootstrapSubscribers } from "./lib/subscriber-manager.js";
@@ -63,6 +64,11 @@ const server = app.listen(port, async (err) => {
   } catch (err) {
     logger.warn({ err }, "Blog library seeding failed — continuing startup");
   }
+
+  // ── Bible database seeding (KJV — idempotent) ─────────────────────────────
+  seedBibleDatabase().catch((err) =>
+    logger.warn({ err }, "Bible database seeding failed — continuing startup"),
+  );
 
   // ── Subscriber registry bootstrap (seed + legacy sync — idempotent) ────────
   bootstrapSubscribers(logger).catch((err) =>

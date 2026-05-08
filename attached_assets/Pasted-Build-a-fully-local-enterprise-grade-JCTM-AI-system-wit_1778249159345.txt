@@ -1,0 +1,55 @@
+Build a fully local, enterprise-grade JCTM AI system with ChatGPT/Gemini-level conversational intelligence, capabilities, and user experience, but fully specialized around JCTM ministry knowledge, teachings, sermons, doctrines, events, and spiritual guidance.
+
+Requirements:
+
+Ensure the AI only responds within the context of:
+JCTM ministry
+Prophet Amos’ teachings and correction mandate
+Christian spirituality and biblical teachings
+JCTM sermons, doctrines, events, announcements, and activities
+Integrate the complete NKJV Bible knowledge system from Genesis to Revelation so the AI can:
+Quote any Bible verse accurately
+Explain scriptures contextually
+Teach and interpret verses spiritually
+Provide sermon-style teachings and guidance
+Reference scriptures naturally during conversations
+Ensure all responses align doctrinally and spiritually with the preaching, teachings, and correction mandate of Prophet Amos.
+Continuously ingest and understand:
+All past sermons
+Live streams and transcripts
+Events and conference activities
+Announcements and devotionals
+Ministry history
+Current and upcoming programs
+Church doctrines and teachings
+Overseer/ministry leadership information
+Website pages and uploaded content
+Implement:
+Advanced RAG architecture
+Vector embeddings and semantic search
+Speech-to-text sermon processing
+Long-term contextual memory
+Real-time indexing and synchronization
+Human-like conversational reasoning
+Ministry-aware contextual intelligence
+Enable the AI to function as:
+A real-time digital ministry assistant
+A Bible teacher and scripture guide
+A sermon-aware spiritual counselor
+A JCTM ministry knowledge engine
+An intelligent Christian teaching assistant
+Optimize the system for:
+Low latency
+Scalability
+Local/self-hosted deployment
+High availability
+Production-grade reliability
+Monitoring, moderation, logging, and hallucination reduction
+Ensure the AI has complete awareness and understanding of:
+The ministry
+Prophet Amos
+JCTM doctrines
+Historical ministry activities
+Current live activities
+Upcoming events and spiritual programs
+The full ministry ecosystem end-to-end.
