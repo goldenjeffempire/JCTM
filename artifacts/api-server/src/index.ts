@@ -13,15 +13,6 @@ import { runMigrations } from "./lib/migrations.js";
 import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
 import { pool } from "@workspace/db";
 
-async function runStartupMigrations() {
-  try {
-    await runMigrations();
-    return;
-  } catch (err) {
-    logger.error({ err }, "Startup migration failed — continuing anyway");
-  }
-}
-
 const rawPort = process.env["PORT"] ?? "8080";
 
 const port = Number(rawPort);
@@ -30,18 +21,10 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-await initSentry();
-await runStartupMigrations();
-try {
-  await checkUptimeOnStartup();
-} catch (err) {
-  logger.warn({ err }, "Uptime startup check failed — continuing");
-}
-try {
-  await seedMinistryBlogLibrary();
-} catch (err) {
-  logger.warn({ err }, "Blog library seeding failed — continuing startup");
-}
+// ── Listen immediately so we claim the port before any other process ──────────
+// All heavy initialization (migrations, seeding, crons) runs in the callback
+// after the port is claimed. This prevents race conditions in dev where the
+// Vite dev server can reclaim port 5000 during the migration window.
 
 const server = app.listen(port, async (err) => {
   if (err) {
@@ -56,7 +39,31 @@ const server = app.listen(port, async (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // ── Admin passphrase config check ────────────────────────────────────────
+  // ── Sentry error tracking ─────────────────────────────────────────────────
+  await initSentry();
+
+  // ── Database migrations (idempotent — safe to re-run on every deploy) ─────
+  try {
+    await runMigrations();
+  } catch (err) {
+    logger.error({ err }, "Startup migration failed — continuing anyway");
+  }
+
+  // ── Uptime check ──────────────────────────────────────────────────────────
+  try {
+    await checkUptimeOnStartup();
+  } catch (err) {
+    logger.warn({ err }, "Uptime startup check failed — continuing");
+  }
+
+  // ── Ministry blog seeding ─────────────────────────────────────────────────
+  try {
+    await seedMinistryBlogLibrary();
+  } catch (err) {
+    logger.warn({ err }, "Blog library seeding failed — continuing startup");
+  }
+
+  // ── Admin passphrase config check ─────────────────────────────────────────
   const adminRoles: AdminRole[] = ["gallery", "sermon", "livestream"];
   const configuredFlags = await Promise.all(adminRoles.map((r) => isRoleConfigured(r)));
   const configured   = adminRoles.filter((_, i) => configuredFlags[i]);
@@ -75,9 +82,7 @@ const server = app.listen(port, async (err) => {
   // Initialize VAPID keys for push notifications
   initVapidKeys(logger);
 
-  // One-shot cleanup of stale push endpoints. Catches subscriptions left
-  // chronically failing by older dispatcher versions that didn't track per-sub
-  // health (the cause of the historical "21% delivery rate" problem).
+  // One-shot cleanup of stale push endpoints.
   void cleanupStalePushSubscriptions(60, logger).catch((err) =>
     logger.warn({ err }, "Startup push cleanup failed"),
   );
@@ -111,7 +116,7 @@ const server = app.listen(port, async (err) => {
   setWebSubCallbackUrl(websubCallback);
   subscribeToWebSub(websubCallback, logger);
 
-  // ── Populate JCTM knowledge base with local embeddings (non-blocking) ────────
+  // ── Populate JCTM knowledge base with local embeddings (non-blocking) ─────
   ingestKnowledgeIfEmpty(undefined, logger).catch((err) => {
     logger.warn({ err }, "Knowledge ingestion failed at startup — TempleBots will use inline knowledge base");
   });

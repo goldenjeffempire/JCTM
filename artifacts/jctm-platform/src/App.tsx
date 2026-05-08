@@ -46,6 +46,7 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const ConferenceRegistration = lazy(() => import("@/pages/ConferenceRegistration"));
 const Status = lazy(() => import("@/pages/Status"));
 const AdminMonetization = lazy(() => import("@/pages/AdminMonetization"));
+const AdminConferenceNotify = lazy(() => import("@/pages/AdminConferenceNotify"));
 const Partner = lazy(() => import("@/pages/Partner"));
 
 const queryClient = new QueryClient({
@@ -112,6 +113,7 @@ function Router() {
         <Route path="/admin" component={Admin} />
         <Route path="/admin/broadcast" component={Admin} />
         <Route path="/admin/monetization" component={AdminMonetization} />
+        <Route path="/admin/conference-notify" component={AdminConferenceNotify} />
         <Route path="/partner" component={Partner} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />

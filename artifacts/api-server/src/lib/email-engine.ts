@@ -1042,3 +1042,164 @@ export async function sendEventNotificationEmail(
     return false;
   }
 }
+
+// ─── Conference Announcement Broadcast Email ─────────────────────────────────
+
+export interface ConferenceBroadcastEmailOpts {
+  recipientName?: string;
+  conferenceTitle: string;
+  tagline?: string;
+  dateStr: string;
+  timeStr?: string;
+  location: string;
+  registrationUrl: string;
+  ministryWebsite?: string;
+}
+
+export function renderConferenceAnnouncementEmail(
+  opts: ConferenceBroadcastEmailOpts,
+): { subject: string; text: string; html: string } {
+  const {
+    recipientName,
+    conferenceTitle,
+    tagline = "A word that will mark you for life.",
+    dateStr,
+    timeStr = "8:00 AM WAT",
+    location,
+    registrationUrl,
+    ministryWebsite = getPublicBaseUrl(),
+  } = opts;
+
+  const greeting = recipientName ? `Dear ${escapeHtml(recipientName)},` : "Dear Beloved,";
+  const subject = `📣 ${conferenceTitle} — You're Invited | JCTM`;
+
+  const text = [
+    `${conferenceTitle}`,
+    tagline,
+    ``,
+    greeting.replace(/&amp;/g, "&").replace(/&#[0-9]+;/g, ""),
+    ``,
+    `We are excited to announce the ${conferenceTitle}!`,
+    ``,
+    `📅 When: ${dateStr} · ${timeStr}`,
+    `📍 Where: ${location}`,
+    ``,
+    `${tagline}`,
+    ``,
+    `Register now and secure your place: ${registrationUrl}`,
+    ``,
+    `— Jesus Christ Temple Ministry, Warri, Nigeria`,
+    `Website: ${ministryWebsite}`,
+  ].join("\n");
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(conferenceTitle)}</title></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:28px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.08);">
+
+        <!-- Header banner -->
+        <tr><td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#1a3a6b 100%);padding:36px 32px 28px 32px;text-align:center;">
+          <p style="margin:0 0 8px 0;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#93c5fd;font-weight:700;">Jesus Christ Temple Ministry · Warri, Nigeria</p>
+          <h1 style="margin:0 0 10px 0;font-size:26px;font-weight:800;color:#ffffff;line-height:1.2;">${escapeHtml(conferenceTitle)}</h1>
+          <p style="margin:0;font-size:15px;color:#bfdbfe;font-style:italic;">"${escapeHtml(tagline)}"</p>
+        </td></tr>
+
+        <!-- You're Invited badge -->
+        <tr><td style="background:#eff6ff;padding:14px 32px;border-bottom:1px solid #dbeafe;text-align:center;">
+          <span style="display:inline-block;background:#1e40af;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:6px 20px;border-radius:9999px;">🎺 You Are Invited</span>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:28px 32px 12px 32px;">
+          <p style="margin:0 0 18px 0;font-size:16px;line-height:1.6;color:#0f172a;">${greeting}</p>
+          <p style="margin:0 0 18px 0;font-size:15px;line-height:1.7;color:#374151;">
+            We are honoured to invite you to the <strong style="color:#0f172a;">${escapeHtml(conferenceTitle)}</strong> — 
+            a powerful gathering of ministers, believers, and seekers coming together under the prophetic mandate of God through Jesus Christ Temple Ministry.
+          </p>
+          <p style="margin:0 0 22px 0;font-size:15px;line-height:1.7;color:#374151;">
+            Come expecting a fresh encounter with the Word, prophetic activation, and an impartation that will mark your life and ministry.
+          </p>
+        </td></tr>
+
+        <!-- Event details box -->
+        <tr><td style="padding:0 32px 24px 32px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+            <tr><td style="padding:18px 22px;border-bottom:1px solid #e2e8f0;">
+              <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;font-weight:600;">📅 Date &amp; Time</p>
+              <p style="margin:6px 0 0 0;font-size:16px;font-weight:700;color:#0f172a;">${escapeHtml(dateStr)}</p>
+              <p style="margin:2px 0 0 0;font-size:14px;color:#475569;">${escapeHtml(timeStr)} daily</p>
+            </td></tr>
+            <tr><td style="padding:18px 22px;">
+              <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;font-weight:600;">📍 Venue</p>
+              <p style="margin:6px 0 0 0;font-size:16px;font-weight:700;color:#0f172a;">${escapeHtml(location)}</p>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- CTA -->
+        <tr><td style="padding:8px 32px 28px 32px;text-align:center;">
+          <a href="${escapeHtml(registrationUrl)}" style="display:inline-block;background:#1e3a5f;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:9999px;font-size:16px;font-weight:700;letter-spacing:0.02em;">
+            Register for the Conference →
+          </a>
+          <p style="margin:16px 0 0 0;font-size:13px;color:#6b7280;">Registration is free. Seats are limited — register today.</p>
+        </td></tr>
+
+        <!-- Watch online note -->
+        <tr><td style="padding:0 32px 24px 32px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#fef9f0;border:1px solid #fed7aa;border-radius:10px;padding:16px 20px;">
+            <tr><td style="padding:0;">
+              <p style="margin:0;font-size:14px;color:#92400e;line-height:1.6;"><strong>📺 Can't make it in person?</strong><br>
+              You can join us live online at <a href="${escapeHtml(ministryWebsite)}/sermons" style="color:#1e3a5f;font-weight:600;">${escapeHtml(ministryWebsite)}/sermons</a> — stream the full conference from anywhere in the world.</p>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;background:#f8fafc;">
+          <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.7;">
+            You received this because you're subscribed to updates from Jesus Christ Temple Ministry, Warri, Nigeria.<br>
+            © 2026 Jesus Christ Temple Ministry · <a href="${escapeHtml(ministryWebsite)}" style="color:#475569;text-decoration:none;">${escapeHtml(ministryWebsite.replace(/^https?:\/\//, ""))}</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+export async function sendConferenceAnnouncementEmail(
+  to: string,
+  opts: ConferenceBroadcastEmailOpts,
+  log: Logger = logger,
+): Promise<boolean> {
+  if (!isEmailConfigured()) {
+    log.warn({ to }, "SMTP not configured — conference announcement email skipped");
+    return false;
+  }
+  const { subject, text, html } = renderConferenceAnnouncementEmail(opts);
+  try {
+    await sendWithRetry(
+      {
+        from: defaultFrom(),
+        to,
+        subject,
+        text,
+        html,
+        ...replyToOption(),
+      },
+      log,
+      `conference-announce:${to}`,
+    );
+    return true;
+  } catch (err) {
+    log.warn({ err, to }, "Conference announcement email failed (after retries)");
+    return false;
+  }
+}
