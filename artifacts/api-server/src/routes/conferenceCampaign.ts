@@ -15,6 +15,7 @@ import { isEmailConfigured, getPublicBaseUrl } from "../lib/email-engine.js";
 import {
   aggregateAllEmails,
   launchConferenceCampaign,
+  launchConferenceLiveNotification,
   getCampaignByKey,
   listCampaigns,
   isValidEmail,
@@ -258,6 +259,67 @@ router.get(
     } catch (err) {
       req.log.error({ err }, "conference/campaign/status failed");
       res.status(500).json({ ok: false, error: "Failed to fetch campaign status" });
+    }
+  },
+);
+
+// ─── POST /api/conference/campaign/send-live ─────────────────────────────────
+// Manually triggers the "WE ARE LIVE NOW" email blast to every contact in the
+// database (respecting unsubscribes). Does NOT require isConferenceDay() —
+// the admin can fire this at any point during the conference. Creates a unique
+// campaign key using the current timestamp to prevent dedup conflicts with any
+// previous live-notification campaign.
+
+router.post(
+  "/conference/campaign/send-live",
+  requireAdminRole("livestream"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!isEmailConfigured()) {
+        res.status(503).json({
+          ok: false,
+          error: "SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS to enable email delivery.",
+        });
+        return;
+      }
+
+      const base = getPublicBaseUrl();
+      const event = await getConferenceEvent();
+
+      const {
+        campaignKey = `ministers-conference-2026-live-${Date.now()}`,
+        conferenceTitle = event?.title ?? "Ministers Conference 2026 — Apostolic Fire",
+        serviceTitle = "Ministers Conference 2026 — Apostolic Fire (Day 1)",
+        liveUrl = `${base}/sermons`,
+      } = req.body as Record<string, string>;
+
+      req.log.info(
+        { campaignKey, conferenceTitle, serviceTitle, liveUrl },
+        "Manual conference LIVE notification requested",
+      );
+
+      const { campaignId, totalRecipients, skipped } = await launchConferenceLiveNotification({
+        campaignKey,
+        conferenceTitle,
+        serviceTitle,
+        liveUrl,
+        ministryWebsite: base,
+        log: req.log,
+      });
+
+      res.json({
+        ok: true,
+        campaignId,
+        campaignKey,
+        totalRecipients,
+        unsubscribeSkipped: skipped,
+        message: `Live notification campaign queued. ${totalRecipients} emails will be sent in the background.`,
+        statusUrl: `/api/conference/campaign/status?key=${encodeURIComponent(campaignKey)}`,
+      });
+    } catch (err) {
+      req.log.error({ err }, "conference/campaign/send-live failed");
+      const msg = err instanceof Error ? err.message : "Campaign launch failed";
+      res.status(500).json({ ok: false, error: msg });
     }
   },
 );
