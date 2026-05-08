@@ -1331,7 +1331,7 @@ export async function retryFailedCampaignRecipients(
       timeStr: "8:00 AM WAT",
       location: "JCTM Auditorium, Ebrumede Roundabout, Effurun",
       registrationUrl: `${base}/conference-registration`,
-      livestreamUrl: `${base}/sermons`,
+      livestreamUrl: `${base}/livestream`,
       ministryWebsite: base,
     },
     log,

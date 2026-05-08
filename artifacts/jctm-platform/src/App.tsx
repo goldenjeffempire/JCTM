@@ -119,6 +119,8 @@ function Router() {
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/gallery" component={Gallery} />
         <Route path="/conference-registration" component={ConferenceRegistration} />
+        <Route path="/livestream" component={Sermons} />
+        <Route path="/live" component={Sermons} />
         <Route path="/status" component={Status} />
         <Route component={NotFound} />
       </Switch>
