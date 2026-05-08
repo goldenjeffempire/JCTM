@@ -12,6 +12,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
+import { pool } from "@workspace/db";
 import {
   BIBLE_BOOKS,
   lookupVerse,
@@ -325,6 +326,58 @@ router.post("/bible/reference", async (req: Request, res: Response): Promise<voi
     ragText,
     translation: "KJV",
   });
+});
+
+// ─── GET /api/bible/verse-of-day ─────────────────────────────────────────────
+// Returns a deterministic, date-rotating KJV verse pulled from the database.
+// The verse changes every UTC day. Falls back gracefully if DB is empty.
+
+router.get("/bible/verse-of-day", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Day-of-year offset so the verse rotates daily and is consistent for all users
+    const now = new Date();
+    const start = new Date(now.getUTCFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86_400_000);
+
+    // Count total verses in DB
+    const countResult = await pool.query<{ count: string }>("SELECT COUNT(*) AS count FROM bible_verses");
+    const total = parseInt(countResult.rows[0]?.count ?? "0", 10);
+
+    if (total === 0) {
+      res.status(503).json({ error: "Bible database not yet seeded." });
+      return;
+    }
+
+    const offset = dayOfYear % total;
+    const result = await pool.query<{
+      id: number; book: string; book_abbrev: string; testament: string;
+      chapter: number; verse: number; text: string;
+    }>(
+      "SELECT id, book, book_abbrev, testament, chapter, verse, text FROM bible_verses ORDER BY id LIMIT 1 OFFSET $1",
+      [offset],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      res.status(503).json({ error: "Could not retrieve verse of the day." });
+      return;
+    }
+
+    res.json({
+      reference: `${row.book} ${row.chapter}:${row.verse}`,
+      book: row.book,
+      abbrev: row.book_abbrev,
+      testament: row.testament,
+      chapter: row.chapter,
+      verse: row.verse,
+      text: row.text,
+      translation: "KJV",
+      dayOfYear,
+      total,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Internal error fetching verse of the day." });
+  }
 });
 
 // ─── GET /api/bible/topics — list available topics ───────────────────────────

@@ -1548,7 +1548,7 @@ function TodayStrip() {
     day: "numeric",
   }).format(now);
 
-  const scripture = getDailyScripture();
+  const scripture = useLiveDailyVerse();
 
   // Soften & shorten the scripture for a single-line marquee read
   const shortVerse = scripture.verse.length > 140
@@ -2758,19 +2758,46 @@ function getDailyScripture() {
   return DAILY_SCRIPTURES[dayOfYear % DAILY_SCRIPTURES.length];
 }
 
+// ── Live Verse-of-Day hook — fetches from KJV DB, falls back to static ────────
+interface LiveVerse { verse: string; ref: string; reference: string; book: string; chapter: number; verseNum: number; fromDB: boolean }
+
+function useLiveDailyVerse(): LiveVerse {
+  const fallback = getDailyScripture();
+  const [live, setLive] = useState<LiveVerse | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/bible/verse-of-day`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { text?: string; reference?: string; book?: string; chapter?: number; verse?: number } | null) => {
+        if (data?.text && data.reference) {
+          setLive({ verse: data.text, ref: data.reference, reference: data.reference, book: data.book ?? "", chapter: data.chapter ?? 1, verseNum: data.verse ?? 1, fromDB: true });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return live ?? { verse: fallback.verse, ref: fallback.ref, reference: fallback.ref, book: "", chapter: 1, verseNum: 1, fromDB: false };
+}
+
 function ScriptureFeature() {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start end", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], [-30, 30]);
-  const daily = getDailyScripture();
+  const daily = useLiveDailyVerse();
+  const [copied, setCopied] = useState(false);
   const today = new Date().toLocaleDateString("en-NG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(`"${daily.verse}" — ${daily.ref} (KJV)`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+  };
+
   return (
-    <section ref={ref} className="relative py-32 overflow-hidden bg-gradient-to-br from-[#001830] via-[#003366] to-[#001830]">
+    <section ref={sectionRef} className="relative py-28 overflow-hidden bg-gradient-to-br from-[#001830] via-[#003366] to-[#001830]">
       <motion.div style={{ y, backgroundImage: "radial-gradient(circle, rgba(56,189,248,0.4) 1px, transparent 1px)", backgroundSize: "48px 48px" }} className="absolute inset-0 opacity-10" />
       <div className="container mx-auto px-4 relative z-10 text-center">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.8 }}>
-          <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent/70 border border-accent/20 rounded-full px-4 py-1.5 mb-6">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent/70 border border-accent/20 rounded-full px-4 py-1.5 mb-6">
+            {daily.fromDB && <span className="h-1.5 w-1.5 rounded-full bg-accent/60 animate-pulse" />}
             Daily Scripture · {today}
           </span>
           <div className="text-accent/40 text-[120px] font-serif leading-none -mb-8 select-none">"</div>
@@ -2779,7 +2806,26 @@ function ScriptureFeature() {
           </blockquote>
           <div className="text-accent/40 text-[120px] font-serif leading-none -mt-8 select-none rotate-180">"</div>
           <p className="text-accent font-semibold text-lg mt-2">{daily.ref}</p>
-          <p className="text-white/40 text-sm mt-2">A fresh word for today from the Word of God</p>
+          {daily.fromDB && <p className="text-white/30 text-xs mt-1 font-mono">KJV · from the Bible database</p>}
+          <p className="text-white/40 text-sm mt-3">A fresh word for today from the Word of God</p>
+
+          {/* Action row */}
+          <div className="flex items-center justify-center gap-3 mt-8 flex-wrap">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-2 px-5 py-2 rounded-full bg-white/8 border border-white/15 hover:bg-white/15 text-white/70 hover:text-white text-xs font-medium transition-all"
+            >
+              {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : <BookMarked className="h-3.5 w-3.5" />}
+              {copied ? "Copied!" : "Copy verse"}
+            </button>
+            <Link href={`/scripture-study`}>
+              <span className="flex items-center gap-2 px-5 py-2 rounded-full bg-accent/20 border border-accent/30 hover:bg-accent/30 text-accent text-xs font-semibold transition-all cursor-pointer">
+                <BookOpen className="h-3.5 w-3.5" />
+                Study this passage
+              </span>
+            </Link>
+          </div>
+
           <div className="flex justify-center mt-8">
             <div className="h-px w-16 bg-accent/40" />
           </div>
