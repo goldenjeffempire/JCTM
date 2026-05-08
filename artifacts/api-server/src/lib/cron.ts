@@ -1,5 +1,6 @@
 import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds, refreshFeaturedSermon } from "./youtube-sync.js";
-import { ingestAllSermons, ingestActivityLearning } from "./knowledge-ingestion.js";
+import { ingestAllSermons, ingestActivityLearning, runFullContentSync } from "./knowledge-ingestion.js";
+import { startContentSyncScheduler, stopContentSyncScheduler } from "./content-sync-scheduler.js";
 import { syncFromRSS, RSS_INTERVAL_MS, RSSHttpError } from "./rss-sync.js";
 import { sseBroadcaster } from "./sse-broadcaster.js";
 import { enrichNextSermonBatch } from "./broadcast-engine.js";
@@ -1585,11 +1586,16 @@ export function startCron(log: Logger, websubUrl?: string): void {
     lastWebSubRenewal = new Date();
   }
 
-  // ── AI Learning — startup (delayed 90s to let DB settle after boot) ─────
+  // ── AI Learning — startup full content sync (delayed 90s for DB to settle) ─
   setTimeout(() => {
-    ingestAllSermons(log).catch(err => log.warn({ err }, "Startup sermon ingestion failed (non-fatal)"));
-    ingestActivityLearning(log).catch(err => log.warn({ err }, "Startup activity learning failed (non-fatal)"));
+    runFullContentSync(log).catch(err => log.warn({ err }, "Startup full content sync failed (non-fatal)"));
   }, 90_000);
+
+  // ── Continuous AI content sync scheduler ──────────────────────────────────
+  // Starts after 2-min delay to let the initial startup sync complete first.
+  setTimeout(() => {
+    startContentSyncScheduler(log);
+  }, 120_000);
 
   // ── RSS sync — always active, runs every 5 minutes ──────────────────────
   log.info({ intervalMs: RSS_INTERVAL_MS }, "Starting YouTube RSS sync (5-min, quota-free)");
@@ -1779,6 +1785,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
 
 export function stopCron(): void {
   stopEventNotificationWorker();
+  stopContentSyncScheduler();
   [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]

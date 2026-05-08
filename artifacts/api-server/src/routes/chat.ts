@@ -3,12 +3,14 @@ import { db, sermonsTable, conversations, messages } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
 import pg from "pg";
+import OpenAI from "openai";
 import { runLocalInference, streamLocalResponse, ENGINE_METADATA } from "../lib/local-ai-engine.js";
 import { localAIEnhancer } from "../lib/local-ai-enhancer.js";
 import { embed } from "../lib/local-embeddings.js";
 import { cacheGet, cacheSet } from "../lib/ai-response-cache.js";
 import { analyzeSentiment } from "../lib/sentiment-engine.js";
 import { updateSessionFromMessage } from "../lib/ai-personalization.js";
+import { runFullContentSync } from "../lib/knowledge-ingestion.js";
 
 const { Pool } = pg;
 
@@ -16,6 +18,11 @@ const router: IRouter = Router();
 
 // ── pgvector pool (RAG similarity search) ─────────────────────────────────────
 const ragPool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// ── OpenAI client (optional — only active when OPENAI_API_KEY is set) ─────────
+const openaiClient = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 // ── JCTM Knowledge Base (fallback — used when DB/embeddings not available) ────
 const JCTM_KNOWLEDGE_BASE = `
@@ -205,78 +212,203 @@ function getClientIp(req: Request): string {
   );
 }
 
-// ── RAG: keyword fallback when no embeddings are stored ───────────────────────
-async function keywordKnowledgeFallback(query: string): Promise<string> {
-  try {
-    const words = query
-      .split(/\s+/)
-      .map((w) => w.replace(/[^a-zA-Z]/g, ""))
-      .filter((w) => w.length >= 4)
-      .slice(0, 5);
+// ── RAG: Hybrid search — vector similarity + full-text keyword (RRF fusion) ────
+// Returns top-8 chunks ranked by Reciprocal Rank Fusion of both retrieval methods.
+// A chunk scoring in both vector and keyword gets a boosted score.
+// Threshold: 0.15 similarity (wider recall than previous 0.2).
 
-    if (words.length === 0) {
-      const result = await ragPool.query<{ content: string; source: string }>(
-        `SELECT content, source FROM knowledge_chunks WHERE embedding IS NULL LIMIT 4`,
-      );
-      if (result.rows.length === 0) return "";
-      return (
-        "\n\n## JCTM KNOWLEDGE (keyword search):\n" +
-        result.rows.map((r) => `[${r.source}] ${r.content}`).join("\n\n")
-      );
-    }
+interface RagChunk { content: string; source: string; score: number }
 
-    const conditions = words.map((w, i) => `content ILIKE $${i + 1}`).join(" OR ");
-    const params = words.map((w) => `%${w}%`);
+async function getRelevantKnowledge(query: string): Promise<{ context: string; sourceCount: number }> {
+  const scored = new Map<string, RagChunk>(); // key = source
 
-    const result = await ragPool.query<{ content: string; source: string }>(
-      `SELECT content, source FROM knowledge_chunks
-       WHERE embedding IS NULL AND (${conditions})
-       LIMIT 4`,
-      params,
-    );
-
-    if (result.rows.length === 0) return "";
-    return (
-      "\n\n## JCTM KNOWLEDGE (keyword search):\n" +
-      result.rows.map((r) => `[${r.source}] ${r.content}`).join("\n\n")
-    );
-  } catch {
-    return "";
-  }
-}
-
-// ── RAG: local embedding similarity search ─────────────────────────────────────
-async function getRelevantKnowledge(query: string): Promise<string> {
-  // Try local embedding vector search
+  // ── Tier A: pgvector cosine similarity ────────────────────────────────────
   try {
     const embResult = await embed(query);
     if (embResult.embedding.length > 0) {
       const vectorStr = `[${embResult.embedding.join(",")}]`;
-      const result = await ragPool.query<{ content: string; source: string; similarity: number }>(
+      const vectorRows = await ragPool.query<{ content: string; source: string; similarity: number }>(
         `SELECT content, source, 1 - (embedding <=> $1::vector) AS similarity
          FROM knowledge_chunks
          WHERE embedding IS NOT NULL
          ORDER BY embedding <=> $1::vector
-         LIMIT 4`,
+         LIMIT 10`,
         [vectorStr],
       );
-
-      if (result.rows.length > 0) {
-        const chunks = result.rows
-          .filter((r) => r.similarity > 0.2)
-          .map((r) => `[${r.source}] ${r.content}`)
-          .join("\n\n");
-
-        if (chunks) {
-          return `\n\n## MOST RELEVANT JCTM KNOWLEDGE (from semantic search):\n${chunks}`;
+      vectorRows.rows.forEach((r, rank) => {
+        if (r.similarity < 0.15) return; // quality gate
+        const rrfScore = 1 / (60 + rank + 1);
+        const existing = scored.get(r.source);
+        if (existing) {
+          existing.score += rrfScore;
+        } else {
+          scored.set(r.source, { content: r.content, source: r.source, score: rrfScore });
         }
-      }
+      });
+    }
+  } catch { /* embedding failed — continue with keyword fallback */ }
+
+  // ── Tier B: PostgreSQL full-text keyword search ──────────────────────────
+  try {
+    const words = query
+      .split(/\s+/)
+      .map(w => w.replace(/[^a-zA-Z]/g, ""))
+      .filter(w => w.length >= 4)
+      .slice(0, 6);
+
+    if (words.length > 0) {
+      const conditions = words.map((_, i) => `content ILIKE $${i + 1}`).join(" OR ");
+      const params = words.map(w => `%${w}%`);
+      const kwRows = await ragPool.query<{ content: string; source: string }>(
+        `SELECT content, source FROM knowledge_chunks WHERE (${conditions}) LIMIT 10`,
+        params,
+      );
+      kwRows.rows.forEach((r, rank) => {
+        const rrfScore = 1 / (60 + rank + 1);
+        const existing = scored.get(r.source);
+        if (existing) {
+          existing.score += rrfScore; // cross-method boost
+        } else {
+          scored.set(r.source, { content: r.content, source: r.source, score: rrfScore });
+        }
+      });
+    } else {
+      // No valid words — pull a few general chunks as context
+      const fallback = await ragPool.query<{ content: string; source: string }>(
+        `SELECT content, source FROM knowledge_chunks LIMIT 4`,
+      );
+      fallback.rows.forEach(r => {
+        if (!scored.has(r.source)) {
+          scored.set(r.source, { content: r.content, source: r.source, score: 0.005 });
+        }
+      });
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Rank + limit to top 8 ─────────────────────────────────────────────────
+  const top = Array.from(scored.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  if (top.length === 0) return { context: "", sourceCount: 0 };
+
+  const context =
+    "\n\n## MOST RELEVANT JCTM KNOWLEDGE (hybrid semantic + keyword, top-8):\n" +
+    top.map(r => `[${r.source}] ${r.content}`).join("\n\n");
+
+  return { context, sourceCount: top.length };
+}
+
+// ── OpenAI GPT-4o — Tier 2.5 (when API key is configured) ────────────────────
+// Falls back gracefully to local AI if OpenAI is unavailable, rate-limited,
+// or if the API key is not set. Response is always JCTM-grounded via RAG context.
+
+async function callOpenAI(
+  userMessage: string,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+  ragContext: string,
+  language: string,
+): Promise<string | null> {
+  if (!openaiClient) return null;
+  try {
+    const langNote =
+      language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
+    const systemWithContext =
+      TEMPLEBOTS_SYSTEM_PROMPT +
+      (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
+
+    const completion = await openaiClient.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemWithContext },
+        ...history.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
+        { role: "user", content: userMessage + langNote },
+      ],
+      max_tokens: 900,
+      temperature: 0.55,
+    });
+    return completion.choices[0]?.message?.content?.trim() ?? null;
+  } catch {
+    return null; // non-fatal — caller falls back to local AI
+  }
+}
+
+// OpenAI streaming variant — yields text chunks for SSE
+async function* streamOpenAI(
+  userMessage: string,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+  ragContext: string,
+  language: string,
+): AsyncGenerator<string, void, unknown> {
+  if (!openaiClient) return;
+  try {
+    const langNote =
+      language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
+    const systemWithContext =
+      TEMPLEBOTS_SYSTEM_PROMPT +
+      (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
+
+    const stream = await openaiClient.chat.completions.create({
+      model: "gpt-4o-mini",
+      stream: true,
+      messages: [
+        { role: "system", content: systemWithContext },
+        ...history.slice(-14).map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
+        { role: "user", content: userMessage + langNote },
+      ],
+      max_tokens: 900,
+      temperature: 0.55,
+    });
+
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content ?? "";
+      if (text) yield text;
     }
   } catch {
-    // Embedding failed — fall through to keyword search
+    // Non-fatal — caller falls back to local streaming
   }
+}
 
-  return keywordKnowledgeFallback(query);
+// ── AI Interaction Logger ─────────────────────────────────────────────────────
+// Records every TempleBots query for performance monitoring and quality analysis.
+
+async function logAIInteraction(data: {
+  sessionId: string | undefined;
+  query: string;
+  tier: string;
+  latencyMs: number;
+  sourceChunks: number;
+  cacheHit: boolean;
+  openaiUsed: boolean;
+  intent?: string;
+  sentiment?: string;
+  language: string;
+  action?: string | null;
+  error?: boolean;
+}): Promise<void> {
+  try {
+    await ragPool.query(
+      `INSERT INTO ai_interactions
+         (session_id, query, query_length, intent, tier, latency_ms, source_chunks,
+          cache_hit, openai_used, sentiment, language, action_triggered, error)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [
+        data.sessionId ?? null,
+        data.query.slice(0, 500),
+        data.query.length,
+        data.intent ?? null,
+        data.tier,
+        data.latencyMs,
+        data.sourceChunks,
+        data.cacheHit,
+        data.openaiUsed,
+        data.sentiment ?? null,
+        data.language,
+        data.action ?? null,
+        data.error ?? false,
+      ],
+    );
+  } catch { /* non-critical — never block a response for logging */ }
 }
 
 // ── Recent sermon context ─────────────────────────────────────────────────────
@@ -311,15 +443,60 @@ async function buildSermonContext(): Promise<string> {
 
 // ── Live website activity context ─────────────────────────────────────────────
 // Surfaces what's actually happening on the JCTM platform right now:
-// upcoming events, recent testimony themes, active prayer categories.
+// upcoming events, recent testimony themes, active prayer categories,
+// today's devotional, live stream status, and active promotions.
 const activityCache: { data: string; expiresAt: number } = { data: "", expiresAt: 0 };
 
 async function buildActivityContext(): Promise<string> {
   if (activityCache.expiresAt > Date.now()) return activityCache.data;
 
   const parts: string[] = [];
+
+  // ── Live stream status ──────────────────────────────────────────────────
   try {
-    // Upcoming events (next 30 days)
+    const liveRes = await ragPool.query<{ is_live: boolean | null; title: string | null; livestream_url: string | null }>(
+      `SELECT is_live, title, livestream_url FROM livestream_override_state ORDER BY id DESC LIMIT 1`,
+    );
+    const live = liveRes.rows[0];
+    if (live?.is_live) {
+      parts.push(`🔴 LIVE NOW ON TEMPLE TV: ${live.title ?? "JCTM Service"} — Watch at ${live.livestream_url ?? "youtube.com/@TEMPLETVJCTM"}`);
+    } else {
+      const dayOfWeek = new Date().getDay();
+      if (dayOfWeek >= 0 && dayOfWeek <= 4) {
+        const latestRes = await ragPool.query<{ title: string; video_id: string }>(
+          `SELECT title, video_id FROM sermon_data ORDER BY published_at DESC NULLS LAST LIMIT 1`,
+        );
+        if (latestRes.rows[0]) {
+          parts.push(`📺 TEMPLE TV REBROADCAST: "${latestRes.rows[0].title}" — streaming on loop. Watch at youtube.com/watch?v=${latestRes.rows[0].video_id}`);
+        }
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Today's devotional ───────────────────────────────────────────────────
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const devoRes = await ragPool.query<{
+      title: string; reference: string | null; scripture: string | null; prayer_focus: string | null;
+    }>(
+      `SELECT title, reference, scripture, prayer_focus FROM daily_devotions WHERE date = $1 LIMIT 1`,
+      [today],
+    );
+    if (devoRes.rows[0]) {
+      const d = devoRes.rows[0];
+      const devoLine = [
+        `📖 TODAY'S DEVOTION: "${d.title}"`,
+        d.reference ? `Scripture: ${d.reference}` : "",
+        d.scripture ? d.scripture.slice(0, 150) : "",
+        d.prayer_focus ? `Prayer Focus: ${d.prayer_focus.slice(0, 100)}` : "",
+        `Read full devotion at jctm.org.ng/devotion`,
+      ].filter(Boolean).join(" | ");
+      parts.push(devoLine);
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Upcoming events (next 30 days) ───────────────────────────────────────
+  try {
     const eventsRes = await ragPool.query<{ title: string; start_date: string; location: string | null }>(
       `SELECT title, start_date, location FROM event_calendar
        WHERE start_date >= NOW() AND start_date <= NOW() + INTERVAL '30 days'
@@ -334,8 +511,26 @@ async function buildActivityContext(): Promise<string> {
     }
   } catch { /* non-fatal */ }
 
+  // ── Active event promotions ──────────────────────────────────────────────
   try {
-    // Recent prayer categories (what the community is seeking prayer for)
+    const promoRes = await ragPool.query<{ title: string; subtitle: string | null; event_date: string | null }>(
+      `SELECT title, subtitle, event_date FROM event_promotions
+       WHERE is_active = true AND (event_date IS NULL OR event_date >= NOW() - INTERVAL '2 days')
+       ORDER BY event_date ASC LIMIT 3`,
+    );
+    if (promoRes.rows.length > 0) {
+      const promoList = promoRes.rows.map(p => {
+        const d = p.event_date
+          ? new Date(p.event_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+          : "upcoming";
+        return `  • ${p.title}${p.subtitle ? ` — ${p.subtitle}` : ""} (${d})`;
+      }).join("\n");
+      parts.push(`ACTIVE JCTM PROMOTIONS:\n${promoList}`);
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Community prayer focus ──────────────────────────────────────────────
+  try {
     const prayerRes = await ragPool.query<{ category: string; count: string }>(
       `SELECT category, COUNT(*) AS count FROM prayer_requests
        WHERE created_at >= NOW() - INTERVAL '30 days'
@@ -347,8 +542,8 @@ async function buildActivityContext(): Promise<string> {
     }
   } catch { /* non-fatal */ }
 
+  // ── Recent testimonies ──────────────────────────────────────────────────
   try {
-    // Recent approved testimonies titles (what God is doing)
     const testRes = await ragPool.query<{ title: string; category: string }>(
       `SELECT title, category FROM testimonies WHERE approved = true
        ORDER BY created_at DESC NULLS LAST LIMIT 5`,
@@ -364,7 +559,7 @@ async function buildActivityContext(): Promise<string> {
     : "";
 
   activityCache.data = data;
-  activityCache.expiresAt = Date.now() + 5 * 60_000; // cache 5 minutes
+  activityCache.expiresAt = Date.now() + 3 * 60_000; // cache 3 minutes (was 5 min)
   return data;
 }
 
@@ -461,15 +656,15 @@ const SUPPORTED_LANGUAGE_NAMES: Record<string, string> = {
   he: "Hebrew", fa: "Persian", el: "Greek", bg: "Bulgarian", sr: "Serbian",
 };
 
-// ── Build local enriched response ─────────────────────────────────────────────
+// ── Build enriched response — tries OpenAI (Tier 2.5) then local AI (Tier 2) ──
 async function buildLocalEnrichedResponse(
   userMessage: string,
   clientHistory: Array<{ role: "user" | "assistant"; content: string }>,
   sessionId: string | undefined,
   language: string,
   localEnrichmentContext: string,
-): Promise<{ reply: string; conversationId: number }> {
-  const [sermonContext, ragContext, activityContext, conversationId] = await Promise.all([
+): Promise<{ reply: string; conversationId: number; tier: string; sourceChunks: number; openaiUsed: boolean }> {
+  const [sermonContext, ragResult, activityContext, conversationId] = await Promise.all([
     buildSermonContext(),
     getRelevantKnowledge(userMessage),
     buildActivityContext(),
@@ -479,14 +674,22 @@ async function buildLocalEnrichedResponse(
   const dbHistory = await loadConversationHistory(conversationId, 10);
   const history = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-10);
 
-  // Build enriched context for local AI enhancer
+  // ── Tier 2.5: OpenAI GPT-4o-mini (when API key available) ────────────────
+  if (openaiClient) {
+    const openAIContext = [sermonContext, ragResult.context, activityContext].filter(Boolean).join("\n");
+    const openAIReply = await callOpenAI(userMessage, history, openAIContext, language);
+    if (openAIReply) {
+      return { reply: openAIReply, conversationId, tier: "openai", sourceChunks: ragResult.sourceCount, openaiUsed: true };
+    }
+    // OpenAI failed — fall through to local AI
+  }
+
+  // ── Tier 2: Local enriched AI (fallback) ─────────────────────────────────
   const fullContext = [
     sermonContext,
-    ragContext,
+    ragResult.context,
     activityContext,
-    localEnrichmentContext
-      ? `\n\nLocal AI Engine Analysis:\n${localEnrichmentContext}`
-      : "",
+    localEnrichmentContext ? `\n\nLocal AI Engine Analysis:\n${localEnrichmentContext}` : "",
     history.slice(-4).map(h => `${h.role === "user" ? "User" : "TempleBots"}: ${h.content.slice(0, 200)}`).join("\n"),
   ].filter(Boolean).join("\n");
 
@@ -499,7 +702,7 @@ async function buildLocalEnrichedResponse(
     ragContext: fullContext,
   });
 
-  return { reply, conversationId };
+  return { reply, conversationId, tier: "local-enhanced", sourceChunks: ragResult.sourceCount, openaiUsed: false };
 }
 
 // ── POST /chat — standard JSON response ───────────────────────────────────────
@@ -575,27 +778,44 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // ── TIER 2: Local Enriched Response ───────────────────────────────────
+    // ── TIER 2 / 2.5: Enriched Response (OpenAI when available, else local) ──
+    const t0 = Date.now();
     const clientHistory = history.map((m: { role: string; content: string }) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
 
-    const { reply: rawReply, conversationId } = await buildLocalEnrichedResponse(
-      message,
-      clientHistory,
-      sessionId ?? undefined,
-      language,
-      localResult.enrichmentContext ?? "",
-    );
+    const { reply: rawReply, conversationId, tier, sourceChunks, openaiUsed } =
+      await buildLocalEnrichedResponse(
+        message,
+        clientHistory,
+        sessionId ?? undefined,
+        language,
+        localResult.enrichmentContext ?? "",
+      );
 
     const { cleanReply, action } = extractAction(rawReply);
     const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
     const sources = extractSources(cleanReply);
+    const latencyMs = Date.now() - t0;
 
     await persistMessages(conversationId, message, cleanReply);
-    // Cache Tier 2 responses for future similar queries
-    cacheSet(message, cleanReply, "local-enhanced", 0.85).catch(() => {});
+    // Cache responses for future similar queries
+    cacheSet(message, cleanReply, tier, 0.85).catch(() => {});
+    // Log interaction for monitoring (non-blocking)
+    logAIInteraction({
+      sessionId: sessionId ?? undefined,
+      query: message,
+      tier,
+      latencyMs,
+      sourceChunks,
+      cacheHit: false,
+      openaiUsed,
+      intent: localResult.enrichmentContext ? "enriched" : undefined,
+      sentiment: sentiment.primaryEmotion,
+      language,
+      action: finalAction,
+    }).catch(() => {});
 
     res.json(
       ChatWithTempleBotsResponse.parse({
@@ -603,6 +823,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         sessionId: String(conversationId),
         sources,
         action: finalAction ?? undefined,
+        meta: { tier, sourceChunks, openaiUsed },
       }),
     );
   } catch (err: unknown) {
@@ -673,12 +894,59 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // ── TIER 2: Local Enriched Response (streamed) ─────────────────────────
+    // ── TIER 2 / 2.5: Enriched Response (streamed) ────────────────────────
     const clientHistory = history.map((m: { role: string; content: string }) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
 
+    // Try OpenAI streaming first when API key is set
+    if (openaiClient) {
+      const [sermonCtx, ragResult, activityCtx, conversationId] = await Promise.all([
+        buildSermonContext(),
+        getRelevantKnowledge(message),
+        buildActivityContext(),
+        getOrCreateConversation(sessionId ?? undefined),
+      ]);
+      const dbHistory = await loadConversationHistory(conversationId, 10);
+      const hist = dbHistory.length > 0 ? dbHistory : clientHistory.slice(-10);
+      const openAIContext = [sermonCtx, ragResult.context, activityCtx].filter(Boolean).join("\n");
+
+      let openAIFullReply = "";
+      let openAIWorked = false;
+      for await (const chunk of streamOpenAI(message, hist, openAIContext, language)) {
+        openAIWorked = true;
+        openAIFullReply += chunk;
+        if (!res.writableEnded) send({ delta: chunk });
+      }
+
+      if (openAIWorked && openAIFullReply) {
+        const { cleanReply, action } = extractAction(openAIFullReply);
+        const finalAction = action ?? (localResult.givingFlag ? "sow-a-seed" : null);
+        const sources = extractSources(cleanReply);
+        await persistMessages(conversationId, message, cleanReply);
+        logAIInteraction({
+          sessionId: sessionId ?? undefined,
+          query: message,
+          tier: "openai-stream",
+          latencyMs: 0,
+          sourceChunks: ragResult.sourceCount,
+          cacheHit: false,
+          openaiUsed: true,
+          language,
+          action: finalAction,
+        }).catch(() => {});
+        if (!res.writableEnded) {
+          send({ done: true, sessionId: String(conversationId), sources, action: finalAction });
+          res.end();
+        }
+        clearTimeout(timeout);
+        return;
+      }
+      // OpenAI streaming failed — fall through to local AI
+    }
+
+    // Fallback: local enriched + local stream
     const { reply: rawReply, conversationId } = await buildLocalEnrichedResponse(
       message,
       clientHistory,
@@ -720,7 +988,7 @@ router.post("/chat/stream", async (req: Request, res: Response): Promise<void> =
   }
 });
 
-// ── POST /chat/knowledge/ingest — manually re-trigger knowledge ingestion ──────
+// ── POST /chat/knowledge/ingest — manually trigger full knowledge sync ────────
 router.post("/chat/knowledge/ingest", async (req: Request, res: Response): Promise<void> => {
   const ip = getClientIp(req);
   if (isRateLimited(ip)) {
@@ -729,9 +997,14 @@ router.post("/chat/knowledge/ingest", async (req: Request, res: Response): Promi
   }
 
   try {
-    const { ingestKnowledgeIfEmpty } = await import("../lib/knowledge-ingestion.js");
-    await ingestKnowledgeIfEmpty(undefined, req.log);
-    res.json({ message: "Knowledge base ingestion triggered successfully (local embeddings)." });
+    // Fire-and-forget full sync — don't block the HTTP response
+    runFullContentSync(req.log).catch((err: unknown) =>
+      req.log.warn({ err }, "Background full content sync error (non-fatal)"),
+    );
+    res.json({
+      message: "Full AI knowledge sync triggered (sermons, devotionals, FAQs, live stream, conferences, shorts, activity).",
+      note: "Sync runs in background — all 7 content types will be re-indexed.",
+    });
   } catch (err) {
     req.log.error({ err }, "Manual knowledge ingestion failed");
     res.status(500).json({ error: "Knowledge ingestion failed." });

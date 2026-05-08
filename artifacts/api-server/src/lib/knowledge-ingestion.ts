@@ -486,3 +486,515 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
     client.release();
   }
 }
+
+// ─── Daily Devotionals Ingestion ─────────────────────────────────────────────
+// Indexes the last 45 devotionals (title, scripture, reflection, prayer) so
+// TempleBots can answer questions about recent devotionals and point users to
+// today's word.
+
+export async function ingestDailyDevotionals(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query<{
+      date: string;
+      title: string;
+      scripture: string | null;
+      reference: string | null;
+      reflection: string | null;
+      prayer_focus: string | null;
+      declaration: string | null;
+      prophetic_word: string | null;
+    }>(
+      `SELECT date, title, scripture, reference, reflection, prayer_focus, declaration, prophetic_word
+       FROM daily_devotions
+       ORDER BY date DESC
+       LIMIT 45`,
+    );
+
+    if (result.rows.length === 0) {
+      log?.info("No devotionals found — skipping devotional ingestion");
+      return;
+    }
+
+    // Aggregate index chunk — helps AI know devotionals exist
+    const today = result.rows[0]!;
+    const todayDate = new Date(today.date).toLocaleDateString("en-GB", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
+    const indexContent = [
+      `JCTM Daily Devotionals — ${result.rows.length} devotionals available.`,
+      `Today's Devotion (${todayDate}): "${today.title}"`,
+      today.reference ? `Scripture: ${today.reference}` : "",
+      today.scripture ? today.scripture.slice(0, 200) : "",
+      today.reflection ? `Reflection: ${today.reflection.slice(0, 300)}` : "",
+      today.prayer_focus ? `Prayer Focus: ${today.prayer_focus.slice(0, 150)}` : "",
+      today.declaration ? `Declaration: ${today.declaration.slice(0, 150)}` : "",
+      `Access daily devotions at jctm.org.ng/devotion. Subscribe by email for daily delivery.`,
+    ].filter(Boolean).join("\n");
+
+    const indexVector = await generateEmbeddingVector(indexContent);
+    await client.query(
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+       VALUES ($1, 'activity-devotionals-index', 0, $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      [indexContent, indexVector ?? null],
+    );
+
+    // Per-devotional chunks for recent devotionals (last 14)
+    let ingested = 0;
+    for (const devo of result.rows.slice(0, 14)) {
+      const dateStr = new Date(devo.date).toLocaleDateString("en-GB", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+      });
+      const content = [
+        `JCTM Daily Devotion — ${dateStr}: "${devo.title}"`,
+        devo.reference ? `Scripture: ${devo.reference}` : "",
+        devo.scripture ? devo.scripture.slice(0, 300) : "",
+        devo.reflection ? `Reflection: ${devo.reflection.slice(0, 400)}` : "",
+        devo.prayer_focus ? `Prayer Focus: ${devo.prayer_focus.slice(0, 200)}` : "",
+        devo.declaration ? `Declaration: ${devo.declaration.slice(0, 150)}` : "",
+        devo.prophetic_word ? `Prophetic Word: ${devo.prophetic_word.slice(0, 150)}` : "",
+        `Read full devotion at jctm.org.ng/devotion`,
+      ].filter(Boolean).join("\n");
+
+      const vector = await generateEmbeddingVector(content);
+      const dateKey = devo.date.slice(0, 10).replace(/-/g, "");
+      await client.query(
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+         VALUES ($1, $2, 0, $3)
+         ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+        [content, `devotion-${dateKey}`, vector ?? null],
+      );
+      ingested++;
+    }
+
+    log?.info({ total: result.rows.length, ingested }, "Daily devotionals ingested into knowledge base");
+  } catch (err) {
+    log?.warn({ err }, "Devotionals ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Ministry FAQs Ingestion ──────────────────────────────────────────────────
+// Rich static FAQ knowledge base covering practical questions users ask most.
+// Ingested once and updated when the FAQ_VERSION changes.
+
+const FAQ_VERSION = "1.2";
+
+const MINISTRY_FAQS = [
+  {
+    source: "faq-service-times",
+    content: `JCTM Service Times & Schedule:
+Sunday Service: 8:00 AM – 12:00 PM WAT (West Africa Time) at Ebrumede Temple, Warri, Delta State.
+Wednesday Midweek Service: 5:00 PM – 8:00 PM WAT.
+All services are broadcast live on Temple TV YouTube channel (@TEMPLETVJCTM).
+Services are also uploaded to YouTube after the live broadcast for on-demand viewing.
+Special services (crusades, revivals, conferences) are announced on the website and social media.
+Check jctm.org.ng/events for the full event calendar and upcoming special services.`,
+  },
+  {
+    source: "faq-location-directions",
+    content: `JCTM Physical Location & Directions:
+Jesus Christ Temple Ministry is located at Ebrumede, Ebrumede Roundabout, Effurun, Warri, Delta State, Nigeria.
+Landmark: Ebrumede Roundabout, near the Effurun area of Warri.
+From Warri town centre: take the Effurun road, pass through the Effurun roundabout, turn towards Ebrumede.
+For driving directions: search "Jesus Christ Temple Ministry Ebrumede" on Google Maps.
+Contact the church office at info@jctm.org.ng or call for specific directions.
+For those outside Nigeria: you can attend services online at jctm.org.ng or YouTube @TEMPLETVJCTM.`,
+  },
+  {
+    source: "faq-membership",
+    content: `How to Become a JCTM Member:
+1. Attend Sunday services at Ebrumede Temple, Warri or watch online via Temple TV.
+2. Receive Jesus Christ as Lord and Saviour if you haven't already.
+3. Complete water baptism by full immersion (contact info@jctm.org.ng for baptism dates).
+4. Attend the new members/foundation class (announced after services).
+5. Register at jctm.org.ng/join or email info@jctm.org.ng with your name, phone, and location.
+6. Connect with a home cell or life group in your area.
+For online/diaspora members: register on the platform and attend via YouTube live stream.
+For youth (13-25): Youth Ministry meets separately — ask at the church or email info@jctm.org.ng.`,
+  },
+  {
+    source: "faq-how-to-give",
+    content: `How to Give/Donate to JCTM:
+Online giving is available at jctm.org.ng/give.
+Payment options:
+- Paystack: Naira (NGN) payments for Nigeria-based givers — cards, bank transfer, USSD
+- Stripe: USD and international currency for diaspora and global givers
+Direct bank transfer: contact info@jctm.org.ng for JCTM bank account details.
+What your giving supports: Temple TV productions, global Correction Mandate outreach, church operations, crusades, and community ministry.
+JCTM's giving teaching: Giving is an act of worship and partnership (not a prosperity formula). Tithes (10%) and freewill offerings are biblical principles from Malachi 3:10 and 2 Corinthians 9:7. All giving is voluntary and from a heart of love.`,
+  },
+  {
+    source: "faq-prayer-requests",
+    content: `How to Submit a Prayer Request to JCTM:
+Visit jctm.org.ng/prayer to submit your prayer request online.
+Or email your prayer request to info@jctm.org.ng with "Prayer Request" in the subject line.
+The JCTM prayer team prays over all submitted requests.
+Types of prayer available: healing, salvation for family members, deliverance, financial breakthrough, marriage, children, career/purpose, spiritual growth, and restoration.
+Corporate prayer happens at every service. You can also request personal prayer ministry by contacting the church office.
+Remember: You can be direct with God about your need. Bring your request to God first (Philippians 4:6-7), then seek the support of the JCTM prayer community.`,
+  },
+  {
+    source: "faq-testimonies",
+    content: `How to Share Your Testimony at JCTM:
+Visit jctm.org.ng/testimonies to submit your testimony online.
+Testimony categories include: salvation, healing, deliverance, financial breakthrough, answered prayer, family restoration, and marriage miracles.
+You can also email your testimony to info@jctm.org.ng.
+Approved testimonies are shared on the website to encourage the global JCTM community.
+Why share: Revelation 12:11 says believers overcome "by the blood of the Lamb and the word of their testimony." Your story releases faith for others.
+Selected testimonies may be featured in JCTM broadcasts on Temple TV.`,
+  },
+  {
+    source: "faq-contact",
+    content: `How to Contact Jesus Christ Temple Ministry (JCTM):
+Email (general inquiries): info@jctm.org.ng
+Physical address: Ebrumede Temple, Warri, Delta State, Nigeria
+YouTube: Temple TV @TEMPLETVJCTM — https://www.youtube.com/channel/UCPFFvkE-KGpR37qJgvYriJg
+Facebook: @templetvjctm — https://www.facebook.com/templetvjctm
+Website: jctm.org.ng
+For pastoral counselling: email info@jctm.org.ng with "Pastoral Counselling Request"
+For media inquiries about Temple TV: email info@jctm.org.ng with "Media Inquiry"
+For evangelism partnerships or ministry invitations: email info@jctm.org.ng
+Response time is typically within 1-3 business days.`,
+  },
+  {
+    source: "faq-viewing-centres",
+    content: `JCTM Viewing Centres — For Those Outside Warri:
+JCTM has viewing centres and affiliate congregations in several states across Nigeria and in the diaspora.
+To find a viewing centre near you: email info@jctm.org.ng with your city/state and request to join a viewing centre.
+If there is no centre in your area: you can start one! Contact info@jctm.org.ng for guidelines on starting an official JCTM viewing centre.
+Online community: join the JCTM Digital Sanctuary at jctm.org.ng for sermons, devotions, events, testimonies, and live streams — accessible from any country.
+Diaspora members can participate fully online and give through jctm.org.ng/give (Stripe for international payments).`,
+  },
+  {
+    source: "faq-temple-tv-youtube",
+    content: `Temple TV — JCTM's YouTube Channel:
+Channel: Temple TV @TEMPLETVJCTM
+URL: https://www.youtube.com/channel/UCPFFvkE-KGpR37qJgvYriJg
+Content published: live Sunday services, midweek teachings, prophetic messages, doctrinal lectures, sermon series, crusade coverage, youth teachings, and testimonies.
+Subscribers can set notifications to never miss a live stream.
+Archive: hundreds of sermons on topics including Correction Mandate, Primitive Christianity, holiness, end times, healing, Holy Spirit baptism, fasting, marriage, and more.
+Live streams: Sunday mornings and special events broadcast live.
+Subscribe and click the bell icon to receive notifications for upcoming live streams.
+Watch on jctm.org.ng/sermons for a curated, searchable sermon library with the latest uploads.`,
+  },
+  {
+    source: "faq-conference-registration",
+    content: `JCTM Conference & Event Registration:
+JCTM holds an annual Ministers' Conference and other special events throughout the year.
+To register: visit jctm.org.ng/conference-registration or jctm.org.ng/events.
+Registration is usually free for in-person attendance; some online events may require registration for access links.
+Ministers' Conference: a multi-day intensive gathering for ministers, church leaders, and serious believers. Topics focus on the Correction Mandate, prophetic ministry, sound doctrine, and apostolic leadership.
+Conference emails with updates are sent to registered attendees.
+For accommodation and travel information for out-of-town attendees: email info@jctm.org.ng.`,
+  },
+  {
+    source: "faq-discipleship-bible-study",
+    content: `JCTM Discipleship & Bible Study Resources:
+Weekly Bible study is integrated into the midweek service (Wednesday 5-8 PM WAT).
+Daily devotionals are available at jctm.org.ng/devotion — a new devotion is published every day.
+Subscribe to email devotions: visit jctm.org.ng/devotion and enter your email for daily delivery.
+Blog and teaching articles: jctm.org.ng/blog — covers holiness, sound doctrine, prayer, fasting, marriage, youth, and spiritual warfare.
+Temple TV YouTube playlist: subscribe to @TEMPLETVJCTM for topical sermon series.
+Recommended study order for new believers: John → Acts → Romans → Ephesians → then systematic topics.
+For personal discipleship mentoring: email info@jctm.org.ng.`,
+  },
+  {
+    source: "faq-water-baptism-schedule",
+    content: `Water Baptism at JCTM:
+JCTM practices water baptism by full immersion (the biblical mode — Greek "baptizo" = to immerse).
+Baptism is for adult believers who have consciously received Jesus Christ as Lord and Saviour.
+Baptism dates are announced during Sunday services and on the website.
+To schedule your baptism: attend a Sunday service and speak to an usher or church leader, or email info@jctm.org.ng with "Baptism Request".
+Pre-baptism counselling is available — you will receive teaching on the meaning and significance of baptism.
+JCTM stands against infant baptism as a doctrinal error (you cannot be baptized on behalf of an unconscious infant; faith is personal and conscious).`,
+  },
+];
+
+export async function ingestMinistryFAQs(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    // Check if FAQ version is current
+    const versionCheck = await client.query<{ count: string }>(
+      `SELECT COUNT(*) FROM knowledge_chunks WHERE source = $1`,
+      [`faq-version-${FAQ_VERSION}`],
+    );
+    if (parseInt(versionCheck.rows[0]!.count, 10) > 0) {
+      log?.info({ version: FAQ_VERSION }, "Ministry FAQs are current — skipping");
+      return;
+    }
+
+    // Remove old FAQ version stamps
+    await client.query(`DELETE FROM knowledge_chunks WHERE source LIKE 'faq-version-%'`);
+    // Remove old FAQ chunks
+    await client.query(
+      `DELETE FROM knowledge_chunks WHERE source IN (${MINISTRY_FAQS.map(f => `'${f.source}'`).join(",")})`,
+    );
+
+    log?.info({ count: MINISTRY_FAQS.length, version: FAQ_VERSION }, "Ingesting ministry FAQ knowledge base");
+    let ingested = 0;
+    for (const faq of MINISTRY_FAQS) {
+      const vector = await generateEmbeddingVector(faq.content);
+      await client.query(
+        `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+         VALUES ($1, $2, 0, $3)
+         ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+        [faq.content, faq.source, vector ?? null],
+      );
+      ingested++;
+    }
+
+    // Write FAQ version stamp
+    await client.query(
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+       VALUES ($1, $2, 0, NULL)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content`,
+      [`Ministry FAQ Knowledge Base version ${FAQ_VERSION}`, `faq-version-${FAQ_VERSION}`],
+    );
+
+    log?.info({ ingested, version: FAQ_VERSION }, "Ministry FAQs ingestion complete");
+  } catch (err) {
+    log?.warn({ err }, "Ministry FAQ ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Ministry Shorts / Ministry Moments Ingestion ─────────────────────────────
+// Indexes the Ministry Moments (short videos ≤30 min) so TempleBots can
+// reference and recommend short teaching clips.
+
+export async function ingestMinistryShorts(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    // Ministry Moments: typically shorter sermons, stored in sermon_data
+    const result = await client.query<{
+      video_id: string;
+      title: string;
+      description: string | null;
+      published_at: string | null;
+      duration: string | null;
+      view_count: number | null;
+    }>(
+      `SELECT video_id, title, description, published_at, duration, view_count
+       FROM sermon_data
+       WHERE duration IS NOT NULL
+         AND (
+           -- ISO 8601 durations ≤ 30 min: PT1M ... PT30M (no hours component)
+           duration ~ '^PT([1-9]|[1-2][0-9]|30)M' OR
+           duration NOT LIKE '%H%' AND duration != 'P0D'
+         )
+       ORDER BY published_at DESC NULLS LAST
+       LIMIT 50`,
+    );
+
+    if (result.rows.length === 0) {
+      log?.info("No ministry shorts found — skipping");
+      return;
+    }
+
+    // Aggregate index chunk
+    const summaries = result.rows.slice(0, 20).map(s =>
+      `• "${s.title}"${s.view_count ? ` (${s.view_count.toLocaleString()} views)` : ""} → https://youtube.com/watch?v=${s.video_id}`,
+    ).join("\n");
+    const indexContent = `JCTM Ministry Moments — Short Teaching Clips (${result.rows.length} available):\n${summaries}\n\nMinistry Moments are short, focused teachings by Prophet Amos Evomobor on specific biblical topics. Watch at jctm.org.ng/sermons or YouTube @TEMPLETVJCTM.`;
+
+    const indexVector = await generateEmbeddingVector(indexContent);
+    await client.query(
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+       VALUES ($1, 'activity-ministry-shorts', 0, $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      [indexContent, indexVector ?? null],
+    );
+
+    log?.info({ count: result.rows.length }, "Ministry Shorts ingested");
+  } catch (err) {
+    log?.warn({ err }, "Ministry Shorts ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Live Stream Context Ingestion ───────────────────────────────────────────
+// Injects the current broadcast/rebroadcast/live state into the knowledge base
+// so TempleBots can tell users whether a service is live right now.
+
+export async function ingestLiveStreamContext(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    // Check for manual override state first
+    const overrideResult = await client.query<{
+      is_live: boolean | null;
+      livestream_url: string | null;
+      title: string | null;
+      updated_at: string | null;
+    }>(
+      `SELECT is_live, livestream_url, title, updated_at
+       FROM livestream_override_state
+       ORDER BY id DESC LIMIT 1`,
+    );
+
+    // Check for the latest sermon for rebroadcast state
+    const latestSermon = await client.query<{
+      video_id: string;
+      title: string;
+      published_at: string | null;
+    }>(
+      `SELECT video_id, title, published_at
+       FROM sermon_data
+       WHERE is_live = false OR is_live IS NULL
+       ORDER BY published_at DESC NULLS LAST
+       LIMIT 1`,
+    );
+
+    const override = overrideResult.rows[0];
+    const latest = latestSermon.rows[0];
+
+    let statusText: string;
+    if (override?.is_live) {
+      statusText = `JCTM is CURRENTLY LIVE on Temple TV. ${override.title ? `Current stream: "${override.title}". ` : ""}Watch at: ${override.livestream_url ?? "https://youtube.com/@TEMPLETVJCTM"}`;
+    } else {
+      // Determine if we're in a rebroadcast window (within 4 days of last Sunday service)
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu
+      const isRebroadcastWindow = dayOfWeek >= 0 && dayOfWeek <= 4;
+
+      if (isRebroadcastWindow && latest) {
+        const latestDate = latest.published_at ? new Date(latest.published_at).toLocaleDateString("en-GB", {
+          weekday: "long", day: "numeric", month: "long",
+        }) : "recently";
+        statusText = `JCTM Temple TV is currently in REBROADCAST mode. The latest service — "${latest.title}" (${latestDate}) — is streaming on loop. Watch at: https://youtube.com/watch?v=${latest.video_id}. Next live Sunday service: ${dayOfWeek === 0 ? "TODAY at 8 AM WAT" : `Sunday at 8 AM WAT (${7 - dayOfWeek} days away)`}.`;
+      } else {
+        statusText = `JCTM Temple TV is not currently live. Next live service: Sunday at 8:00 AM WAT from Ebrumede Temple, Warri. Watch on YouTube @TEMPLETVJCTM or jctm.org.ng/sermons.${latest ? ` Latest sermon available: "${latest.title}".` : ""}`;
+      }
+    }
+
+    const content = `JCTM Live Stream Status (real-time): ${statusText} JCTM broadcasts every Sunday 8 AM - 12 PM WAT and Wednesday 5-8 PM WAT. Live streams run on Temple TV YouTube (@TEMPLETVJCTM). Visit jctm.org.ng/sermons for the full sermon library.`;
+    const vector = await generateEmbeddingVector(content);
+
+    await client.query(
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+       VALUES ($1, 'activity-livestream-status', 0, $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      [content, vector ?? null],
+    );
+
+    log?.info("Live stream context ingested");
+  } catch (err) {
+    log?.warn({ err }, "Live stream context ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Conference & Event Promotions Ingestion ──────────────────────────────────
+// Ingests active event promotions and conference registration data so TempleBots
+// is aware of upcoming campaigns and can encourage sign-ups.
+
+export async function ingestConferenceData(log?: Logger): Promise<void> {
+  const client = await pool.connect();
+  try {
+    // Active event promotions
+    const promotions = await client.query<{
+      title: string;
+      subtitle: string | null;
+      description: string | null;
+      event_date: string | null;
+      cta_text: string | null;
+      event_type: string | null;
+    }>(
+      `SELECT title, subtitle, description, event_date, cta_text, event_type
+       FROM event_promotions
+       WHERE is_active = true
+         AND (event_date IS NULL OR event_date >= NOW() - INTERVAL '7 days')
+       ORDER BY event_date ASC
+       LIMIT 5`,
+    );
+
+    // Conference registration counts (for major conferences)
+    const registrations = await client.query<{ event_name: string; count: string }>(
+      `SELECT event_name, COUNT(*) AS count
+       FROM conference_registrations
+       WHERE created_at >= NOW() - INTERVAL '90 days'
+       GROUP BY event_name
+       ORDER BY count DESC
+       LIMIT 5`,
+    );
+
+    const parts: string[] = [];
+
+    if (promotions.rows.length > 0) {
+      const promoList = promotions.rows.map(p => {
+        const date = p.event_date
+          ? new Date(p.event_date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+          : "upcoming";
+        return `• ${p.title}${p.subtitle ? ` — ${p.subtitle}` : ""} (${date})${p.description ? `: ${p.description.slice(0, 120)}` : ""}`;
+      }).join("\n");
+      parts.push(`Active JCTM Events & Promotions:\n${promoList}`);
+    }
+
+    if (registrations.rows.length > 0) {
+      const regList = registrations.rows.map(r =>
+        `• ${r.event_name}: ${r.count} registered`,
+      ).join("\n");
+      parts.push(`Conference Registration Interest:\n${regList}`);
+    }
+
+    if (parts.length === 0) {
+      log?.info("No active promotions or recent registrations — skipping conference ingestion");
+      return;
+    }
+
+    const content = `JCTM Conference & Events Intelligence:\n${parts.join("\n\n")}\n\nRegister at jctm.org.ng/conference-registration or visit jctm.org.ng/events. Contact info@jctm.org.ng for more information about any JCTM event.`;
+    const vector = await generateEmbeddingVector(content);
+
+    await client.query(
+      `INSERT INTO knowledge_chunks (content, source, chunk_index, embedding)
+       VALUES ($1, 'activity-conferences', 0, $2)
+       ON CONFLICT (source, chunk_index) DO UPDATE SET content = EXCLUDED.content, embedding = EXCLUDED.embedding`,
+      [content, vector ?? null],
+    );
+
+    log?.info({ promotions: promotions.rows.length, registrations: registrations.rows.length }, "Conference data ingested");
+  } catch (err) {
+    log?.warn({ err }, "Conference data ingestion failed (non-fatal)");
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Full Content Sync ─────────────────────────────────────────────────────────
+// Orchestrates a complete re-ingestion of all content types in the correct order.
+// Safe to call at any time — all operations are idempotent upserts.
+
+export async function runFullContentSync(log?: Logger): Promise<{
+  sermons: boolean;
+  activity: boolean;
+  devotionals: boolean;
+  faqs: boolean;
+  shorts: boolean;
+  livestream: boolean;
+  conferences: boolean;
+}> {
+  const results = {
+    sermons: false, activity: false, devotionals: false,
+    faqs: false, shorts: false, livestream: false, conferences: false,
+  };
+  log?.info("Starting full AI knowledge content sync...");
+  const t0 = Date.now();
+
+  await Promise.allSettled([
+    ingestAllSermons(log).then(() => { results.sermons = true; }),
+    ingestActivityLearning(log).then(() => { results.activity = true; }),
+    ingestDailyDevotionals(log).then(() => { results.devotionals = true; }),
+    ingestMinistryFAQs(log).then(() => { results.faqs = true; }),
+    ingestMinistryShorts(log).then(() => { results.shorts = true; }),
+    ingestLiveStreamContext(log).then(() => { results.livestream = true; }),
+    ingestConferenceData(log).then(() => { results.conferences = true; }),
+  ]);
+
+  log?.info({ ...results, durationMs: Date.now() - t0 }, "Full AI knowledge content sync complete");
+  return results;
+}

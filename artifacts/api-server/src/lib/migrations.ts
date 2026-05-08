@@ -1070,5 +1070,45 @@ export async function runMigrations(): Promise<void> {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS email_unsubscribes_email_idx ON email_unsubscribes (email)`);
 
+  // ── AI Interaction Log — telemetry for every TempleBots query ────────────────
+  // Tracks query, tier, latency, intent, source chunk count, and cache hits
+  // for performance monitoring and quality improvement.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_interactions (
+      id               serial      PRIMARY KEY,
+      session_id       text,
+      query            text        NOT NULL,
+      query_length     integer     NOT NULL DEFAULT 0,
+      intent           text,
+      tier             text        NOT NULL DEFAULT 'local',
+      latency_ms       integer,
+      source_chunks    integer     NOT NULL DEFAULT 0,
+      cache_hit        boolean     NOT NULL DEFAULT false,
+      openai_used      boolean     NOT NULL DEFAULT false,
+      sentiment        text,
+      language         text        NOT NULL DEFAULT 'en',
+      action_triggered text,
+      error            boolean     NOT NULL DEFAULT false,
+      created_at       timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ai_interactions_created_idx ON ai_interactions (created_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ai_interactions_tier_idx    ON ai_interactions (tier, created_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ai_interactions_intent_idx  ON ai_interactions (intent, created_at DESC) WHERE intent IS NOT NULL`);
+
+  // ── Knowledge Sync Log — tracks when each content type was last synced ────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS knowledge_sync_log (
+      id           serial      PRIMARY KEY,
+      content_type text        NOT NULL,
+      chunks_added integer     NOT NULL DEFAULT 0,
+      duration_ms  integer,
+      success      boolean     NOT NULL DEFAULT true,
+      error        text,
+      synced_at    timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ksl_content_type_idx ON knowledge_sync_log (content_type, synced_at DESC)`);
+
   logger.info("All migrations complete");
 }
