@@ -202,9 +202,13 @@ async function sendWithRetry(opts, label = "") {
 function renderDevotion(d, unsubUrl) {
   const subject = `Daily Devotion — ${d.title}`;
 
-  let formattedDate = d.date;
+  // d.date may arrive as a JS Date object (pg driver) or a "YYYY-MM-DD" string
+  const rawDate = d.date instanceof Date
+    ? d.date.toISOString().slice(0, 10)
+    : String(d.date).slice(0, 10);
+  let formattedDate = rawDate;
   try {
-    formattedDate = new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", {
+    formattedDate = new Date(rawDate + "T00:00:00Z").toLocaleDateString("en-US", {
       weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
     });
   } catch { /* use raw */ }

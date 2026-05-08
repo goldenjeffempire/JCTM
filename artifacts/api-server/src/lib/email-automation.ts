@@ -333,6 +333,89 @@ export async function checkAndSendConferenceLiveEmail(
   log.debug({ dateStr }, "Conference live cron fallback check complete");
 }
 
+// ─── Day 1 corrected-date midnight resend ─────────────────────────────────────
+// The Day 1 bulk emails (May 8) showed "Invalid Date" in the devotion header.
+// The fix is in send-bulk-emails.mjs. This one-shot cron fires at 23:00–23:09
+// UTC on May 8 (= midnight WAT, after the SMTP daily quota resets) and resends
+// both emails to all 104 recipients with the correct date.
+// Dedup: in-memory flag + email_send_log campaign_key.
+
+const firedDay1Resend = { done: false };
+
+async function day1ResendAlreadySent(): Promise<boolean> {
+  try {
+    const r = await pool.query<{ id: number }>(
+      `SELECT id FROM email_send_log
+       WHERE campaign_key = 'conference-2026-day1-midnight-resend' AND status = 'sent'
+       LIMIT 1`,
+    );
+    return r.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fires once between 23:00–23:09 UTC on May 8, 2026 (= midnight WAT).
+ * Resends the corrected devotion + conference emails to all 104 recipients
+ * now that (a) the date fix is live and (b) the SMTP daily quota has reset.
+ */
+export async function checkAndResendDay1CorrectedEmail(
+  log: Logger = logger,
+): Promise<void> {
+  const now = new Date();
+  const utcDate = now.toISOString().slice(0, 10);
+  const utcHour = now.getUTCHours();
+  const utcMin  = now.getUTCMinutes();
+
+  // Only on 2026-05-08 UTC, between 23:00–23:09
+  if (utcDate !== "2026-05-08" || utcHour !== 23 || utcMin > 9) return;
+
+  if (firedDay1Resend.done) return;
+  if (await day1ResendAlreadySent()) { firedDay1Resend.done = true; return; }
+
+  firedDay1Resend.done = true; // Optimistic lock
+
+  log.info({ utcDate, utcHour, utcMin }, "Firing Day 1 midnight resend (corrected date, SMTP quota reset)");
+
+  const workspaceRoot = process.cwd();
+  const scriptPath = resolve(workspaceRoot, "send-bulk-emails.mjs");
+
+  try {
+    await new Promise<void>((res, rej) => {
+      const child = spawn("node", [scriptPath], {
+        cwd: workspaceRoot,
+        stdio: "pipe",
+        env: { ...process.env },
+      });
+      child.stdout?.on("data", (chunk: Buffer) => {
+        const text = chunk.toString().trim();
+        if (text) log.info({ script: "day1-resend", output: text }, "day1-resend stdout");
+      });
+      child.stderr?.on("data", (chunk: Buffer) => {
+        const text = chunk.toString().trim();
+        if (text) log.warn({ script: "day1-resend", output: text }, "day1-resend stderr");
+      });
+      child.on("close", (code: number | null) => {
+        code === 0 ? res() : rej(new Error(`send-bulk-emails.mjs exited with code ${code}`));
+      });
+      child.on("error", rej);
+    });
+
+    await pool.query(
+      `INSERT INTO email_send_log
+         (email_type, recipient_email, campaign_key, status, sent_at)
+       VALUES ('conference_bulk_day1_resend', 'all-recipients', 'conference-2026-day1-midnight-resend', 'sent', now())
+       ON CONFLICT DO NOTHING`,
+    );
+
+    log.info("Day 1 midnight resend complete — all 104 recipients served with corrected date");
+  } catch (err) {
+    firedDay1Resend.done = false; // Allow retry on next minute
+    log.error({ err, scriptPath }, "Day 1 midnight resend failed — will retry next minute");
+  }
+}
+
 // ─── Conference morning bulk email — Days 2 & 3 auto-trigger ─────────────────
 // Fires at 7:00–7:09 AM WAT on May 9 and May 10, 2026 (Days 2 and 3).
 // Spawns send-bulk-emails.mjs from the workspace root, which sends both the

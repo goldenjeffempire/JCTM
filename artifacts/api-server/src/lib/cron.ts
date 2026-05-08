@@ -9,7 +9,7 @@ import { runEventNotificationTick, setEventNotificationIntervalMs } from "./even
 import { startEventNotificationWorker, stopEventNotificationWorker } from "./event-notification-worker.js";
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl, verifyEmailTransport } from "./email-engine.js";
-import { checkAndSendConferencePreReminder, checkAndSendConferenceLiveEmail, checkAndSendConferenceMorningBulkEmail } from "./email-automation.js";
+import { checkAndSendConferencePreReminder, checkAndSendConferenceLiveEmail, checkAndSendConferenceMorningBulkEmail, checkAndResendDay1CorrectedEmail } from "./email-automation.js";
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
 import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
@@ -1682,6 +1682,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
       );
       checkAndSendConferenceMorningBulkEmail(log).catch(err =>
         log.warn({ err }, "Conference morning bulk email cron tick error"),
+      );
+      checkAndResendDay1CorrectedEmail(log).catch(err =>
+        log.warn({ err }, "Day 1 midnight corrected-date resend cron tick error"),
       );
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");
