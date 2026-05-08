@@ -227,6 +227,17 @@ export function TempleBots() {
     if (initialMessage) {
       setTimeout(() => setInput(initialMessage), 300);
       setHomepageChips(HOMEPAGE_CHIPS);
+      const welcomeId = `welcome-${Date.now()}`;
+      setTimeout(() => {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: welcomeId,
+            role: "bot",
+            content: "👋 I'm TempleBots — your personal AI ministry companion for the JCTM Digital Sanctuary.\n\nI can help you explore our faith, the Correction Mandate, sermons, upcoming events, giving, and much more.\n\nType your own question or tap a quick start below to begin!",
+          },
+        ]);
+      }, 450);
     }
   }, []);
 
