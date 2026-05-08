@@ -1278,3 +1278,65 @@ export async function launchConferenceLiveNotification(
 
   return { campaignId, totalRecipients: recipients.length, skipped: skippedCount };
 }
+
+// ─── Retry failed recipients ──────────────────────────────────────────────────
+
+/**
+ * Resets all `failed` queue entries for a campaign back to `pending`,
+ * then re-fires the background worker so they are re-attempted.
+ * Returns immediately — processing happens asynchronously.
+ */
+export async function retryFailedCampaignRecipients(
+  campaignKey: string,
+  log: Logger = logger,
+): Promise<{ campaignId: number; requeued: number }> {
+  const row = await pool.query<{ id: string; conference_title: string; sent: string }>(
+    `SELECT id, conference_title, sent FROM conference_campaigns WHERE campaign_key = $1 LIMIT 1`,
+    [campaignKey],
+  );
+
+  if (!row.rows[0]) throw new Error(`Campaign not found: ${campaignKey}`);
+
+  const campaignId = Number(row.rows[0]!.id);
+  const conferenceTitle = row.rows[0]!.conference_title;
+  const currentSent = Number(row.rows[0]!.sent);
+
+  const reset = await pool.query(
+    `UPDATE conference_campaign_recipients
+        SET status = 'pending', attempts = 0, error = NULL
+      WHERE campaign_id = $1 AND status = 'failed'`,
+    [campaignId],
+  );
+  const requeued = reset.rowCount ?? 0;
+
+  if (requeued === 0) {
+    log.info({ campaignKey, campaignId }, "Campaign retry: no failed recipients to reset");
+    return { campaignId, requeued: 0 };
+  }
+
+  await pool.query(
+    `UPDATE conference_campaigns
+        SET status = 'running', failed = 0, completed_at = NULL, error = NULL, sent = $2
+      WHERE id = $1`,
+    [campaignId, currentSent],
+  );
+
+  const base = getPublicBaseUrl();
+  processCampaignInBackground(
+    campaignId,
+    {
+      conferenceTitle,
+      tagline: "A word that will mark you for life. Come and be transformed.",
+      dateStr: "8–10 May 2026",
+      timeStr: "8:00 AM WAT",
+      location: "JCTM Auditorium, Ebrumede Roundabout, Effurun",
+      registrationUrl: `${base}/conference-registration`,
+      livestreamUrl: `${base}/sermons`,
+      ministryWebsite: base,
+    },
+    log,
+  );
+
+  log.info({ campaignKey, campaignId, requeued }, "Campaign retry triggered for failed recipients");
+  return { campaignId, requeued };
+}

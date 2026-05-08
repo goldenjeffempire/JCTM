@@ -23,7 +23,7 @@ import { WarriCrusadeStatsTile } from "@/components/admin/WarriCrusadeStatsTile"
 import { GenericBroadcastTile } from "@/components/admin/GenericBroadcastTile";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  Bar, ComposedChart, ResponsiveContainer,
+  Bar, BarChart, ComposedChart, ResponsiveContainer,
   LineChart, Line,
 } from "recharts";
 
@@ -85,7 +85,7 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -99,6 +99,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }
   { id: "ai",           label: "AI Engine",    icon: <Bot className="w-4 h-4" /> },
   { id: "ads",          label: "AdSense",      icon: <DollarSign className="w-4 h-4" /> },
   { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
+  { id: "email",        label: "Email",        icon: <Mail className="w-4 h-4" /> },
 ];
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
@@ -5887,6 +5888,398 @@ function CredentialsSection({
   );
 }
 
+// ─── Email Campaign Section ───────────────────────────────────────────────────
+
+interface CampaignRow {
+  id: number;
+  campaign_key: string;
+  conference_title: string;
+  status: "pending" | "running" | "completed" | "failed";
+  total_recipients: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  error: string | null;
+  duration_seconds: number | null;
+}
+
+interface EmailAnalyticsData {
+  smtp: { configured: boolean; host: string | null; from: string | null };
+  campaignStats: { status: string; count: string; total_sent: string; total_failed: string; total_recipients: string }[];
+  sendLogSummary: { email_type: string; sent_count: string; failed_count: string; last_sent: string | null }[];
+  globalUnsubscribes: number | null;
+  recentCampaigns: CampaignRow[];
+  generatedAt: string;
+}
+
+function EmailCampaignSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const qc = useQueryClient();
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [retryingKey, setRetryingKey] = useState<string | null>(null);
+
+  const { data: analytics, isLoading } = useQuery<EmailAnalyticsData>({
+    queryKey: ["email-analytics"],
+    queryFn: () =>
+      fetch(`${BASE}/api/admin/email/analytics`, { credentials: "include" }).then(r => r.json()),
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      const hasRunning = d?.recentCampaigns?.some(
+        (c: CampaignRow) => c.status === "running" || c.status === "pending",
+      );
+      return hasRunning ? 5000 : 30000;
+    },
+  });
+
+  const { data: campaigns } = useQuery<{ campaigns: CampaignRow[]; total: number }>({
+    queryKey: ["email-campaigns"],
+    queryFn: () =>
+      fetch(`${BASE}/api/admin/email/campaigns?limit=20`, { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 15000,
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (campaign_key: string) => {
+      const res = await fetch(`${BASE}/api/admin/email/resend-failed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ campaign_key }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Retry failed");
+      return data as { requeued: number; message: string; campaignKey: string };
+    },
+    onSuccess: (data) => {
+      toast.success(data.message ?? `Re-queued ${data.requeued} failed recipients`);
+      qc.invalidateQueries({ queryKey: ["email-analytics"] });
+      qc.invalidateQueries({ queryKey: ["email-campaigns"] });
+      setRetryingKey(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Retry failed");
+      setRetryingKey(null);
+    },
+  });
+
+  const handleResend = (key: string) => {
+    if (!auth.isAdmin) { toast.error("Authentication required"); return; }
+    setRetryingKey(key);
+    resendMutation.mutate(key);
+  };
+
+  const totalSent = analytics?.campaignStats.reduce((s, r) => s + Number(r.total_sent), 0) ?? 0;
+  const totalFailed = analytics?.campaignStats.reduce((s, r) => s + Number(r.total_failed), 0) ?? 0;
+  const totalCampaigns = analytics?.campaignStats.reduce((s, r) => s + Number(r.count), 0) ?? 0;
+
+  const allCampaigns = campaigns?.campaigns ?? analytics?.recentCampaigns ?? [];
+  const hasRunning = allCampaigns.some(c => c.status === "running" || c.status === "pending");
+
+  const chartData = [...(analytics?.recentCampaigns ?? [])]
+    .reverse()
+    .slice(-8)
+    .map(c => ({
+      name: c.campaign_key
+        .replace(/^ministers-conference-\d{4}-/, "")
+        .replace(/-\d{13}$/, "")
+        .replace(/-/g, " ")
+        .trim()
+        .slice(0, 14) || c.conference_title.slice(0, 14),
+      sent: c.sent,
+      failed: c.failed,
+      skipped: c.skipped,
+    }));
+
+  return (
+    <AdminLoginGate role="livestream" auth={auth}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            title="Email Campaign Centre"
+            description="Live delivery progress, analytics, and one-click retry controls for all conference email campaigns."
+          />
+          <button
+            onClick={() => {
+              qc.invalidateQueries({ queryKey: ["email-analytics"] });
+              qc.invalidateQueries({ queryKey: ["email-campaigns"] });
+            }}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-muted"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${hasRunning ? "animate-spin" : ""}`} />
+            {hasRunning ? "Live" : "Refresh"}
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-12 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading email analytics…
+          </div>
+        ) : (
+          <>
+            {/* ── Summary stat cards ────────────────────────────────── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className={`rounded-xl border p-4 col-span-2 sm:col-span-1 ${analytics?.smtp.configured ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {analytics?.smtp.configured
+                    ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    : <AlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                  <span className="text-xs text-muted-foreground font-medium">SMTP</span>
+                </div>
+                <p className={`text-lg font-bold ${analytics?.smtp.configured ? "text-emerald-600" : "text-amber-600"}`}>
+                  {analytics?.smtp.configured ? "Connected" : "Not Set Up"}
+                </p>
+                {analytics?.smtp.host && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate font-mono">{analytics.smtp.host}</p>
+                )}
+              </div>
+              <MetricCard label="Campaigns" value={totalCampaigns} icon={<Send className="w-3 h-3" />} />
+              <MetricCard label="Delivered" value={totalSent.toLocaleString()} icon={<CheckCircle className="w-3 h-3 text-emerald-500" />} />
+              <MetricCard label="Failed" value={totalFailed.toLocaleString()} icon={<AlertCircle className="w-3 h-3 text-red-500" />} />
+              <MetricCard label="Unsubscribed" value={(analytics?.globalUnsubscribes ?? 0).toLocaleString()} icon={<Mail className="w-3 h-3" />} />
+            </div>
+
+            {/* ── Delivery rate bar chart ───────────────────────────── */}
+            {chartData.length > 0 && (
+              <Card>
+                <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-4 h-4 text-primary" /> Campaign Delivery Overview
+                </h3>
+                <ResponsiveContainer width="100%" height={190}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card)" }}
+                      cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                    />
+                    <Bar dataKey="sent" name="Delivered" fill="#22c55e" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="failed" name="Failed" fill="#ef4444" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="skipped" name="Skipped" fill="#94a3b8" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="flex items-center gap-4 mt-2 justify-center">
+                  {[{ color: "#22c55e", label: "Delivered" }, { color: "#ef4444", label: "Failed" }, { color: "#94a3b8", label: "Skipped" }].map(l => (
+                    <span key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: l.color }} />
+                      {l.label}
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* ── Campaign list ─────────────────────────────────────── */}
+            <Card className="p-0 overflow-hidden">
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Send className="w-4 h-4 text-primary" />
+                  All Campaigns
+                  {allCampaigns.length > 0 && (
+                    <span className="ml-auto text-[10px] text-muted-foreground font-normal">
+                      {allCampaigns.length} total
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <div className="divide-y divide-border">
+                {allCampaigns.length === 0 ? (
+                  <div className="p-10 text-center text-sm text-muted-foreground">
+                    No campaigns launched yet
+                  </div>
+                ) : (
+                  allCampaigns.map((c) => {
+                    const isRunning = c.status === "running" || c.status === "pending";
+                    const progress = c.total_recipients > 0
+                      ? Math.min(100, Math.round(((c.sent + c.failed) / c.total_recipients) * 100))
+                      : 0;
+                    const deliveryRate = (c.sent + c.failed) > 0
+                      ? Math.round((c.sent / (c.sent + c.failed)) * 100)
+                      : null;
+                    const isExpanded = expandedKey === c.campaign_key;
+                    const isRetrying = retryingKey === c.campaign_key;
+
+                    return (
+                      <div key={c.campaign_key}>
+                        <div className="p-4 hover:bg-muted/20 transition-colors">
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                              isRunning ? "bg-blue-500 animate-pulse" :
+                              c.status === "completed" ? "bg-emerald-500" :
+                              c.status === "failed" ? "bg-red-500" : "bg-muted-foreground"
+                            }`} />
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                <p className="text-sm font-semibold truncate max-w-[220px]">{c.conference_title}</p>
+                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                                  isRunning ? "bg-blue-500/10 border-blue-500/30 text-blue-500" :
+                                  c.status === "completed" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" :
+                                  c.status === "failed" ? "bg-red-500/10 border-red-500/30 text-red-500" :
+                                  "bg-muted border-border text-muted-foreground"
+                                }`}>{c.status}</span>
+                                {hasRunning && isRunning && (
+                                  <span className="text-[10px] text-blue-500 font-mono font-semibold">{progress}%</span>
+                                )}
+                              </div>
+
+                              {/* Progress bar */}
+                              {c.total_recipients > 0 && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                    <motion.div
+                                      className={`h-full rounded-full transition-all ${
+                                        isRunning ? "bg-blue-500" :
+                                        c.status === "completed" ? "bg-emerald-500" : "bg-red-400"
+                                      }`}
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${progress}%` }}
+                                      transition={{ duration: 0.6, ease: "easeOut" }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground font-mono w-8 text-right shrink-0">{progress}%</span>
+                                </div>
+                              )}
+
+                              {/* Stats row */}
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-3 h-3" /> {c.total_recipients.toLocaleString()}
+                                </span>
+                                <span className="flex items-center gap-1 text-emerald-600">
+                                  <CheckCircle className="w-3 h-3" /> {c.sent.toLocaleString()} sent
+                                </span>
+                                {c.failed > 0 && (
+                                  <span className="flex items-center gap-1 text-red-500">
+                                    <AlertCircle className="w-3 h-3" /> {c.failed.toLocaleString()} failed
+                                  </span>
+                                )}
+                                {c.skipped > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <Hash className="w-3 h-3" /> {c.skipped.toLocaleString()} skipped
+                                  </span>
+                                )}
+                                {deliveryRate !== null && (
+                                  <span className="font-semibold text-foreground">{deliveryRate}% rate</span>
+                                )}
+                                {c.duration_seconds && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> {c.duration_seconds}s
+                                  </span>
+                                )}
+                                <span className="text-[10px] ml-auto">{rel(c.created_at)}</span>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {c.failed > 0 && !isRunning && (
+                                <motion.button
+                                  whileHover={{ scale: 1.03 } as never}
+                                  whileTap={{ scale: 0.97 } as never}
+                                  onClick={() => handleResend(c.campaign_key)}
+                                  disabled={isRetrying}
+                                  title={`Retry ${c.failed} failed recipients`}
+                                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {isRetrying
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : <RefreshCw className="w-3 h-3" />}
+                                  Retry {c.failed.toLocaleString()}
+                                </motion.button>
+                              )}
+                              <button
+                                onClick={() => setExpandedKey(isExpanded ? null : c.campaign_key)}
+                                className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                                title="Show details"
+                              >
+                                <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded detail drawer */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              key="detail"
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden bg-muted/20 border-t border-border"
+                            >
+                              <div className="p-4 space-y-1.5">
+                                <ConfigRow label="Campaign Key" value={c.campaign_key} mono />
+                                <ConfigRow label="Created" value={new Date(c.created_at).toLocaleString()} />
+                                <ConfigRow label="Started" value={c.started_at ? new Date(c.started_at).toLocaleString() : "—"} />
+                                <ConfigRow label="Completed" value={c.completed_at ? new Date(c.completed_at).toLocaleString() : "—"} />
+                                <ConfigRow label="Duration" value={c.duration_seconds ? `${c.duration_seconds}s` : "—"} />
+                                {c.error && (
+                                  <div className="text-xs text-red-500 bg-red-500/5 border border-red-500/20 rounded-lg p-3 mt-2 font-mono break-all">
+                                    {c.error}
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Card>
+
+            {/* ── 7-day send log summary ───────────────────────────── */}
+            {(analytics?.sendLogSummary ?? []).length > 0 && (
+              <Card>
+                <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
+                  <Activity className="w-4 h-4 text-primary" /> 7-Day Send Log by Type
+                </h3>
+                <div className="divide-y divide-border">
+                  {(analytics?.sendLogSummary ?? []).map((row) => {
+                    const total = Number(row.sent_count) + Number(row.failed_count);
+                    const rate = total > 0 ? Math.round((Number(row.sent_count) / total) * 100) : 100;
+                    return (
+                      <div key={row.email_type} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold font-mono text-primary">{row.email_type}</span>
+                            {row.last_sent && (
+                              <span className="text-[10px] text-muted-foreground">{rel(row.last_sent)}</span>
+                            )}
+                          </div>
+                          <div className="h-1 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all"
+                              style={{ width: `${rate}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs shrink-0">
+                          <span className="text-emerald-600 font-semibold">{Number(row.sent_count).toLocaleString()} ✓</span>
+                          {Number(row.failed_count) > 0 && (
+                            <span className="text-red-500 font-semibold">{Number(row.failed_count).toLocaleString()} ✗</span>
+                          )}
+                          <span className="text-muted-foreground w-8 text-right">{rate}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
+    </AdminLoginGate>
+  );
+}
+
 function ChangePassInline({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState("");
@@ -6046,6 +6439,7 @@ export default function Admin() {
               {section === "ai"          && <AIDashboardSection auth={sermonAuth} />}
               {section === "ads"         && <AdSenseDiagnosticsSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
+              {section === "email"       && <EmailCampaignSection auth={livestreamAuth} />}
             </motion.div>
           </AnimatePresence>
         </main>

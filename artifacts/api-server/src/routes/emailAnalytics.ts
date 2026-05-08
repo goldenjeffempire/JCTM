@@ -16,10 +16,11 @@ import { requireAdminRole } from "../lib/adminAuth.js";
 import { pool } from "@workspace/db";
 import { isEmailConfigured } from "../lib/email-engine.js";
 import { addGlobalUnsubscribe } from "../lib/email-automation.js";
+import { retryFailedCampaignRecipients } from "../lib/conference-campaign-engine.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
-const auth = requireAdminRole("super");
+const auth = requireAdminRole(["sermon", "livestream"]);
 
 // ─── GET /api/admin/email/analytics ──────────────────────────────────────────
 
@@ -321,6 +322,37 @@ router.delete(
     } catch (err) {
       logger.error({ err, email }, "Manual unsubscribe remove failed");
       res.status(500).json({ error: "Failed to remove unsubscribe" });
+    }
+  },
+);
+
+// ─── POST /api/admin/email/resend-failed ─────────────────────────────────────
+
+router.post(
+  "/admin/email/resend-failed",
+  auth,
+  async (req: Request, res: Response): Promise<void> => {
+    const campaignKey = typeof req.body?.campaign_key === "string" ? req.body.campaign_key.trim() : "";
+    if (!campaignKey) {
+      res.status(400).json({ error: "campaign_key is required" });
+      return;
+    }
+    try {
+      const { campaignId, requeued } = await retryFailedCampaignRecipients(campaignKey, req.log);
+      logger.info({ campaignKey, campaignId, requeued }, "Admin triggered failed-recipient retry");
+      res.json({
+        success: true,
+        campaignKey,
+        campaignId,
+        requeued,
+        message: requeued > 0
+          ? `Re-queued ${requeued} failed recipient${requeued === 1 ? "" : "s"} — they will be retried in the background.`
+          : "No failed recipients found for this campaign.",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Retry failed";
+      logger.error({ err, campaignKey }, "Campaign retry endpoint failed");
+      res.status(500).json({ error: msg });
     }
   },
 );
