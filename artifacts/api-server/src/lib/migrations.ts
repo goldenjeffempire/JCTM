@@ -1225,5 +1225,44 @@ export async function runMigrations(): Promise<void> {
     // GIN index may fail if pg_trgm unavailable — non-fatal, ILIKE fallback active
   }
 
+  // ── Ministers Conference Day 2 — upsert event_promotions for Day 2 window ────
+  // INSERT if no row exists yet (fresh DB); UPDATE to Day 2 if Day 1 row found.
+  // Idempotent: WHERE clause prevents re-updating a row already on Day 2+.
+  // Resets push_sent_at = NULL so the 8 AM live-transition push fires today.
+  await pool.query(`
+    INSERT INTO event_promotions (
+      slug, title, subtitle, location,
+      cta_text, cta_url,
+      start_at, end_at, status,
+      show_banner, show_popup, show_sticky_bar,
+      broadcast_enabled, broadcast_cadence, broadcast_messages,
+      created_at, updated_at
+    ) VALUES (
+      'ministers-conference-2026',
+      'Ministers Conference Day 2 — Apostolic Fire',
+      'Starting at 8:00 AM WAT — JCTM Auditorium, Ebrumede Roundabout',
+      'JCTM Auditorium, Ebrumede Roundabout',
+      'Join Day 2',
+      '/livestream',
+      '2026-05-09T07:00:00Z',
+      '2026-05-10T20:00:00Z',
+      'active',
+      true, true, true,
+      true, 'hourly', '[]'::jsonb,
+      now(), now()
+    )
+    ON CONFLICT (slug) DO UPDATE SET
+      title             = EXCLUDED.title,
+      subtitle          = EXCLUDED.subtitle,
+      cta_text          = EXCLUDED.cta_text,
+      cta_url           = EXCLUDED.cta_url,
+      start_at          = EXCLUDED.start_at,
+      push_sent_at      = NULL,
+      broadcast_enabled = true,
+      broadcast_cadence = 'hourly',
+      updated_at        = now()
+    WHERE event_promotions.start_at < '2026-05-09T06:00:00Z'
+  `);
+
   logger.info("All migrations complete");
 }

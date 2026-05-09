@@ -95,6 +95,123 @@ const WARRI_CRUSADE_MESSAGES = [
   "🔥 The fire of revival is burning in Warri on Day 2 — join us now!",
 ] as const;
 
+// ── Ministers Conference Day 2 hourly campaign broadcast ─────────────────────
+// Day 2 starts at 8:00 AM WAT (07:00 UTC) on May 9, 2026. The hourly cron
+// fires throughout the day: "Starting Soon" messages before 8 AM and
+// "LIVE NOW" messages once the event begins. Ends at 8 PM WAT (19:00 UTC).
+const MC_DAY2_START_MS = new Date("2026-05-09T07:00:00Z").getTime(); // 8:00 AM WAT
+const MC_DAY2_END_MS   = new Date("2026-05-09T19:00:00Z").getTime(); // 8:00 PM WAT
+const MC_DAY2_TITLE    = "Ministers Conference Day 2 — Apostolic Fire";
+const MC_DAY2_BODY     = "Ministers Conference Day 2 broadcast";
+const MC_DAY2_URL      = "/livestream";
+
+const MC_DAY2_UPCOMING_MESSAGES = [
+  "⏰ Ministers Conference Day 2 starts at 8 AM WAT — prepare your heart!",
+  "🔔 Day 2 of Ministers Conference 2026 begins TODAY at 8 AM WAT — join us!",
+  "🙏 Apostolic Fire Day 2 is starting soon — 8 AM WAT at JCTM Auditorium!",
+  "🌍 Prophetic Word awaits — Ministers Conference Day 2 at 8 AM WAT today!",
+  "🕊️ Get ready for Day 2 — Ministers Conference 2026 starts at 8 AM WAT!",
+  "📖 Join us at 8 AM WAT for Day 2 of the Ministers Conference!",
+  "🔥 Day 2 of the Ministers Conference — 8 AM WAT at JCTM Auditorium!",
+  "🙌 Invite a minister — Day 2 of the Ministers Conference starts at 8 AM WAT!",
+] as const;
+
+const MC_DAY2_LIVE_MESSAGES = [
+  "🔥 Ministers Conference Day 2 is LIVE — join us now for apostolic fire!",
+  "⚡ Day 2 is happening — signs, wonders, and the Word from JCTM!",
+  "🙏 Don't miss Day 2 of Ministers Conference 2026 — it's live NOW!",
+  "🌍 Ministers are gathered — join Day 2 of the conference now!",
+  "🕊️ The Holy Spirit is moving at Day 2 — tune in now from JCTM!",
+  "📖 Prophet Amos is ministering at Day 2 — join us on the livestream!",
+  "🔔 Ministers Conference Day 2 is ongoing — share with other ministers!",
+  "🙌 Anointing and apostolic fire on Day 2 — join the conference now!",
+] as const;
+
+function buildMinistersConferenceDay2Notification(bucket: string): NotificationPayload {
+  const parts = bucket.split("-");
+  const hourNum = parseInt(parts[3] ?? "0", 10);
+  const now = Date.now();
+  const isLive = now >= MC_DAY2_START_MS && now < MC_DAY2_END_MS;
+  const isUpcoming = now < MC_DAY2_START_MS;
+  const messages = isUpcoming ? MC_DAY2_UPCOMING_MESSAGES : MC_DAY2_LIVE_MESSAGES;
+  const body = messages[hourNum % messages.length]!;
+  const title = isLive
+    ? "🔴 Ministers Conference Day 2 — Live Now"
+    : "⏰ Ministers Conference Day 2 — Starting Soon at 8 AM WAT";
+  return {
+    title,
+    body,
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: MC_DAY2_URL,
+    tag: "ministers-conf-day2-2026",
+    requireInteraction: isLive,
+    actions: [
+      { action: "open", title: isLive ? "Watch Live" : "Learn More" },
+      { action: "share", title: "Share" },
+    ],
+    data: {
+      type: "ministers_conf_day2_promo",
+      broadcastType: isUpcoming ? "event_reminder" : "live_service",
+      isLive,
+      isUpcoming,
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+async function checkAndBroadcastMinistersConferenceDay2Hourly(log: Logger): Promise<void> {
+  const now = Date.now();
+  if (now >= MC_DAY2_END_MS) return; // Day 2 window ended — nothing to do
+  // Only fire within the first 5 minutes of each UTC hour
+  const minutePastHour = new Date(now).getUTCMinutes();
+  if (minutePastHour >= 5) return;
+
+  const bucket = hourBucketUTC(now);
+  const dedupMessage = `${MC_DAY2_BODY} [slot:${bucket}]`;
+
+  try {
+    const existing = await pool.query<{ id: number }>(
+      `SELECT id FROM broadcast_events
+        WHERE type = 'ministers_conf_day2_promo' AND title = $1 AND message = $2
+        LIMIT 1`,
+      [MC_DAY2_TITLE, dedupMessage],
+    );
+    if (existing.rowCount && existing.rowCount > 0) return;
+
+    await pool.query(
+      `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+      ["ministers_conf_day2_promo", MC_DAY2_TITLE, dedupMessage, MC_DAY2_URL],
+    );
+
+    const isLive = now >= MC_DAY2_START_MS;
+    log.info(
+      { bucket, isLive },
+      "Ministers Conference Day 2 hourly broadcast — dispatching push + in-app toast",
+    );
+
+    const notif = buildMinistersConferenceDay2Notification(bucket);
+    const result = await dispatchPushNotification(notif, log, "ministers_conf_day2_promo");
+    const expoResult = await dispatchExpoPush(
+      notif.title,
+      notif.body,
+      { url: notif.url, type: "ministers_conf_day2_promo" },
+      log,
+    );
+
+    log.info(
+      {
+        bucket,
+        web: { sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+        expo: expoResult,
+      },
+      "Ministers Conference Day 2 hourly broadcast complete (web + expo)",
+    );
+  } catch (err) {
+    log.warn({ err, bucket }, "Ministers Conference Day 2 hourly broadcast failed (non-fatal)");
+  }
+}
+
 // ── Expo Push Notification Dispatcher ────────────────────────────────────────
 // Sends push notifications to mobile devices registered via expo-notifications.
 // Uses the Expo Push API (https://exp.host/--/api/v2/push/send) — no SDK needed.
@@ -1704,6 +1821,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndSendEventReminders(log);
       checkAndBroadcastWarriCrusadeHourly(log).catch(err =>
         log.warn({ err }, "Warri Crusade Day 2 hourly broadcast tick error"),
+      );
+      checkAndBroadcastMinistersConferenceDay2Hourly(log).catch(err =>
+        log.warn({ err }, "Ministers Conference Day 2 hourly broadcast tick error"),
       );
       checkAndBroadcastCampaignPromotions(log).catch(err =>
         log.warn({ err }, "Campaign promotion broadcast tick error"),

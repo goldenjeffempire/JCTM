@@ -38,8 +38,8 @@ import {
 } from "lucide-react";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 
-const CONF_START = new Date("2026-05-08T08:00:00+01:00"); // 8:00 AM WAT
-const CONF_END   = new Date("2026-05-10T21:00:00+01:00"); // 9:00 PM WAT
+const CONF_START = new Date("2026-05-09T07:00:00Z"); // 8:00 AM WAT Day 2
+const CONF_END   = new Date("2026-05-10T21:00:00+01:00"); // 9:00 PM WAT Day 3
 
 const SESSION_KEY  = "jctm:ministers-conf-2026:popup:shown";
 const COOLDOWN_KEY = "jctm:ministers-conf-2026:popup:dismissedAt";

@@ -48,15 +48,15 @@ const FALLBACK_EVENT = {
   enabled: true,
   slug: "ministers-conference-2026",
   artworkImport: ministerConferenceFlyer,
-  title: "Ministers Conference 2026 — Apostolic Fire",
-  subtitle: "Daily 8:00 AM WAT — JCTM Auditorium, Ebrumede Roundabout",
-  dateLabel: "May 8–10, 2026 · 8:00 AM (WAT)",
+  title: "Ministers Conference Day 2 — Apostolic Fire",
+  subtitle: "Day 2 · 8:00 AM WAT · JCTM Auditorium, Ebrumede Roundabout",
+  dateLabel: "May 9, 2026 · 8:00 AM (WAT)",
   location: "JCTM Auditorium, Ebrumede Roundabout",
-  ctaLabel: "Register for Conference",
-  ctaHref: "/conference-registration",
-  // 2026-05-08T07:00:00Z = 8:00 AM WAT (WAT is UTC+1)
-  startAtIso: "2026-05-08T07:00:00Z",
-  // 2026-05-10T20:00:00Z = 9:00 PM WAT — conference closes
+  ctaLabel: "Join Day 2",
+  ctaHref: "/livestream",
+  // 2026-05-09T07:00:00Z = 8:00 AM WAT on Day 2 (WAT is UTC+1)
+  startAtIso: "2026-05-09T07:00:00Z",
+  // 2026-05-10T20:00:00Z = 9:00 PM WAT — conference closes after Day 3
   endAtIso: "2026-05-10T20:00:00Z",
 };
 
