@@ -81,7 +81,7 @@ router.post("/testimonies", async (req, res): Promise<void> => {
 
   const [testimony] = await db
     .insert(testimoniesTable)
-    .values({ ...parsed.data, approved: modResult.decision === "approve" ? false : false, likeCount: 0 })
+    .values({ ...parsed.data, approved: modResult.decision === "approve", likeCount: 0 })
     .returning();
 
   res.status(201).json({

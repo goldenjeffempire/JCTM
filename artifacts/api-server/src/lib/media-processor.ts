@@ -868,6 +868,14 @@ async function requeueEligibleFailedJobs(): Promise<number> {
         AND next_retry_at IS NOT NULL
         AND next_retry_at         <= now()
         AND expires_at            > now()
+        AND NOT EXISTS (
+          SELECT 1 FROM media_download_jobs dup
+           WHERE dup.source_id = media_download_jobs.source_id
+             AND dup.format    = media_download_jobs.format
+             AND dup.quality   = media_download_jobs.quality
+             AND dup.status    IN ('queued', 'processing', 'ready')
+             AND dup.id        != media_download_jobs.id
+        )
       RETURNING *,
         COALESCE(retry_count, 0)    AS retry_count,
         COALESCE(is_permanent_failure, false) AS is_permanent_failure`,
