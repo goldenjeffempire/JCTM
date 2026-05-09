@@ -6,6 +6,7 @@ import {
   X, Send, Youtube, Download,
 } from "lucide-react";
 import MediaDownloadSheet from "@/components/MediaDownloadSheet";
+import { emitTrackJob } from "@/components/MediaJobsPanel";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed";
@@ -326,6 +327,7 @@ function MomentDownloadButton({ videoId, title, thumbnailUrl }: { videoId: strin
         sourceId={videoId}
         title={title}
         thumbnailUrl={thumbnailUrl ?? undefined}
+        onJobCreated={emitTrackJob}
       />
     </>
   );

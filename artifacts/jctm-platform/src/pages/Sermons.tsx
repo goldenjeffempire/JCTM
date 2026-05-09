@@ -21,6 +21,7 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { StreamPlayer } from "@/components/StreamPlayer";
 import MediaDownloadSheet from "@/components/MediaDownloadSheet";
+import { VideoDownloadInlineButton } from "@/components/VideoDownloadPanel";
 
 const CATEGORIES = [
   { id: "all", label: "All Sermons", emoji: "📖" },
@@ -919,10 +920,15 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
             <button
               onClick={(e) => { e.stopPropagation(); setDownloadOpen(true); }}
               className="p-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Download this sermon"
+              title="Download audio"
             >
               <Download className="h-3.5 w-3.5" />
             </button>
+            <VideoDownloadInlineButton
+              videoId={sermon.videoId}
+              title={sermon.title}
+              thumbnailUrl={sermon.thumbnailUrl}
+            />
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setShareOpen(o => !o); }}

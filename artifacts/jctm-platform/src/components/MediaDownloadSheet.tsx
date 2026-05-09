@@ -130,14 +130,15 @@ const IMAGE_QUALITY: QualityOption[] = [
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface MediaDownloadSheetProps {
-  open:          boolean;
-  onClose:       () => void;
-  type:          MediaType;
-  sourceId:      string;
-  title?:        string;
-  thumbnailUrl?: string;
-  duration?:     number;
-  onJobCreated?: (jobId: string) => void;
+  open:           boolean;
+  onClose:        () => void;
+  type:           MediaType;
+  sourceId:       string;
+  title?:         string;
+  thumbnailUrl?:  string;
+  duration?:      number;
+  onJobCreated?:  (jobId: string) => void;
+  initialFormat?: Format;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -151,7 +152,9 @@ function fmtDuration(s: number): string {
 }
 
 function defaultFormat(type: MediaType): Format {
-  return type === "gallery_image" ? "jpeg" : "mp3";
+  if (type === "gallery_image") return "jpeg";
+  if (type === "youtube_video") return "mp4";
+  return "mp3";
 }
 
 function qualityOptions(format: Format): QualityOption[] {
@@ -189,7 +192,7 @@ function ProgressRing({ pct, size = 80 }: { pct: number; size?: number }) {
 export default function MediaDownloadSheet({
   open, onClose, type, sourceId,
   title: propTitle, thumbnailUrl: propThumbnail, duration: propDuration,
-  onJobCreated,
+  onJobCreated, initialFormat,
 }: MediaDownloadSheetProps) {
 
   type Step = "pick" | "processing" | "done" | "error";
@@ -211,7 +214,7 @@ export default function MediaDownloadSheet({
   useEffect(() => {
     if (open) {
       setStep("pick");
-      setFormat(defaultFormat(type));
+      setFormat(initialFormat ?? defaultFormat(type));
       setQuality("high");
       setJob(null);
       setLoading(false);
@@ -222,7 +225,7 @@ export default function MediaDownloadSheet({
     } else {
       closeSSE();
     }
-  }, [open, type]);
+  }, [open, type, initialFormat]);
 
   useEffect(() => () => closeSSE(), []);
 

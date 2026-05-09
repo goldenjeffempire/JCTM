@@ -7,9 +7,11 @@ import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { Button } from "@/components/ui/button";
 import {
   Volume2, VideoIcon, ArrowLeft, Calendar, Eye, Sparkles, ChevronRight,
-  Share2, Copy, Check, Bot, ExternalLink, Play, Clock,
+  Share2, Copy, Check, Bot, ExternalLink, Play, Clock, Download,
 } from "lucide-react";
 import DownloadButton from "@/components/DownloadButton";
+import { VideoDownloadInlineButton } from "@/components/VideoDownloadPanel";
+import VideoDownloadPanel from "@/components/VideoDownloadPanel";
 import { format, formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -373,17 +375,24 @@ export default function SermonDetail() {
                   </Button>
                 </div>
 
-                {/* Download button */}
+                {/* Download buttons — audio + video */}
                 {sermon && (
-                  <DownloadButton
-                    type="youtube_audio"
-                    sourceId={sermon.videoId}
-                    title={sermon.title}
-                    thumbnailUrl={sermon.thumbnailUrl ?? undefined}
-                    variant="compact"
-                    className="border-primary/20 text-primary hover:bg-primary/5 bg-transparent"
-                    iconClassName="text-primary"
-                  />
+                  <div className="flex items-center gap-2">
+                    <DownloadButton
+                      type="youtube_audio"
+                      sourceId={sermon.videoId}
+                      title={sermon.title}
+                      thumbnailUrl={sermon.thumbnailUrl ?? undefined}
+                      variant="compact"
+                      className="border-primary/20 text-primary hover:bg-primary/5 bg-transparent"
+                      iconClassName="text-primary"
+                    />
+                    <VideoDownloadInlineButton
+                      videoId={sermon.videoId}
+                      title={sermon.title}
+                      thumbnailUrl={sermon.thumbnailUrl ?? undefined}
+                    />
+                  </div>
                 )}
 
                 {/* Share button */}
@@ -502,6 +511,15 @@ export default function SermonDetail() {
                   </span>
                 </div>
               </div>
+
+              {/* Video Download Panel */}
+              {sermon && (
+                <VideoDownloadPanel
+                  videoId={sermon.videoId}
+                  title={sermon.title}
+                  thumbnailUrl={sermon.thumbnailUrl ?? undefined}
+                />
+              )}
 
               {/* AI Summary */}
               <SermonAISummary sermonId={id} />
