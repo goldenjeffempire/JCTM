@@ -1405,5 +1405,24 @@ export async function runMigrations(): Promise<void> {
     DELETE FROM download_tokens WHERE expires_at < now() - interval '7 days'
   `);
 
+  // ── `sermons` view — alias for sermon_data ──────────────────────────────────
+  // Several internal modules (media-preprocess, recommendation-engine, ai-search,
+  // knowledge-ingestion) query "FROM sermons". The physical table is sermon_data.
+  // This view bridges the name gap and also exposes is_published = true for all
+  // rows (every YouTube-synced sermon is inherently public).
+  await pool.query(`
+    CREATE OR REPLACE VIEW sermons AS
+      SELECT
+        *,
+        true::boolean AS is_published
+      FROM sermon_data
+  `);
+
+  // ── testimonies.author_name column ─────────────────────────────────────────
+  // knowledge-ingestion.ts queries this column; add it if absent (non-breaking).
+  await pool.query(`
+    ALTER TABLE testimonies ADD COLUMN IF NOT EXISTS author_name text
+  `);
+
   logger.info("All migrations complete");
 }

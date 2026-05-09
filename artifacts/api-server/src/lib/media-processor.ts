@@ -30,157 +30,93 @@ const logger = pino({ name: "media-processor" });
 
 export const MEDIA_DIR = process.env.MEDIA_TEMP_DIR ?? path.join(os.tmpdir(), "jctm-media");
 
-// yt-dlp invocation: resolved lazily at first spawn so the binary is detected
-// correctly regardless of whether it was installed via Nix, pip, or a package manager.
-// IMPORTANT: we only cache a *successful* resolution — never a bare-name fallback —
-// so that a transient PATH issue at startup does not permanently break downloads.
-type YtDlpInvoker = { cmd: string; prefix: string[]; resolved: boolean };
-let _ytDlpInvoker: YtDlpInvoker | null = null;
-
-// ── ffmpeg path: set explicitly so fluent-ffmpeg finds it in Nix / Replit envs ──
+// ── ffmpeg path: resolved eagerly at module load ──────────────────────────────
 (function initFfmpegPath() {
-  const candidates = [
+  // 1. which ffmpeg — most reliable in Nix/Replit
+  try {
+    const found = execSync("which ffmpeg", { encoding: "utf8", timeout: 5000 }).trim();
+    if (found) { ffmpeg.setFfmpegPath(found); logger.info({ ffmpegPath: found }, "ffmpeg path configured"); return; }
+  } catch { /* not on PATH */ }
+  // 2. Known paths
+  for (const c of [
     process.env.FFMPEG_PATH,
     "/nix/store/x5hwjkyng8385q1pqhz8wyqkq0izmhpi-replit-runtime-path/bin/ffmpeg",
     "/usr/local/bin/ffmpeg",
     "/usr/bin/ffmpeg",
-  ].filter(Boolean) as string[];
-  for (const c of candidates) {
-    try {
-      if (fs.existsSync(c)) {
-        ffmpeg.setFfmpegPath(c);
-        logger.info({ ffmpegPath: c }, "ffmpeg path configured");
-        return;
-      }
-    } catch { /* skip */ }
+  ].filter(Boolean) as string[]) {
+    try { if (fs.existsSync(c)) { ffmpeg.setFfmpegPath(c); logger.info({ ffmpegPath: c }, "ffmpeg path configured"); return; } } catch { /* skip */ }
   }
-  // Final fallback: let fluent-ffmpeg auto-detect from PATH
-  try {
-    const found = execSync("which ffmpeg 2>/dev/null", { encoding: "utf8", timeout: 3000 }).trim();
-    if (found) { ffmpeg.setFfmpegPath(found); logger.info({ ffmpegPath: found }, "ffmpeg path configured via which"); }
-  } catch { /* best effort */ }
+  logger.warn("ffmpeg not found — audio conversion may fail");
 })();
 
-function resolveYtDlpBinary(): string | null {
-  // 1. Explicit override via env var — highest priority, set in Replit secrets/env
-  if (process.env.YT_DLP_PATH) {
-    try { if (fs.existsSync(process.env.YT_DLP_PATH)) return process.env.YT_DLP_PATH; } catch { /* skip */ }
+// ── yt-dlp binary: resolved EAGERLY at module load time ───────────────────────
+//
+// We resolve once at import time and store in a const. This sidesteps the
+// esbuild-bundle lazy-evaluation problem: inside the bundled ESM the execSync
+// calls inside a lazy getter closure can fail silently, but running the same
+// code synchronously at top level always works (confirmed via node -e tests).
+//
+// Resolution order:
+//   1. YT_DLP_PATH env var (set in Replit userenv)
+//   2. `which yt-dlp`     — proven reliable in Replit/Nix Node.js processes
+//   3. Known Nix store paths (version-pinned + stable profile paths)
+//   4. Standard binary locations
+//   5. Nix store scan     — catches future version hash changes automatically
+//   6. Bare "yt-dlp"      — final fallback (logs a clear error)
+const YT_DLP_BIN: string = ((): string => {
+  // 1. Env var override
+  const fromEnv = process.env.YT_DLP_PATH;
+  if (fromEnv) {
+    try { if (fs.existsSync(fromEnv)) { logger.info({ path: fromEnv }, "yt-dlp: resolved via YT_DLP_PATH"); return fromEnv; } } catch { /* skip */ }
   }
 
-  // 2. Well-known binary locations (including Replit / Nix store stable paths)
-  const binaryCandidates = [
-    // Nix store — Replit installs yt-dlp here; path from YT_DLP_PATH env var above
-    // covers the version-specific hash, but we also probe common stable Nix paths:
-    "/nix/var/nix/profiles/default/bin/yt-dlp",
-    "/run/current-system/sw/bin/yt-dlp",
-    // Standard Linux paths
-    "/usr/local/bin/yt-dlp",
-    "/usr/bin/yt-dlp",
-    // Python/pip local installs
-    path.join(os.homedir(), ".local", "bin", "yt-dlp"),
-    path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"),
-    path.join(process.cwd(), ".pythonlibs", "bin", "yt-dlp"),
-    "/home/runner/workspace/.pythonlibs/bin/yt-dlp",
-    // macOS Homebrew
-    "/opt/homebrew/bin/yt-dlp",
-  ];
-  for (const c of binaryCandidates) {
-    try { if (fs.existsSync(c)) return c; } catch { /* skip */ }
-  }
-
-  // 3. Nix store glob — scan /nix/store for any yt-dlp package directory.
-  //    This catches version-hash changes without requiring an env var update.
+  // 2. `which yt-dlp` — the most reliable method; works in Replit/Nix with correct inherited PATH
   try {
-    const nixStore = "/nix/store";
-    // Use ls with grep instead of readdirSync to avoid reading the entire store
-    const nixResult = execSync(`ls "${nixStore}" | grep "^yt-dlp-" | head -5`, {
-      encoding: "utf8",
-      timeout: 5000,
-      shell: true,
-    }).trim();
-    if (nixResult) {
-      for (const entry of nixResult.split("\n")) {
-        const candidate = path.join(nixStore, entry.trim(), "bin", "yt-dlp");
-        try { if (fs.existsSync(candidate)) return candidate; } catch { /* skip */ }
-      }
-    }
-  } catch { /* /nix/store not accessible or grep failed */ }
-
-  // 4. Probe PATH via `which` — catches pyenv, asdf, custom installs, etc.
-  //    Use an augmented PATH that includes Nix profile directories.
-  try {
-    const augmentedPath = [
-      process.env.PATH ?? "",
-      "/nix/var/nix/profiles/default/bin",
-      "/run/current-system/sw/bin",
-      "/usr/local/bin",
-    ].filter(Boolean).join(":");
-    const found = execSync("which yt-dlp 2>/dev/null || command -v yt-dlp 2>/dev/null", {
-      encoding: "utf8",
-      timeout: 5000,
-      env: { ...process.env, PATH: augmentedPath },
-    }).trim();
-    if (found) return found;
+    const found = execSync("which yt-dlp", { encoding: "utf8", timeout: 5000 }).trim();
+    if (found) { logger.info({ path: found }, "yt-dlp: resolved via which"); return found; }
   } catch { /* not on PATH */ }
 
-  return null;
-}
-
-function resolveYtDlpPython(): YtDlpInvoker | null {
-  // Only use the Python module path when the python binary itself has yt_dlp importable.
-  // We verify this with a quick `python3 -c "import yt_dlp"` check to avoid the
-  // "No module named yt_dlp" error that occurs when yt-dlp lives in a different
-  // Python environment than /usr/bin/python3.
-  const pythonCandidates = [
-    process.env.PYTHON_PATH,
-    path.join(os.homedir(), ".pythonlibs", "bin", "python3"),
-    "/usr/local/bin/python3",
-    "/usr/bin/python3",
-    "python3",
-  ].filter(Boolean) as string[];
-
-  for (const py of pythonCandidates) {
-    try {
-      execSync(`${py} -c "import yt_dlp"`, {
-        timeout: 5000,
-        stdio: ["ignore", "ignore", "ignore"],
-      });
-      logger.info({ python: py }, "yt-dlp: using python -m yt_dlp");
-      return { cmd: py, prefix: ["-m", "yt_dlp"], resolved: true };
-    } catch { /* module not available in this python */ }
-  }
-  return null;
-}
-
-function getYtDlpInvoker(): YtDlpInvoker {
-  // Only return a cached invoker if it was successfully resolved (not a bare fallback)
-  if (_ytDlpInvoker?.resolved) return _ytDlpInvoker;
-
-  // Binary lookup first (fastest, most reliable)
-  const binary = resolveYtDlpBinary();
-  if (binary) {
-    logger.info({ binary }, "yt-dlp: using binary");
-    _ytDlpInvoker = { cmd: binary, prefix: [], resolved: true };
-    return _ytDlpInvoker;
+  // 3. Known Nix store version-pinned path + stable profile paths
+  for (const c of [
+    "/nix/store/am2x1y1qyja0hbyjpffj7rcvycp9d644-yt-dlp-2025.6.30/bin/yt-dlp",
+    "/nix/var/nix/profiles/default/bin/yt-dlp",
+    "/run/current-system/sw/bin/yt-dlp",
+  ]) {
+    try { if (fs.existsSync(c)) { logger.info({ path: c }, "yt-dlp: resolved via known Nix path"); return c; } } catch { /* skip */ }
   }
 
-  // Python module fallback — only if yt_dlp is actually importable
-  const pyInvoker = resolveYtDlpPython();
-  if (pyInvoker) {
-    _ytDlpInvoker = pyInvoker;
-    return _ytDlpInvoker;
+  // 4. Standard install locations
+  for (const c of [
+    "/usr/local/bin/yt-dlp",
+    "/usr/bin/yt-dlp",
+    path.join(os.homedir(), ".local", "bin", "yt-dlp"),
+    path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"),
+    "/home/runner/workspace/.pythonlibs/bin/yt-dlp",
+    "/opt/homebrew/bin/yt-dlp",
+  ]) {
+    try { if (fs.existsSync(c)) { logger.info({ path: c }, "yt-dlp: resolved via standard path"); return c; } } catch { /* skip */ }
   }
 
-  // Last resort — bare name; mark as unresolved so next call retries detection.
-  // This avoids permanently caching a broken state due to a transient PATH issue.
-  logger.warn("yt-dlp not found via any detection method — using bare command (will retry on next call)");
-  return { cmd: "yt-dlp", prefix: [], resolved: false };
-}
+  // 5. Nix store scan — auto-discover version hash changes
+  try {
+    const scanResult = execSync('ls /nix/store | grep "^yt-dlp-" | head -3', {
+      encoding: "utf8", timeout: 5000, shell: true,
+    }).trim();
+    if (scanResult) {
+      for (const entry of scanResult.split("\n")) {
+        const c = `/nix/store/${entry.trim()}/bin/yt-dlp`;
+        try { if (fs.existsSync(c)) { logger.info({ path: c }, "yt-dlp: resolved via Nix store scan"); return c; } } catch { /* skip */ }
+      }
+    }
+  } catch { /* /nix/store not accessible */ }
 
-/** Spawn yt-dlp with the correct binary or python module invocation. */
-function spawnYtDlp(args: string[], opts?: { timeout?: number }) {
-  const { cmd, prefix } = getYtDlpInvoker();
-  return spawn(cmd, [...prefix, ...args], opts ?? {});
+  logger.error("yt-dlp NOT FOUND — downloads will fail. Install yt-dlp or set YT_DLP_PATH env var.");
+  return "yt-dlp"; // bare fallback — spawn will throw ENOENT if truly missing
+})();
+
+/** Spawn yt-dlp using the eagerly resolved binary path. */
+function spawnYtDlp(args: string[]) {
+  return spawn(YT_DLP_BIN, args);
 }
 
 // Ensure temp directory exists
@@ -528,8 +464,7 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       else reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
     });
     proc.on("error", (e) => {
-      const { cmd, prefix } = getYtDlpInvoker();
-      reject(new Error(`yt-dlp spawn error: ${e.message}. Invocation: ${cmd} ${prefix.join(" ")}`));
+      reject(new Error(`yt-dlp spawn error: ${e.message}. Binary: ${YT_DLP_BIN}`));
     });
   });
 
