@@ -85,7 +85,7 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email" | "knowledge";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email" | "knowledge" | "downloads";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -101,6 +101,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }
   { id: "credentials",  label: "Credentials",  icon: <Shield className="w-4 h-4" /> },
   { id: "email",        label: "Email",        icon: <Mail className="w-4 h-4" /> },
   { id: "knowledge",    label: "AI Knowledge", icon: <Database className="w-4 h-4" /> },
+  { id: "downloads",    label: "Downloads",    icon: <Download className="w-4 h-4" /> },
 ];
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
@@ -6609,7 +6610,282 @@ function ChangePassInline({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
   );
 }
 
-// ─── Main Admin Page ───────────────────────────────────────────────────────────
+// ─── Downloads Audit Section ──────────────────────────────────────────────────
+
+interface MediaAuditData {
+  summary: {
+    jobsCreated: number;
+    tokensIssued: number;
+    downloadsServed: number;
+    totalBytes: number;
+    activeTokens: number;
+  };
+  topVideos: { videoId: string; format: string; downloadCount: number; totalBytes: number }[];
+  recentDownloads: {
+    ip: string;
+    videoId: string | null;
+    format: string | null;
+    quality: string | null;
+    bytesServed: number | null;
+    jobId: string | null;
+    createdAt: string;
+  }[];
+  formatBreakdown: { format: string; count: number }[];
+  dailyActivity: { day: string; jobs: number; downloads: number }[];
+}
+
+function fmtBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+const FORMAT_COLORS: Record<string, string> = {
+  mp4:  "bg-blue-500/10 text-blue-600 border-blue-200",
+  mp3:  "bg-violet-500/10 text-violet-600 border-violet-200",
+  m4a:  "bg-purple-500/10 text-purple-600 border-purple-200",
+  jpeg: "bg-amber-500/10 text-amber-600 border-amber-200",
+  png:  "bg-emerald-500/10 text-emerald-600 border-emerald-200",
+  webp: "bg-cyan-500/10 text-cyan-600 border-cyan-200",
+};
+
+function FormatBadge({ format }: { format: string | null }) {
+  if (!format) return <span className="text-muted-foreground text-xs">—</span>;
+  const cls = FORMAT_COLORS[format] ?? "bg-muted text-muted-foreground border-border";
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${cls}`}>
+      {format}
+    </span>
+  );
+}
+
+function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<MediaAuditData>({
+    queryKey: ["admin-media-audit"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/media-audit`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load download analytics");
+      return r.json();
+    },
+    refetchInterval: 30_000,
+  });
+
+  return (
+    <AdminLoginGate role="sermon" auth={auth} title="Download Analytics">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-lg">Download Analytics</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Audit log for all media conversions, tokenised links, and file downloads.
+            </p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted transition-colors"
+          >
+            <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+
+        {isLoading && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
+                <div className="h-3 w-20 bg-muted rounded mb-2" />
+                <div className="h-7 w-14 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+            Failed to load download analytics. Make sure you are logged in.
+          </div>
+        )}
+
+        {data && (
+          <>
+            {/* ── Summary Cards ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: "Conversions Created",   value: data.summary.jobsCreated.toLocaleString(),     icon: <Zap className="w-3.5 h-3.5" />,      color: "text-amber-500" },
+                { label: "Tokens Issued",          value: data.summary.tokensIssued.toLocaleString(),    icon: <Shield className="w-3.5 h-3.5" />,    color: "text-blue-500" },
+                { label: "Files Served",           value: data.summary.downloadsServed.toLocaleString(), icon: <Download className="w-3.5 h-3.5" />,  color: "text-emerald-500" },
+                { label: "Data Transferred",       value: fmtBytes(data.summary.totalBytes),             icon: <Activity className="w-3.5 h-3.5" />,  color: "text-violet-500" },
+                { label: "Live Tokens",            value: data.summary.activeTokens.toLocaleString(),    icon: <Clock className="w-3.5 h-3.5" />,     color: "text-orange-400" },
+              ].map(({ label, value, icon, color }) => (
+                <div key={label} className="rounded-xl border border-border bg-card p-4">
+                  <div className={`flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 ${color}`}>
+                    {icon}
+                    <span className="text-muted-foreground">{label}</span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary tabular-nums">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── 14-Day Activity Chart ── */}
+            {data.dailyActivity.length > 0 ? (
+              <Card>
+                <SectionHeader title="14-Day Activity" description="Daily conversions started vs files actually downloaded" />
+                <ResponsiveContainer width="100%" height={180}>
+                  <ComposedChart data={data.dailyActivity} margin={{ top: 0, right: 4, bottom: 0, left: -20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                      labelStyle={{ fontWeight: 700 }}
+                    />
+                    <Bar dataKey="jobs"      name="Conversions" fill="hsl(var(--accent))"   opacity={0.5} radius={[3,3,0,0]} />
+                    <Bar dataKey="downloads" name="Downloads"   fill="#10b981" opacity={0.85} radius={[3,3,0,0]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Card>
+            ) : (
+              <Card>
+                <p className="text-sm text-muted-foreground text-center py-6">No download activity yet. Download buttons are now live across the platform.</p>
+              </Card>
+            )}
+
+            <div className="grid lg:grid-cols-2 gap-5">
+              {/* ── Format Breakdown ── */}
+              <Card>
+                <SectionHeader title="Format Breakdown" description="File types downloaded" />
+                {data.formatBreakdown.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No downloads yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.formatBreakdown.map(({ format, count }) => {
+                      const total = data.formatBreakdown.reduce((s, r) => s + r.count, 0);
+                      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                      return (
+                        <div key={format} className="flex items-center gap-3">
+                          <FormatBadge format={format} />
+                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-accent rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-bold tabular-nums w-8 text-right">{count}</span>
+                          <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+
+              {/* ── Top Downloaded Videos ── */}
+              <Card>
+                <SectionHeader title="Top Downloaded Videos" description="Most requested content (by YouTube ID)" />
+                {data.topVideos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No downloads yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 font-semibold text-muted-foreground">#</th>
+                          <th className="text-left py-2 font-semibold text-muted-foreground">Video ID</th>
+                          <th className="text-left py-2 font-semibold text-muted-foreground">Format</th>
+                          <th className="text-right py-2 font-semibold text-muted-foreground">Downloads</th>
+                          <th className="text-right py-2 font-semibold text-muted-foreground">Bytes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.topVideos.map(({ videoId, format, downloadCount, totalBytes }, i) => (
+                          <tr key={`${videoId}-${format}`} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="py-2 text-muted-foreground tabular-nums">{i + 1}</td>
+                            <td className="py-2">
+                              <a
+                                href={`https://youtu.be/${videoId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-[10px] text-accent hover:underline flex items-center gap-1"
+                              >
+                                {videoId}
+                                <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                              </a>
+                            </td>
+                            <td className="py-2"><FormatBadge format={format} /></td>
+                            <td className="py-2 text-right font-bold tabular-nums">{downloadCount}</td>
+                            <td className="py-2 text-right text-muted-foreground tabular-nums">{fmtBytes(totalBytes)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* ── Recent Downloads Feed ── */}
+            <Card>
+              <SectionHeader title="Recent Downloads" description="Last 25 files served — IPs partially masked" />
+              {data.recentDownloads.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No download events yet. Download buttons are live — this feed will populate as users save content.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 font-semibold text-muted-foreground">Time</th>
+                        <th className="text-left py-2 font-semibold text-muted-foreground">Video</th>
+                        <th className="text-left py-2 font-semibold text-muted-foreground">Format</th>
+                        <th className="text-left py-2 font-semibold text-muted-foreground">Quality</th>
+                        <th className="text-right py-2 font-semibold text-muted-foreground">Size</th>
+                        <th className="text-left py-2 font-semibold text-muted-foreground">IP</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.recentDownloads.map((row, i) => (
+                        <tr key={i} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                          <td className="py-2 text-muted-foreground whitespace-nowrap">{rel(row.createdAt)}</td>
+                          <td className="py-2">
+                            {row.videoId ? (
+                              <a
+                                href={`https://youtu.be/${row.videoId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-[10px] text-accent hover:underline"
+                              >
+                                {row.videoId}
+                              </a>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="py-2"><FormatBadge format={row.format} /></td>
+                          <td className="py-2 text-muted-foreground uppercase text-[10px]">{row.quality ?? "—"}</td>
+                          <td className="py-2 text-right tabular-nums text-muted-foreground">
+                            {row.bytesServed ? fmtBytes(row.bytesServed) : "—"}
+                          </td>
+                          <td className="py-2 font-mono text-[10px] text-muted-foreground">{row.ip}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </>
+        )}
+      </div>
+    </AdminLoginGate>
+  );
+}
 
 export default function Admin() {
   const liveStatus = useLivestreamStatus();
@@ -6732,6 +7008,7 @@ export default function Admin() {
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
               {section === "email"       && <EmailCampaignSection auth={livestreamAuth} />}
               {section === "knowledge"   && <KnowledgeSection auth={sermonAuth} />}
+              {section === "downloads"   && <DownloadsSection auth={sermonAuth} />}
             </motion.div>
           </AnimatePresence>
         </main>

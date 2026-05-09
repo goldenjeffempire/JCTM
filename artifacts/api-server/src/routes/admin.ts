@@ -1396,4 +1396,137 @@ router.get(
   }
 );
 
+// ─── GET /api/admin/media-audit ──────────────────────────────────────────────
+// Returns download audit statistics: summary counts, top videos, recent
+// downloads, format breakdown, and 14-day daily activity for the admin panel.
+
+router.get(
+  "/admin/media-audit",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { pool: dbPool } = await import("@workspace/db");
+
+      const [summary, topVideos, recentDownloads, formatBreakdown, dailyActivity, activeTokens] =
+        await Promise.all([
+          // Overall counts + bytes
+          dbPool.query<{
+            jobs_created: string;
+            tokens_issued: string;
+            downloads_served: string;
+            total_bytes: string;
+          }>(`
+            SELECT
+              COUNT(*) FILTER (WHERE event = 'job_created')      AS jobs_created,
+              COUNT(*) FILTER (WHERE event = 'token_issued')     AS tokens_issued,
+              COUNT(*) FILTER (WHERE event = 'download_served')  AS downloads_served,
+              COALESCE(SUM(bytes_served) FILTER (WHERE event = 'download_served'), 0)::text AS total_bytes
+            FROM media_audit_log
+          `),
+
+          // Top 10 most downloaded videos
+          dbPool.query<{
+            video_id: string;
+            format: string;
+            download_count: string;
+            total_bytes: string;
+          }>(`
+            SELECT video_id,
+                   format,
+                   COUNT(*)                           AS download_count,
+                   COALESCE(SUM(bytes_served), 0)::text AS total_bytes
+            FROM   media_audit_log
+            WHERE  event = 'download_served'
+              AND  video_id IS NOT NULL
+            GROUP  BY video_id, format
+            ORDER  BY download_count DESC
+            LIMIT  10
+          `),
+
+          // Recent 25 download events
+          dbPool.query<{
+            ip: string;
+            video_id: string | null;
+            format: string | null;
+            quality: string | null;
+            bytes_served: number | null;
+            job_id: string | null;
+            created_at: string;
+          }>(`
+            SELECT ip, video_id, format, quality, bytes_served, job_id, created_at
+            FROM   media_audit_log
+            WHERE  event = 'download_served'
+            ORDER  BY created_at DESC
+            LIMIT  25
+          `),
+
+          // Format breakdown
+          dbPool.query<{ format: string; count: string }>(`
+            SELECT format, COUNT(*) AS count
+            FROM   media_audit_log
+            WHERE  event = 'download_served' AND format IS NOT NULL
+            GROUP  BY format
+            ORDER  BY count DESC
+          `),
+
+          // 14-day daily activity
+          dbPool.query<{ day: string; jobs: string; downloads: string }>(`
+            SELECT date_trunc('day', created_at)::date AS day,
+                   COUNT(*) FILTER (WHERE event = 'job_created')     AS jobs,
+                   COUNT(*) FILTER (WHERE event = 'download_served') AS downloads
+            FROM   media_audit_log
+            WHERE  created_at > now() - interval '14 days'
+            GROUP  BY 1
+            ORDER  BY 1
+          `),
+
+          // Active (unexpired, unused) tokens
+          dbPool.query<{ count: string }>(`
+            SELECT COUNT(*) AS count
+            FROM   download_tokens
+            WHERE  expires_at > now() AND used_at IS NULL
+          `),
+        ]);
+
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        summary: {
+          jobsCreated:      Number(summary.rows[0]?.jobs_created ?? 0),
+          tokensIssued:     Number(summary.rows[0]?.tokens_issued ?? 0),
+          downloadsServed:  Number(summary.rows[0]?.downloads_served ?? 0),
+          totalBytes:       Number(summary.rows[0]?.total_bytes ?? 0),
+          activeTokens:     Number(activeTokens.rows[0]?.count ?? 0),
+        },
+        topVideos:      topVideos.rows.map(r => ({
+          videoId:       r.video_id,
+          format:        r.format,
+          downloadCount: Number(r.download_count),
+          totalBytes:    Number(r.total_bytes),
+        })),
+        recentDownloads: recentDownloads.rows.map(r => ({
+          ip:          r.ip ? r.ip.replace(/(\.\d+)$/, ".***") : "—",  // partially mask IP
+          videoId:     r.video_id,
+          format:      r.format,
+          quality:     r.quality,
+          bytesServed: r.bytes_served,
+          jobId:       r.job_id,
+          createdAt:   r.created_at,
+        })),
+        formatBreakdown: formatBreakdown.rows.map(r => ({
+          format: r.format,
+          count:  Number(r.count),
+        })),
+        dailyActivity: dailyActivity.rows.map(r => ({
+          day:       String(r.day),
+          jobs:      Number(r.jobs),
+          downloads: Number(r.downloads),
+        })),
+      });
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch media audit data");
+      res.status(500).json({ error: "Failed to load download analytics." });
+    }
+  }
+);
+
 export default router;
