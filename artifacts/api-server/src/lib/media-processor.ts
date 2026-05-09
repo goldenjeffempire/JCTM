@@ -818,17 +818,9 @@ async function processJobWithRetry(job: MediaJob): Promise<void> {
 // ─── Startup recovery ─────────────────────────────────────────────────────────
 
 /**
- * Called once at server startup, AFTER migrations complete.
- *
- * Any job that is still `processing` or `queued` in the DB at startup time was
- * orphaned by a previous server crash or restart — the in-memory queue that was
- * driving those jobs no longer exists. Mark them all as `failed` with a clear
- * message so the user can safely try again.
- */
-/**
  * Clean up `_raw*` temp files in MEDIA_DIR that belong to no active job.
  * Called once at startup after `recoverOrphanedJobs()` so a fresh restart
- * doesn't leave 100 MB of partial audio fragments on disk.
+ * doesn't leave partial audio fragments consuming disk space.
  */
 export function cleanupOrphanedTempFiles(): void {
   try {

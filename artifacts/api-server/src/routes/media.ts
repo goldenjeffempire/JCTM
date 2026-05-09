@@ -626,7 +626,10 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
       return;
     }
     if (new Date(row.expires_at) < new Date()) {
-      res.status(410).json({ error: "Download token has expired. Please request a new one." });
+      res.status(410).json({
+        error: "Download link has expired. Please open the sermon and tap Download again to get a fresh link.",
+        code: "TOKEN_EXPIRED",
+      });
       return;
     }
 
@@ -646,7 +649,8 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
     const mime = mimeFor(job.format);
     const filename = safeFilename({ title: job.title, format: job.format, id: job.id });
 
-    // Mark token as used (non-blocking)
+    // Record first use (non-blocking — tokens remain valid for their full TTL
+    // so users can resume/retry downloads without re-requesting a token)
     void dbPool.query(
       `UPDATE download_tokens SET used_at = now() WHERE token = $1 AND used_at IS NULL`,
       [token],

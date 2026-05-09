@@ -138,6 +138,22 @@ export function MediaJobsPanel() {
     const es = new EventSource(`${BASE}/api/media/progress/${jobId}`);
     sseRefs.current.set(jobId, es);
 
+    function handleFinished(update: PanelJob) {
+      es.close();
+      sseRefs.current.delete(jobId);
+      if (update.status === "ready" && "Notification" in window && Notification.permission === "granted") {
+        const label = update.title ?? "Your sermon download";
+        try {
+          new Notification("Download Ready ✅", {
+            body: `${label} has been converted and is ready to save`,
+            icon: update.thumbnailUrl ?? "/jctm-logo-sm.jpeg",
+            badge: "/jctm-logo-sm.jpeg",
+            tag: `jctm-dl-${jobId}`,
+          });
+        } catch { /* browser may block */ }
+      }
+    }
+
     es.addEventListener("progress", (evt) => {
       try {
         const update = JSON.parse((evt as MessageEvent).data) as PanelJob;
@@ -145,27 +161,30 @@ export function MediaJobsPanel() {
           prev.map(j => j.jobId === jobId ? { ...j, ...update } : j)
         );
         if (update.status === "ready" || update.status === "failed") {
-          es.close();
-          sseRefs.current.delete(jobId);
-          // Browser notification when conversion finishes
-          if (update.status === "ready" && "Notification" in window && Notification.permission === "granted") {
-            const label = update.title ?? "Your sermon download";
-            try {
-              new Notification("Download Ready ✅", {
-                body: `${label} has been converted and is ready to save`,
-                icon: update.thumbnailUrl ?? "/jctm-logo-sm.jpeg",
-                badge: "/jctm-logo-sm.jpeg",
-                tag: `jctm-dl-${jobId}`,
-              });
-            } catch { /* browser may block */ }
-          }
+          handleFinished(update);
         }
       } catch { /* ignore */ }
     });
 
+    // Fallback: if SSE drops, poll every 3 s until the job reaches a terminal state
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
     es.onerror = () => {
       es.close();
       sseRefs.current.delete(jobId);
+      if (pollTimer) return;
+      pollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
+          if (!r.ok) return;
+          const update = await r.json() as PanelJob;
+          setJobs(prev => prev.map(j => j.jobId === jobId ? { ...j, ...update } : j));
+          if (update.status === "ready" || update.status === "failed") {
+            clearInterval(pollTimer!);
+            pollTimer = null;
+            handleFinished(update);
+          }
+        } catch { /* non-fatal */ }
+      }, 3000);
     };
   }, []);
 
@@ -189,14 +208,31 @@ export function MediaJobsPanel() {
     setOpen(false);
   }
 
-  function triggerDownload(job: PanelJob) {
-    if (!job.downloadUrl) return;
-    const a = document.createElement("a");
-    a.href = `${BASE}${job.downloadUrl}`;
-    a.download = job.title ?? "jctm_media";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  async function triggerDownload(job: PanelJob) {
+    if (!job.jobId) return;
+    try {
+      // Use a short-lived signed token — keeps the download URL unguessable
+      const tokenRes = await fetch(`${BASE}/api/media/token/${job.jobId}`, { method: "POST" });
+      if (tokenRes.ok) {
+        const { downloadUrl } = await tokenRes.json() as { downloadUrl: string };
+        const a = document.createElement("a");
+        a.href = `${BASE}${downloadUrl}`;
+        a.download = job.title ?? "jctm_media";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+    } catch { /* fall through to direct link */ }
+    // Fallback: direct download URL if token endpoint fails
+    if (job.downloadUrl) {
+      const a = document.createElement("a");
+      a.href = `${BASE}${job.downloadUrl}`;
+      a.download = job.title ?? "jctm_media";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   }
 
   const activeCount = jobs.filter(j => j.status === "queued" || j.status === "processing").length;
