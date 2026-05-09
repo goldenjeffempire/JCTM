@@ -17,6 +17,7 @@ import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
 import { requireAdminRole } from "../lib/adminAuth.js";
 import { summarizeSermon } from "../lib/local-content-intelligence.js";
+import { preprocessNewSermons } from "../lib/media-preprocess.js";
 
 // ── In-memory sermon summary cache (survives restarts only in dev) ─────────────
 const summaryCache = new Map<number, { summary: string; keyPoints: string[]; generatedAt: string }>();
@@ -841,6 +842,12 @@ router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<vo
       const rssResult = await syncFromRSS(req.log);
       if (rssResult.total > 0) {
         sseBroadcaster.broadcast({ type: "sync_complete", data: { synced: rssResult.inserted, source: "rss" } });
+        // Pre-convert any newly inserted sermons to MP3 (fire-and-forget)
+        if (rssResult.inserted > 0) {
+          preprocessFeaturedSermons().catch(err =>
+            req.log.warn({ err }, "Post-RSS-sync MP3 pre-processing failed — non-fatal"),
+          );
+        }
       }
       const resetTime = getQuotaResetTime();
       res.status(200).json({
@@ -884,6 +891,13 @@ router.post("/sermons", requireAdminRole("sermon"), async (req, res): Promise<vo
       type: "sync_complete",
       data: { synced: result.synced, featured: result.featured },
     });
+
+    // Fire-and-forget: pre-convert featured sermons to MP3 so next download is instant
+    if (result.synced > 0) {
+      preprocessFeaturedSermons().catch(err =>
+        req.log.warn({ err }, "Post-sync MP3 pre-processing failed — non-fatal"),
+      );
+    }
 
     res.json(SyncSermonsResponse.parse({ synced: result.synced, message: result.message }));
   } catch (err) {

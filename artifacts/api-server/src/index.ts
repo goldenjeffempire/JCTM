@@ -6,6 +6,7 @@ import { altarSimInterval } from "./routes/altar.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { startAISyncScheduler, stopAISyncScheduler } from "./lib/ai-sync-scheduler.js";
+import { startPreprocessScheduler, stopPreprocessScheduler } from "./lib/media-preprocess.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
@@ -136,6 +137,9 @@ const server = app.listen(port, async (err) => {
 
   // ── Start continuous AI intelligence sync (every 4h full, every 45m activity) ──
   startAISyncScheduler(logger);
+
+  // ── Pre-process featured sermons to MP3 (30s delay, then every 6h) ────────
+  startPreprocessScheduler();
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────
@@ -148,6 +152,7 @@ function shutdown(signal: string) {
   stopHeartbeat();
   stopCron();
   stopAISyncScheduler();
+  stopPreprocessScheduler();
   clearInterval(altarSimInterval);
 
   server.close(async () => {
