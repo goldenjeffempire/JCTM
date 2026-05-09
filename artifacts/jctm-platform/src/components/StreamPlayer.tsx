@@ -20,7 +20,9 @@ import {
   Settings, Wifi, WifiOff, Signal, AlertCircle, RefreshCw,
   Activity, Zap, Radio, Tv2, Maximize2, Minimize2,
   PictureInPicture2, PictureInPictureIcon,
+  Share2, Check, Link2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useStreamPlayer } from "@/hooks/useStreamPlayer";
 import { buildStreamSources, detectNetworkQuality, type NetworkQuality } from "@/lib/stream-config";
 import { buildYouTubeUrl } from "@/components/DualStreamToggle";
@@ -240,6 +242,33 @@ function PipButton({
   );
 }
 
+// ─── Share Button ──────────────────────────────────────────────────────────────
+
+function ShareButton({ onShare }: { onShare: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onShare();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [onShare]);
+
+  return (
+    <button
+      onClick={handleClick}
+      title="Share stream (S)"
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-full border transition-all backdrop-blur-sm ${
+        copied
+          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+          : "bg-black/50 border-white/15 text-white/70 hover:text-white hover:bg-white/20 hover:border-white/30"
+      }`}
+    >
+      {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+    </button>
+  );
+}
+
 // ─── Player Controls Bar ──────────────────────────────────────────────────────
 
 interface PlayerControlsProps {
@@ -259,6 +288,7 @@ interface PlayerControlsProps {
   onSeekLive: () => void;
   onToggleFullscreen: () => void;
   onTogglePip: () => void;
+  onShare: () => void;
 }
 
 function PlayerControls({
@@ -278,6 +308,7 @@ function PlayerControls({
   onSeekLive,
   onToggleFullscreen,
   onTogglePip,
+  onShare,
 }: PlayerControlsProps) {
   const isNative = engine !== "youtube";
 
@@ -308,7 +339,7 @@ function PlayerControls({
         )}
       </div>
 
-      {/* Right: quality + network + pip + fullscreen */}
+      {/* Right: quality + network + share + pip + fullscreen */}
       <div className="flex items-center gap-2">
         {isNative && (
           <>
@@ -330,6 +361,9 @@ function PlayerControls({
               <span>{isAuto ? "Auto" : currentQualityName}</span>
             </button>
 
+            {/* Share */}
+            <ShareButton onShare={onShare} />
+
             {/* PiP — only shown when the browser supports it */}
             {isPipSupported && (
               <PipButton isPip={isPip} onToggle={onTogglePip} />
@@ -342,6 +376,66 @@ function PlayerControls({
       </div>
     </div>
   );
+}
+
+// ─── Share stream hook ─────────────────────────────────────────────────────────
+//
+// Builds the best shareable URL for the current stream and delivers it via:
+//   1. Web Share API (native share sheet on mobile / supported desktops)
+//   2. Clipboard copy fallback with a toast confirmation
+//
+// URL priority:
+//   • isLive + youtubeVideoId → YouTube live watch URL
+//   • youtubeVideoId           → standard YouTube watch URL
+//   • otherwise                → current page URL (HLS/DASH direct stream)
+
+function useShareStream(opts: {
+  youtubeVideoId?: string | null;
+  isLive?: boolean;
+  title?: string;
+}) {
+  const { youtubeVideoId, isLive, title } = opts;
+
+  const shareStream = useCallback(async () => {
+    const shareTitle = title ?? "JCTM Temple TV";
+    const shareText = isLive
+      ? `Watch "${shareTitle}" live on JCTM Temple TV`
+      : `Watch "${shareTitle}" on JCTM Temple TV`;
+
+    // Build the best URL to share
+    const url = youtubeVideoId
+      ? `https://www.youtube.com/watch?v=${youtubeVideoId}`
+      : window.location.href;
+
+    // Try native Web Share API (mobile browsers, desktop Chrome/Edge 89+)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url });
+        return;
+      } catch (err) {
+        // User cancelled share sheet — no toast needed
+        if ((err as DOMException)?.name === "AbortError") return;
+        // Any other error: fall through to clipboard
+      }
+    }
+
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Stream link copied!", {
+        description: url.length > 60 ? `${url.slice(0, 60)}…` : url,
+        icon: <Link2 className="w-4 h-4 text-sky-400" />,
+        duration: 3000,
+      });
+    } catch {
+      toast.error("Could not copy link — please copy it manually.", {
+        description: url,
+        duration: 5000,
+      });
+    }
+  }, [youtubeVideoId, isLive, title]);
+
+  return { shareStream };
 }
 
 // ─── Fullscreen hook ──────────────────────────────────────────────────────────
@@ -565,6 +659,7 @@ export function StreamPlayer({
 
   const { isFullscreen, isCssFullscreen, toggleFullscreen } = useFullscreen(containerRef);
   const { isPip, isPipSupported, togglePip } = usePictureInPicture(videoRef);
+  const { shareStream } = useShareStream({ youtubeVideoId, isLive, title });
 
   // Build ordered source list
   const sources = buildStreamSources({
@@ -601,6 +696,7 @@ export function StreamPlayer({
   // Keyboard shortcuts:
   //   F — toggle fullscreen  (Escape for CSS FS is handled inside useFullscreen)
   //   P — toggle picture-in-picture
+  //   S — share stream
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -612,10 +708,14 @@ export function StreamPlayer({
         e.preventDefault();
         togglePip();
       }
+      if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        shareStream();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [toggleFullscreen, togglePip]);
+  }, [toggleFullscreen, togglePip, shareStream]);
 
   // Always show controls when in any fullscreen mode so the exit button is reachable
   useEffect(() => {
@@ -693,12 +793,13 @@ export function StreamPlayer({
           whenever we are already in any fullscreen mode so the user can exit.
         */}
         <div
-          className={`absolute bottom-3 right-3 z-20 transition-opacity duration-200 ${
+          className={`absolute bottom-3 right-3 z-20 flex items-center gap-2 transition-opacity duration-200 ${
             isFullscreen
               ? "opacity-100 pointer-events-auto"
               : "opacity-0 group-hover:opacity-100 pointer-events-auto"
           }`}
         >
+          <ShareButton onShare={shareStream} />
           <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
         </div>
 
@@ -807,6 +908,7 @@ export function StreamPlayer({
                 onSeekLive={seekToLiveEdge}
                 onToggleFullscreen={toggleFullscreen}
                 onTogglePip={togglePip}
+                onShare={shareStream}
               />
             </div>
           </motion.div>
