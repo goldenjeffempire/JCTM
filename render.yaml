@@ -109,7 +109,7 @@ services:
     name: jctm-keepalive
     runtime: node
     region: oregon
-    plan: free
+    plan: starter
     schedule: "*/10 * * * *"
     buildCommand: echo "keep-alive ready"
     startCommand: >
