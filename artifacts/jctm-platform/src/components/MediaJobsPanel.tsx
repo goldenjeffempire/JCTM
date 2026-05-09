@@ -347,9 +347,15 @@ export function MediaJobsPanel() {
                           <div className="mt-1">
                             {(job.status === "queued" || job.status === "processing") && (
                               <>
-                                <div className="flex items-center gap-1.5 text-[10px] text-white/40 mb-1">
-                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                  <span>{job.status === "queued" ? "Queued…" : `Converting ${job.progress}%`}</span>
+                                <div className="flex items-center gap-1.5 text-[10px] mb-1">
+                                  <Loader2 className={`h-2.5 w-2.5 animate-spin ${job.status === "queued" && job.error ? "text-amber-400/70" : "text-white/40"}`} />
+                                  <span className={job.status === "queued" && job.error ? "text-amber-400/70" : "text-white/40"}>
+                                    {job.status === "processing"
+                                      ? `Converting ${job.progress}%`
+                                      : job.error
+                                      ? job.error
+                                      : "Queued…"}
+                                  </span>
                                 </div>
                                 <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
                                   <motion.div

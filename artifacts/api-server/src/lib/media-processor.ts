@@ -219,6 +219,11 @@ function isPermanentError(message: string): boolean {
   return PERMANENT_ERROR_PATTERNS.some(p => p.test(message));
 }
 
+// Stall errors get longer retry delays so YouTube rate-limits have time to clear
+function isStallError(message: string): boolean {
+  return /stalled — no progress/i.test(message) || /killed after timeout/i.test(message);
+}
+
 // ─── Error message sanitizer ──────────────────────────────────────────────────
 // Extract the most useful part from yt-dlp's verbose stderr output.
 function sanitizeYtDlpError(stderr: string): string {
@@ -861,19 +866,53 @@ async function processJobWithRetry(job: MediaJob): Promise<void> {
       }
 
       if (!isLast) {
-        const delayMs = Math.pow(2, attempt - 1) * 3000; // 3s, 6s — longer delays to respect YouTube rate limits
-        logger.warn({ err, jobId: job.id, attempt, delayMs }, "Media job failed — retrying");
-        // Cleanup temp files before retry (yt-dlp will start fresh)
+        const stall = isStallError(errMsg);
+        // Stall = YouTube throttle/rate-limit — give it real breathing room (60 s, 120 s).
+        // Other transient errors = fast retry (3 s, 6 s).
+        const delayMs = stall
+          ? Math.pow(2, attempt - 1) * 60_000
+          : Math.pow(2, attempt - 1) * 3_000;
+
+        logger.warn({ err, jobId: job.id, attempt, delayMs, stall }, "Media job failed — retrying");
         cleanupJobTempFiles(job.id);
-        // Update job to queued state for retry
+
         const current = activeJobs.get(job.id) ?? job;
-        updateJob(current, {
-          status: "queued",
-          progress: 0,
-          error: null,
-          retryCount: attempt,
-        });
-        await new Promise(r => setTimeout(r, delayMs));
+
+        if (stall) {
+          // Show a live countdown so the user knows a retry is coming automatically
+          const retryAt = Date.now() + delayMs;
+          const secsLeft = () => Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+
+          updateJob(current, {
+            status: "queued",
+            progress: 0,
+            error: `Throttled by YouTube — retrying automatically in ${secsLeft()}s…`,
+            retryCount: attempt,
+          });
+
+          // Tick every 10 s so the countdown stays current
+          const ticker = setInterval(() => {
+            const live = activeJobs.get(job.id) ?? current;
+            const s = secsLeft();
+            if (s <= 0) { clearInterval(ticker); return; }
+            updateJob(live, { error: `Throttled by YouTube — retrying automatically in ${s}s…` });
+          }, 10_000);
+
+          await new Promise(r => setTimeout(r, delayMs));
+          clearInterval(ticker);
+
+          // Clear the countdown message right before the retry attempt begins
+          const live = activeJobs.get(job.id) ?? current;
+          updateJob(live, { error: null });
+        } else {
+          updateJob(current, {
+            status: "queued",
+            progress: 0,
+            error: null,
+            retryCount: attempt,
+          });
+          await new Promise(r => setTimeout(r, delayMs));
+        }
       }
     }
   }
