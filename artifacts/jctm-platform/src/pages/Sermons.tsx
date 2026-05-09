@@ -21,7 +21,8 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { StreamPlayer } from "@/components/StreamPlayer";
 import MediaDownloadSheet from "@/components/MediaDownloadSheet";
-import { VideoDownloadInlineButton } from "@/components/VideoDownloadPanel";
+import { VideoDownloadButton } from "@/components/VideoDownloadButton";
+import { emitTrackJob } from "@/components/MediaJobsPanel";
 
 const CATEGORIES = [
   { id: "all", label: "All Sermons", emoji: "📖" },
@@ -924,10 +925,13 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
             >
               <Download className="h-3.5 w-3.5" />
             </button>
-            <VideoDownloadInlineButton
+            <VideoDownloadButton
               videoId={sermon.videoId}
               title={sermon.title}
               thumbnailUrl={sermon.thumbnailUrl}
+              variant="button"
+              stopPropagation
+              className="border-0 bg-transparent px-1.5 py-1 text-muted-foreground hover:text-primary"
             />
           <div className="relative">
             <button
@@ -973,6 +977,7 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
         sourceId={sermon.videoId}
         title={sermon.title}
         thumbnailUrl={sermon.thumbnailUrl}
+        onJobCreated={emitTrackJob}
       />
     </motion.div>
   );

@@ -161,12 +161,19 @@ router.post("/media/request", async (req: Request, res: Response): Promise<void>
   const format = inferFormat(type as JobType, parsed.data.format);
 
   try {
-    // Live stream guard
+    // Source validation + live stream guard (single query)
     if (type === "youtube_audio" || type === "youtube_video") {
       const { rows } = await pool.query<{ is_live: boolean }>(
         `SELECT is_live FROM sermon_data WHERE video_id = $1 LIMIT 1`,
         [sourceId],
       );
+      if (rows.length === 0) {
+        res.status(403).json({
+          error: "This video is not available for download from the JCTM library.",
+          code: "NOT_IN_LIBRARY",
+        });
+        return;
+      }
       if (rows[0]?.is_live) {
         res.status(409).json({
           error: "This sermon is currently live — download becomes available after the stream ends.",

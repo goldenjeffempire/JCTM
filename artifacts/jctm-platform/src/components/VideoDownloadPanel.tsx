@@ -10,6 +10,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Film, Download, CheckCircle2, AlertCircle, Loader2,
@@ -497,24 +498,106 @@ export default function VideoDownloadPanel({
   );
 }
 
-// ─── Compact trigger button ────────────────────────────────────────────────────
-// Use VideoDownloadButton with variant="button" for inline card footers.
-// Use this panel for the full SermonDetail page download section.
+// ─── Compact trigger button (portal-based) ────────────────────────────────────
+//
+// Renders the panel into document.body via createPortal so it escapes any
+// overflow-hidden ancestor (e.g. sermon cards, modals, sticky headers).
+// Tracks the trigger button's viewport position with getBoundingClientRect and
+// repositions on scroll/resize so the panel always floats above the button.
 
 export function VideoDownloadInlineButton({
   videoId, title, thumbnailUrl, className,
 }: { videoId: string; title?: string; thumbnailUrl?: string; className?: string }) {
-  const [open, setOpen] = useState(false);
+  const [open,  setOpen]  = useState(false);
+  const [rect,  setRect]  = useState<DOMRect | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  function toggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!open) setRect(btnRef.current?.getBoundingClientRect() ?? null);
+    setOpen(o => !o);
+  }
+
+  // Reposition on scroll / resize; close if button has scrolled far off-screen
+  useEffect(() => {
+    if (!open) return;
+
+    function onScrollOrResize() {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) { setOpen(false); return; }
+      // Close if button is scrolled completely out of the viewport
+      if (r.bottom < 0 || r.top > window.innerHeight) { setOpen(false); return; }
+      setRect(r);
+    }
+
+    window.addEventListener("scroll",  onScrollOrResize, { passive: true, capture: true });
+    window.addEventListener("resize",  onScrollOrResize, { passive: true });
+    return () => {
+      window.removeEventListener("scroll",  onScrollOrResize, { capture: true });
+      window.removeEventListener("resize",  onScrollOrResize);
+    };
+  }, [open]);
+
+  // Click-outside to close
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        // Small delay so the panel itself can handle its own clicks first
+        setTimeout(() => setOpen(false), 80);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown, { capture: true });
+    return () => document.removeEventListener("pointerdown", onPointerDown, { capture: true });
+  }, [open]);
+
+  const panelStyle: React.CSSProperties = rect
+    ? {
+        position:   "fixed",
+        zIndex:     9999,
+        right:      `${Math.max(8, window.innerWidth - rect.right)}px`,
+        bottom:     `${window.innerHeight - rect.top + 8}px`,
+        width:      "320px",
+        maxWidth:   "calc(100vw - 1rem)",
+      }
+    : { display: "none" };
+
+  const portal = typeof document !== "undefined"
+    ? createPortal(
+        <AnimatePresence>
+          {open && rect && (
+            <motion.div
+              key="vdp-portal"
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1  }}
+              exit={{    opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              style={panelStyle}
+            >
+              <VideoDownloadPanel
+                videoId={videoId}
+                title={title}
+                thumbnailUrl={thumbnailUrl}
+                className="shadow-2xl ring-1 ring-white/10"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )
+    : null;
 
   return (
-    <div className={cn("relative", className)}>
+    <>
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onClick={toggle}
         className={cn(
           "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold",
           "border border-border text-muted-foreground",
           "hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all",
           open && "text-primary border-primary/40 bg-primary/5",
+          className,
         )}
         title="Download video"
         aria-label="Download video"
@@ -524,25 +607,7 @@ export function VideoDownloadInlineButton({
         <span>Video</span>
         <Download className="h-3 w-3 opacity-60" />
       </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.97 }}
-            transition={{ duration: 0.18 }}
-            className="absolute bottom-full right-0 mb-2 z-50 w-80 max-w-[calc(100vw-2rem)]"
-          >
-            <VideoDownloadPanel
-              videoId={videoId}
-              title={title}
-              thumbnailUrl={thumbnailUrl}
-              className="shadow-2xl border-white/12"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {portal}
+    </>
   );
 }
