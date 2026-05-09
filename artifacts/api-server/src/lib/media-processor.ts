@@ -506,36 +506,63 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       "--socket-timeout", "30",
       "--retries", "3",
       "--fragment-retries", "3",
-      "--concurrent-fragments", "2",  // 2 is gentler on YouTube; less throttling
+      "--concurrent-fragments", "1",  // single fragment — cleaner progress reporting
       "--throttled-rate", "100K",     // retry fragment if speed drops below 100 KB/s
       `https://www.youtube.com/watch?v=${job.sourceId}`,
     ];
 
     const proc = spawnYtDlp(ytArgs);
     let stderr = "";
+    let stderrBuf = "";  // line buffer — chunks can split mid-number
 
-    // Kill after AUDIO_KILL_TIMEOUT_MS to prevent indefinite hangs
+    // Hard total timeout
     const killTimer = setTimeout(() => {
+      clearTimeout(stallTimer);
       try { proc.kill("SIGKILL"); } catch { /* ok */ }
       reject(new Error("yt-dlp killed after timeout — audio download took too long (network issue or slow stream)"));
     }, AUDIO_KILL_TIMEOUT_MS);
 
+    // No-progress stall watchdog — fires if yt-dlp goes silent for 90 s
+    // (e.g. stuck at format selection, YouTube rate-limit, bad HLS segment)
+    let stallTimer = setTimeout(() => {
+      clearTimeout(killTimer);
+      try { proc.kill("SIGKILL"); } catch { /* ok */ }
+      reject(new Error("yt-dlp stalled — no progress for 90 s. YouTube may be throttling this video. Please retry."));
+    }, 90_000);
+
     proc.stderr.on("data", (d: Buffer) => {
-      stderr += d.toString();
-      const match = /(\d+\.\d+)%/.exec(d.toString());
-      if (match) {
-        const pct = Math.min(80, 12 + Math.round(parseFloat(match[1]) * 0.68));
-        updateJob(currentJob, { progress: pct });
+      // Reset stall watchdog on any output
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        clearTimeout(killTimer);
+        try { proc.kill("SIGKILL"); } catch { /* ok */ }
+        reject(new Error("yt-dlp stalled — no progress for 90 s. YouTube may be throttling this video. Please retry."));
+      }, 90_000);
+
+      // Line-buffer so a chunk split mid-number doesn't drop a progress update
+      stderrBuf += d.toString();
+      const lines = stderrBuf.split("\n");
+      stderrBuf = lines.pop() ?? "";
+      for (const line of lines) {
+        stderr += line + "\n";
+        // Match both "12.5%" and "100%" formats
+        const match = /(\d+(?:\.\d+)?)%/.exec(line);
+        if (match) {
+          const pct = Math.min(80, 12 + Math.round(parseFloat(match[1]) * 0.68));
+          updateJob(currentJob, { progress: pct });
+        }
       }
     });
 
     proc.on("close", (code) => {
       clearTimeout(killTimer);
+      clearTimeout(stallTimer);
       if (code === 0) resolve();
       else reject(new Error(sanitizeYtDlpError(stderr) || `yt-dlp exited ${code}`));
     });
     proc.on("error", (e) => {
       clearTimeout(killTimer);
+      clearTimeout(stallTimer);
       reject(new Error(`yt-dlp spawn error: ${e.message}. Binary: ${YT_DLP_BIN}`));
     });
   });
@@ -549,7 +576,15 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
   // Step 3: re-encode to target format via ffmpeg with ID3 metadata
   await new Promise<void>((resolve, reject) => {
     const safeName = sanitizeFilename(title);
-    const artist = "Jesus Christ Temple Ministry";
+
+    // Kill ffmpeg if it hangs (8-minute ceiling — longer sermons can be large)
+    let ffmpegDone = false;
+    const ffmpegKillTimer = setTimeout(() => {
+      if (!ffmpegDone) {
+        try { cmd.kill("SIGKILL"); } catch { /* ok */ }
+        reject(new Error("ffmpeg timed out during audio encoding — please retry"));
+      }
+    }, 8 * 60 * 1000);
 
     const cmd = ffmpeg(rawFile)
       .audioCodec(ext === "m4a" ? "aac" : "libmp3lame")
@@ -570,8 +605,16 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
         const pct = Math.min(97, 83 + Math.round((p.percent ?? 0) * 0.14));
         updateJob(currentJob, { progress: pct });
       })
-      .on("end", () => resolve())
-      .on("error", (e) => reject(e));
+      .on("end", () => {
+        ffmpegDone = true;
+        clearTimeout(ffmpegKillTimer);
+        resolve();
+      })
+      .on("error", (e) => {
+        ffmpegDone = true;
+        clearTimeout(ffmpegKillTimer);
+        reject(e);
+      });
 
     cmd.save(outFile);
   });
@@ -620,36 +663,64 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
       "--socket-timeout", "30",
       "--retries", "3",
       "--fragment-retries", "3",
-      "--concurrent-fragments", "2",
+      "--concurrent-fragments", "1",  // single fragment — cleaner progress reporting
       "--throttled-rate", "100K",
       `https://www.youtube.com/watch?v=${job.sourceId}`,
     ];
 
     const proc = spawnYtDlp(ytArgs);
     let stderr = "";
+    let stderrBuf = "";  // line buffer — chunks can split mid-number
 
-    // Kill after VIDEO_KILL_TIMEOUT_MS to prevent indefinite hangs
+    // Hard total timeout
     const killTimer = setTimeout(() => {
+      clearTimeout(stallTimer);
       try { proc.kill("SIGKILL"); } catch { /* ok */ }
       reject(new Error("yt-dlp killed after timeout — video download took too long (network issue or large file)"));
     }, VIDEO_KILL_TIMEOUT_MS);
 
+    // No-progress stall watchdog — fires if yt-dlp goes silent for 2 min
+    // (video format selection for long conference videos can take ~30 s legitimately,
+    //  but 2 minutes of silence means it is stuck)
+    let stallTimer = setTimeout(() => {
+      clearTimeout(killTimer);
+      try { proc.kill("SIGKILL"); } catch { /* ok */ }
+      reject(new Error("yt-dlp stalled — no progress for 2 minutes. YouTube may be throttling this video. Please retry."));
+    }, 120_000);
+
     proc.stderr.on("data", (d: Buffer) => {
-      stderr += d.toString();
-      const match = /(\d+\.\d+)%/.exec(d.toString());
-      if (match) {
-        const pct = Math.min(96, 12 + Math.round(parseFloat(match[1]) * 0.84));
-        updateJob(currentJob, { progress: pct });
+      // Reset stall watchdog on any output
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        clearTimeout(killTimer);
+        try { proc.kill("SIGKILL"); } catch { /* ok */ }
+        reject(new Error("yt-dlp stalled — no progress for 2 minutes. YouTube may be throttling this video. Please retry."));
+      }, 120_000);
+
+      // Line-buffer so a chunk split mid-number doesn't drop a progress update
+      stderrBuf += d.toString();
+      const lines = stderrBuf.split("\n");
+      stderrBuf = lines.pop() ?? "";
+      for (const line of lines) {
+        stderr += line + "\n";
+        // Match both "12.5%" and "100%" formats
+        const match = /(\d+(?:\.\d+)?)%/.exec(line);
+        if (match) {
+          const pct = Math.min(96, 12 + Math.round(parseFloat(match[1]) * 0.84));
+          updateJob(currentJob, { progress: pct });
+        }
       }
     });
 
     proc.on("close", (code) => {
       clearTimeout(killTimer);
+      clearTimeout(stallTimer);
       if (code === 0) resolve();
       else reject(new Error(sanitizeYtDlpError(stderr) || `yt-dlp video exited ${code}`));
     });
     proc.on("error", (e) => {
       clearTimeout(killTimer);
+      clearTimeout(stallTimer);
       reject(new Error(`yt-dlp spawn error: ${e.message}`));
     });
   });
