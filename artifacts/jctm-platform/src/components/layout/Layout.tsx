@@ -14,6 +14,7 @@ import { WarriCrusadeStickyBanner } from "../event-promo/WarriCrusadeStickyBanne
 import { CrusadeInlineAd } from "../event-promo/CrusadeInlineAd";
 import { FloatingJoinCrusadeCTA } from "../event-promo/FloatingJoinCrusadeCTA";
 import { MinistersConferenceFlyerPopup } from "../event-promo/MinistersConferenceFlyerPopup";
+import { MediaJobsPanel } from "../MediaJobsPanel";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -68,6 +69,9 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Full-screen flyer popup — auto-opens once per session */}
       <MinistersConferenceFlyerPopup />
+
+      {/* Global floating download queue */}
+      <MediaJobsPanel />
     </div>
   );
 }

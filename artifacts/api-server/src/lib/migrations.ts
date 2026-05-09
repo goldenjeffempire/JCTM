@@ -1280,10 +1280,14 @@ export async function runMigrations(): Promise<void> {
       duration      INTEGER,
       file_size     BIGINT,
       thumbnail_url TEXT,
+      retry_count   INTEGER NOT NULL DEFAULT 0,
       created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
       updated_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
       expires_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (now() + INTERVAL '24 hours')
     )
+  `);
+  await pool.query(`
+    ALTER TABLE media_download_jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_media_jobs_expires ON media_download_jobs (expires_at)

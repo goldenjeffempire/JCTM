@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X, Lock, Share2, Link2, CheckCheck, Clock } from "lucide-react";
+import { Search, Volume2, Play, RefreshCw, Zap, Star, Radio, Loader2, Bot, X, Lock, Share2, Link2, CheckCheck, Clock, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
@@ -19,6 +19,7 @@ import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSens
 import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { StreamPlayer } from "@/components/StreamPlayer";
+import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 
 const CATEGORIES = [
   { id: "all", label: "All Sermons", emoji: "📖" },
@@ -751,6 +752,7 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
   const [audioMode, setAudioMode] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const playing = playingId === sermon.videoId;
 
   const sermonUrl = `${window.location.origin}${BASE}/sermons/${sermon.id}`;
@@ -908,6 +910,14 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
           <p className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(sermon.publishedAt), { addSuffix: true })}
           </p>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); setDownloadOpen(true); }}
+              className="p-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Download this sermon"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </button>
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setShareOpen(o => !o); }}
@@ -941,8 +951,18 @@ function SermonCard({ sermon, index, playingId, onPlay, onClose }: {
               )}
             </AnimatePresence>
           </div>
+          </div>
         </div>
       </div>
+
+      <MediaDownloadSheet
+        open={downloadOpen}
+        onClose={() => setDownloadOpen(false)}
+        type="youtube_audio"
+        sourceId={sermon.videoId}
+        title={sermon.title}
+        thumbnailUrl={sermon.thumbnailUrl}
+      />
     </motion.div>
   );
 }

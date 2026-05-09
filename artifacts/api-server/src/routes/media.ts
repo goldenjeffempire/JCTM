@@ -1,11 +1,14 @@
 /**
  * Media Download & Conversion Routes — JCTM Digital Sanctuary
  *
- * POST /api/media/request      — Create a new conversion/download job
- * GET  /api/media/jobs/:id     — Poll job status and progress
- * GET  /api/media/download/:id — Stream the completed file to browser
- * GET  /api/media/jobs         — List recent jobs (last 20)
- * DELETE /api/media/jobs/:id   — Cancel / discard a job
+ * POST   /api/media/request          — Create a new conversion/download job (with deduplication)
+ * POST   /api/media/batch            — Create multiple jobs at once
+ * GET    /api/media/jobs/:id         — Poll job status and progress
+ * GET    /api/media/progress/:id     — SSE stream for real-time job progress
+ * GET    /api/media/download/:id     — Stream the completed file (range-request enabled)
+ * GET    /api/media/jobs             — List recent jobs (last 20)
+ * GET    /api/media/stats            — Queue health stats
+ * DELETE /api/media/jobs/:id         — Cancel / discard a job
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -14,10 +17,14 @@ import path from "path";
 import { z } from "zod";
 import {
   createJob,
+  createBatchJobs,
   getJob,
   getUserJobs,
   getFilePath,
   formatFileSize,
+  findDuplicateJob,
+  subscribeToJobProgress,
+  getQueueStats,
   type JobType,
   type JobFormat,
   type JobQuality,
@@ -35,8 +42,13 @@ const CreateJobBody = z.object({
   format: z.enum(["mp3", "m4a", "mp4", "jpeg", "png", "webp"]).optional(),
   quality: z.enum(["low", "medium", "high", "ultra"]).optional().default("high"),
   title: z.string().max(200).optional(),
-  thumbnailUrl: z.string().url().optional(),
+  thumbnailUrl: z.string().url().optional().or(z.literal("")).optional(),
   duration: z.number().int().positive().optional(),
+  deduplicate: z.boolean().optional().default(true),
+});
+
+const BatchJobBody = z.object({
+  jobs: z.array(CreateJobBody).min(1).max(10),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,17 +69,17 @@ function safeFilename(job: { title: string | null; format: string; id: string })
 
 function mimeFor(format: string): string {
   const map: Record<string, string> = {
-    mp3: "audio/mpeg",
-    m4a: "audio/mp4",
-    mp4: "video/mp4",
+    mp3:  "audio/mpeg",
+    m4a:  "audio/mp4",
+    mp4:  "video/mp4",
     jpeg: "image/jpeg",
-    png: "image/png",
+    png:  "image/png",
     webp: "image/webp",
   };
   return map[format] ?? "application/octet-stream";
 }
 
-// Rate limiting: max 10 job requests per IP per hour
+// Rate limiting: max 15 job requests per IP per hour
 const ipJobCount = new Map<string, { count: number; resetAt: number }>();
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -76,9 +88,33 @@ function checkRateLimit(ip: string): boolean {
     ipJobCount.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
     return true;
   }
-  if (entry.count >= 10) return false;
+  if (entry.count >= 15) return false;
   entry.count++;
   return true;
+}
+
+function serializeJob(job: Awaited<ReturnType<typeof getJob>>) {
+  if (!job) return null;
+  return {
+    jobId: job.id,
+    type: job.type,
+    sourceId: job.sourceId,
+    format: job.format,
+    quality: job.quality,
+    status: job.status,
+    progress: job.progress,
+    title: job.title,
+    duration: job.duration,
+    thumbnailUrl: job.thumbnailUrl,
+    fileSize: job.fileSize,
+    fileSizeFormatted: job.fileSize ? formatFileSize(job.fileSize) : null,
+    error: job.error,
+    retryCount: job.retryCount ?? 0,
+    downloadUrl: job.status === "ready" ? `/api/media/download/${job.id}` : null,
+    createdAt: job.createdAt.toISOString(),
+    expiresAt: job.expiresAt.toISOString(),
+    cached: false,
+  };
 }
 
 // ─── POST /api/media/request ─────────────────────────────────────────────────
@@ -98,30 +134,172 @@ router.post("/media/request", async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  const { type, sourceId, quality = "high", title, thumbnailUrl, duration } = parsed.data;
+  const { type, sourceId, quality = "high", title, thumbnailUrl, duration, deduplicate = true } = parsed.data;
   const format = inferFormat(type as JobType, parsed.data.format);
 
   try {
+    // Check for duplicate/cached job first
+    if (deduplicate) {
+      const existing = await findDuplicateJob({
+        type: type as JobType,
+        sourceId,
+        format: format as JobFormat,
+        quality: quality as JobQuality,
+        title,
+        thumbnailUrl: thumbnailUrl || undefined,
+        duration,
+      });
+
+      if (existing) {
+        logger.info({ jobId: existing.id, status: existing.status }, "Returning deduplicated job");
+        res.status(200).json({
+          ...serializeJob(existing),
+          cached: existing.status === "ready",
+          message: existing.status === "ready"
+            ? "File already converted — instant download available!"
+            : "Conversion already in progress — reusing existing job.",
+        });
+        return;
+      }
+    }
+
     const job = await createJob({
       type: type as JobType,
       sourceId,
       format: format as JobFormat,
       quality: quality as JobQuality,
       title,
-      thumbnailUrl,
+      thumbnailUrl: thumbnailUrl || undefined,
       duration,
     });
 
     res.status(201).json({
-      jobId: job.id,
-      status: job.status,
-      progress: job.progress,
+      ...serializeJob(job),
       estimatedSeconds: type === "youtube_video" ? 60 : type === "youtube_audio" ? 35 : 5,
-      message: "Media conversion job created. Poll /api/media/jobs/:id for status.",
+      message: "Media conversion job created.",
     });
   } catch (err) {
     logger.error({ err }, "Failed to create media job");
     res.status(500).json({ error: "Failed to start conversion. Please try again." });
+  }
+});
+
+// ─── POST /api/media/batch ───────────────────────────────────────────────────
+
+router.post("/media/batch", async (req: Request, res: Response): Promise<void> => {
+  const parsed = BatchJobBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid batch request", details: parsed.error.flatten() });
+    return;
+  }
+
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+  if (!checkRateLimit(ip)) {
+    res.status(429).json({ error: "Rate limit exceeded for batch conversions." });
+    return;
+  }
+
+  try {
+    const results = await Promise.all(
+      parsed.data.jobs.map(async (jobInput) => {
+        const format = inferFormat(jobInput.type as JobType, jobInput.format);
+        const input = {
+          type: jobInput.type as JobType,
+          sourceId: jobInput.sourceId,
+          format: format as JobFormat,
+          quality: (jobInput.quality ?? "high") as JobQuality,
+          title: jobInput.title,
+          thumbnailUrl: jobInput.thumbnailUrl || undefined,
+          duration: jobInput.duration,
+        };
+
+        // Deduplicate by default
+        const existing = await findDuplicateJob(input);
+        if (existing) return { ...serializeJob(existing), cached: existing.status === "ready" };
+
+        const job = await createJob(input);
+        return serializeJob(job);
+      })
+    );
+
+    res.status(201).json({ jobs: results, total: results.length });
+  } catch (err) {
+    logger.error({ err }, "Failed to create batch jobs");
+    res.status(500).json({ error: "Failed to start batch conversion." });
+  }
+});
+
+// ─── GET /api/media/progress/:id  (SSE real-time progress) ───────────────────
+
+router.get("/media/progress/:id", async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
+    res.status(400).json({ error: "Invalid job ID" });
+    return;
+  }
+
+  try {
+    const job = await getJob(id);
+    if (!job) {
+      res.status(404).json({ error: "Job not found or expired." });
+      return;
+    }
+
+    // If already done, return immediately (no SSE needed)
+    if (job.status === "ready" || job.status === "failed") {
+      res.setHeader("Content-Type", "application/json");
+      res.json(serializeJob(job));
+      return;
+    }
+
+    // Open SSE stream
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    // Send current state immediately
+    res.write(`event: progress\ndata: ${JSON.stringify(serializeJob(job))}\n\n`);
+
+    // Subscribe to live updates
+    const unsubscribe = subscribeToJobProgress(id, (update) => {
+      if (res.writableEnded) return;
+      try {
+        res.write(`event: progress\ndata: ${JSON.stringify({ ...update, fileSizeFormatted: update.fileSize ? formatFileSize(update.fileSize) : null })}\n\n`);
+        // Close stream when job finishes
+        if (update.status === "ready" || update.status === "failed") {
+          res.write(`event: done\ndata: ${JSON.stringify({ status: update.status })}\n\n`);
+          res.end();
+        }
+      } catch { unsubscribe(); }
+    });
+
+    // Keepalive ping every 20s
+    const ping = setInterval(() => {
+      if (!res.writableEnded) {
+        res.write(`event: ping\ndata: {}\n\n`);
+      } else {
+        clearInterval(ping);
+        unsubscribe();
+      }
+    }, 20_000);
+
+    // Cleanup on client disconnect
+    res.once("close", () => {
+      clearInterval(ping);
+      unsubscribe();
+    });
+    res.once("finish", () => {
+      clearInterval(ping);
+      unsubscribe();
+    });
+
+  } catch (err) {
+    logger.error({ err }, "SSE progress stream error");
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to open progress stream." });
+    }
   }
 });
 
@@ -142,24 +320,7 @@ router.get("/media/jobs/:id", async (req: Request, res: Response): Promise<void>
     }
 
     res.setHeader("Cache-Control", "no-store");
-    res.json({
-      jobId: job.id,
-      type: job.type,
-      sourceId: job.sourceId,
-      format: job.format,
-      quality: job.quality,
-      status: job.status,
-      progress: job.progress,
-      title: job.title,
-      duration: job.duration,
-      thumbnailUrl: job.thumbnailUrl,
-      fileSize: job.fileSize,
-      fileSizeFormatted: job.fileSize ? formatFileSize(job.fileSize) : null,
-      error: job.error,
-      downloadUrl: job.status === "ready" ? `/api/media/download/${job.id}` : null,
-      createdAt: job.createdAt.toISOString(),
-      expiresAt: job.expiresAt.toISOString(),
-    });
+    res.json(serializeJob(job));
   } catch (err) {
     logger.error({ err }, "Failed to fetch job");
     res.status(500).json({ error: "Failed to fetch job status." });
@@ -196,7 +357,11 @@ router.get("/media/download/:id", async (req: Request, res: Response): Promise<v
     const mime = mimeFor(job.format);
     const filename = safeFilename({ title: job.title, format: job.format, id: job.id });
 
-    // Support range requests (for mobile audio players and video seeking)
+    // CORS for download
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Range");
+
+    // Range request support (mobile audio players, video seeking, resumable downloads)
     const range = req.headers.range;
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -209,23 +374,29 @@ router.get("/media/download/:id", async (req: Request, res: Response): Promise<v
       res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Content-Length", chunkSize);
       res.setHeader("Content-Type", mime);
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.setHeader("Cache-Control", "private, max-age=3600");
 
-      const fileStream = fs.createReadStream(filePath, { start, end });
+      const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 512 * 1024 });
       fileStream.pipe(res);
-      fileStream.on("error", () => res.end());
+      fileStream.on("error", (err) => {
+        logger.warn({ err }, "File stream error during range download");
+        if (!res.writableEnded) res.end();
+      });
     } else {
       res.setHeader("Content-Type", mime);
       res.setHeader("Content-Length", stats.size);
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.setHeader("X-Content-Type-Options", "nosniff");
 
-      const fileStream = fs.createReadStream(filePath);
+      const fileStream = fs.createReadStream(filePath, { highWaterMark: 512 * 1024 });
       fileStream.pipe(res);
-      fileStream.on("error", () => res.end());
+      fileStream.on("error", (err) => {
+        logger.warn({ err }, "File stream error during download");
+        if (!res.writableEnded) res.end();
+      });
     }
   } catch (err) {
     logger.error({ err }, "Failed to serve download");
@@ -241,26 +412,18 @@ router.get("/media/jobs", async (_req: Request, res: Response): Promise<void> =>
   try {
     const jobs = await getUserJobs(20);
     res.setHeader("Cache-Control", "no-store");
-    res.json(jobs.map(job => ({
-      jobId: job.id,
-      type: job.type,
-      sourceId: job.sourceId,
-      format: job.format,
-      quality: job.quality,
-      status: job.status,
-      progress: job.progress,
-      title: job.title,
-      fileSize: job.fileSize,
-      fileSizeFormatted: job.fileSize ? formatFileSize(job.fileSize) : null,
-      error: job.error,
-      downloadUrl: job.status === "ready" ? `/api/media/download/${job.id}` : null,
-      createdAt: job.createdAt.toISOString(),
-      expiresAt: job.expiresAt.toISOString(),
-    })));
+    res.json(jobs.map(j => serializeJob(j)));
   } catch (err) {
     logger.error({ err }, "Failed to list jobs");
     res.status(500).json({ error: "Failed to load recent downloads." });
   }
+});
+
+// ─── GET /api/media/stats ─────────────────────────────────────────────────────
+
+router.get("/media/stats", (_req: Request, res: Response): void => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json(getQueueStats());
 });
 
 // ─── DELETE /api/media/jobs/:id ───────────────────────────────────────────────
@@ -278,7 +441,6 @@ router.delete("/media/jobs/:id", async (req: Request, res: Response): Promise<vo
       res.status(404).json({ error: "Job not found." });
       return;
     }
-    // Delete output file if exists
     if (job.outputPath && fs.existsSync(job.outputPath)) {
       fs.unlinkSync(job.outputPath);
     }

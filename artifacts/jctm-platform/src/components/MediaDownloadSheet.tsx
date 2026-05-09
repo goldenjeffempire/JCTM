@@ -4,19 +4,19 @@
  * A bottom sheet / modal that lets users:
  *   • Choose format (audio MP3/M4A, video MP4, image JPEG/PNG/WebP)
  *   • Choose quality (Low / Medium / High / Ultra)
- *   • Track conversion progress in real-time (polling)
- *   • Trigger browser download when ready
+ *   • Track conversion progress in real-time via SSE (no polling)
+ *   • Instant download if file already cached/converted
  *   • Retry on failure
- *   • View file size estimate
+ *   • View file size on completion
  *
- * Works across Desktop, Android Chrome, iOS Safari (uses anchor download attribute).
+ * Works across Desktop, Android Chrome, iOS Safari.
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Download, Music, Video, Image as ImageIcon, X, CheckCircle2,
-  AlertCircle, Loader2, RefreshCw, ChevronRight, HardDrive, Clock,
+  Download, Music, Image as ImageIcon, X, CheckCircle2,
+  AlertCircle, Loader2, RefreshCw, HardDrive, Clock,
   Headphones, Film, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,11 +36,14 @@ interface Job {
   status: JobStatus;
   progress: number;
   title: string | null;
+  duration: number | null;
   fileSize: number | null;
   fileSizeFormatted: string | null;
   error: string | null;
   downloadUrl: string | null;
   thumbnailUrl: string | null;
+  cached?: boolean;
+  retryCount?: number;
 }
 
 interface FormatOption {
@@ -113,24 +116,24 @@ const FORMAT_OPTIONS: FormatOption[] = [
 ];
 
 const AUDIO_QUALITY_OPTIONS: QualityOption[] = [
-  { value: "low", label: "Standard", description: "Smaller file, good quality", bitrate: "128 kbps" },
-  { value: "medium", label: "High", description: "Balanced size and quality", bitrate: "192 kbps", tag: "Recommended" },
-  { value: "high", label: "Very High", description: "Large file, excellent quality", bitrate: "256 kbps" },
-  { value: "ultra", label: "Ultra", description: "Maximum quality, largest file", bitrate: "320 kbps", tag: "Studio" },
+  { value: "low",    label: "Standard",   description: "Smaller file, good quality",           bitrate: "128 kbps" },
+  { value: "medium", label: "High",        description: "Balanced size and quality",            bitrate: "192 kbps", tag: "Recommended" },
+  { value: "high",   label: "Very High",   description: "Large file, excellent quality",        bitrate: "256 kbps" },
+  { value: "ultra",  label: "Ultra",       description: "Maximum quality, largest file",        bitrate: "320 kbps", tag: "Studio" },
 ];
 
 const VIDEO_QUALITY_OPTIONS: QualityOption[] = [
-  { value: "low", label: "360p", description: "Low data usage, mobile-friendly", resolution: "640×360" },
-  { value: "medium", label: "480p", description: "Standard definition", resolution: "854×480", tag: "Balanced" },
-  { value: "high", label: "720p HD", description: "High definition", resolution: "1280×720", tag: "Recommended" },
-  { value: "ultra", label: "1080p Full HD", description: "Full high definition", resolution: "1920×1080" },
+  { value: "low",    label: "360p",          description: "Low data usage, mobile-friendly",   resolution: "640×360" },
+  { value: "medium", label: "480p",          description: "Standard definition",               resolution: "854×480", tag: "Balanced" },
+  { value: "high",   label: "720p HD",       description: "High definition",                   resolution: "1280×720", tag: "Recommended" },
+  { value: "ultra",  label: "1080p Full HD", description: "Full high definition",              resolution: "1920×1080" },
 ];
 
 const IMAGE_QUALITY_OPTIONS: QualityOption[] = [
-  { value: "low", label: "Web Quality", description: "Optimised for sharing online" },
-  { value: "medium", label: "Standard", description: "Good balance of size and quality", tag: "Recommended" },
-  { value: "high", label: "High Quality", description: "Large, detailed image" },
-  { value: "ultra", label: "Maximum", description: "Full resolution, ministry print quality" },
+  { value: "low",    label: "Web Quality",  description: "Optimised for sharing online" },
+  { value: "medium", label: "Standard",     description: "Good balance of size and quality", tag: "Recommended" },
+  { value: "high",   label: "High Quality", description: "Large, detailed image" },
+  { value: "ultra",  label: "Maximum",      description: "Full resolution, ministry print quality" },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -174,7 +177,7 @@ function typeLabel(type: MediaType): string {
 
 // ─── Progress Ring ────────────────────────────────────────────────────────────
 
-function ProgressRing({ progress, size = 80 }: { progress: number; size?: number }) {
+function ProgressRing({ progress, size = 88 }: { progress: number; size?: number }) {
   const r = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (progress / 100) * circ;
@@ -185,7 +188,7 @@ function ProgressRing({ progress, size = 80 }: { progress: number; size?: number
         cx={size / 2} cy={size / 2} r={r} fill="none"
         stroke="#a78bfa" strokeWidth={5} strokeLinecap="round"
         strokeDasharray={circ} strokeDashoffset={offset}
-        style={{ transition: "stroke-dashoffset 0.4s ease" }}
+        style={{ transition: "stroke-dashoffset 0.35s ease" }}
       />
     </svg>
   );
@@ -208,10 +211,14 @@ export default function MediaDownloadSheet({
   const [selectedQuality, setSelectedQuality] = useState<Quality>("high");
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sseRef = useRef<EventSource | null>(null);
   const downloadedRef = useRef(false);
 
-  // Reset when sheet opens
+  // Adjust quality options when format changes
+  const qualityOptions = getQualityOptions(selectedFormat);
+  useEffect(() => { setSelectedQuality("high"); }, [selectedFormat]);
+
+  // Reset when sheet opens/closes
   useEffect(() => {
     if (open) {
       setStep("pick");
@@ -221,39 +228,65 @@ export default function MediaDownloadSheet({
       setLoading(false);
       downloadedRef.current = false;
     } else {
-      stopPolling();
+      closeSSE();
     }
   }, [open, type]);
 
-  // Adjust quality options when format changes (e.g. mp3 → mp4)
-  const qualityOptions = getQualityOptions(selectedFormat);
-  useEffect(() => {
-    setSelectedQuality("high");
-  }, [selectedFormat]);
+  // Cleanup SSE on unmount
+  useEffect(() => () => closeSSE(), []);
 
-  function stopPolling() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+  function closeSSE() {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
     }
   }
 
-  const pollJob = useCallback(async (jobId: string) => {
-    try {
-      const res = await fetch(`${BASE}/api/media/jobs/${jobId}`);
-      if (!res.ok) return;
-      const data: Job = await res.json();
-      setJob(data);
-      if (data.status === "ready") {
-        stopPolling();
-        setStep("done");
-      } else if (data.status === "failed") {
-        stopPolling();
-        setStep("error");
-      }
-    } catch {
-      // silently retry
-    }
+  const openSSEForJob = useCallback((jobId: string) => {
+    closeSSE();
+    const es = new EventSource(`${BASE}/api/media/progress/${jobId}`);
+    sseRef.current = es;
+
+    es.addEventListener("progress", (evt) => {
+      try {
+        const data: Job = JSON.parse((evt as MessageEvent).data);
+        setJob(data);
+        if (data.status === "ready") {
+          setStep("done");
+          closeSSE();
+        } else if (data.status === "failed") {
+          setStep("error");
+          closeSSE();
+        }
+      } catch { /* ignore malformed */ }
+    });
+
+    // Server sent "done" event as a final signal (belt-and-suspenders)
+    es.addEventListener("done", (evt) => {
+      try {
+        const { status } = JSON.parse((evt as MessageEvent).data) as { status: string };
+        if (status === "ready") setStep("done");
+        if (status === "failed") setStep("error");
+        closeSSE();
+      } catch { /* ignore */ }
+    });
+
+    // Fallback: if SSE fails to connect, poll gracefully
+    let pollFallback: ReturnType<typeof setInterval> | null = null;
+    es.onerror = () => {
+      closeSSE();
+      if (pollFallback) return;
+      pollFallback = setInterval(async () => {
+        try {
+          const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
+          if (!r.ok) return;
+          const data: Job = await r.json();
+          setJob(data);
+          if (data.status === "ready") { setStep("done"); clearInterval(pollFallback!); }
+          else if (data.status === "failed") { setStep("error"); clearInterval(pollFallback!); }
+        } catch { /* silent */ }
+      }, 2000);
+    };
   }, []);
 
   async function startConversion() {
@@ -270,18 +303,25 @@ export default function MediaDownloadSheet({
           title: propTitle,
           thumbnailUrl: propThumbnail,
           duration: propDuration,
+          deduplicate: true,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? "Server error");
       }
-      const data = await res.json() as { jobId: string };
-      setStep("processing");
-      setJob({ jobId: data.jobId, status: "queued", progress: 0,
-        title: propTitle ?? null, fileSize: null, fileSizeFormatted: null,
-        error: null, downloadUrl: null, thumbnailUrl: propThumbnail ?? null });
-      pollRef.current = setInterval(() => pollJob(data.jobId), 1800);
+      const data = await res.json() as Job & { cached?: boolean; message?: string };
+
+      setJob(data);
+
+      // Instant download: file was already cached
+      if (data.status === "ready" && (data.cached || data.downloadUrl)) {
+        setStep("done");
+        if (data.cached) toast.success("Instant download — file already converted!", { duration: 3000 });
+      } else {
+        setStep("processing");
+        openSSEForJob(data.jobId);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to start conversion. Please try again.");
     } finally {
@@ -302,7 +342,7 @@ export default function MediaDownloadSheet({
   }
 
   async function retryJob() {
-    stopPolling();
+    closeSSE();
     setStep("pick");
     setJob(null);
     downloadedRef.current = false;
@@ -316,6 +356,7 @@ export default function MediaDownloadSheet({
 
   const thumbnail = job?.thumbnailUrl ?? propThumbnail;
   const displayTitle = job?.title ?? propTitle ?? typeLabel(type);
+  const duration = job?.duration ?? propDuration;
 
   return (
     <AnimatePresence>
@@ -364,10 +405,10 @@ export default function MediaDownloadSheet({
                     <p className="text-white font-semibold text-sm leading-snug truncate max-w-[200px]">
                       {displayTitle}
                     </p>
-                    {propDuration && (
+                    {duration && (
                       <p className="text-white/40 text-xs mt-0.5 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatDuration(propDuration)}
+                        {formatDuration(duration)}
                       </p>
                     )}
                   </div>
@@ -482,7 +523,7 @@ export default function MediaDownloadSheet({
                     )}
                   >
                     {loading ? (
-                      <><Loader2 className="h-5 w-5 animate-spin" /> Starting Conversion…</>
+                      <><Loader2 className="h-5 w-5 animate-spin" /> Checking…</>
                     ) : (
                       <><Zap className="h-5 w-5" /> Start Conversion</>
                     )}
@@ -490,7 +531,7 @@ export default function MediaDownloadSheet({
                 </div>
               )}
 
-              {/* ── Step: Processing ── */}
+              {/* ── Step: Processing (SSE live progress) ── */}
               {step === "processing" && job && (
                 <div className="px-5 pb-8">
                   <div className="flex flex-col items-center text-center py-4">
@@ -503,7 +544,7 @@ export default function MediaDownloadSheet({
                     </div>
 
                     <p className="text-white font-semibold text-base mb-1">
-                      {job.status === "queued" ? "Queued — waiting for processor…" : "Converting…"}
+                      {job.status === "queued" ? "In queue — starting soon…" : "Converting…"}
                     </p>
                     <p className="text-white/40 text-sm">
                       {selectedFormat === "mp4"
@@ -513,12 +554,12 @@ export default function MediaDownloadSheet({
                         : "Processing your image…"}
                     </p>
 
-                    {/* Progress bar */}
+                    {/* Live progress bar */}
                     <div className="w-full mt-5 bg-white/10 rounded-full h-2 overflow-hidden">
                       <motion.div
                         className="h-full bg-gradient-to-r from-primary to-violet-500 rounded-full"
-                        style={{ width: `${job.progress}%` }}
-                        transition={{ duration: 0.5 }}
+                        animate={{ width: `${job.progress}%` }}
+                        transition={{ duration: 0.35, ease: "easeOut" }}
                       />
                     </div>
 
@@ -527,12 +568,15 @@ export default function MediaDownloadSheet({
                         <HardDrive className="h-3 w-3" />
                         {selectedFormat.toUpperCase()} · {selectedQuality.toUpperCase()}
                       </span>
-                      {propDuration && (
+                      {duration && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {formatDuration(propDuration)}
+                          {formatDuration(duration)}
                         </span>
                       )}
+                      {job.retryCount ? (
+                        <span className="text-amber-400/70">Attempt {(job.retryCount ?? 0) + 1}/3</span>
+                      ) : null}
                     </div>
 
                     <button
@@ -549,11 +593,25 @@ export default function MediaDownloadSheet({
               {step === "done" && job && (
                 <div className="px-5 pb-8">
                   <div className="flex flex-col items-center text-center py-4">
-                    <div className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center
-                                   justify-center mb-4 ring-2 ring-emerald-500/30">
-                      <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-                    </div>
-                    <p className="text-white font-bold text-lg mb-1">Ready to Download</p>
+                    {job.cached ? (
+                      <div className="w-20 h-20 rounded-full bg-amber-500/15 flex items-center
+                                     justify-center mb-4 ring-2 ring-amber-500/30">
+                        <Zap className="h-10 w-10 text-amber-400" />
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center
+                                     justify-center mb-4 ring-2 ring-emerald-500/30">
+                        <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+                      </div>
+                    )}
+                    <p className="text-white font-bold text-lg mb-1">
+                      {job.cached ? "Instant Download Ready!" : "Ready to Download"}
+                    </p>
+                    {job.cached && (
+                      <p className="text-amber-400/80 text-xs mb-1 font-medium">
+                        Already converted — no waiting!
+                      </p>
+                    )}
                     <p className="text-white/40 text-sm mb-1 max-w-[260px] truncate">
                       {job.title ?? displayTitle}
                     </p>
@@ -568,8 +626,11 @@ export default function MediaDownloadSheet({
                       onClick={triggerDownload}
                       className={cn(
                         "mt-6 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl",
-                        "bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base",
-                        "transition-all duration-200 active:scale-[0.98] shadow-lg shadow-emerald-500/25",
+                        "text-white font-bold text-base",
+                        "transition-all duration-200 active:scale-[0.98] shadow-lg",
+                        job.cached
+                          ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/25"
+                          : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25",
                       )}
                     >
                       <Download className="h-5 w-5" />
@@ -600,21 +661,28 @@ export default function MediaDownloadSheet({
                       <AlertCircle className="h-10 w-10 text-red-400" />
                     </div>
                     <p className="text-white font-bold text-lg mb-1">Conversion Failed</p>
-                    <p className="text-white/40 text-sm max-w-[260px]">
-                      {job?.error?.slice(0, 120) ?? "An error occurred. This may be a temporary issue."}
-                    </p>
-
+                    {job?.error && (
+                      <p className="text-white/40 text-xs mb-4 max-w-[260px] break-words">
+                        {job.error.slice(0, 140)}
+                      </p>
+                    )}
+                    {job?.retryCount !== undefined && job.retryCount > 0 && (
+                      <p className="text-amber-400/60 text-[11px] mb-3">
+                        Failed after {job.retryCount + 1} attempt{job.retryCount > 0 ? "s" : ""}
+                      </p>
+                    )}
                     <button
                       onClick={retryJob}
-                      className={cn(
-                        "mt-6 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl",
-                        "bg-white/10 hover:bg-white/20 text-white font-bold text-base",
-                        "transition-all duration-200 active:scale-[0.98]",
-                      )}
+                      className="mt-2 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
+                                 bg-white/10 hover:bg-white/15 text-white font-bold text-base
+                                 transition-all duration-200 active:scale-[0.98]"
                     >
                       <RefreshCw className="h-5 w-5" />
                       Try Again
                     </button>
+                    <p className="mt-3 text-[11px] text-white/25">
+                      YouTube content may be unavailable or geo-restricted.
+                    </p>
                   </div>
                 </div>
               )}
