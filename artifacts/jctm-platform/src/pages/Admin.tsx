@@ -6621,6 +6621,14 @@ interface IpActivityRow {
   totalBytes: number;
   firstSeen: string;
   lastSeen: string;
+  blocked: boolean;
+}
+
+interface BlockedIpEntry {
+  ip: string;
+  reason: string;
+  blockedBy: string;
+  createdAt: string;
 }
 
 interface MediaAuditData {
@@ -6646,6 +6654,7 @@ interface MediaAuditData {
   formatBreakdown: { format: string; count: number }[];
   dailyActivity: { day: string; jobs: number; downloads: number }[];
   ipActivity: IpActivityRow[];
+  blockedIps: BlockedIpEntry[];
 }
 
 function fmtBytes(bytes: number): string {

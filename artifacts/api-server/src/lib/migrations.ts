@@ -1387,6 +1387,19 @@ export async function runMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_media_audit_video ON media_audit_log (video_id)
   `);
 
+  // IP block list — entries here cause token issuance + file serving to return 403
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blocked_ips (
+      ip          text        PRIMARY KEY,
+      reason      text        NOT NULL DEFAULT 'manual block',
+      blocked_by  text        NOT NULL DEFAULT 'admin',
+      created_at  timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_blocked_ips_created ON blocked_ips (created_at DESC)
+  `);
+
   // Purge expired download tokens periodically (keep last 7 days for audit trail)
   await pool.query(`
     DELETE FROM download_tokens WHERE expires_at < now() - interval '7 days'

@@ -1407,7 +1407,7 @@ router.get(
     try {
       const { pool: dbPool } = await import("@workspace/db");
 
-      const [summary, topVideos, recentDownloads, formatBreakdown, dailyActivity, activeTokens, ipActivity] =
+      const [summary, topVideos, recentDownloads, formatBreakdown, dailyActivity, activeTokens, ipActivity, blockedIpsResult] =
         await Promise.all([
           // Overall counts + bytes
           dbPool.query<{
@@ -1511,6 +1511,18 @@ router.get(
             GROUP  BY ip
             ORDER  BY dl_24h DESC
             LIMIT  100
+          `),
+
+          // Current blocked IPs
+          dbPool.query<{
+            ip: string;
+            reason: string;
+            blocked_by: string;
+            created_at: string;
+          }>(`
+            SELECT ip, reason, blocked_by, created_at
+            FROM   blocked_ips
+            ORDER  BY created_at DESC
           `),
         ]);
 

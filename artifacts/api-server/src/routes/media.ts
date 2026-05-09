@@ -530,6 +530,17 @@ router.post("/media/token/:id", async (req: Request, res: Response): Promise<voi
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
     const { pool: dbPool } = await import("@workspace/db");
+
+    // Reject blocked IPs before issuing a token
+    const blockCheck = await dbPool.query(
+      `SELECT 1 FROM blocked_ips WHERE ip = $1`,
+      [ip],
+    );
+    if (blockCheck.rows.length > 0) {
+      res.status(403).json({ error: "Download access is restricted for this network." });
+      return;
+    }
+
     await dbPool.query(
       `INSERT INTO download_tokens (token, job_id, ip, expires_at)
        VALUES ($1, $2, $3, $4)`,
@@ -568,6 +579,16 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
 
   try {
     const { pool: dbPool } = await import("@workspace/db");
+
+    // Reject blocked IPs at the file-serving layer too
+    const blockCheck = await dbPool.query(
+      `SELECT 1 FROM blocked_ips WHERE ip = $1`,
+      [ip],
+    );
+    if (blockCheck.rows.length > 0) {
+      res.status(403).json({ error: "Download access is restricted for this network." });
+      return;
+    }
 
     const result = await dbPool.query<{
       token: string;
