@@ -9,11 +9,16 @@
  * GET    /api/media/jobs             — List recent jobs (last 20)
  * GET    /api/media/stats            — Queue health stats
  * DELETE /api/media/jobs/:id         — Cancel / discard a job
+ *
+ * Tokenized download (secure, audited):
+ * POST   /api/media/token/:id        — Issue a 30-min signed download token
+ * GET    /api/media/dl/:token        — Serve file via validated token (writes audit log)
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import fs from "fs";
 import path from "path";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 import {
   createJob,
@@ -77,6 +82,42 @@ function mimeFor(format: string): string {
     webp: "image/webp",
   };
   return map[format] ?? "application/octet-stream";
+}
+
+// ─── Token generation ─────────────────────────────────────────────────────────
+
+function generateToken(): string {
+  return randomBytes(32).toString("hex"); // 64-char hex, cryptographically random
+}
+
+// ─── Audit log helper ─────────────────────────────────────────────────────────
+
+async function writeAuditLog(event: string, data: {
+  ip?: string;
+  videoId?: string;
+  format?: string;
+  quality?: string;
+  bytesServed?: number;
+  jobId?: string;
+}): Promise<void> {
+  try {
+    const { pool: dbPool } = await import("@workspace/db");
+    await dbPool.query(
+      `INSERT INTO media_audit_log (event, ip, video_id, format, quality, bytes_served, job_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        event,
+        data.ip ?? "",
+        data.videoId ?? null,
+        data.format ?? null,
+        data.quality ?? null,
+        data.bytesServed ?? null,
+        data.jobId ?? null,
+      ],
+    );
+  } catch (err) {
+    logger.warn({ err }, "Failed to write media audit log — non-fatal");
+  }
 }
 
 // Rate limiting: max 15 job requests per IP per hour
@@ -173,8 +214,17 @@ router.post("/media/request", async (req: Request, res: Response): Promise<void>
       duration,
     });
 
+    const serialized = serializeJob(job);
+    void writeAuditLog("job_created", {
+      ip,
+      videoId: job.sourceId,
+      format: job.format,
+      quality: job.quality,
+      jobId: job.id,
+    });
+
     res.status(201).json({
-      ...serializeJob(job),
+      ...serialized,
       estimatedSeconds: type === "youtube_video" ? 60 : type === "youtube_audio" ? 35 : 5,
       message: "Media conversion job created.",
     });
@@ -451,6 +501,169 @@ router.delete("/media/jobs/:id", async (req: Request, res: Response): Promise<vo
   } catch (err) {
     logger.error({ err }, "Failed to delete job");
     res.status(500).json({ error: "Failed to delete job." });
+  }
+});
+
+// ─── POST /api/media/token/:id  (issue short-lived download token) ─────────────
+
+router.post("/media/token/:id", async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+
+  if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
+    res.status(400).json({ error: "Invalid job ID" });
+    return;
+  }
+
+  try {
+    const job = await getJob(id);
+    if (!job) {
+      res.status(404).json({ error: "Job not found or expired." });
+      return;
+    }
+    if (job.status !== "ready") {
+      res.status(409).json({ error: `File not ready. Status: ${job.status}` });
+      return;
+    }
+
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    const { pool: dbPool } = await import("@workspace/db");
+    await dbPool.query(
+      `INSERT INTO download_tokens (token, job_id, ip, expires_at)
+       VALUES ($1, $2, $3, $4)`,
+      [token, id, ip, expiresAt],
+    );
+
+    void writeAuditLog("token_issued", {
+      ip,
+      videoId: job.sourceId,
+      format: job.format,
+      quality: job.quality,
+      jobId: id,
+    });
+
+    res.json({
+      token,
+      expiresAt: expiresAt.toISOString(),
+      downloadUrl: `/api/media/dl/${token}`,
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to issue download token");
+    res.status(500).json({ error: "Failed to issue download token." });
+  }
+});
+
+// ─── GET /api/media/dl/:token  (serve file via validated token) ───────────────
+
+router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void> => {
+  const { token } = req.params;
+  const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
+
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) {
+    res.status(400).json({ error: "Invalid download token" });
+    return;
+  }
+
+  try {
+    const { pool: dbPool } = await import("@workspace/db");
+
+    const result = await dbPool.query<{
+      token: string;
+      job_id: string;
+      expires_at: Date;
+      used_at: Date | null;
+    }>(
+      `SELECT token, job_id, expires_at, used_at FROM download_tokens WHERE token = $1`,
+      [token],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      res.status(404).json({ error: "Invalid or expired download token." });
+      return;
+    }
+    if (new Date(row.expires_at) < new Date()) {
+      res.status(410).json({ error: "Download token has expired. Please request a new one." });
+      return;
+    }
+
+    const job = await getJob(row.job_id);
+    if (!job || job.status !== "ready") {
+      res.status(410).json({ error: "File no longer available. Please re-convert." });
+      return;
+    }
+
+    const filePath = getFilePath(job);
+    if (!filePath) {
+      res.status(410).json({ error: "File has been deleted. Please re-convert." });
+      return;
+    }
+
+    const stats = fs.statSync(filePath);
+    const mime = mimeFor(job.format);
+    const filename = safeFilename({ title: job.title, format: job.format, id: job.id });
+
+    // Mark token as used (non-blocking)
+    void dbPool.query(
+      `UPDATE download_tokens SET used_at = now() WHERE token = $1 AND used_at IS NULL`,
+      [token],
+    );
+
+    void writeAuditLog("download_served", {
+      ip,
+      videoId: job.sourceId,
+      format: job.format,
+      quality: job.quality,
+      bytesServed: stats.size,
+      jobId: job.id,
+    });
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Range");
+
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0]!, 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
+      const chunkSize = end - start + 1;
+
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${stats.size}`);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Content-Length", chunkSize);
+      res.setHeader("Content-Type", mime);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      res.setHeader("Cache-Control", "private, max-age=1800");
+
+      const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 512 * 1024 });
+      fileStream.pipe(res);
+      fileStream.on("error", (err) => {
+        logger.warn({ err }, "Range stream error during tokenized download");
+        if (!res.writableEnded) res.end();
+      });
+    } else {
+      res.setHeader("Content-Type", mime);
+      res.setHeader("Content-Length", stats.size);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Cache-Control", "private, max-age=1800");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+
+      const fileStream = fs.createReadStream(filePath, { highWaterMark: 512 * 1024 });
+      fileStream.pipe(res);
+      fileStream.on("error", (err) => {
+        logger.warn({ err }, "Stream error during tokenized download");
+        if (!res.writableEnded) res.end();
+      });
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to serve tokenized download");
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to serve file." });
+    }
   }
 });
 

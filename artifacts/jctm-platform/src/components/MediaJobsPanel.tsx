@@ -147,6 +147,18 @@ export function MediaJobsPanel() {
         if (update.status === "ready" || update.status === "failed") {
           es.close();
           sseRefs.current.delete(jobId);
+          // Browser notification when conversion finishes
+          if (update.status === "ready" && "Notification" in window && Notification.permission === "granted") {
+            const label = update.title ?? "Your sermon download";
+            try {
+              new Notification("Download Ready ✅", {
+                body: `${label} has been converted and is ready to save`,
+                icon: update.thumbnailUrl ?? "/jctm-logo-sm.jpeg",
+                badge: "/jctm-logo-sm.jpeg",
+                tag: `jctm-dl-${jobId}`,
+              });
+            } catch { /* browser may block */ }
+          }
         }
       } catch { /* ignore */ }
     });

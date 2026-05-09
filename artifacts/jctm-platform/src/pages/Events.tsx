@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import { Link } from "wouter";
 import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
@@ -415,6 +416,14 @@ function EventAdKit({ event }: { event: EventItem }) {
                       <Download className="h-3 w-3" />
                       <span className="hidden sm:inline">Download Flyer</span>
                     </button>
+                  )}
+                  {event.youtubeVideoId && (
+                    <VideoDownloadButton
+                      videoId={event.youtubeVideoId}
+                      title={`${event.title} — Promo Video`}
+                      thumbnailUrl={event.imageUrl ?? undefined}
+                      variant="button"
+                    />
                   )}
                 </div>
               </div>

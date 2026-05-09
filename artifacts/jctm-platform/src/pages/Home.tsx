@@ -27,6 +27,7 @@ import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
+import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -2469,6 +2470,14 @@ function SermonSpotlight() {
                               <Play className="h-4 w-4 fill-white" />
                               {isRecentBroadcast ? "Watch Broadcast" : "Watch Now"}
                             </button>
+                            {ytId && (
+                              <VideoDownloadButton
+                                videoId={ytId}
+                                title={hasCustomBroadcast ? "Latest Broadcast" : (sermon?.title ?? "Latest Broadcast")}
+                                thumbnailUrl={spotThumbnailUrl ?? `https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`}
+                                variant="inline"
+                              />
+                            )}
                           </div>
                         </div>
                       </>
@@ -2566,6 +2575,15 @@ function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
         </Link>
         <div className="flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">{formatDistanceToNow(new Date(s.publishedAt), { addSuffix: true })}</p>
+          <div className="flex items-center gap-0.5">
+            <VideoDownloadButton
+              videoId={s.videoId}
+              title={s.title}
+              thumbnailUrl={s.thumbnailUrl}
+              variant="button"
+              className="border-0 bg-transparent px-1.5 py-1"
+              stopPropagation
+            />
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setShareOpen(o => !o); }}
@@ -2598,6 +2616,7 @@ function RecentSermonCard({ sermon: s, index: i, playingId, onPlay, onClose }: {
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
           </div>
         </div>
       </div>

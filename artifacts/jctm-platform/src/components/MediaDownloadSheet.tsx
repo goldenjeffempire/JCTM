@@ -146,6 +146,7 @@ interface MediaDownloadSheetProps {
   title?: string;
   thumbnailUrl?: string;
   duration?: number;
+  onJobCreated?: (jobId: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -204,6 +205,7 @@ export default function MediaDownloadSheet({
   title: propTitle,
   thumbnailUrl: propThumbnail,
   duration: propDuration,
+  onJobCreated,
 }: MediaDownloadSheetProps) {
 
   const [step, setStep] = useState<"pick" | "processing" | "done" | "error">("pick");
@@ -313,6 +315,7 @@ export default function MediaDownloadSheet({
       const data = await res.json() as Job & { cached?: boolean; message?: string };
 
       setJob(data);
+      if (data.jobId) onJobCreated?.(data.jobId);
 
       // Instant download: file was already cached
       if (data.status === "ready" && (data.cached || data.downloadUrl)) {
@@ -329,16 +332,34 @@ export default function MediaDownloadSheet({
     }
   }
 
-  function triggerDownload() {
-    if (!job?.downloadUrl || downloadedRef.current) return;
+  async function triggerDownload() {
+    if (!job?.jobId || downloadedRef.current) return;
     downloadedRef.current = true;
-    const a = document.createElement("a");
-    a.href = `${BASE}${job.downloadUrl}`;
-    a.download = job.title ?? "jctm_media";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
+    try {
+      // Request a short-lived signed token so the download link is not guessable
+      const tokenRes = await fetch(`${BASE}/api/media/token/${job.jobId}`, { method: "POST" });
+      if (tokenRes.ok) {
+        const { downloadUrl } = await tokenRes.json() as { downloadUrl: string };
+        const a = document.createElement("a");
+        a.href = `${BASE}${downloadUrl}`;
+        a.download = job.title ?? "jctm_media";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // Fallback to direct download URL if token endpoint fails
+        const a = document.createElement("a");
+        a.href = `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;
+        a.download = job.title ?? "jctm_media";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
+    } catch {
+      downloadedRef.current = false;
+      toast.error("Failed to start download. Please try again.");
+    }
   }
 
   async function retryJob() {

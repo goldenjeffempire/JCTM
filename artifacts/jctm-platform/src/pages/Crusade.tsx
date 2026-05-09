@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { SEO } from "@/components/SEO";
 import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
+import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import { motion } from "framer-motion";
 import {
   Calendar, MapPin, Clock, Phone, Share2, Download,
@@ -301,6 +302,15 @@ export default function Crusade() {
                 className="rounded-2xl shadow-2xl"
                 analyticsPage="/crusade"
               />
+              <div className="flex justify-center mt-4">
+                <VideoDownloadButton
+                  videoId={CRUSADE_YT_VIDEO}
+                  title="Warri City Crusade 2026 — Official Promo Video"
+                  thumbnailUrl={`https://i.ytimg.com/vi/${CRUSADE_YT_VIDEO}/maxresdefault.jpg`}
+                  variant="inline"
+                  className="bg-yellow-400/10 hover:bg-yellow-400/20 border border-yellow-400/20 text-yellow-200"
+                />
+              </div>
             </div>
           </motion.div>
 

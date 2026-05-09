@@ -5,6 +5,7 @@ import {
   Volume2, VolumeX, Heart, MessageCircle, Eye,
   X, Send, Youtube, PlayCircle, RefreshCw,
 } from "lucide-react";
+import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed";
@@ -561,6 +562,14 @@ function IntroCard({
               {likes.shareCount > 0 ? formatCount(likes.shareCount) : "Share"}
             </span>
           </button>
+
+          <VideoDownloadButton
+            videoId={video.videoId}
+            title={video.title}
+            thumbnailUrl={video.thumbnailUrl}
+            duration={video.duration ? parseInt(video.duration) : undefined}
+            variant="icon"
+          />
         </div>
 
         {/* Bottom info */}

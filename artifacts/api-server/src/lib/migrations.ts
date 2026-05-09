@@ -1349,5 +1349,48 @@ export async function runMigrations(): Promise<void> {
     WHERE NOT EXISTS (SELECT 1 FROM testimonies WHERE approved = true LIMIT 1)
   `);
 
+  // ── Tokenized download links + audit log ──────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS download_tokens (
+      token       text        PRIMARY KEY,
+      job_id      text        NOT NULL,
+      ip          text        NOT NULL DEFAULT '',
+      expires_at  timestamptz NOT NULL DEFAULT (now() + interval '30 minutes'),
+      used_at     timestamptz,
+      created_at  timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_dl_tokens_expires ON download_tokens (expires_at)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_dl_tokens_job ON download_tokens (job_id)
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS media_audit_log (
+      id           bigserial   PRIMARY KEY,
+      event        text        NOT NULL,
+      ip           text        NOT NULL DEFAULT '',
+      video_id     text,
+      format       text,
+      quality      text,
+      bytes_served bigint,
+      job_id       text,
+      created_at   timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_media_audit_created ON media_audit_log (created_at DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_media_audit_video ON media_audit_log (video_id)
+  `);
+
+  // Purge expired download tokens periodically (keep last 7 days for audit trail)
+  await pool.query(`
+    DELETE FROM download_tokens WHERE expires_at < now() - interval '7 days'
+  `);
+
   logger.info("All migrations complete");
 }

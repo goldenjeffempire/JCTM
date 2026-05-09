@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone, MapPin,
@@ -990,6 +991,15 @@ function ConferenceVideoLoop() {
           >
             𝕏 Share on X
           </a>
+          {!isLive && (
+            <VideoDownloadButton
+              videoId={CONF_YT_VIDEO}
+              title="Ministers Conference 2026 — Official Promo Video"
+              thumbnailUrl={`https://i.ytimg.com/vi/${CONF_YT_VIDEO}/maxresdefault.jpg`}
+              variant="inline"
+              className="border-purple-400/30 text-purple-200 hover:bg-purple-500/20"
+            />
+          )}
         </div>
       </div>
     </motion.div>
