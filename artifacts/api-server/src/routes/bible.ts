@@ -73,7 +73,7 @@ router.get("/bible/verse/:book/:chapter/:verse", async (req: Request, res: Respo
     chapter: result.chapter,
     verse: result.verse,
     text: result.text,
-    translation: "KJV",
+    translation: "NKJV",
   });
 });
 
@@ -107,7 +107,7 @@ router.get("/bible/chapter/:book/:chapter", async (req: Request, res: Response):
     chapter: ch,
     verseCount: verses.length,
     verses,
-    translation: "KJV",
+    translation: "NKJV",
     note: verses.length === 0
       ? "No verses indexed for this chapter. Key chapters are indexed; use /search for topic-based results."
       : undefined,
@@ -137,7 +137,7 @@ router.get("/bible/search", async (req: Request, res: Response): Promise<void> =
           reference: `${parsed.book} ${parsed.chapter}:${parsed.verseStart}-${parsed.verseEnd}`,
           count: verses.length,
           results: verses,
-          translation: "KJV",
+          translation: "NKJV",
         });
         return;
       }
@@ -150,7 +150,7 @@ router.get("/bible/search", async (req: Request, res: Response): Promise<void> =
           reference: `${v.book} ${v.chapter}:${v.verse}`,
           count: 1,
           results: [v],
-          translation: "KJV",
+          translation: "NKJV",
         });
         return;
       }
@@ -163,7 +163,7 @@ router.get("/bible/search", async (req: Request, res: Response): Promise<void> =
           reference: `${parsed.book} ${parsed.chapter}`,
           count: verses.length,
           results: verses,
-          translation: "KJV",
+          translation: "NKJV",
         });
         return;
       }
@@ -177,7 +177,7 @@ router.get("/bible/search", async (req: Request, res: Response): Promise<void> =
     type: "search",
     count: results.length,
     results,
-    translation: "KJV",
+    translation: "NKJV",
   });
 });
 
@@ -225,7 +225,7 @@ router.post("/bible/lookup", async (req: Request, res: Response): Promise<void> 
     }
   }
 
-  res.json({ results, translation: "KJV" });
+  res.json({ results, translation: "NKJV" });
 });
 
 // ─── GET /api/bible/topic/:topic ──────────────────────────────────────────────
@@ -292,7 +292,7 @@ router.get("/bible/topic/:topic", async (req: Request, res: Response): Promise<v
     topic: topicKey,
     verseCount: verses.length,
     verses,
-    translation: "KJV",
+    translation: "NKJV",
   });
 });
 
@@ -324,12 +324,12 @@ router.post("/bible/reference", async (req: Request, res: Response): Promise<voi
       verseEnd: parsed.verseEnd,
     },
     ragText,
-    translation: "KJV",
+    translation: "NKJV",
   });
 });
 
 // ─── GET /api/bible/verse-of-day ─────────────────────────────────────────────
-// Returns a deterministic, date-rotating KJV verse pulled from the database.
+// Returns a deterministic, date-rotating NKJV verse pulled from the database.
 // The verse changes every UTC day. Falls back gracefully if DB is empty.
 
 router.get("/bible/verse-of-day", async (_req: Request, res: Response): Promise<void> => {
@@ -371,7 +371,7 @@ router.get("/bible/verse-of-day", async (_req: Request, res: Response): Promise<
       chapter: row.chapter,
       verse: row.verse,
       text: row.text,
-      translation: "KJV",
+      translation: "NKJV",
       dayOfYear,
       total,
     });

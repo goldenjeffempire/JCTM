@@ -2758,7 +2758,7 @@ function getDailyScripture() {
   return DAILY_SCRIPTURES[dayOfYear % DAILY_SCRIPTURES.length];
 }
 
-// ── Live Verse-of-Day hook — fetches from KJV DB, falls back to static ────────
+// ── Live Verse-of-Day hook — fetches from NKJV DB, falls back to static ────────
 interface LiveVerse { verse: string; ref: string; reference: string; book: string; chapter: number; verseNum: number; fromDB: boolean }
 
 function useLiveDailyVerse(): LiveVerse {
@@ -2788,7 +2788,7 @@ function ScriptureFeature() {
   const today = new Date().toLocaleDateString("en-NG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`"${daily.verse}" — ${daily.ref} (KJV)`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+    navigator.clipboard.writeText(`"${daily.verse}" — ${daily.ref} (NKJV)`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
   };
 
   return (
@@ -2806,7 +2806,6 @@ function ScriptureFeature() {
           </blockquote>
           <div className="text-accent/40 text-[120px] font-serif leading-none -mt-8 select-none rotate-180">"</div>
           <p className="text-accent font-semibold text-lg mt-2">{daily.ref}</p>
-          {daily.fromDB && <p className="text-white/30 text-xs mt-1 font-mono">KJV · from the Bible database</p>}
           <p className="text-white/40 text-sm mt-3">A fresh word for today from the Word of God</p>
 
           {/* Action row */}

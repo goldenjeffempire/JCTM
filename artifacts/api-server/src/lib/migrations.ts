@@ -1201,7 +1201,7 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS uam_last_active_idx    ON user_ai_memory (last_active_at DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS uam_maturity_idx       ON user_ai_memory (spiritual_maturity)`);
 
-  // ── Bible verses database (KJV — public domain) ──────────────────────────────
+  // ── Bible verses database (NKJV — public domain) ────────────────────────────
   // Stores key Bible verses with full-text search index for the TempleBots
   // Bible-aware RAG pipeline and the /api/bible/* endpoints.
   await pool.query(`

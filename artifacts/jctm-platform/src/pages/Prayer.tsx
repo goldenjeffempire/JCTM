@@ -785,7 +785,7 @@ export default function Prayer() {
 
             <div className="mt-8 pb-8 text-center">
               <p className="text-xs text-muted-foreground/60 max-w-md mx-auto">
-                "The effectual fervent prayer of a righteous man availeth much." — James 5:16 (KJV)
+                "The effective, fervent prayer of a righteous man avails much." — James 5:16 (NKJV)
               </p>
             </div>
           </div>

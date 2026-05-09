@@ -66,7 +66,7 @@ const server = app.listen(port, async (err) => {
     logger.warn({ err }, "Blog library seeding failed — continuing startup");
   }
 
-  // ── Bible database seeding (KJV — idempotent) ─────────────────────────────
+  // ── Bible database seeding (NKJV — idempotent) ───────────────────────────
   seedBibleDatabase().catch((err) =>
     logger.warn({ err }, "Bible database seeding failed — continuing startup"),
   );

@@ -628,7 +628,7 @@ async function logAIInteraction(data: {
 }
 
 // ── Bible-Aware RAG Context Builder ──────────────────────────────────────────
-// Detects scripture references in user's message, fetches exact KJV text from
+// Detects scripture references in user's message, fetches exact NKJV text from
 // the bible_verses table, and returns a formatted context block for injection
 // into the GPT-4o system prompt. This prevents hallucinated scripture quotes.
 
@@ -648,7 +648,7 @@ async function buildBibleContext(query: string): Promise<string> {
 
     if (found.length === 0) return "";
 
-    return "\n\n## EXACT BIBLE TEXT (KJV) — Ground ALL scripture quotes in this:\n" +
+    return "\n\n## EXACT BIBLE TEXT (NKJV) — Ground ALL scripture quotes in this:\n" +
       found.map(v => `📖 ${v}`).join("\n");
   } catch {
     return "";

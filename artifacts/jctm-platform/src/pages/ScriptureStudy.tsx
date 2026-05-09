@@ -84,7 +84,7 @@ function VerseCard({ v }: { v: Verse }) {
       className="group relative bg-card border border-border rounded-2xl px-5 py-4 hover:border-accent/40 transition-all">
       <p className="text-[11px] font-semibold uppercase tracking-widest text-accent mb-2">{ref}</p>
       <p className="font-serif text-base text-primary leading-relaxed">{v.text}</p>
-      <button onClick={() => { clipCopy(`"${v.text}" — ${ref} (KJV)`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      <button onClick={() => { clipCopy(`"${v.text}" — ${ref} (NKJV)`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
         className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-accent" aria-label="Copy">
         {copied ? <Check className="h-4 w-4 text-accent" /> : <Copy className="h-4 w-4" />}
       </button>
@@ -141,14 +141,14 @@ function LookupTab() {
         {result?.error && <motion.div key="e" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">{result.error}</motion.div>}
         {result?.ragText && (
           <motion.div key="r" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-card border border-border rounded-2xl px-6 py-5">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-accent mb-3">KJV</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-accent mb-3">NKJV</p>
             <p className="font-serif text-base leading-relaxed text-primary whitespace-pre-wrap">{result.ragText}</p>
-            <button onClick={() => clipCopy(result.ragText! + " (KJV)")} className="mt-4 flex items-center gap-2 text-xs text-muted-foreground hover:text-accent transition-colors"><Copy className="h-3.5 w-3.5" /> Copy</button>
+            <button onClick={() => clipCopy(result.ragText! + " (NKJV)")} className="mt-4 flex items-center gap-2 text-xs text-muted-foreground hover:text-accent transition-colors"><Copy className="h-3.5 w-3.5" /> Copy</button>
           </motion.div>
         )}
         {result?.chapter && (
           <motion.div key="ch" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-            <p className="text-xs text-muted-foreground">{result.chapter.length} verses · KJV</p>
+            <p className="text-xs text-muted-foreground">{result.chapter.length} verses · NKJV</p>
             {result.chapter.map(v => <VerseCard key={v.verse} v={v} />)}
           </motion.div>
         )}
@@ -180,7 +180,7 @@ function SearchTab() {
     <div className="space-y-5">
       <form onSubmit={e => { e.preventDefault(); search(query); }} className="flex gap-2">
         <Input value={query} onChange={e => setQuery(e.target.value)}
-          placeholder="Search KJV scripture…  e.g. 'love one another'"
+          placeholder="Search NKJV scripture…  e.g. 'love one another'"
           className="flex-1 h-12 text-base rounded-xl font-serif placeholder:text-muted-foreground/60" />
         <Button type="submit" disabled={loading || !query.trim()} className="h-12 px-5 rounded-xl">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -199,7 +199,7 @@ function SearchTab() {
         {!loading && searched && results.length === 0 && <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-12 text-muted-foreground text-sm">No verses found. Try different keywords.</motion.div>}
         {!loading && results.length > 0 && (
           <motion.div key="res" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-            <p className="text-xs text-muted-foreground">{results.length} results · KJV</p>
+            <p className="text-xs text-muted-foreground">{results.length} results · NKJV</p>
             {results.map((v, i) => <VerseCard key={i} v={v} />)}
           </motion.div>
         )}
@@ -240,7 +240,7 @@ function TopicsTab() {
         <div className={`rounded-2xl bg-gradient-to-br ${meta.color} px-6 py-5 text-white`}>
           <p className="text-3xl mb-2">{meta.emoji}</p>
           <h2 className="font-serif text-2xl font-bold capitalize">{active.topic}</h2>
-          <p className="text-sm text-white/70 mt-1">{active.verseCount} key scriptures · KJV</p>
+          <p className="text-sm text-white/70 mt-1">{active.verseCount} key scriptures · NKJV</p>
         </div>
         <div className="space-y-3">{active.verses.map((v, i) => <VerseCard key={i} v={{ book: v.book, chapter: v.chapter, verse: v.verse, text: v.text, reference: v.reference }} />)}</div>
       </div>
@@ -251,7 +251,7 @@ function TopicsTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{topics.length} ministry topics — curated KJV verse collections</p>
+      <p className="text-sm text-muted-foreground">{topics.length} ministry topics — curated NKJV verse collections</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {topics.map(({ topic, verseCount }) => {
           const meta = TOPIC_META[topic] ?? { emoji: "📖", color: "from-primary to-primary/60" };
@@ -306,7 +306,7 @@ function ChapterTab() {
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <button onClick={() => { setSelectedChapter(null); setVerses([]); }} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"><ArrowLeft className="h-4 w-4" /> {selectedBook.name}</button>
-          <Badge variant="outline" className="text-xs font-mono">{selectedBook.name} {selectedChapter} · KJV</Badge>
+          <Badge variant="outline" className="text-xs font-mono">{selectedBook.name} {selectedChapter} · NKJV</Badge>
         </div>
         {loading
           ? <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-accent" /><span className="text-sm">Loading chapter…</span></div>
@@ -569,9 +569,9 @@ export default function ScriptureStudy() {
     <Layout>
       <SEO
         title="AI Scripture Study — Deep Bible Analysis | JCTM Digital Sanctuary"
-        description="Study any Bible passage with AI-powered exegetical analysis from Jesus Christ Temple Ministry. Search the KJV Bible, browse ministry topics, or read any chapter — all grounded in Primitive Christianity and the Correction Mandate."
+        description="Study any Bible passage with AI-powered exegetical analysis from Jesus Christ Temple Ministry. Search the NKJV Bible, browse ministry topics, or read any chapter — all grounded in Primitive Christianity and the Correction Mandate."
         path="/scripture-study"
-        keywords="JCTM scripture study, Bible AI analysis, biblical exegesis Nigeria, Primitive Christianity scripture, Correction Mandate Bible study, KJV Bible online, Greek Hebrew Bible analysis"
+        keywords="JCTM scripture study, Bible AI analysis, biblical exegesis Nigeria, Primitive Christianity scripture, Correction Mandate Bible study, NKJV Bible online, Greek Hebrew Bible analysis"
         breadcrumbs={[
           { name: "Home", url: "https://jctm.org.ng/" },
           { name: "Scripture Study", url: "https://jctm.org.ng/scripture-study" },
@@ -597,7 +597,7 @@ export default function ScriptureStudy() {
             <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
               <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs font-medium text-sky-300 mb-6">
                 <Sparkles className="h-3.5 w-3.5" />
-                AI Deep Study · KJV Bible Browser · 2,700+ Verses
+                AI Deep Study · NKJV Bible Browser · 2,700+ Verses
               </div>
               <h1 className="text-4xl md:text-5xl font-bold font-serif text-white mb-4 leading-tight">Scripture Study</h1>
               <p className="text-sky-200/70 text-lg leading-relaxed max-w-2xl mx-auto">
