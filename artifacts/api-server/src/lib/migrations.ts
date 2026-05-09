@@ -1295,6 +1295,14 @@ export async function runMigrations(): Promise<void> {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_media_jobs_status ON media_download_jobs (status, created_at DESC)
   `);
+  // Partial unique index: only one active job per (source_id, format, quality) at a time.
+  // Failed and expired rows are excluded so users can always retry after a failure.
+  // This is the DB-level guard that backs up the app-level deduplication check.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_media_jobs_dedup
+      ON media_download_jobs (source_id, format, quality)
+      WHERE status IN ('queued', 'processing', 'ready')
+  `);
 
   // ── Seed sample approved testimonies (only if table is empty) ────────────────
   await pool.query(`
