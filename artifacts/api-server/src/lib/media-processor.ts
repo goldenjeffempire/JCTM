@@ -14,7 +14,7 @@
  *   • Batch job creation
  */
 
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
 import fsp from "fs/promises";
@@ -30,59 +30,88 @@ const logger = pino({ name: "media-processor" });
 
 export const MEDIA_DIR = process.env.MEDIA_TEMP_DIR ?? path.join(os.tmpdir(), "jctm-media");
 
-// yt-dlp invocation: resolved lazily at first spawn so the binary installed
-// during the production build (`pip install yt-dlp`) is detected correctly.
-// Falls back to `python3 -m yt_dlp` when no standalone binary is found.
+// yt-dlp invocation: resolved lazily at first spawn so the binary is detected
+// correctly regardless of whether it was installed via Nix, pip, or a package manager.
 type YtDlpInvoker = { cmd: string; prefix: string[] };
 let _ytDlpInvoker: YtDlpInvoker | null = null;
 
-function getYtDlpInvoker(): YtDlpInvoker {
-  if (_ytDlpInvoker) return _ytDlpInvoker;
-
+function resolveYtDlpBinary(): string | null {
   // 1. Explicit override via env var
-  if (process.env.YT_DLP_PATH) {
-    _ytDlpInvoker = { cmd: process.env.YT_DLP_PATH, prefix: [] };
-    return _ytDlpInvoker;
-  }
+  if (process.env.YT_DLP_PATH) return process.env.YT_DLP_PATH;
 
-  // 2. Well-known binary locations (checked at spawn time so pip-installed
-  //    binaries from the production build are visible)
+  // 2. Well-known binary locations
   const binaryCandidates = [
-    "/usr/local/bin/yt-dlp",          // pip install --system (Render/VM)
-    "/usr/bin/yt-dlp",                // system package
-    path.join(os.homedir(), ".local", "bin", "yt-dlp"),  // pip install --user
-    path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"), // Replit dev
-    path.join(process.cwd(), ".pythonlibs", "bin", "yt-dlp"), // cwd-relative
-    "/home/runner/workspace/.pythonlibs/bin/yt-dlp",     // Replit absolute
-    "/opt/homebrew/bin/yt-dlp",       // macOS Homebrew
+    "/usr/local/bin/yt-dlp",
+    "/usr/bin/yt-dlp",
+    path.join(os.homedir(), ".local", "bin", "yt-dlp"),
+    path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"),
+    path.join(process.cwd(), ".pythonlibs", "bin", "yt-dlp"),
+    "/home/runner/workspace/.pythonlibs/bin/yt-dlp",
+    "/opt/homebrew/bin/yt-dlp",
   ];
-
   for (const c of binaryCandidates) {
-    try { if (fs.existsSync(c)) { _ytDlpInvoker = { cmd: c, prefix: [] }; return _ytDlpInvoker; } }
-    catch { /* skip */ }
+    try { if (fs.existsSync(c)) return c; } catch { /* skip */ }
   }
 
-  // 3. Python module fallback — works wherever `pip install yt-dlp` ran
+  // 3. Probe PATH via `which` — catches Nix store binaries, pyenv, etc.
+  try {
+    const found = execSync("which yt-dlp 2>/dev/null || command -v yt-dlp 2>/dev/null", {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (found) return found;
+  } catch { /* not on PATH */ }
+
+  return null;
+}
+
+function resolveYtDlpPython(): YtDlpInvoker | null {
+  // Only use the Python module path when the python binary itself has yt_dlp importable.
+  // We verify this with a quick `python3 -c "import yt_dlp"` check to avoid the
+  // "No module named yt_dlp" error that occurs when yt-dlp lives in a different
+  // Python environment than /usr/bin/python3.
   const pythonCandidates = [
     process.env.PYTHON_PATH,
     path.join(os.homedir(), ".pythonlibs", "bin", "python3"),
-    "/usr/bin/python3",
     "/usr/local/bin/python3",
+    "/usr/bin/python3",
     "python3",
   ].filter(Boolean) as string[];
 
   for (const py of pythonCandidates) {
     try {
-      if (py === "python3" || fs.existsSync(py)) {
-        _ytDlpInvoker = { cmd: py, prefix: ["-m", "yt_dlp"] };
-        logger.info({ python: py }, "yt-dlp binary not found — using python3 -m yt_dlp fallback");
-        return _ytDlpInvoker;
-      }
-    } catch { /* skip */ }
+      execSync(`${py} -c "import yt_dlp"`, {
+        timeout: 5000,
+        stdio: ["ignore", "ignore", "ignore"],
+      });
+      logger.info({ python: py }, "yt-dlp: using python -m yt_dlp");
+      return { cmd: py, prefix: ["-m", "yt_dlp"] };
+    } catch { /* module not available in this python */ }
+  }
+  return null;
+}
+
+function getYtDlpInvoker(): YtDlpInvoker {
+  if (_ytDlpInvoker) return _ytDlpInvoker;
+
+  // Binary lookup first (fastest, most reliable)
+  const binary = resolveYtDlpBinary();
+  if (binary) {
+    logger.info({ binary }, "yt-dlp: using binary");
+    _ytDlpInvoker = { cmd: binary, prefix: [] };
+    return _ytDlpInvoker;
   }
 
-  // 4. Last resort: assume it's on PATH after pip install
-  logger.warn("yt-dlp not found in any known location — attempting 'yt-dlp' from PATH");
+  // Python module fallback — only if yt_dlp is actually importable
+  const pyInvoker = resolveYtDlpPython();
+  if (pyInvoker) {
+    _ytDlpInvoker = pyInvoker;
+    return _ytDlpInvoker;
+  }
+
+  // Absolute last resort — let the OS find it
+  logger.warn("yt-dlp not found via any detection method — falling back to bare 'yt-dlp' command");
   _ytDlpInvoker = { cmd: "yt-dlp", prefix: [] };
   return _ytDlpInvoker;
 }
@@ -460,11 +489,13 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       .audioChannels(2)
       .audioFrequency(44100)
       .outputOptions([
-        `-metadata`, `title=${safeName}`,
-        `-metadata`, `artist=${artist}`,
-        `-metadata`, `album=JCTM Sermons`,
-        `-metadata`, `genre=Gospel`,
-        `-metadata`, `comment=jctm.org.ng`,
+        // Each string is a single -metadata flag+value combined.
+        // fluent-ffmpeg splits on whitespace, so values must not contain spaces.
+        `-metadata title=${safeName}`,
+        `-metadata artist=Jesus_Christ_Temple_Ministry`,
+        `-metadata album=JCTM_Sermons`,
+        `-metadata genre=Gospel`,
+        `-metadata comment=jctm.org.ng`,
         ext === "m4a" ? "-movflags +faststart" : "-id3v2_version 3",
       ])
       .on("progress", (p) => {
