@@ -21,7 +21,7 @@ import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.5
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-const CONF_START    = new Date("2026-05-08T08:00:00+01:00"); // 8:00 AM WAT
+const CONF_START    = new Date("2026-05-09T07:00:00Z"); // Day 2 · 8:00 AM WAT
 const CONF_LOCATION = "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State";
 const CONF_CONTACT  = "+234(0)8081313111";
 

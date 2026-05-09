@@ -1261,7 +1261,7 @@ export async function runMigrations(): Promise<void> {
       broadcast_enabled = true,
       broadcast_cadence = 'hourly',
       updated_at        = now()
-    WHERE event_promotions.start_at < '2026-05-09T06:00:00Z'
+    WHERE event_promotions.start_at < EXCLUDED.start_at
   `);
 
   logger.info("All migrations complete");

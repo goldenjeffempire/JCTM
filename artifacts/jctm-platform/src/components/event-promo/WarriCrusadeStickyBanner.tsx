@@ -47,16 +47,16 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 
 // ── Campaign constants ───────────────────────────────────────────────────────
 const CAMPAIGN_SLUG       = "ministers-conference-2026";
-const CAMPAIGN_START      = new Date("2026-05-08T08:00:00+01:00"); // 8:00 AM WAT
-const CAMPAIGN_END        = new Date("2026-05-10T21:00:00+01:00");
+const CAMPAIGN_START      = new Date("2026-05-09T07:00:00Z"); // Day 2 · 8:00 AM WAT
+const CAMPAIGN_END        = new Date("2026-05-10T20:00:00Z"); // 9:00 PM WAT May 10
 const CAMPAIGN_LOCATION   = "JCTM Auditorium, Ebrumede Roundabout, Effurun";
-const CAMPAIGN_DATE_LABEL = "May 8–10, 2026 · 8:00 AM (WAT)";
-const CAMPAIGN_TITLE_FULL = "Ministers Conference 2026 — Apostolic Fire";
-const CAMPAIGN_TITLE_SHORT = "Ministers Conference 2026";
+const CAMPAIGN_DATE_LABEL = "May 9–10, 2026 · 8:00 AM (WAT)";
+const CAMPAIGN_TITLE_FULL = "Ministers Conference Day 2 — Apostolic Fire";
+const CAMPAIGN_TITLE_SHORT = "Ministers Conference Day 2";
 const CAMPAIGN_TAGLINE    = "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders";
-const CTA_HREF            = "/conference-registration";
-const CTA_LABEL_UPCOMING  = "Register for Conference";
-const CTA_LABEL_LIVE      = "Join the Conference";
+const CTA_HREF            = "/livestream";
+const CTA_LABEL_UPCOMING  = "Join Day 2";
+const CTA_LABEL_LIVE      = "Watch Day 2 Live";
 
 const STORAGE_KEY          = `jctm:${CAMPAIGN_SLUG}:dismissedAt`;
 const DISMISS_TTL_MS       = 6 * 60 * 60 * 1000;
