@@ -6703,6 +6703,8 @@ interface AdminJob {
   fileSizeFormatted: string | null;
   thumbnailUrl: string | null;
   retryCount: number;
+  nextRetryAt: string | null;
+  isPermanentFailure: boolean;
   hasFile: boolean;
   createdAt: string;
   updatedAt: string;
@@ -6924,10 +6926,20 @@ function JobQueuePanel({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
                   </a>
                   <span className="text-[10px] text-muted-foreground">{age}</span>
                   {job.retryCount > 0 && (
-                    <span className="text-[10px] text-amber-500">↻ {job.retryCount} retry</span>
+                    <span className="text-[10px] text-amber-500">↻ {job.retryCount} attempt{job.retryCount !== 1 ? "s" : ""}</span>
                   )}
                   {job.fileSizeFormatted && (
                     <span className="text-[10px] text-muted-foreground">{job.fileSizeFormatted}</span>
+                  )}
+                  {job.status === "failed" && job.isPermanentFailure && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 dark:text-red-400">
+                      <Lock className="w-2.5 h-2.5" /> Permanent failure
+                    </span>
+                  )}
+                  {job.status === "failed" && !job.isPermanentFailure && job.nextRetryAt && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`Next retry: ${new Date(job.nextRetryAt).toLocaleString()}`}>
+                      <RefreshCw className="w-2.5 h-2.5" /> Auto-retry {rel(job.nextRetryAt)}
+                    </span>
                   )}
                   {job.status === "failed" && job.error && (
                     <span className="text-[10px] text-red-500 truncate max-w-[220px]" title={job.error}>

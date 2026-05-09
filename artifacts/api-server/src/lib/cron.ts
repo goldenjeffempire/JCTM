@@ -1,3 +1,4 @@
+import { startMediaRetryScheduler, stopMediaRetryScheduler } from "./media-processor.js";
 import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds, refreshFeaturedSermon } from "./youtube-sync.js";
 import { ingestAllSermons, ingestActivityLearning, ingestTestimonies, ingestBlogPosts, runFullContentSync } from "./knowledge-ingestion.js";
 import { startContentSyncScheduler, stopContentSyncScheduler } from "./content-sync-scheduler.js";
@@ -2249,10 +2250,16 @@ export function startCron(log: Logger, websubUrl?: string): void {
   selfWarmHandle.unref();
   log.info({ intervalMs: SELF_WARM_INTERVAL_MS, target: selfWarmUrl }, "Self-warm pinger started — keeps process hot between requests");
 
-  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Self-warm");
+  // ── Media download retry scheduler ──────────────────────────────────────────
+  // Re-queues failed download jobs that have a next_retry_at timestamp in the
+  // past. Runs every 5 minutes with a 20-second startup delay for warmup.
+  startMediaRetryScheduler();
+
+  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Self-warm | Media retry scheduler");
 }
 
 export function stopCron(): void {
+  stopMediaRetryScheduler();
   stopEventNotificationWorker();
   stopContentSyncScheduler();
   [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle, aiKnowledgeRefreshHandle]

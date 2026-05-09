@@ -1643,16 +1643,18 @@ router.get(
         file_size: number | null;
         thumbnail_url: string | null;
         retry_count: number;
+        next_retry_at: string | null;
+        is_permanent_failure: boolean;
         created_at: string;
         updated_at: string;
         expires_at: string;
       }>(
         status
-          ? `SELECT *, COALESCE(retry_count,0) AS retry_count
+          ? `SELECT *, COALESCE(retry_count,0) AS retry_count, COALESCE(is_permanent_failure,false) AS is_permanent_failure
              FROM media_download_jobs
              WHERE status = $1
              ORDER BY created_at DESC LIMIT 60`
-          : `SELECT *, COALESCE(retry_count,0) AS retry_count
+          : `SELECT *, COALESCE(retry_count,0) AS retry_count, COALESCE(is_permanent_failure,false) AS is_permanent_failure
              FROM media_download_jobs
              ORDER BY created_at DESC LIMIT 60`,
         status ? [status] : [],
@@ -1701,12 +1703,14 @@ router.get(
                 return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
               })()
             : null,
-          thumbnailUrl: r.thumbnail_url,
-          retryCount:   r.retry_count,
-          hasFile:      r.output_path ? true : false,
-          createdAt:   r.created_at,
-          updatedAt:   r.updated_at,
-          expiresAt:   r.expires_at,
+          thumbnailUrl:       r.thumbnail_url,
+          retryCount:         r.retry_count,
+          nextRetryAt:        r.next_retry_at ?? null,
+          isPermanentFailure: r.is_permanent_failure ?? false,
+          hasFile:            r.output_path ? true : false,
+          createdAt:          r.created_at,
+          updatedAt:          r.updated_at,
+          expiresAt:          r.expires_at,
         })),
       });
     } catch (err) {

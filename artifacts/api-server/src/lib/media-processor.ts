@@ -115,6 +115,8 @@ export interface MediaJob {
   fileSize: number | null;
   thumbnailUrl: string | null;
   retryCount: number;
+  nextRetryAt: Date | null;
+  isPermanentFailure: boolean;
   createdAt: Date;
   updatedAt: Date;
   expiresAt: Date;
@@ -265,6 +267,7 @@ type JobRow = {
   status: string; progress: number; error: string | null; output_path: string | null;
   title: string | null; duration: number | null; file_size: string | null;
   thumbnail_url: string | null; retry_count: number;
+  next_retry_at: Date | null; is_permanent_failure: boolean;
   created_at: Date; updated_at: Date; expires_at: Date;
 };
 
@@ -284,6 +287,8 @@ function mapRow(r: JobRow): MediaJob {
     fileSize: r.file_size ? Number(r.file_size) : null,
     thumbnailUrl: r.thumbnail_url,
     retryCount: r.retry_count ?? 0,
+    nextRetryAt: r.next_retry_at ?? null,
+    isPermanentFailure: r.is_permanent_failure ?? false,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     expiresAt: r.expires_at,
@@ -295,22 +300,26 @@ async function dbUpsert(job: MediaJob): Promise<void> {
     `INSERT INTO media_download_jobs
        (id, type, source_id, format, quality, status, progress, error,
         output_path, title, duration, file_size, thumbnail_url, retry_count,
+        next_retry_at, is_permanent_failure,
         created_at, updated_at, expires_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      ON CONFLICT (id) DO UPDATE SET
-       status      = EXCLUDED.status,
-       progress    = EXCLUDED.progress,
-       error       = EXCLUDED.error,
-       output_path = EXCLUDED.output_path,
-       file_size   = EXCLUDED.file_size,
-       title       = EXCLUDED.title,
-       retry_count = EXCLUDED.retry_count,
-       updated_at  = EXCLUDED.updated_at`,
+       status               = EXCLUDED.status,
+       progress             = EXCLUDED.progress,
+       error                = EXCLUDED.error,
+       output_path          = EXCLUDED.output_path,
+       file_size            = EXCLUDED.file_size,
+       title                = EXCLUDED.title,
+       retry_count          = EXCLUDED.retry_count,
+       next_retry_at        = EXCLUDED.next_retry_at,
+       is_permanent_failure = EXCLUDED.is_permanent_failure,
+       updated_at           = EXCLUDED.updated_at`,
     [
       job.id, job.type, job.sourceId, job.format, job.quality,
       job.status, job.progress, job.error, job.outputPath,
       job.title, job.duration, job.fileSize, job.thumbnailUrl,
       job.retryCount ?? 0,
+      job.nextRetryAt ?? null, job.isPermanentFailure ?? false,
       job.createdAt, job.updatedAt, job.expiresAt,
     ],
   );
@@ -713,6 +722,19 @@ async function processGalleryImage(job: MediaJob): Promise<void> {
 
 const MAX_RETRIES = 3;
 
+// Total attempt budget across all server runs (3 in-process × 3 restart cycles).
+// When a job exhausts its in-process retries, the persistent scheduler re-queues
+// it up to (TOTAL_MAX_RETRIES / MAX_RETRIES - 1) additional times.
+const TOTAL_MAX_RETRIES = 9;
+
+// Backoff between scheduler-driven restart cycles (grows with total attempt count).
+// cycle 1 (retries 0-3) → 15 min · cycle 2 (retries 3-6) → 45 min · cycle 3+ → no more
+function schedulerBackoffMs(baseRetryCount: number): number | null {
+  const cycle = Math.floor(baseRetryCount / MAX_RETRIES); // 1, 2
+  if (cycle >= Math.floor(TOTAL_MAX_RETRIES / MAX_RETRIES)) return null; // exhausted
+  return Math.pow(3, cycle) * 5 * 60_000; // 15 min, 45 min
+}
+
 async function processWithRetry(job: MediaJob): Promise<void> {
   let lastErr: unknown;
 
@@ -727,12 +749,13 @@ async function processWithRetry(job: MediaJob): Promise<void> {
       lastErr = err;
       const msg = err instanceof Error ? err.message : String(err);
       const isLast = attempt === MAX_RETRIES;
+      const totalCount = (job.retryCount ?? 0) + attempt;
 
       if (isPermanentError(msg)) {
         logger.warn({ err, jobId: job.id, attempt }, "Permanent error — not retrying");
         cleanupTempFiles(job.id);
         const cur = activeJobs.get(job.id) ?? job;
-        patch(cur, { status: "failed", error: msg, retryCount: attempt });
+        patch(cur, { status: "failed", error: msg, retryCount: totalCount, isPermanentFailure: true, nextRetryAt: null });
         activeJobs.delete(job.id);
         return;
       }
@@ -753,7 +776,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
           const secsLeft = () => Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
 
           patch(cur, {
-            status: "queued", progress: 0, retryCount: attempt,
+            status: "queued", progress: 0, retryCount: totalCount,
             error: `Throttled by YouTube — retrying in ${secsLeft()}s…`,
           });
 
@@ -770,7 +793,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
           const live = activeJobs.get(job.id) ?? cur;
           patch(live, { error: null });
         } else {
-          patch(cur, { status: "queued", progress: 0, error: null, retryCount: attempt });
+          patch(cur, { status: "queued", progress: 0, error: null, retryCount: totalCount });
           await new Promise(r => setTimeout(r, delayMs));
         }
       }
@@ -778,10 +801,19 @@ async function processWithRetry(job: MediaJob): Promise<void> {
   }
 
   const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  logger.error({ err: lastErr, jobId: job.id }, "Job failed after all retries");
+  const totalCount = (job.retryCount ?? 0) + MAX_RETRIES;
+  const backoffMs = schedulerBackoffMs(totalCount);
+  const nextRetryAt = backoffMs !== null ? new Date(Date.now() + backoffMs) : null;
+
+  if (nextRetryAt) {
+    logger.warn({ jobId: job.id, totalCount, nextRetryAt }, "Job exhausted in-process retries — scheduled for auto-retry");
+  } else {
+    logger.error({ jobId: job.id, totalCount }, "Job permanently failed after all retry cycles");
+  }
+
   cleanupTempFiles(job.id);
   const cur = activeJobs.get(job.id) ?? job;
-  patch(cur, { status: "failed", error: msg, retryCount: MAX_RETRIES });
+  patch(cur, { status: "failed", error: msg, retryCount: totalCount, nextRetryAt, isPermanentFailure: false });
   activeJobs.delete(job.id);
 }
 
@@ -789,19 +821,108 @@ async function processWithRetry(job: MediaJob): Promise<void> {
 
 export async function recoverOrphanedJobs(): Promise<void> {
   try {
-    const { rowCount } = await pool.query(`
-      UPDATE media_download_jobs
-         SET status     = 'failed',
-             error      = 'Server restarted while this job was running — please try again',
-             updated_at = now()
-       WHERE status IN ('processing', 'queued')
-         AND expires_at > now()
-    `);
+    // Jobs interrupted by a restart get a 30-second next_retry_at so the
+    // scheduler picks them up on its first tick after startup warmup.
+    // Jobs that have already hit TOTAL_MAX_RETRIES get no next_retry_at
+    // (they are permanently exhausted).
+    const { rowCount } = await pool.query(
+      `UPDATE media_download_jobs
+          SET status        = 'failed',
+              error         = 'Server restarted while this job was running — retrying automatically…',
+              next_retry_at = CASE WHEN retry_count < $1
+                                   THEN now() + INTERVAL '30 seconds'
+                                   ELSE NULL END,
+              updated_at    = now()
+        WHERE status IN ('processing', 'queued')
+          AND expires_at > now()`,
+      [TOTAL_MAX_RETRIES],
+    );
     if (rowCount && rowCount > 0) {
-      logger.info({ recovered: rowCount }, "Recovered orphaned media jobs");
+      logger.info({ recovered: rowCount }, "Recovered orphaned media jobs — scheduled for automatic retry");
     }
   } catch (err) {
     logger.warn({ err }, "recoverOrphanedJobs non-fatal error");
+  }
+}
+
+// ─── Persistent retry scheduler ───────────────────────────────────────────────
+// Jobs that exhaust their 3 in-process retries are marked failed with a
+// next_retry_at timestamp. This scheduler picks those rows back up and re-queues
+// them so they get another full 3-attempt window after a backoff period.
+// Backoff schedule: 15 min → 45 min → permanently failed (TOTAL_MAX_RETRIES = 9).
+
+const RETRY_SCHEDULER_INTERVAL_MS = 5 * 60_000; // poll every 5 minutes
+let retrySchedulerHandle: ReturnType<typeof setInterval> | null = null;
+
+async function requeueEligibleFailedJobs(): Promise<number> {
+  const { rows } = await pool.query<JobRow>(
+    `UPDATE media_download_jobs
+        SET status        = 'queued',
+            progress      = 0,
+            error         = 'Scheduled for automatic retry…',
+            next_retry_at = NULL,
+            updated_at    = now()
+      WHERE status                = 'failed'
+        AND is_permanent_failure  = false
+        AND retry_count           < $1
+        AND next_retry_at IS NOT NULL
+        AND next_retry_at         <= now()
+        AND expires_at            > now()
+      RETURNING *,
+        COALESCE(retry_count, 0)    AS retry_count,
+        COALESCE(is_permanent_failure, false) AS is_permanent_failure`,
+    [TOTAL_MAX_RETRIES],
+  );
+
+  for (const row of rows) {
+    const job = mapRow(row);
+    activeJobs.set(job.id, job);
+    const task = () => processWithRetry(job).finally(() => { activeJobs.delete(job.id); });
+    if (concurrentJobs < MAX_CONCURRENT) {
+      concurrentJobs++;
+      task().finally(() => { concurrentJobs--; drainQueue(); });
+    } else {
+      jobQueue.push(() => {
+        concurrentJobs++;
+        return task().finally(() => { concurrentJobs--; drainQueue(); });
+      });
+    }
+  }
+
+  return rows.length;
+}
+
+export function startMediaRetryScheduler(): void {
+  if (retrySchedulerHandle) return;
+
+  // Run once shortly after startup so jobs from a previous crash are picked up.
+  const startupTimer = setTimeout(async () => {
+    try {
+      const n = await requeueEligibleFailedJobs();
+      if (n > 0) logger.info({ requeued: n }, "Media retry scheduler: re-queued failed jobs on startup");
+    } catch (err) {
+      logger.warn({ err }, "Media retry scheduler startup tick failed (non-fatal)");
+    }
+  }, 20_000);
+  startupTimer.unref();
+
+  retrySchedulerHandle = setInterval(async () => {
+    try {
+      const n = await requeueEligibleFailedJobs();
+      if (n > 0) logger.info({ requeued: n }, "Media retry scheduler: re-queued failed jobs");
+    } catch (err) {
+      logger.warn({ err }, "Media retry scheduler tick failed (non-fatal)");
+    }
+  }, RETRY_SCHEDULER_INTERVAL_MS);
+  retrySchedulerHandle.unref();
+
+  logger.info({ intervalMs: RETRY_SCHEDULER_INTERVAL_MS, totalMax: TOTAL_MAX_RETRIES }, "Media retry scheduler started (5-min interval, 9-attempt budget)");
+}
+
+export function stopMediaRetryScheduler(): void {
+  if (retrySchedulerHandle) {
+    clearInterval(retrySchedulerHandle);
+    retrySchedulerHandle = null;
   }
 }
 
@@ -828,23 +949,25 @@ export async function createJob(input: CreateJobInput): Promise<MediaJob> {
   const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
   const job: MediaJob = {
-    id:           randomUUID(),
-    type:         input.type,
-    sourceId:     input.sourceId,
-    format:       input.format,
-    quality:      input.quality,
-    status:       "queued",
-    progress:     0,
-    error:        null,
-    outputPath:   null,
-    title:        input.title        ?? null,
-    duration:     input.duration     ?? null,
-    fileSize:     null,
-    thumbnailUrl: input.thumbnailUrl ?? null,
-    retryCount:   0,
-    createdAt:    now,
-    updatedAt:    now,
-    expiresAt:    expires,
+    id:                 randomUUID(),
+    type:               input.type,
+    sourceId:           input.sourceId,
+    format:             input.format,
+    quality:            input.quality,
+    status:             "queued",
+    progress:           0,
+    error:              null,
+    outputPath:         null,
+    title:              input.title        ?? null,
+    duration:           input.duration     ?? null,
+    fileSize:           null,
+    thumbnailUrl:       input.thumbnailUrl ?? null,
+    retryCount:         0,
+    nextRetryAt:        null,
+    isPermanentFailure: false,
+    createdAt:          now,
+    updatedAt:          now,
+    expiresAt:          expires,
   };
 
   activeJobs.set(job.id, job);
