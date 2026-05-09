@@ -310,13 +310,34 @@ function PlayerControls({
 }
 
 // ─── Fullscreen hook ──────────────────────────────────────────────────────────
+//
+// Strategy:
+//   1. Try the native Fullscreen API (works in normal browser tabs and most
+//      browsers that support it even inside iframes with allow="fullscreen").
+//   2. If native API throws or is unavailable (sandboxed iframe, older Safari,
+//      embedded preview panes), fall back to a CSS "pseudo-fullscreen" that
+//      pins the container to the viewport with position:fixed + z-index max.
+//
+// The hook returns `isFullscreen` (true in either mode) and `isCssFullscreen`
+// (true only when the CSS fallback is active) so the component can apply the
+// correct inline styles.
 
 function useFullscreen(containerRef: React.RefObject<HTMLElement | null>) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
+  const [isCssFullscreen, setIsCssFullscreen] = useState(false);
 
+  const isFullscreen = isNativeFullscreen || isCssFullscreen;
+
+  // ── Sync native fullscreen state ──────────────────────────────────────────
   useEffect(() => {
     const onChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const active =
+        !!document.fullscreenElement ||
+        !!(document as any).webkitFullscreenElement;
+      setIsNativeFullscreen(active);
+      // When the browser exits native fullscreen (e.g. user presses Escape),
+      // make sure our state follows.
+      if (!active) setIsNativeFullscreen(false);
     };
     document.addEventListener("fullscreenchange", onChange);
     document.addEventListener("webkitfullscreenchange", onChange);
@@ -326,30 +347,88 @@ function useFullscreen(containerRef: React.RefObject<HTMLElement | null>) {
     };
   }, []);
 
+  // ── Escape key exits CSS fullscreen ───────────────────────────────────────
+  useEffect(() => {
+    if (!isCssFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIsCssFullscreen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [isCssFullscreen]);
+
+  // ── Apply / remove CSS fullscreen styles imperatively on the element ──────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (isCssFullscreen) {
+      // Store original inline style so we can restore it exactly on exit
+      const orig = el.getAttribute("style") ?? "";
+      el.dataset.origStyle = orig;
+      el.style.cssText =
+        "position:fixed!important;inset:0!important;" +
+        "width:100vw!important;height:100vh!important;" +
+        "z-index:2147483647!important;background:#000!important;" +
+        "border-radius:0!important;overflow:hidden!important;";
+      // Prevent body scroll while in CSS fullscreen
+      document.body.style.overflow = "hidden";
+    } else {
+      // Restore original style
+      const orig = el.dataset.origStyle ?? "";
+      el.style.cssText = orig;
+      delete el.dataset.origStyle;
+      document.body.style.overflow = "";
+    }
+    return () => {
+      // Safety cleanup if component unmounts while in CSS FS mode
+      document.body.style.overflow = "";
+    };
+  }, [isCssFullscreen, containerRef]);
+
+  // ── Toggle ────────────────────────────────────────────────────────────────
   const toggleFullscreen = useCallback(async () => {
     const el = containerRef.current;
     if (!el) return;
 
-    try {
-      if (!document.fullscreenElement) {
-        if (el.requestFullscreen) {
-          await el.requestFullscreen();
-        } else if ((el as any).webkitRequestFullscreen) {
-          (el as any).webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
+    // ── EXIT paths ──────────────────────────────────────────────────────────
+    if (isCssFullscreen) {
+      setIsCssFullscreen(false);
+      return;
+    }
+    if (
+      document.fullscreenElement ||
+      (document as any).webkitFullscreenElement
+    ) {
+      try {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if ((document as any).webkitExitFullscreen)
           (document as any).webkitExitFullscreen();
-        }
+      } catch { /* ignore */ }
+      return;
+    }
+
+    // ── ENTER paths ─────────────────────────────────────────────────────────
+    // 1. Try native API
+    try {
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+        return;                       // success — state updated by the event listener
+      } else if ((el as any).webkitRequestFullscreen) {
+        (el as any).webkitRequestFullscreen();
+        return;
       }
     } catch {
-      // Fullscreen blocked by browser (e.g. sandboxed iframe)
+      // Native API blocked (sandboxed iframe / browser policy) → fall through
     }
-  }, [containerRef]);
 
-  return { isFullscreen, toggleFullscreen };
+    // 2. CSS pseudo-fullscreen fallback
+    setIsCssFullscreen(true);
+  }, [containerRef, isCssFullscreen]);
+
+  return { isFullscreen, isCssFullscreen, toggleFullscreen };
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -375,7 +454,7 @@ export function StreamPlayer({
   const [networkQuality, setNetworkQuality] = useState<string>(detectNetworkQuality());
   const lastTapRef = useRef<number>(0);
 
-  const { isFullscreen, toggleFullscreen } = useFullscreen(containerRef);
+  const { isFullscreen, isCssFullscreen, toggleFullscreen } = useFullscreen(containerRef);
 
   // Build ordered source list
   const sources = buildStreamSources({
@@ -409,7 +488,8 @@ export function StreamPlayer({
     return () => clearInterval(id);
   }, []);
 
-  // Keyboard shortcut: F = toggle fullscreen, Escape handled by browser
+  // Keyboard shortcut: F = toggle fullscreen.
+  // Escape for CSS fullscreen is handled inside useFullscreen.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -421,6 +501,11 @@ export function StreamPlayer({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [toggleFullscreen]);
+
+  // Always show controls when in any fullscreen mode so the exit button is reachable
+  useEffect(() => {
+    if (isFullscreen) showControlsTemporarily();
+  }, [isFullscreen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Controls auto-hide
   const showControlsTemporarily = useCallback(() => {
@@ -487,10 +572,29 @@ export function StreamPlayer({
           onLoad={onLoad}
         />
 
-        {/* Fullscreen button — bottom-right, visible on hover */}
-        <div className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+        {/*
+          Fullscreen button — always rendered (pointer-events-auto) so it is
+          reachable. Opacity transitions: hidden at rest, visible on hover OR
+          whenever we are already in any fullscreen mode so the user can exit.
+        */}
+        <div
+          className={`absolute bottom-3 right-3 z-20 transition-opacity duration-200 ${
+            isFullscreen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 group-hover:opacity-100 pointer-events-auto"
+          }`}
+        >
           <FullscreenButton isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
         </div>
+
+        {/* Fullscreen hint shown only in CSS fullscreen (no YouTube chrome visible) */}
+        {isCssFullscreen && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/70 border border-white/15 text-[10px] font-semibold text-white/60 backdrop-blur-md">
+              Press Esc or F to exit fullscreen
+            </span>
+          </div>
+        )}
 
         {/* YouTube ABR badge */}
         <div className="absolute bottom-3 left-3 pointer-events-none">
@@ -548,9 +652,18 @@ export function StreamPlayer({
         </div>
       )}
 
-      {/* ── Controls Bar (auto-hide) ─────────────────────────────────────── */}
+      {/* ── CSS-fullscreen exit hint (top-center, only in CSS FS mode) ────── */}
+      {isCssFullscreen && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/70 border border-white/15 text-[10px] font-semibold text-white/60 backdrop-blur-md">
+            Press Esc or F to exit fullscreen
+          </span>
+        </div>
+      )}
+
+      {/* ── Controls Bar (auto-hide; always visible in fullscreen) ───────── */}
       <AnimatePresence>
-        {(showControls || playerState !== "playing") && playerState !== "error" && (
+        {(showControls || isFullscreen || playerState !== "playing") && playerState !== "error" && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
