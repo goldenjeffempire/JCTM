@@ -35,7 +35,7 @@ const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_UR
 // ─── Version Stamp ────────────────────────────────────────────────────────────
 // Increment this when the static JCTM_KNOWLEDGE array changes to force
 // re-ingestion even if chunk count looks sufficient.
-const KNOWLEDGE_VERSION = "5.0";
+const KNOWLEDGE_VERSION = "6.0";
 const VERSION_SOURCE = `jctm-version-${KNOWLEDGE_VERSION}`;
 
 // ─── JCTM Knowledge Base ──────────────────────────────────────────────────────
@@ -114,7 +114,12 @@ const JCTM_KNOWLEDGE = [
     content: `JCTM affirms that God is still a Healer — Jehovah Rapha (Exodus 15:26). Healing is grounded in the atonement: Isaiah 53:5, Matthew 8:16-17. Jesus healed all who came to Him (Matthew 4:23-24) and He is the same yesterday, today, and forever (Hebrews 13:8). JCTM teaches a balanced position: healing is God's will and ability always, but timing is God's sovereignty. JCTM does not teach "guaranteed healing now" as the prosperity gospel teaches. Practical steps: pray and anoint with oil (James 5:14-16), stand on healing scriptures, use available medicine (Luke the physician), seek intercession at jctm.org.ng/prayer. Trust God's deeper purpose when healing seems delayed (2 Corinthians 12:9).`,
   },
 
-  // ── EXPANDED KNOWLEDGE BASE v5.0 — 45 additional doctrine, ministry, and practice chunks ──
+  {
+    source: "ministers-conference-2026",
+    content: `The JCTM Ministers Conference 2026 is a three-day apostolic gathering held at Jesus Christ Temple Ministry. Event title: "Ministers Conference 2026 — Apostolic Fire." Theme: "Come, receive your apostolic fire from the altar of God." Dates: Friday 8 May 2026 through Sunday 10 May 2026. Services begin at 8:00 AM WAT each day. Venue: JCTM Church Auditorium, Km 1 East West Road, Ebrumede Roundabout, Effurun Uvwie LGA, Delta State, Nigeria. The conference features deep apostolic ministry under Prophet Amos Evomobor, impartation of the Holy Spirit, sound doctrinal teaching from the Correction Mandate, and prophetic ministry. Attendance is open to ministers, believers, and all who desire to encounter God. Live streaming is available on Temple TV (YouTube @TEMPLETVJCTM) and at jctm.org.ng/livestream. Registration: jctm.org.ng/conference-registration. Contact: +234(0)8081313111 | info@jctm.org.ng.`,
+  },
+
+  // ── EXPANDED KNOWLEDGE BASE v6.0 — 45 additional doctrine, ministry, and practice chunks ──
 
   {
     source: "lords-supper-communion",
@@ -1349,7 +1354,7 @@ export async function runFullContentSync(log?: Logger): Promise<{
     faqs: false, shorts: false, livestream: false, conferences: false,
     testimonies: false, blogPosts: false,
   };
-  log?.info("Starting full AI knowledge content sync (v4 — 9 content types)...");
+  log?.info("Starting full AI knowledge content sync (v6 — 9 content types)...");
   const t0 = Date.now();
 
   await Promise.allSettled([

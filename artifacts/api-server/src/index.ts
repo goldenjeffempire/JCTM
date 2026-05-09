@@ -5,6 +5,7 @@ import { checkUptimeOnStartup, startHeartbeat, stopHeartbeat } from "./lib/uptim
 import { altarSimInterval } from "./routes/altar.js";
 import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
+import { startAISyncScheduler, stopAISyncScheduler } from "./lib/ai-sync-scheduler.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
@@ -132,6 +133,9 @@ const server = app.listen(port, async (err) => {
   ingestKnowledgeIfEmpty(undefined, logger).catch((err) => {
     logger.warn({ err }, "Knowledge ingestion failed at startup — TempleBots will use inline knowledge base");
   });
+
+  // ── Start continuous AI intelligence sync (every 4h full, every 45m activity) ──
+  startAISyncScheduler(logger);
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────
@@ -143,6 +147,7 @@ function shutdown(signal: string) {
   logger.info({ signal }, "Graceful shutdown initiated");
   stopHeartbeat();
   stopCron();
+  stopAISyncScheduler();
   clearInterval(altarSimInterval);
 
   server.close(async () => {

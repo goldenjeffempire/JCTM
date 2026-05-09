@@ -52,6 +52,7 @@ export type JCTMIntent =
   | "healing_miracles"
   | "new_believer"
   | "testimony_sharing"
+  | "ministers_conference"
   // v3 intents
   | "lords_supper"
   | "great_commission"
@@ -1405,6 +1406,39 @@ All gifts must operate in **love and order** within the assembly. The greatest g
   },
 
   {
+    id: "ministers_conference",
+    intent: "ministers_conference",
+    keywords: [
+      "ministers conference", "ministers conference 2026", "apostolic fire", "conference 2026",
+      "jctm conference", "conference registration", "conference theme", "apostolic fire conference",
+      "may conference", "3-day conference", "three day conference", "conference day",
+    ],
+    weight: 1.1,
+    response: `The **JCTM Ministers Conference 2026** — *"Come, receive your apostolic fire from the altar of God"* — is a powerful 3-day gathering of ministers and believers from across the nation and beyond.
+
+**Conference Details:**
+- 📅 **Dates:** Friday 8 May → Sunday 10 May, 2026
+- ⏰ **Start Time:** 8:00 AM WAT daily
+- 📍 **Venue:** JCTM Church Auditorium, Km 1 East West Road, Ebrumede Roundabout, Effurun Uvwie LGA, Delta State, Nigeria
+- 🎙️ **Theme:** *"Come, receive your apostolic fire from the altar of God"*
+
+**What to Expect:**
+- Deep apostolic and prophetic ministry under Prophet Amos Evomobor
+- Impartation of the Holy Spirit and apostolic fire
+- Sound doctrine and Correction Mandate teachings
+- Live streaming on Temple TV (YouTube @TEMPLETVJCTM)
+
+**Register or Join Online:**
+- 🔗 jctm.org.ng/conference-registration
+- 📺 Live stream: jctm.org.ng/livestream
+
+**Enquiries:** +234(0)8081313111 | info@jctm.org.ng
+
+> *"And suddenly there came a sound from heaven, as of a rushing mighty wind, and it filled the whole house where they were sitting."* — Acts 2:2`,
+    enrichment: "Ministers Conference 2026: May 8-10, 8 AM WAT daily, JCTM Auditorium Ebrumede, theme: apostolic fire, streamed on Temple TV, register at jctm.org.ng/conference-registration, contact +234(0)8081313111.",
+  },
+
+  {
     id: "testimony_sharing",
     intent: "testimony_sharing",
     keywords: [
@@ -1620,10 +1654,10 @@ export async function* streamLocalResponse(
 // ─── Engine metadata ─────────────────────────────────────────────────────────
 
 export const ENGINE_METADATA = {
-  version: "3.0.0",
+  version: "5.0.0",
   knowledgeEntries: KNOWLEDGE_INDEX.length,
   confidenceThreshold: CONFIDENCE_THRESHOLD,
   escalationThreshold: ESCALATION_THRESHOLD,
   intentsSupported: [...new Set(KNOWLEDGE_INDEX.map(e => e.intent))],
-  description: "JCTM Local AI Engine v3 — 57 intents, expanded doctrine coverage, sermon RAG, fully local",
+  description: "JCTM Local AI Engine v5 — 58+ intents, Ministers Conference 2026, expanded doctrine, continuous sync, enterprise RAG, fully local",
 };
