@@ -6684,6 +6684,291 @@ function FormatBadge({ format }: { format: string | null }) {
   );
 }
 
+// ─── Admin Job Queue Panel ────────────────────────────────────────────────────
+
+type AdminJobStatus = "queued" | "processing" | "ready" | "failed";
+
+interface AdminJob {
+  jobId: string;
+  type: string;
+  sourceId: string;
+  format: string;
+  quality: string;
+  status: AdminJobStatus;
+  progress: number;
+  error: string | null;
+  title: string | null;
+  fileSize: number | null;
+  fileSizeFormatted: string | null;
+  thumbnailUrl: string | null;
+  retryCount: number;
+  hasFile: boolean;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+}
+
+interface AdminJobsResponse {
+  counts: { queued: number; processing: number; ready: number; failed: number; total: number };
+  jobs: AdminJob[];
+}
+
+const STATUS_FILTER_OPTS: { value: string; label: string }[] = [
+  { value: "",           label: "All" },
+  { value: "queued",     label: "Queued" },
+  { value: "processing", label: "Converting" },
+  { value: "ready",      label: "Ready" },
+  { value: "failed",     label: "Failed" },
+];
+
+const JOB_STATUS_STYLE: Record<AdminJobStatus, string> = {
+  queued:     "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+  processing: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+  ready:      "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
+  failed:     "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800",
+};
+
+function JobQueuePanel({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("");
+  const [purging, setPurging] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<AdminJobsResponse>({
+    queryKey: ["admin-media-jobs", statusFilter],
+    queryFn: async () => {
+      const url = statusFilter
+        ? `${BASE}/api/admin/media-jobs?status=${statusFilter}`
+        : `${BASE}/api/admin/media-jobs`;
+      const r = await fetch(url, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load job queue");
+      return r.json();
+    },
+    refetchInterval: (query) => {
+      // Fast refresh when there are active jobs, slow when all quiet
+      const d = query.state.data as AdminJobsResponse | undefined;
+      if (!d) return 5000;
+      return (d.counts.queued + d.counts.processing) > 0 ? 4000 : 15000;
+    },
+  });
+
+  async function handleDelete(jobId: string) {
+    setDeletingIds(prev => new Set([...prev, jobId]));
+    try {
+      const r = await fetch(`${BASE}/api/admin/media-jobs/${jobId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Delete failed");
+      await queryClient.invalidateQueries({ queryKey: ["admin-media-jobs"] });
+      toast.success("Job removed");
+    } catch {
+      toast.error("Failed to delete job");
+    } finally {
+      setDeletingIds(prev => { const s = new Set(prev); s.delete(jobId); return s; });
+    }
+  }
+
+  async function handlePurge() {
+    setPurging(true);
+    try {
+      const r = await fetch(`${BASE}/api/admin/media-jobs/purge`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Purge failed");
+      const result = await r.json() as { rowsDeleted: number; filesDeleted: number; bytesFreed: number };
+      const freed = result.bytesFreed > 0
+        ? ` · ${(result.bytesFreed / 1024 / 1024).toFixed(1)} MB freed`
+        : "";
+      toast.success(`Purged ${result.rowsDeleted} jobs, ${result.filesDeleted} files${freed}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-media-jobs"] });
+    } catch {
+      toast.error("Purge failed");
+    } finally {
+      setPurging(false);
+    }
+  }
+
+  const failedOrExpired = (data?.counts.failed ?? 0);
+
+  return (
+    <Card className="!p-0 overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-border">
+        <div>
+          <h3 className="font-bold text-sm flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-primary" /> Live Job Queue
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            All conversion jobs across all users — cancel stuck jobs or purge failures
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={handlePurge}
+            disabled={purging || failedOrExpired === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {purging ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+            Purge failed{failedOrExpired > 0 ? ` (${failedOrExpired})` : ""}
+          </button>
+        </div>
+      </div>
+
+      {/* Count pills */}
+      {data && (
+        <div className="flex items-center gap-3 px-5 py-3 bg-muted/30 border-b border-border flex-wrap">
+          {[
+            { label: "Total",      value: data.counts.total,      cls: "bg-muted text-muted-foreground border-border" },
+            { label: "Queued",     value: data.counts.queued,     cls: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800" },
+            { label: "Converting", value: data.counts.processing, cls: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800" },
+            { label: "Ready",      value: data.counts.ready,      cls: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800" },
+            { label: "Failed",     value: data.counts.failed,     cls: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800" },
+          ].map(({ label, value, cls }) => (
+            <div key={label} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cls}`}>
+              {label}: <span className="tabular-nums font-bold">{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Status filter tabs */}
+      <div className="flex items-center gap-1 px-5 py-2 border-b border-border overflow-x-auto">
+        {STATUS_FILTER_OPTS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setStatusFilter(opt.value)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+              statusFilter === opt.value
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Job list */}
+      <div className="divide-y divide-border">
+        {isLoading && (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-3 animate-pulse">
+              <div className="w-9 h-9 rounded-lg bg-muted flex-shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-40 bg-muted rounded" />
+                <div className="h-2 w-24 bg-muted rounded" />
+              </div>
+            </div>
+          ))
+        )}
+
+        {isError && (
+          <div className="px-5 py-6 text-sm text-red-500 text-center">
+            Failed to load job queue. Make sure you are logged in.
+          </div>
+        )}
+
+        {data && data.jobs.length === 0 && (
+          <div className="px-5 py-10 text-sm text-muted-foreground text-center">
+            {statusFilter ? `No ${statusFilter} jobs found.` : "No jobs yet. Conversion jobs will appear here as users request downloads."}
+          </div>
+        )}
+
+        {data?.jobs.map(job => {
+          const age = rel(job.createdAt);
+          const isActive = job.status === "queued" || job.status === "processing";
+          const isDeleting = deletingIds.has(job.jobId);
+          return (
+            <div key={job.jobId} className={`flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors group ${isDeleting ? "opacity-40" : ""}`}>
+              {/* Thumbnail */}
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                {job.thumbnailUrl ? (
+                  <img src={job.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Download className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium truncate max-w-[200px]">
+                    {job.title ?? "Untitled"}
+                  </p>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${JOB_STATUS_STYLE[job.status]}`}>
+                    {job.status === "processing" ? `${job.progress}%` : job.status}
+                  </span>
+                  <FormatBadge format={job.format} />
+                  <span className="text-[10px] text-muted-foreground uppercase font-medium">{job.quality}</span>
+                </div>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <a
+                    href={`https://youtu.be/${job.sourceId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-mono text-accent hover:underline flex items-center gap-0.5"
+                  >
+                    {job.sourceId}
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                  <span className="text-[10px] text-muted-foreground">{age}</span>
+                  {job.retryCount > 0 && (
+                    <span className="text-[10px] text-amber-500">↻ {job.retryCount} retry</span>
+                  )}
+                  {job.fileSizeFormatted && (
+                    <span className="text-[10px] text-muted-foreground">{job.fileSizeFormatted}</span>
+                  )}
+                  {job.status === "failed" && job.error && (
+                    <span className="text-[10px] text-red-500 truncate max-w-[220px]" title={job.error}>
+                      {job.error.length > 60 ? job.error.slice(0, 60) + "…" : job.error}
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress bar for active jobs */}
+                {isActive && (
+                  <div className="mt-1.5 h-1 w-full bg-muted rounded-full overflow-hidden max-w-xs">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-violet-500 rounded-full transition-all duration-300"
+                      style={{ width: job.status === "queued" ? "4%" : `${job.progress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Cancel / Delete */}
+              <button
+                onClick={() => handleDelete(job.jobId)}
+                disabled={isDeleting}
+                title={isActive ? "Cancel job" : "Delete job"}
+                className={`flex-shrink-0 p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 ${
+                  isActive
+                    ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Downloads Section ────────────────────────────────────────────────────────
+
 function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
   const { data, isLoading, isError, refetch, isFetching } = useQuery<MediaAuditData>({
     queryKey: ["admin-media-audit"],
@@ -6731,6 +7016,9 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
             Failed to load download analytics. Make sure you are logged in.
           </div>
         )}
+
+        {/* ── Live Job Queue ── */}
+        <JobQueuePanel auth={auth} />
 
         {data && (
           <>

@@ -1589,4 +1589,209 @@ router.get(
   }
 );
 
+// ─── GET /api/admin/media-jobs ────────────────────────────────────────────────
+// Returns all recent media download jobs across all users (last 60), optionally
+// filtered by status. Requires any admin role.
+
+router.get(
+  "/admin/media-jobs",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { pool: dbPool } = await import("@workspace/db");
+      const status = typeof req.query["status"] === "string" ? req.query["status"] : null;
+
+      const { rows } = await dbPool.query<{
+        id: string;
+        type: string;
+        source_id: string;
+        format: string;
+        quality: string;
+        status: string;
+        progress: number;
+        error: string | null;
+        output_path: string | null;
+        title: string | null;
+        duration: number | null;
+        file_size: number | null;
+        thumbnail_url: string | null;
+        retry_count: number;
+        created_at: string;
+        updated_at: string;
+        expires_at: string;
+      }>(
+        status
+          ? `SELECT *, COALESCE(retry_count,0) AS retry_count
+             FROM media_download_jobs
+             WHERE status = $1
+             ORDER BY created_at DESC LIMIT 60`
+          : `SELECT *, COALESCE(retry_count,0) AS retry_count
+             FROM media_download_jobs
+             ORDER BY created_at DESC LIMIT 60`,
+        status ? [status] : [],
+      );
+
+      const { rows: counts } = await dbPool.query<{
+        queued: string; processing: string; ready: string; failed: string; total: string;
+      }>(`
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'queued')     AS queued,
+          COUNT(*) FILTER (WHERE status = 'processing') AS processing,
+          COUNT(*) FILTER (WHERE status = 'ready')      AS ready,
+          COUNT(*) FILTER (WHERE status = 'failed')     AS failed,
+          COUNT(*)                                       AS total
+        FROM media_download_jobs
+      `);
+
+      const c = counts[0] ?? { queued: "0", processing: "0", ready: "0", failed: "0", total: "0" };
+
+      res.json({
+        counts: {
+          queued:     Number(c.queued),
+          processing: Number(c.processing),
+          ready:      Number(c.ready),
+          failed:     Number(c.failed),
+          total:      Number(c.total),
+        },
+        jobs: rows.map(r => ({
+          jobId:       r.id,
+          type:        r.type,
+          sourceId:    r.source_id,
+          format:      r.format,
+          quality:     r.quality,
+          status:      r.status,
+          progress:    r.progress,
+          error:       r.error,
+          title:       r.title,
+          duration:    r.duration,
+          fileSize:    r.file_size,
+          fileSizeFormatted: r.file_size
+            ? (() => {
+                const b = Number(r.file_size);
+                if (b < 1024) return `${b} B`;
+                if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+                if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+                return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+              })()
+            : null,
+          thumbnailUrl: r.thumbnail_url,
+          retryCount:   r.retry_count,
+          hasFile:      r.output_path ? true : false,
+          createdAt:   r.created_at,
+          updatedAt:   r.updated_at,
+          expiresAt:   r.expires_at,
+        })),
+      });
+    } catch (err) {
+      logger.error({ err }, "Failed to list admin media jobs");
+      res.status(500).json({ error: "Failed to load job queue." });
+    }
+  },
+);
+
+// ─── DELETE /api/admin/media-jobs/:id ─────────────────────────────────────────
+// Admin-protected cancel: cancels in-memory job (if still running) and deletes
+// the DB row + output file from disk.
+
+router.delete(
+  "/admin/media-jobs/:id",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
+      res.status(400).json({ error: "Invalid job ID" });
+      return;
+    }
+    try {
+      const { pool: dbPool } = await import("@workspace/db");
+      const { cancelJob } = await import("../lib/media-processor.js");
+      await cancelJob(id);
+
+      const { rows } = await dbPool.query<{ output_path: string | null }>(
+        "SELECT output_path FROM media_download_jobs WHERE id = $1",
+        [id],
+      );
+      const filePath = rows[0]?.output_path ?? null;
+      if (filePath) {
+        try {
+          const fs = (await import("fs")).default;
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } catch { /* non-fatal */ }
+      }
+
+      await dbPool.query("DELETE FROM media_download_jobs WHERE id = $1", [id]);
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, "Admin: failed to delete media job");
+      res.status(500).json({ error: "Failed to delete job." });
+    }
+  },
+);
+
+// ─── POST /api/admin/media-jobs/purge ─────────────────────────────────────────
+// Deletes ALL failed jobs and expired rows (any status), plus their output
+// files from disk. Returns count of rows removed and bytes freed.
+
+router.post(
+  "/admin/media-jobs/purge",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { pool: dbPool } = await import("@workspace/db");
+      const fs = (await import("fs")).default;
+
+      // Fetch rows eligible for purge: failed or expired
+      const { rows } = await dbPool.query<{ id: string; output_path: string | null; file_size: number | null }>(`
+        SELECT id, output_path, file_size
+        FROM   media_download_jobs
+        WHERE  status = 'failed'
+           OR  expires_at <= now()
+      `);
+
+      let filesDeleted = 0;
+      let bytesFreed = 0;
+      for (const row of rows) {
+        if (row.output_path) {
+          try {
+            if (fs.existsSync(row.output_path)) {
+              fs.unlinkSync(row.output_path);
+              filesDeleted++;
+              bytesFreed += row.file_size ? Number(row.file_size) : 0;
+            }
+          } catch { /* non-fatal */ }
+        }
+      }
+
+      // Also remove stale temp files for purged job IDs
+      const purgedIds = new Set(rows.map(r => r.id));
+      const MEDIA_DIR = "/tmp/jctm-media";
+      try {
+        const files = fs.readdirSync(MEDIA_DIR);
+        for (const f of files) {
+          const jobId = f.split("_raw")[0] ?? f.split(".")[0] ?? "";
+          if (purgedIds.has(jobId)) {
+            try { fs.unlinkSync(`${MEDIA_DIR}/${f}`); } catch { /* ok */ }
+          }
+        }
+      } catch { /* non-fatal */ }
+
+      const { rowCount } = await dbPool.query(`
+        DELETE FROM media_download_jobs
+        WHERE  status = 'failed'
+           OR  expires_at <= now()
+      `);
+
+      res.json({
+        ok: true,
+        rowsDeleted:  rowCount ?? rows.length,
+        filesDeleted,
+        bytesFreed,
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: failed to purge media jobs");
+      res.status(500).json({ error: "Failed to purge jobs." });
+    }
+  },
+);
+
 export default router;

@@ -941,6 +941,23 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+/**
+ * Cancel a specific job by ID.
+ * Removes it from the in-memory active map so the retry loop will see it as
+ * gone and stop on its next iteration. The DB row is NOT deleted here — the
+ * caller (admin route) deletes it after calling this.
+ */
+export function cancelJob(id: string): void {
+  const job = activeJobs.get(id);
+  if (job) {
+    // Mark failed in memory so any concurrent processor check will abort
+    updateJob(job, { status: "failed", error: "Cancelled by admin" });
+    activeJobs.delete(id);
+  }
+  // Clean up any temp files associated with this job
+  cleanupJobTempFiles(id);
+}
+
 export function getQueueStats(): { queued: number; processing: number; concurrent: number; max: number } {
   let queued = 0;
   let processing = 0;
