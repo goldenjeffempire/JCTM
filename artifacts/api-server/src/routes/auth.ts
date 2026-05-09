@@ -192,6 +192,23 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   }
 });
 
+// ── POST /auth/logout — invalidate the current session token ─────────────────
+router.post("/auth/logout", async (req, res): Promise<void> => {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7);
+    try {
+      await db
+        .update(memberAuthTable)
+        .set({ token: null })
+        .where(eq(memberAuthTable.token, token));
+    } catch (err) {
+      req.log.warn({ err }, "Logout token invalidation failed (non-fatal)");
+    }
+  }
+  res.json({ ok: true, message: "Signed out successfully." });
+});
+
 // ── PUT /auth/profile — update member profile ─────────────────────────────────
 router.put("/auth/profile", async (req, res): Promise<void> => {
   const auth = req.headers.authorization;

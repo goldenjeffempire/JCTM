@@ -37,7 +37,7 @@ interface JourneySummary {
   nextSteps: Array<{ label: string; href: string; desc: string; icon: string }>;
 }
 
-type View = "register" | "login" | "dashboard" | "edit-profile";
+type View = "register" | "login" | "dashboard" | "edit-profile" | "forgot" | "forgot-sent";
 type DashTab = "overview" | "journey";
 
 const MATURITY_COLORS: Record<string, string> = {
@@ -66,6 +66,7 @@ export default function Join() {
   const [regForm, setRegForm] = useState({ firstName: "", lastName: "", email: "", password: "", phone: "" });
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", phone: "", currentPassword: "", newPassword: "" });
+  const [forgotEmail, setForgotEmail] = useState("");
 
   useEffect(() => {
     document.title = "Join | JCTM Digital Sanctuary";
@@ -94,9 +95,28 @@ export default function Join() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true); setError("");
+    try {
+      const res = await fetch(`${BASE}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      if (res.ok) {
+        setView("forgot-sent");
+      } else {
+        const data = await res.json();
+        setError(data.error ?? "Something went wrong. Please try again.");
+      }
+    } catch { setError("Network error. Please try again."); }
+    finally { setLoading(false); }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (regForm.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (regForm.password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setLoading(true); setError("");
     try {
       const res = await fetch(`${BASE}/api/auth/register`, {
@@ -147,7 +167,16 @@ export default function Join() {
     finally { setLoading(false); }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const t = safeLocalGet("jctm_token");
+    if (t) {
+      try {
+        await fetch(`${BASE}/api/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${t}` },
+        });
+      } catch { /* best-effort */ }
+    }
     safeLocalRemove("jctm_token");
     setMember(null);
     setToken(null);
@@ -173,8 +202,8 @@ export default function Join() {
     e.preventDefault();
     const t = safeLocalGet("jctm_token");
     if (!t) return;
-    if (editForm.newPassword && editForm.newPassword.length < 6) {
-      setError("New password must be at least 6 characters.");
+    if (editForm.newPassword && editForm.newPassword.length < 8) {
+      setError("New password must be at least 8 characters.");
       return;
     }
     if (editForm.newPassword && !editForm.currentPassword) {
@@ -576,7 +605,7 @@ export default function Join() {
                               type={showNewPass ? "text" : "password"}
                               value={editForm.newPassword}
                               onChange={e => setEditForm(p => ({ ...p, newPassword: e.target.value }))}
-                              placeholder="Min. 6 characters"
+                              placeholder="Min. 8 characters"
                               className="bg-white pr-10"
                               autoComplete="new-password"
                             />
@@ -649,7 +678,7 @@ export default function Join() {
                     <div>
                       <label className="text-xs font-medium text-primary mb-1 block">Password *</label>
                       <div className="relative">
-                        <Input type={showPass ? "text" : "password"} value={regForm.password} onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))} placeholder="Min. 6 characters" required className="bg-white pr-10" autoComplete="new-password" />
+                        <Input type={showPass ? "text" : "password"} value={regForm.password} onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))} placeholder="Min. 8 characters" required className="bg-white pr-10" autoComplete="new-password" />
                         <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -664,6 +693,70 @@ export default function Join() {
                       <User className="h-4 w-4 mr-2" /> {loading ? "Creating account..." : "Join the Sanctuary"}
                     </Button>
                   </form>
+                </div>
+              </motion.div>
+
+            ) : view === "forgot" ? (
+              <motion.div key="forgot" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <div className="glass-panel rounded-2xl p-8 border border-border/50">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="font-serif font-bold text-primary text-xl flex items-center gap-2">
+                      <Key className="h-5 w-5 text-accent" /> Reset Password
+                    </h2>
+                    <button onClick={() => { setView("login"); setError(""); }} className="text-muted-foreground hover:text-primary">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-5">
+                    Enter the email address linked to your account. We'll send a secure reset link if one exists.
+                  </p>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
+                      <Input
+                        type="email"
+                        value={forgotEmail}
+                        onChange={e => setForgotEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        required
+                        autoComplete="email"
+                        className="bg-white"
+                      />
+                    </div>
+                    {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg p-3">{error}</div>}
+                    <Button type="submit" disabled={loading || !forgotEmail} className="w-full bg-accent text-white hover:bg-accent/90 rounded-full h-11 font-semibold shadow-lg shadow-accent/20">
+                      {loading ? "Sending..." : "Send Reset Link"}
+                    </Button>
+                    <p className="text-center text-xs text-muted-foreground">
+                      Remembered it?{" "}
+                      <button type="button" onClick={() => { setView("login"); setError(""); }} className="text-accent hover:underline font-medium">
+                        Back to sign in →
+                      </button>
+                    </p>
+                  </form>
+                </div>
+              </motion.div>
+
+            ) : view === "forgot-sent" ? (
+              <motion.div key="forgot-sent" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                <div className="glass-panel rounded-2xl p-8 border border-accent/20 text-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-accent/20">
+                    <CheckCircle className="h-7 w-7 text-white" />
+                  </div>
+                  <h2 className="font-serif font-bold text-primary text-xl mb-2">Check Your Email</h2>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    If an account with <strong className="text-primary">{forgotEmail}</strong> exists, a reset link has been sent.
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-6">
+                    Check your inbox and spam folder. The link expires in 1 hour.
+                  </p>
+                  <Button
+                    onClick={() => { setView("login"); setError(""); setForgotEmail(""); }}
+                    variant="outline"
+                    className="rounded-full border-accent/30 text-accent hover:bg-accent/5"
+                  >
+                    Back to Sign In
+                  </Button>
                 </div>
               </motion.div>
 
@@ -690,7 +783,16 @@ export default function Join() {
                       <Input type="email" value={loginForm.email} onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="username" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block">Password *</label>
+                      <label className="text-xs font-medium text-primary mb-1 block flex items-center justify-between">
+                        <span>Password *</span>
+                        <button
+                          type="button"
+                          onClick={() => { setView("forgot"); setError(""); setForgotEmail(loginForm.email); }}
+                          className="text-accent hover:underline font-medium normal-case tracking-normal"
+                        >
+                          Forgot password?
+                        </button>
+                      </label>
                       <div className="relative">
                         <Input type={showPass ? "text" : "password"} value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))} placeholder="Your password" required className="bg-white pr-10" autoComplete="current-password" />
                         <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">

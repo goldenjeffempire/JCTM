@@ -8,6 +8,7 @@ const router: IRouter = Router();
 const PRAYER_CATEGORIES = new Set([
   "general","healing","provision","protection","family","ministry",
   "salvation","deliverance","guidance","thanksgiving","other",
+  "peace","strength",
 ]);
 
 const PRAYER_NEED_MAX_LEN = 2000;

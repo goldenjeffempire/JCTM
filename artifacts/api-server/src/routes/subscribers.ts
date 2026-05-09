@@ -67,9 +67,16 @@ router.get("/admin/subscribers", auth, async (req: Request, res: Response): Prom
       query += ` AND (lower(email) LIKE $${params.length} OR lower(name) LIKE $${params.length})`;
     }
 
-    const countResult = await pool.query<{ n: string }>(
-      `SELECT count(*)::text AS n FROM subscribers WHERE 1=1${activeOnly ? " AND is_active = true" : ""}${search ? ` AND (lower(email) LIKE '%${search.toLowerCase()}%' OR lower(name) LIKE '%${search.toLowerCase()}%')` : ""}`,
-    );
+    const countParams: unknown[] = [];
+    let countQuery = `SELECT count(*)::text AS n FROM subscribers WHERE 1=1`;
+    if (activeOnly) {
+      countQuery += ` AND is_active = true`;
+    }
+    if (search) {
+      countParams.push(`%${search.toLowerCase()}%`);
+      countQuery += ` AND (lower(email) LIKE $${countParams.length} OR lower(name) LIKE $${countParams.length})`;
+    }
+    const countResult = await pool.query<{ n: string }>(countQuery, countParams);
 
     query += ` ORDER BY subscribed_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);

@@ -1438,5 +1438,38 @@ export async function runMigrations(): Promise<void> {
     ALTER TABLE testimonies ADD COLUMN IF NOT EXISTS author_name text
   `);
 
+  // ── Performance indexes ─────────────────────────────────────────────────────
+  // Testimonies: admin approval queue + public listing
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_testimonies_approved ON testimonies (approved, created_at DESC)
+  `);
+  // Prayer requests: category filter + listing
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_prayer_requests_category ON prayer_requests (category, created_at DESC)
+  `);
+  // Giving logs: member journey giving count/total lookup by email
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_giving_logs_email_status ON giving_logs (donor_email, status)
+  `);
+  // Subscribers: active-only listing (most common query pattern)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers (is_active, subscribed_at DESC)
+  `);
+  // Member auth: token lookup (used on every authenticated request)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_member_auth_token ON member_auth (token) WHERE token IS NOT NULL
+  `);
+  // Blog posts: published listing sorted by date
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_blog_posts_published ON blog_posts (published, published_at DESC)
+  `);
+  // Gallery: published + featured lookups
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_gallery_published ON gallery_images (is_published, created_at DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_gallery_featured ON gallery_images (is_featured, is_published)
+  `);
+
   logger.info("All migrations complete");
 }

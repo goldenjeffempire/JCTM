@@ -154,12 +154,21 @@ router.post("/giving/initiate", async (req, res): Promise<void> => {
   const donorName = typeof body.donorName === "string" ? body.donorName.trim() : null;
   const purpose = typeof body.givingType === "string" ? body.givingType : null;
 
+  const VALID_CURRENCIES = new Set(["NGN", "USD", "GBP", "EUR", "GHS", "KES", "ZAR"]);
+  if (!VALID_CURRENCIES.has(currency)) {
+    res.status(400).json({ error: "Unsupported currency. Please use NGN or USD." });
+    return;
+  }
+
   if (!donorEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(donorEmail)) {
     res.status(400).json({ error: "A valid email address is required." });
     return;
   }
-  if (!amount || amount < 1) {
-    res.status(400).json({ error: "Amount must be at least 1." });
+
+  const MIN_AMOUNTS: Record<string, number> = { NGN: 100, USD: 1, GBP: 1, EUR: 1, GHS: 5, KES: 100, ZAR: 10 };
+  const minAmount = MIN_AMOUNTS[currency] ?? 1;
+  if (!amount || amount < minAmount) {
+    res.status(400).json({ error: `Minimum giving amount is ${minAmount} ${currency}.` });
     return;
   }
 

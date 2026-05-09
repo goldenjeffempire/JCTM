@@ -48,6 +48,7 @@ const Status = lazy(() => import("@/pages/Status"));
 const AdminMonetization = lazy(() => import("@/pages/AdminMonetization"));
 const AdminConferenceNotify = lazy(() => import("@/pages/AdminConferenceNotify"));
 const Partner = lazy(() => import("@/pages/Partner"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -122,6 +123,7 @@ function Router() {
         <Route path="/livestream" component={Sermons} />
         <Route path="/live" component={Sermons} />
         <Route path="/status" component={Status} />
+        <Route path="/reset-password" component={ResetPassword} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

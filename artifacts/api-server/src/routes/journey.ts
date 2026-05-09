@@ -153,7 +153,7 @@ router.get("/journey/summary", requireAuth, async (req: AuthenticatedRequest, re
       pool.query<{ count: string; total: string }>(
         `SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
          FROM giving_logs
-         WHERE donor_email = $1 AND status = 'completed'`,
+         WHERE donor_email = $1 AND status = 'success'`,
         [email],
       ),
     ]);
