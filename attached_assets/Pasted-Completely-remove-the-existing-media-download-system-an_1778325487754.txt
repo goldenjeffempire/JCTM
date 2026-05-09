@@ -1,0 +1,141 @@
+Completely remove the existing media download system and rebuild it from the ground up to deliver a clean, stable, and production-grade downloading experience.
+
+Full Media Download System Rebuild
+Phase 1 — Total Removal
+
+
+Delete all existing video, audio, and image download logic.
+
+
+Remove broken APIs, legacy handlers, and unused services.
+
+
+Clear download routes, background workers, and temporary storage processes.
+
+
+Eliminate conflicting scripts causing errors or failed downloads.
+
+
+
+Phase 2 — Fresh Architecture Implementation
+YouTube Video Downloads
+
+
+Rebuild download functionality using a secure backend processing service.
+
+
+Allow audiences to download authorized YouTube videos directly from the platform.
+
+
+Support multiple quality options where available.
+
+
+Stream downloads directly to user local storage (no page reloads).
+
+
+System Design
+
+
+Extract video ID from embedded player.
+
+
+Backend fetch → validate → stream file.
+
+
+Async processing pipeline for stability.
+
+
+
+Gallery Image Downloads
+
+
+Implement dedicated Download Image feature for gallery media.
+
+
+One-click image saving to device storage.
+
+
+Preserve original resolution and quality.
+
+
+Secure file access validation before download.
+
+
+
+Phase 3 — Backend Infrastructure
+
+
+Dedicated media download microservice.
+
+
+Queue-based processing workers.
+
+
+Stream-based delivery (no full file memory loading).
+
+
+Temporary storage with automatic cleanup.
+
+
+Tokenized secure download URLs.
+
+
+
+Phase 4 — User Experience
+
+
+Add visible Download buttons:
+
+
+▶ Download Video
+
+
+🖼 Download Image
+
+
+
+
+Instant download start.
+
+
+Progress feedback and retry handling.
+
+
+Mobile, desktop, and smart TV compatibility.
+
+
+
+Phase 5 — Stability & Optimization
+
+
+Fix CORS, permission, and authentication conflicts.
+
+
+Enable resumable downloads.
+
+
+Implement caching for frequently accessed media.
+
+
+Rate limiting to prevent abuse.
+
+
+Cross-browser and device testing.
+
+
+
+Phase 6 — Monitoring & Reliability
+
+
+Real-time error logging.
+
+
+Download analytics and audit tracking.
+
+
+Automatic failure recovery and fallback delivery.
+
+
+
+Final Outcome
+A completely rebuilt, enterprise-grade media download system enabling audiences to reliably download YouTube videos and gallery images from the platform without errors, instability, or legacy system limitations.
