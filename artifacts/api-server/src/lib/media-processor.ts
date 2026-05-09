@@ -190,6 +190,62 @@ const VIDEO_HEIGHT: Record<JobQuality, number> = {
   ultra:  1080,
 };
 
+// ─── Process kill timeouts ────────────────────────────────────────────────────
+// yt-dlp can hang indefinitely on throttled connections or bad YouTube HLS
+// segments. Kill the process after these limits so the job fails cleanly and
+// the user can retry rather than waiting forever.
+const AUDIO_KILL_TIMEOUT_MS = 12 * 60 * 1000;  // 12 minutes (audio + ffmpeg)
+const VIDEO_KILL_TIMEOUT_MS = 25 * 60 * 1000;  // 25 minutes (video mux can be slow)
+const META_KILL_TIMEOUT_MS  = 30 * 1000;        // 30 seconds for metadata fetch
+
+// ─── Permanent error patterns — skip retries for these ───────────────────────
+const PERMANENT_ERROR_PATTERNS: RegExp[] = [
+  /video unavailable/i,
+  /this video has been removed/i,
+  /this video is private/i,
+  /private video/i,
+  /age.?restrict/i,
+  /sign in to confirm your age/i,
+  /members.only/i,
+  /this video is not available/i,
+  /video is no longer available/i,
+  /copyright/i,
+  /account.*terminated/i,
+  /not available in your country/i,
+  /geo.?restrict/i,
+];
+
+function isPermanentError(message: string): boolean {
+  return PERMANENT_ERROR_PATTERNS.some(p => p.test(message));
+}
+
+// ─── Error message sanitizer ──────────────────────────────────────────────────
+// Extract the most useful part from yt-dlp's verbose stderr output.
+function sanitizeYtDlpError(stderr: string): string {
+  const lines = stderr.split("\n").map(l => l.trim()).filter(Boolean);
+  // Find the last ERROR: line — most specific failure reason
+  const errorLine = [...lines].reverse().find(l => /^ERROR:/i.test(l));
+  if (errorLine) return errorLine.replace(/^ERROR:\s*/i, "").slice(0, 220);
+  // Fallback: last non-blank line, strip URLs
+  const last = [...lines].reverse().find(l => l.length > 10);
+  if (last) return last.replace(/https?:\/\/\S+/g, "[url]").slice(0, 220);
+  return "yt-dlp failed with no parseable output";
+}
+
+// ─── Temp file cleanup ────────────────────────────────────────────────────────
+// Removes all `<jobId>_raw*` partial download files left by a failed yt-dlp
+// run. Called in the failure path of each processor and at startup.
+function cleanupJobTempFiles(jobId: string): void {
+  try {
+    const files = fs.readdirSync(MEDIA_DIR);
+    for (const f of files) {
+      if (f.startsWith(`${jobId}_raw`) || f === `${jobId}.mp4.part`) {
+        try { fs.unlinkSync(path.join(MEDIA_DIR, f)); } catch { /* non-fatal */ }
+      }
+    }
+  } catch { /* non-fatal */ }
+}
+
 // ─── Concurrency control ──────────────────────────────────────────────────────
 
 const activeJobs = new Map<string, MediaJob>();
@@ -384,10 +440,17 @@ async function fetchYtMetadata(videoId: string): Promise<YtMetadata | null> {
       `https://www.youtube.com/watch?v=${videoId}`,
     ];
 
-    const proc = spawnYtDlp(args, { timeout: 25_000 });
+    const proc = spawnYtDlp(args);
     let stdout = "";
+    let stderr = "";
+
+    // Kill after META_KILL_TIMEOUT_MS to prevent hangs on unavailable videos
+    const killTimer = setTimeout(() => { try { proc.kill("SIGKILL"); } catch { /* ok */ } }, META_KILL_TIMEOUT_MS);
+
     proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
     proc.on("close", (code) => {
+      clearTimeout(killTimer);
       if (code !== 0) { resolve(null); return; }
       try {
         const meta = JSON.parse(stdout.split("\n")[0]!);
@@ -401,7 +464,7 @@ async function fetchYtMetadata(videoId: string): Promise<YtMetadata | null> {
         resolve(null);
       }
     });
-    proc.on("error", () => resolve(null));
+    proc.on("error", () => { clearTimeout(killTimer); resolve(null); });
   });
 }
 
@@ -441,8 +504,8 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       "-o", tmpFile,
       "--no-part",
       "--socket-timeout", "30",
-      "--retries", "5",
-      "--fragment-retries", "5",
+      "--retries", "3",
+      "--fragment-retries", "3",
       "--concurrent-fragments", "2",  // 2 is gentler on YouTube; less throttling
       "--throttled-rate", "100K",     // retry fragment if speed drops below 100 KB/s
       `https://www.youtube.com/watch?v=${job.sourceId}`,
@@ -450,6 +513,12 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
 
     const proc = spawnYtDlp(ytArgs);
     let stderr = "";
+
+    // Kill after AUDIO_KILL_TIMEOUT_MS to prevent indefinite hangs
+    const killTimer = setTimeout(() => {
+      try { proc.kill("SIGKILL"); } catch { /* ok */ }
+      reject(new Error("yt-dlp killed after timeout — audio download took too long (network issue or slow stream)"));
+    }, AUDIO_KILL_TIMEOUT_MS);
 
     proc.stderr.on("data", (d: Buffer) => {
       stderr += d.toString();
@@ -461,18 +530,20 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
     });
 
     proc.on("close", (code) => {
+      clearTimeout(killTimer);
       if (code === 0) resolve();
-      else reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
+      else reject(new Error(sanitizeYtDlpError(stderr) || `yt-dlp exited ${code}`));
     });
     proc.on("error", (e) => {
+      clearTimeout(killTimer);
       reject(new Error(`yt-dlp spawn error: ${e.message}. Binary: ${YT_DLP_BIN}`));
     });
   });
 
   currentJob = updateJob(currentJob, { progress: 83 });
 
-  // Find the actual output file (yt-dlp may append extension)
-  const candidates = fs.readdirSync(MEDIA_DIR).filter(f => f.startsWith(`${job.id}_raw`));
+  // Find the actual output file (yt-dlp may append extension like .webm/.opus)
+  const candidates = fs.readdirSync(MEDIA_DIR).filter(f => f.startsWith(`${job.id}_raw`) && !f.endsWith(".ytdl") && !/-Frag\d+$/.test(f));
   const rawFile = candidates.length > 0 ? path.join(MEDIA_DIR, candidates[0]!) : tmpFile;
 
   // Step 3: re-encode to target format via ffmpeg with ID3 metadata
@@ -505,8 +576,8 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
     cmd.save(outFile);
   });
 
-  // Cleanup raw file
-  try { fs.unlinkSync(rawFile); } catch { /* non-fatal */ }
+  // Cleanup raw file (and any stray fragments)
+  cleanupJobTempFiles(job.id);
 
   const stats = fs.statSync(outFile);
   updateJob(currentJob, {
@@ -547,8 +618,8 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
       "-o", outFile,
       "--no-part",
       "--socket-timeout", "30",
-      "--retries", "5",
-      "--fragment-retries", "5",
+      "--retries", "3",
+      "--fragment-retries", "3",
       "--concurrent-fragments", "2",
       "--throttled-rate", "100K",
       `https://www.youtube.com/watch?v=${job.sourceId}`,
@@ -556,6 +627,12 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
 
     const proc = spawnYtDlp(ytArgs);
     let stderr = "";
+
+    // Kill after VIDEO_KILL_TIMEOUT_MS to prevent indefinite hangs
+    const killTimer = setTimeout(() => {
+      try { proc.kill("SIGKILL"); } catch { /* ok */ }
+      reject(new Error("yt-dlp killed after timeout — video download took too long (network issue or large file)"));
+    }, VIDEO_KILL_TIMEOUT_MS);
 
     proc.stderr.on("data", (d: Buffer) => {
       stderr += d.toString();
@@ -567,11 +644,20 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
     });
 
     proc.on("close", (code) => {
+      clearTimeout(killTimer);
       if (code === 0) resolve();
-      else reject(new Error(`yt-dlp video exited ${code}: ${stderr.slice(-300)}`));
+      else reject(new Error(sanitizeYtDlpError(stderr) || `yt-dlp video exited ${code}`));
     });
-    proc.on("error", (e) => reject(new Error(`yt-dlp spawn error: ${e.message}`)));
+    proc.on("error", (e) => {
+      clearTimeout(killTimer);
+      reject(new Error(`yt-dlp spawn error: ${e.message}`));
+    });
   });
+
+  // Verify the output file actually exists (yt-dlp can exit 0 without writing if mux fails)
+  if (!fs.existsSync(outFile)) {
+    throw new Error("yt-dlp completed but output file is missing — possible merge/mux failure");
+  }
 
   const stats = fs.statSync(outFile);
   updateJob(currentJob, {
@@ -689,11 +775,25 @@ async function processJobWithRetry(job: MediaJob): Promise<void> {
       return;
     } catch (err) {
       lastErr = err;
+      const errMsg = err instanceof Error ? err.message : String(err);
       const isLast = attempt === MAX_RETRY_ATTEMPTS;
 
+      // Permanent errors (video unavailable, private, geo-blocked, age-restricted)
+      // should not be retried — fail immediately with a clear message.
+      if (isPermanentError(errMsg)) {
+        logger.warn({ err, jobId: job.id, attempt }, "Media job permanent error — not retrying");
+        cleanupJobTempFiles(job.id);
+        const current = activeJobs.get(job.id) ?? job;
+        updateJob(current, { status: "failed", error: errMsg, retryCount: attempt });
+        activeJobs.delete(job.id);
+        return;
+      }
+
       if (!isLast) {
-        const delayMs = Math.pow(2, attempt - 1) * 2000; // 2s, 4s
+        const delayMs = Math.pow(2, attempt - 1) * 3000; // 3s, 6s — longer delays to respect YouTube rate limits
         logger.warn({ err, jobId: job.id, attempt, delayMs }, "Media job failed — retrying");
+        // Cleanup temp files before retry (yt-dlp will start fresh)
+        cleanupJobTempFiles(job.id);
         // Update job to queued state for retry
         const current = activeJobs.get(job.id) ?? job;
         updateJob(current, {
@@ -709,6 +809,7 @@ async function processJobWithRetry(job: MediaJob): Promise<void> {
 
   const errMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
   logger.error({ err: lastErr, jobId: job.id }, "Media job failed after all retries");
+  cleanupJobTempFiles(job.id);
   const current = activeJobs.get(job.id) ?? job;
   updateJob(current, { status: "failed", error: errMsg, retryCount: MAX_RETRY_ATTEMPTS });
   activeJobs.delete(job.id);
@@ -724,6 +825,28 @@ async function processJobWithRetry(job: MediaJob): Promise<void> {
  * driving those jobs no longer exists. Mark them all as `failed` with a clear
  * message so the user can safely try again.
  */
+/**
+ * Clean up `_raw*` temp files in MEDIA_DIR that belong to no active job.
+ * Called once at startup after `recoverOrphanedJobs()` so a fresh restart
+ * doesn't leave 100 MB of partial audio fragments on disk.
+ */
+export function cleanupOrphanedTempFiles(): void {
+  try {
+    const files = fs.readdirSync(MEDIA_DIR);
+    const activeIds = new Set<string>(activeJobs.keys());
+    let removed = 0;
+    for (const f of files) {
+      // Only remove partial download artifacts — keep completed output files
+      if (!/_raw/.test(f) && !f.endsWith(".part") && !f.endsWith(".ytdl")) continue;
+      const jobId = f.split("_raw")[0] ?? "";
+      if (!activeIds.has(jobId)) {
+        try { fs.unlinkSync(path.join(MEDIA_DIR, f)); removed++; } catch { /* non-fatal */ }
+      }
+    }
+    if (removed > 0) logger.info({ removed }, "Cleaned up orphaned yt-dlp temp files");
+  } catch { /* non-fatal */ }
+}
+
 export async function recoverOrphanedJobs(): Promise<void> {
   try {
     const { rowCount } = await pool.query(`

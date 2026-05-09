@@ -121,7 +121,8 @@ async function writeAuditLog(event: string, data: {
   }
 }
 
-// Rate limiting: max 15 job requests per IP per hour
+// Rate limiting: max 30 job requests per IP per hour
+// (generous enough for church/shared-WiFi users while still blocking scrapers)
 const ipJobCount = new Map<string, { count: number; resetAt: number }>();
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -130,7 +131,7 @@ function checkRateLimit(ip: string): boolean {
     ipJobCount.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
     return true;
   }
-  if (entry.count >= 15) return false;
+  if (entry.count >= 30) return false;
   entry.count++;
   return true;
 }

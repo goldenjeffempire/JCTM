@@ -57,6 +57,7 @@ async function getFeaturedWithoutCache(limit: number): Promise<SermonRow[]> {
       `SELECT s.video_id, s.title, s.thumbnail_url, s.duration
        FROM sermons s
        WHERE s.is_featured = true
+         AND (s.is_live IS NULL OR s.is_live = false)
          AND NOT EXISTS (
            SELECT 1 FROM media_download_jobs j
            WHERE j.source_id = s.video_id
@@ -87,6 +88,7 @@ async function getRecentWithoutCache(videoIds: string[], limit: number): Promise
       `SELECT s.video_id, s.title, s.thumbnail_url, s.duration
        FROM sermons s
        WHERE s.video_id IN (${placeholders})
+         AND (s.is_live IS NULL OR s.is_live = false)
          AND NOT EXISTS (
            SELECT 1 FROM media_download_jobs j
            WHERE j.source_id = s.video_id
