@@ -7,8 +7,9 @@ import {
   Images, X, ChevronLeft, ChevronRight, Upload, Trash2,
   ZoomIn, Grid3X3, LayoutGrid, Lock, Calendar, Star, Search,
   CheckCircle2, AlertCircle, RefreshCw, CheckSquare,
-  SquareCheck, ChevronDown, Loader2, ShieldCheck,
+  SquareCheck, ChevronDown, Loader2, ShieldCheck, Download,
 } from "lucide-react";
+import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
@@ -334,17 +335,25 @@ function Lightbox({ images, index, onClose, onPrev, onNext }: {
   onNext: () => void;
 }) {
   const img = images[index];
+  const [downloadOpen, setDownloadOpen] = useState(false);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (downloadOpen) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") onPrev();
       if (e.key === "ArrowRight") onNext();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose, onPrev, onNext]);
+  }, [onClose, onPrev, onNext, downloadOpen]);
 
   if (!img) return null;
+
+  const srcUrl = /^https?:\/\//i.test(img.objectPath)
+    ? img.objectPath
+    : `${absoluteImageUrl(img.objectPath)}`;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -354,9 +363,21 @@ function Lightbox({ images, index, onClose, onPrev, onNext }: {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm"
       onClick={onClose}
     >
-      <button onClick={onClose} className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
-        <X className="h-6 w-6" />
-      </button>
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <button
+          onClick={(e) => { e.stopPropagation(); setDownloadOpen(true); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors text-sm font-medium"
+          title="Download this photo"
+        >
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline">Download</span>
+        </button>
+        <button onClick={onClose} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+
       <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
         <ChevronLeft className="h-6 w-6" />
       </button>
@@ -390,6 +411,16 @@ function Lightbox({ images, index, onClose, onPrev, onNext }: {
         )}
         <p className="text-white/30 text-xs">{index + 1} / {images.length}</p>
       </motion.div>
+
+      {/* Download sheet */}
+      <MediaDownloadSheet
+        open={downloadOpen}
+        onClose={() => setDownloadOpen(false)}
+        type="gallery_image"
+        sourceId={srcUrl}
+        title={img.title || img.altText || "JCTM Ministry Photo"}
+        thumbnailUrl={imageUrl(img.thumbnailPath ?? img.objectPath)}
+      />
     </motion.div>
   );
 }

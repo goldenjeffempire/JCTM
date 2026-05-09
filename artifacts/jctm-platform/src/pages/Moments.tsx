@@ -3,8 +3,9 @@ import {
   ChevronUp, ChevronDown,
   Sparkles, Radio, Flame, Share2, BookOpen,
   Volume2, VolumeX, Heart, MessageCircle, Eye,
-  X, Send, Youtube,
+  X, Send, Youtube, Download,
 } from "lucide-react";
+import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed";
@@ -303,6 +304,33 @@ function CommentPanel({
   );
 }
 
+// ── Download button for a Moment ───────────────────────────────────────────
+function MomentDownloadButton({ videoId, title, thumbnailUrl }: { videoId: string; title: string; thumbnailUrl?: string | null }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex flex-col items-center gap-1 group"
+        title="Download this moment"
+      >
+        <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-white/20">
+          <Download className="h-5 w-5 text-white" />
+        </div>
+        <span className="text-white text-[10px] font-semibold drop-shadow">Save</span>
+      </button>
+      <MediaDownloadSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        type="youtube_video"
+        sourceId={videoId}
+        title={title}
+        thumbnailUrl={thumbnailUrl ?? undefined}
+      />
+    </>
+  );
+}
+
 // ── Single card ────────────────────────────────────────────────────────────
 function MomentCard({
   moment,
@@ -467,6 +495,9 @@ function MomentCard({
 
         {/* Right-side action buttons */}
         <div className="absolute right-4 bottom-32 flex flex-col items-center gap-5 pointer-events-auto z-20">
+
+          {/* Download */}
+          <MomentDownloadButton videoId={moment.videoId} title={moment.title} thumbnailUrl={moment.thumbnailUrl} />
 
           {/* Like */}
           <button

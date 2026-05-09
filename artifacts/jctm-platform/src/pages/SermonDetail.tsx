@@ -9,6 +9,7 @@ import {
   Volume2, VideoIcon, ArrowLeft, Calendar, Eye, Sparkles, ChevronRight,
   Share2, Copy, Check, Bot, ExternalLink, Play, Clock,
 } from "lucide-react";
+import DownloadButton from "@/components/DownloadButton";
 import { format, formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -371,6 +372,19 @@ export default function SermonDetail() {
                     {audioMode ? "Audio Mode" : "Audio Only"}
                   </Button>
                 </div>
+
+                {/* Download button */}
+                {sermon && (
+                  <DownloadButton
+                    type="youtube_audio"
+                    sourceId={sermon.videoId}
+                    title={sermon.title}
+                    thumbnailUrl={sermon.thumbnailUrl ?? undefined}
+                    variant="compact"
+                    className="border-primary/20 text-primary hover:bg-primary/5 bg-transparent"
+                    iconClassName="text-primary"
+                  />
+                )}
 
                 {/* Share button */}
                 <div className="relative">

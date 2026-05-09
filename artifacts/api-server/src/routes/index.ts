@@ -44,6 +44,7 @@ import aiIntelligenceRouter from "./aiIntelligence";
 import subscribersRouter from "./subscribers";
 import bibleRouter from "./bible";
 import knowledgeAdminRouter from "./knowledge-admin";
+import mediaRouter from "./media";
 
 const router: IRouter = Router();
 
@@ -94,6 +95,7 @@ router.use(aiIntelligenceRouter);
 router.use(subscribersRouter);
 router.use(bibleRouter);
 router.use(knowledgeAdminRouter);
+router.use(mediaRouter);
 
 // API 404 — any /api/* path that matched no route above returns JSON, never HTML
 router.use((_req: Request, res: Response): void => {

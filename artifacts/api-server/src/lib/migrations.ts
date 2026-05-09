@@ -1264,6 +1264,34 @@ export async function runMigrations(): Promise<void> {
     WHERE event_promotions.start_at < EXCLUDED.start_at
   `);
 
+  // ── Media download jobs ───────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS media_download_jobs (
+      id            TEXT PRIMARY KEY,
+      type          TEXT NOT NULL,
+      source_id     TEXT NOT NULL,
+      format        TEXT NOT NULL DEFAULT 'mp3',
+      quality       TEXT NOT NULL DEFAULT 'high',
+      status        TEXT NOT NULL DEFAULT 'queued',
+      progress      INTEGER NOT NULL DEFAULT 0,
+      error         TEXT,
+      output_path   TEXT,
+      title         TEXT,
+      duration      INTEGER,
+      file_size     BIGINT,
+      thumbnail_url TEXT,
+      created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+      updated_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+      expires_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (now() + INTERVAL '24 hours')
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_media_jobs_expires ON media_download_jobs (expires_at)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_media_jobs_status ON media_download_jobs (status, created_at DESC)
+  `);
+
   // ── Seed sample approved testimonies (only if table is empty) ────────────────
   await pool.query(`
     INSERT INTO testimonies (name, title, content, category, approved, like_count, created_at)
