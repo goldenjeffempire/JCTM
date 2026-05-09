@@ -423,13 +423,15 @@ router.get("/media/download/:id", async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const stats = fs.statSync(filePath);
+    const stats = await fs.promises.stat(filePath);
     const mime = mimeFor(job.format);
     const filename = safeFilename({ title: job.title, format: job.format, id: job.id });
 
     // CORS for download
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Range");
+    // Tell any upstream proxy/CDN that this response must not be re-compressed
+    res.setHeader("Content-Encoding", "identity");
 
     // Range request support (mobile audio players, video seeking, resumable downloads)
     const range = req.headers.range;
@@ -447,7 +449,7 @@ router.get("/media/download/:id", async (req: Request, res: Response): Promise<v
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.setHeader("Cache-Control", "private, max-age=3600");
 
-      const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 512 * 1024 });
+      const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 4 * 1024 * 1024 });
       fileStream.pipe(res);
       fileStream.on("error", (err) => {
         logger.warn({ err }, "File stream error during range download");
@@ -461,7 +463,7 @@ router.get("/media/download/:id", async (req: Request, res: Response): Promise<v
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.setHeader("X-Content-Type-Options", "nosniff");
 
-      const fileStream = fs.createReadStream(filePath, { highWaterMark: 512 * 1024 });
+      const fileStream = fs.createReadStream(filePath, { highWaterMark: 4 * 1024 * 1024 });
       fileStream.pipe(res);
       fileStream.on("error", (err) => {
         logger.warn({ err }, "File stream error during download");
@@ -645,7 +647,7 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const stats = fs.statSync(filePath);
+    const stats = await fs.promises.stat(filePath);
     const mime = mimeFor(job.format);
     const filename = safeFilename({ title: job.title, format: job.format, id: job.id });
 
@@ -667,6 +669,8 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
 
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Range");
+    // Prevent any upstream proxy/CDN from re-compressing already-compressed media
+    res.setHeader("Content-Encoding", "identity");
 
     const range = req.headers.range;
     if (range) {
@@ -683,7 +687,7 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.setHeader("Cache-Control", "private, max-age=1800");
 
-      const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 512 * 1024 });
+      const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 4 * 1024 * 1024 });
       fileStream.pipe(res);
       fileStream.on("error", (err) => {
         logger.warn({ err }, "Range stream error during tokenized download");
@@ -697,7 +701,7 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
       res.setHeader("Cache-Control", "private, max-age=1800");
       res.setHeader("X-Content-Type-Options", "nosniff");
 
-      const fileStream = fs.createReadStream(filePath, { highWaterMark: 512 * 1024 });
+      const fileStream = fs.createReadStream(filePath, { highWaterMark: 4 * 1024 * 1024 });
       fileStream.pipe(res);
       fileStream.on("error", (err) => {
         logger.warn({ err }, "Stream error during tokenized download");

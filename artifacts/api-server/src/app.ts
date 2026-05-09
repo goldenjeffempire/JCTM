@@ -180,14 +180,21 @@ app.use((_req, res, next) => {
 
 app.use(
   compression({
-    level: 7,
-    threshold: 512,
+    level: 6,
+    threshold: 1024,
     filter(req, res) {
       if (req.headers["x-no-compression"]) return false;
       // Never compress SSE streams — they must be flushed unbuffered in real time.
-      // EventSource clients send Accept: text/event-stream.
       const accept = req.headers["accept"] ?? "";
       if (accept.includes("text/event-stream")) return false;
+      // Never compress media downloads — audio/video/image files are already
+      // compressed codecs. Re-compressing wastes CPU, adds buffering latency,
+      // and can actually increase payload size, all of which slow downloads.
+      const url = req.url ?? "";
+      if (
+        url.startsWith("/api/media/download/") ||
+        url.startsWith("/api/media/dl/")
+      ) return false;
       return compression.filter(req, res);
     },
   }),
