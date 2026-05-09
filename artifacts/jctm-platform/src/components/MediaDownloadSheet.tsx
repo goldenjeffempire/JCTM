@@ -88,7 +88,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
     description: "Full video with audio, best for offline viewing",
     icon: <Film className="h-5 w-5" />,
     tag: "Larger file",
-    types: ["youtube_video"],
+    types: ["youtube_audio", "youtube_video"],
   },
   {
     value: "jpeg",
@@ -170,8 +170,11 @@ function getQualityOptions(format: Format): QualityOption[] {
   return AUDIO_QUALITY_OPTIONS;
 }
 
-function typeLabel(type: MediaType): string {
-  if (type === "youtube_audio") return "Audio Extract";
+function typeLabel(type: MediaType, format?: Format): string {
+  if (type === "youtube_audio") {
+    if (format === "mp4") return "Video";
+    return "Audio & Video";
+  }
   if (type === "youtube_video") return "Video";
   return "Gallery Image";
 }
@@ -294,11 +297,14 @@ export default function MediaDownloadSheet({
   async function startConversion() {
     setLoading(true);
     try {
+      // When a youtube_audio sheet requests MP4, route to the video processor
+      const effectiveType =
+        type === "youtube_audio" && selectedFormat === "mp4" ? "youtube_video" : type;
       const res = await fetch(`${BASE}/api/media/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type,
+          type: effectiveType,
           sourceId,
           format: selectedFormat,
           quality: selectedQuality,
@@ -371,12 +377,12 @@ export default function MediaDownloadSheet({
 
   const availableFormats = FORMAT_OPTIONS.filter(f => {
     if (type === "gallery_image") return f.types.includes("gallery_image");
-    if (type === "youtube_audio") return f.types.includes("youtube_audio");
+    if (type === "youtube_audio") return f.types.includes("youtube_audio") || f.value === "mp4";
     return true;
   });
 
   const thumbnail = job?.thumbnailUrl ?? propThumbnail;
-  const displayTitle = job?.title ?? propTitle ?? typeLabel(type);
+  const displayTitle = job?.title ?? propTitle ?? typeLabel(type, selectedFormat);
   const duration = job?.duration ?? propDuration;
 
   return (
@@ -421,7 +427,7 @@ export default function MediaDownloadSheet({
                   )}
                   <div className="min-w-0">
                     <p className="text-[11px] text-primary/80 font-semibold uppercase tracking-widest mb-0.5">
-                      {typeLabel(type)} Download
+                      {typeLabel(type, selectedFormat)} Download
                     </p>
                     <p className="text-white font-semibold text-sm leading-snug truncate max-w-[200px]">
                       {displayTitle}
