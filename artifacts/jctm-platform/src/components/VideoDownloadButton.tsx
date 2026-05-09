@@ -5,10 +5,10 @@
  * so every download appears in the floating progress panel automatically.
  *
  * Variants:
- *   "icon"       — circular icon button (for video overlay / TikTok-style sidebars)
- *   "button"     — small labelled button (for card footers / action rows)
- *   "inline"     — text+icon button matching the Watch Now style (for featured sections)
- *   "menu-item"  — plain text row (for dropdown menus)
+ *   "icon"      — circular icon button (video overlays, TikTok-style sidebars)
+ *   "button"    — small labelled button (card footers, action rows)
+ *   "inline"    — full-width text+icon button (featured sections)
+ *   "menu-item" — plain text row (dropdown menus)
  */
 
 import { useState } from "react";
@@ -18,12 +18,12 @@ import MediaDownloadSheet from "./MediaDownloadSheet";
 import { emitTrackJob } from "./MediaJobsPanel";
 
 export interface VideoDownloadButtonProps {
-  videoId: string;
-  title?: string;
-  thumbnailUrl?: string;
-  duration?: number;
-  variant?: "icon" | "button" | "inline" | "menu-item";
-  className?: string;
+  videoId:          string;
+  title?:           string;
+  thumbnailUrl?:    string;
+  duration?:        number;
+  variant?:         "icon" | "button" | "inline" | "menu-item";
+  className?:       string;
   stopPropagation?: boolean;
 }
 
@@ -48,14 +48,13 @@ export function VideoDownloadButton({
       {variant === "icon" && (
         <button
           onClick={handleClick}
-          className={cn(
-            "flex flex-col items-center gap-1 group",
-            className,
-          )}
+          className={cn("flex flex-col items-center gap-1 group", className)}
           title="Download this teaching"
           aria-label="Download"
         >
-          <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg transition-all duration-200 group-hover:bg-violet-500/40">
+          <div className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/20
+                          flex items-center justify-center shadow-lg transition-all duration-200
+                          group-hover:bg-violet-500/40 group-hover:border-violet-400/40">
             <Download className="h-5 w-5 text-white" />
           </div>
           <span className="text-white text-[10px] font-semibold drop-shadow">Save</span>
@@ -67,8 +66,8 @@ export function VideoDownloadButton({
           onClick={handleClick}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold",
-            "border border-border text-muted-foreground hover:text-primary hover:border-primary/40",
-            "transition-all hover:scale-105",
+            "border border-border text-muted-foreground",
+            "hover:text-primary hover:border-primary/40 transition-all hover:scale-105",
             className,
           )}
           title="Download"
@@ -85,7 +84,7 @@ export function VideoDownloadButton({
           className={cn(
             "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl",
             "bg-white/10 hover:bg-white/20 text-white text-sm font-semibold",
-            "border border-white/10 transition-all duration-200",
+            "border border-white/10 transition-all duration-200 active:scale-[0.98]",
             className,
           )}
           title="Download"

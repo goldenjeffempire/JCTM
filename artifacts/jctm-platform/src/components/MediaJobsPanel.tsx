@@ -2,13 +2,17 @@
  * MediaJobsPanel — Floating global download queue
  *
  * Shows all active and recently completed media conversion jobs.
- * Opens when there are active downloads; can be toggled manually.
- * Persists job IDs in session storage so it survives page navigation.
+ * Opens automatically when a new download starts, can be toggled/minimized.
+ * Persists job IDs in sessionStorage across page navigations.
+ * Shows browser notifications when a download completes (if permitted).
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2, Clock } from "lucide-react";
+import {
+  Download, X, CheckCircle2, AlertCircle, Loader2,
+  ChevronDown, ChevronUp, Trash2, Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
@@ -16,109 +20,79 @@ const BASE = import.meta.env.VITE_API_URL ?? "";
 type JobStatus = "queued" | "processing" | "ready" | "failed";
 
 interface PanelJob {
-  jobId: string;
-  status: JobStatus;
-  progress: number;
-  title: string | null;
+  jobId:             string;
+  status:            JobStatus;
+  progress:          number;
+  title:             string | null;
   fileSizeFormatted: string | null;
-  format: string;
-  downloadUrl: string | null;
-  error: string | null;
-  thumbnailUrl: string | null;
-  type: string;
-  expiresAt: string | null;
+  format:            string;
+  downloadUrl:       string | null;
+  error:             string | null;
+  thumbnailUrl:      string | null;
+  type:              string;
+  expiresAt:         string | null;
 }
 
 const SESSION_KEY = "jctm_active_jobs";
 
-function loadStoredJobIds(): string[] {
-  try {
-    return JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? "[]") as string[];
-  } catch { return []; }
+function loadStoredIds(): string[] {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? "[]") as string[]; }
+  catch { return []; }
 }
 
-function saveJobIds(ids: string[]): void {
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(ids.slice(0, 20))); } catch { /* non-fatal */ }
+function saveIds(ids: string[]): void {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(ids.slice(0, 20))); } catch {}
 }
 
-// ─── Expiry countdown helpers ─────────────────────────────────────────────────
+// ─── Expiry countdown ─────────────────────────────────────────────────────────
 
-function formatTimeLeft(expiresAt: string | null): { label: string; urgent: boolean; expired: boolean } {
+function timeLeft(expiresAt: string | null): { label: string; urgent: boolean; expired: boolean } {
   if (!expiresAt) return { label: "", urgent: false, expired: false };
-  const msLeft = new Date(expiresAt).getTime() - Date.now();
-  if (msLeft <= 0) return { label: "Link expired", urgent: false, expired: true };
-  const totalSec = Math.floor(msLeft / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  const urgent = msLeft < 5 * 60 * 1000; // < 5 minutes
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (ms <= 0) return { label: "Link expired", urgent: false, expired: true };
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const urgent = ms < 5 * 60 * 1000;
   if (h > 0) return { label: `${h}h ${m}m`, urgent, expired: false };
-  if (m > 0) return { label: `${m}m ${s}s`, urgent, expired: false };
-  return { label: `${s}s`, urgent: true, expired: false };
+  if (m > 0) return { label: `${m}m ${sec}s`, urgent, expired: false };
+  return { label: `${sec}s`, urgent: true, expired: false };
 }
 
-/** Ticks every second only while there are ready jobs with expiry times. */
-function useCountdownTick(jobs: PanelJob[]): number {
-  const [tick, setTick] = useState(0);
+function useCountdownTick(jobs: PanelJob[]): void {
+  const [, setTick] = useState(0);
   const hasExpiring = jobs.some(j => j.status === "ready" && j.expiresAt);
-
   useEffect(() => {
     if (!hasExpiring) return;
     const id = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(id);
   }, [hasExpiring]);
-
-  return tick;
-}
-
-// ─── Public hook ──────────────────────────────────────────────────────────────
-
-export function useMediaJobsPanel() {
-  const [trackedIds, setTrackedIds] = useState<string[]>(loadStoredJobIds);
-
-  function trackJob(jobId: string) {
-    setTrackedIds(prev => {
-      const next = [jobId, ...prev.filter(id => id !== jobId)].slice(0, 20);
-      saveJobIds(next);
-      return next;
-    });
-  }
-
-  function removeJob(jobId: string) {
-    setTrackedIds(prev => {
-      const next = prev.filter(id => id !== jobId);
-      saveJobIds(next);
-      return next;
-    });
-  }
-
-  return { trackedIds, trackJob, removeJob };
 }
 
 // ─── Global singleton event bus ───────────────────────────────────────────────
 
-type TrackCallback = (jobId: string) => void;
-const listeners = new Set<TrackCallback>();
+type TrackCb = (jobId: string) => void;
+const listeners = new Set<TrackCb>();
 
-export function emitTrackJob(jobId: string) {
+export function emitTrackJob(jobId: string): void {
   for (const cb of listeners) cb(jobId);
 }
 
-// ─── Panel component ──────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function MediaJobsPanel() {
-  const [jobs, setJobs] = useState<PanelJob[]>([]);
-  const [open, setOpen] = useState(false);
+  const [jobs,      setJobs]      = useState<PanelJob[]>([]);
+  const [open,      setOpen]      = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const sseRefs = useRef<Map<string, EventSource>>(new Map());
-  const jobIdsRef = useRef<Set<string>>(new Set());
+  const sseRefs   = useRef<Map<string, EventSource>>(new Map());
+  const trackedIds = useRef<Set<string>>(new Set());
 
-  // Ticks every second while there are expiring ready files
   useCountdownTick(jobs);
 
-  // Restore tracked jobs from session on mount
+  // Restore session jobs on mount
   useEffect(() => {
-    const stored = loadStoredJobIds();
+    const stored = loadStoredIds();
     if (stored.length) {
       Promise.all(
         stored.map(id =>
@@ -132,17 +106,15 @@ export function MediaJobsPanel() {
           setJobs(valid);
           setOpen(true);
           valid.forEach(j => {
-            if (j.status === "queued" || j.status === "processing") {
-              subscribeToJob(j.jobId);
-            }
+            if (j.status === "queued" || j.status === "processing") subscribeToJob(j.jobId);
           });
         }
       });
     }
 
-    const cb: TrackCallback = (jobId: string) => {
-      if (jobIdsRef.current.has(jobId)) return;
-      jobIdsRef.current.add(jobId);
+    const cb: TrackCb = (jobId: string) => {
+      if (trackedIds.current.has(jobId)) return;
+      trackedIds.current.add(jobId);
 
       fetch(`${BASE}/api/media/jobs/${jobId}`)
         .then(r => r.ok ? r.json() as Promise<PanelJob> : null)
@@ -152,7 +124,7 @@ export function MediaJobsPanel() {
           setJobs(prev => [j, ...prev.filter(x => x.jobId !== jobId)].slice(0, 15));
           setOpen(true);
           setMinimized(false);
-          saveJobIds([jobId, ...loadStoredJobIds()].slice(0, 20));
+          saveIds([jobId, ...loadStoredIds()].slice(0, 20));
           if (j.status === "queued" || j.status === "processing") subscribeToJob(jobId);
         });
     };
@@ -171,17 +143,17 @@ export function MediaJobsPanel() {
     const es = new EventSource(`${BASE}/api/media/progress/${jobId}`);
     sseRefs.current.set(jobId, es);
 
-    function handleFinished(update: PanelJob) {
+    function onFinished(update: PanelJob) {
       es.close();
       sseRefs.current.delete(jobId);
       if (update.status === "ready" && "Notification" in window && Notification.permission === "granted") {
-        const label = update.title ?? "Your sermon download";
+        const label = update.title ?? "Your download";
         try {
           new Notification("Download Ready ✅", {
-            body: `${label} has been converted and is ready to save`,
-            icon: update.thumbnailUrl ?? "/jctm-logo-sm.jpeg",
+            body:  `${label} has been converted and is ready to save`,
+            icon:  update.thumbnailUrl ?? "/jctm-logo-sm.jpeg",
             badge: "/jctm-logo-sm.jpeg",
-            tag: `jctm-dl-${jobId}`,
+            tag:   `jctm-dl-${jobId}`,
           });
         } catch { /* browser may block */ }
       }
@@ -190,16 +162,11 @@ export function MediaJobsPanel() {
     es.addEventListener("progress", (evt) => {
       try {
         const update = JSON.parse((evt as MessageEvent).data) as PanelJob;
-        setJobs(prev =>
-          prev.map(j => j.jobId === jobId ? { ...j, ...update } : j)
-        );
-        if (update.status === "ready" || update.status === "failed") {
-          handleFinished(update);
-        }
+        setJobs(prev => prev.map(j => j.jobId === jobId ? { ...j, ...update } : j));
+        if (update.status === "ready" || update.status === "failed") onFinished(update);
       } catch { /* ignore */ }
     });
 
-    // Fallback: if SSE drops, poll every 3 s until the job reaches a terminal state
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     es.onerror = () => {
       es.close();
@@ -214,7 +181,7 @@ export function MediaJobsPanel() {
           if (update.status === "ready" || update.status === "failed") {
             clearInterval(pollTimer!);
             pollTimer = null;
-            handleFinished(update);
+            onFinished(update);
           }
         } catch { /* non-fatal */ }
       }, 3000);
@@ -224,10 +191,10 @@ export function MediaJobsPanel() {
   function removeJob(jobId: string) {
     sseRefs.current.get(jobId)?.close();
     sseRefs.current.delete(jobId);
-    jobIdsRef.current.delete(jobId);
+    trackedIds.current.delete(jobId);
     setJobs(prev => {
       const next = prev.filter(j => j.jobId !== jobId);
-      saveJobIds(next.map(j => j.jobId));
+      saveIds(next.map(j => j.jobId));
       return next;
     });
   }
@@ -235,9 +202,9 @@ export function MediaJobsPanel() {
   function clearAll() {
     sseRefs.current.forEach(es => es.close());
     sseRefs.current.clear();
-    jobIdsRef.current.clear();
+    trackedIds.current.clear();
     setJobs([]);
-    saveJobIds([]);
+    saveIds([]);
     setOpen(false);
   }
 
@@ -267,7 +234,7 @@ export function MediaJobsPanel() {
   }
 
   const activeCount = jobs.filter(j => j.status === "queued" || j.status === "processing").length;
-  const readyCount = jobs.filter(j => j.status === "ready").length;
+  const readyCount  = jobs.filter(j => j.status === "ready").length;
 
   if (!open || jobs.length === 0) return null;
 
@@ -285,7 +252,8 @@ export function MediaJobsPanel() {
             <div className="relative">
               <Download className="h-4 w-4 text-primary" />
               {activeCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full bg-amber-400 flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full bg-amber-400
+                                 flex items-center justify-center">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping absolute" />
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 relative" />
                 </span>
@@ -294,10 +262,14 @@ export function MediaJobsPanel() {
             <span className="text-white text-sm font-semibold flex-1">
               Downloads
               {activeCount > 0 && (
-                <span className="ml-1.5 text-amber-400/80 text-xs font-normal">{activeCount} converting</span>
+                <span className="ml-1.5 text-amber-400/80 text-xs font-normal">
+                  {activeCount} converting
+                </span>
               )}
               {activeCount === 0 && readyCount > 0 && (
-                <span className="ml-1.5 text-emerald-400/80 text-xs font-normal">{readyCount} ready</span>
+                <span className="ml-1.5 text-emerald-400/80 text-xs font-normal">
+                  {readyCount} ready
+                </span>
               )}
             </span>
             <button
@@ -320,23 +292,21 @@ export function MediaJobsPanel() {
           <AnimatePresence>
             {!minimized && (
               <motion.div
-                initial={{ height: 0 }}
-                animate={{ height: "auto" }}
-                exit={{ height: 0 }}
+                initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
                 className="overflow-hidden"
               >
                 <div className="max-h-72 overflow-y-auto divide-y divide-white/5 custom-scrollbar">
                   {jobs.map(job => {
-                    const expiry = formatTimeLeft(job.expiresAt);
+                    const expiry = timeLeft(job.expiresAt);
                     return (
                       <div key={job.jobId} className="flex items-center gap-3 px-4 py-3 group">
                         {/* Thumbnail or icon */}
-                        <div className="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden bg-white/8 flex items-center justify-center">
-                          {job.thumbnailUrl ? (
-                            <img src={job.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <Download className="h-4 w-4 text-white/40" />
-                          )}
+                        <div className="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden
+                                        bg-white/8 flex items-center justify-center">
+                          {job.thumbnailUrl
+                            ? <img src={job.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                            : <Download className="h-4 w-4 text-white/40" />
+                          }
                         </div>
 
                         {/* Info + progress */}
@@ -348,8 +318,17 @@ export function MediaJobsPanel() {
                             {(job.status === "queued" || job.status === "processing") && (
                               <>
                                 <div className="flex items-center gap-1.5 text-[10px] mb-1">
-                                  <Loader2 className={`h-2.5 w-2.5 animate-spin ${job.status === "queued" && job.error ? "text-amber-400/70" : "text-white/40"}`} />
-                                  <span className={job.status === "queued" && job.error ? "text-amber-400/70" : "text-white/40"}>
+                                  <Loader2 className={cn(
+                                    "h-2.5 w-2.5 animate-spin",
+                                    job.status === "queued" && job.error
+                                      ? "text-amber-400/70"
+                                      : "text-white/40",
+                                  )} />
+                                  <span className={cn(
+                                    job.status === "queued" && job.error
+                                      ? "text-amber-400/70"
+                                      : "text-white/40",
+                                  )}>
                                     {job.status === "processing"
                                       ? `Converting ${job.progress}%`
                                       : job.error
@@ -366,6 +345,7 @@ export function MediaJobsPanel() {
                                 </div>
                               </>
                             )}
+
                             {job.status === "ready" && (
                               <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5">
@@ -377,26 +357,28 @@ export function MediaJobsPanel() {
                                 {job.expiresAt && (
                                   <div className={cn(
                                     "flex items-center gap-1 text-[9px] leading-tight",
-                                    expiry.expired
-                                      ? "text-red-400/70"
-                                      : expiry.urgent
-                                      ? "text-amber-400/80"
-                                      : "text-white/30",
+                                    expiry.expired  ? "text-red-400/70"
+                                    : expiry.urgent ? "text-amber-400/80"
+                                                    : "text-white/30",
                                   )}>
                                     <Clock className="h-2 w-2 flex-shrink-0" />
                                     {expiry.expired
-                                      ? "Link expired — re-open sermon to re-download"
+                                      ? "Link expired — re-open to re-download"
                                       : `Link valid for ${expiry.label}`}
                                   </div>
                                 )}
                               </div>
                             )}
+
                             {job.status === "failed" && (
                               <div className="flex items-center gap-1.5">
                                 <AlertCircle className="h-3 w-3 text-red-400 flex-shrink-0" />
-                                <span className="text-[10px] text-red-400/80 truncate" title={job.error ?? undefined}>
+                                <span className="text-[10px] text-red-400/80 truncate"
+                                  title={job.error ?? undefined}>
                                   {job.error
-                                    ? job.error.length > 40 ? job.error.slice(0, 40) + "…" : job.error
+                                    ? job.error.length > 40
+                                      ? job.error.slice(0, 40) + "…"
+                                      : job.error
                                     : "Conversion failed"}
                                 </span>
                               </div>
@@ -409,7 +391,8 @@ export function MediaJobsPanel() {
                           {job.status === "ready" && !expiry.expired && (
                             <button
                               onClick={() => triggerDownload(job)}
-                              className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 transition-colors"
+                              className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40
+                                         text-emerald-400 transition-colors"
                               title="Download file"
                             >
                               <Download className="h-3.5 w-3.5" />
