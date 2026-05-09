@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Settings, Wifi, WifiOff, Signal, AlertCircle, RefreshCw,
   Activity, Zap, Radio, Tv2, Maximize2, Minimize2,
+  PictureInPicture2, PictureInPictureIcon,
 } from "lucide-react";
 import { useStreamPlayer } from "@/hooks/useStreamPlayer";
 import { buildStreamSources, detectNetworkQuality, type NetworkQuality } from "@/lib/stream-config";
@@ -216,6 +217,29 @@ function FullscreenButton({
   );
 }
 
+// ─── Picture-in-Picture Button ────────────────────────────────────────────────
+
+function PipButton({
+  isPip,
+  onToggle,
+}: {
+  isPip: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onToggle(); }}
+      title={isPip ? "Exit picture-in-picture (P)" : "Picture-in-picture (P)"}
+      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/50 border border-white/15 text-white/70 hover:text-white hover:bg-white/20 hover:border-white/30 transition-all backdrop-blur-sm"
+    >
+      {isPip
+        ? <PictureInPictureIcon className="w-4 h-4 text-sky-400" />
+        : <PictureInPicture2 className="w-4 h-4" />
+      }
+    </button>
+  );
+}
+
 // ─── Player Controls Bar ──────────────────────────────────────────────────────
 
 interface PlayerControlsProps {
@@ -229,9 +253,12 @@ interface PlayerControlsProps {
   isLive: boolean;
   showQuality: boolean;
   isFullscreen: boolean;
+  isPip: boolean;
+  isPipSupported: boolean;
   onToggleQuality: () => void;
   onSeekLive: () => void;
   onToggleFullscreen: () => void;
+  onTogglePip: () => void;
 }
 
 function PlayerControls({
@@ -245,9 +272,12 @@ function PlayerControls({
   isLive,
   showQuality,
   isFullscreen,
+  isPip,
+  isPipSupported,
   onToggleQuality,
   onSeekLive,
   onToggleFullscreen,
+  onTogglePip,
 }: PlayerControlsProps) {
   const isNative = engine !== "youtube";
 
@@ -278,7 +308,7 @@ function PlayerControls({
         )}
       </div>
 
-      {/* Right: quality + network + fullscreen */}
+      {/* Right: quality + network + pip + fullscreen */}
       <div className="flex items-center gap-2">
         {isNative && (
           <>
@@ -299,6 +329,11 @@ function PlayerControls({
               <Settings className={`w-3 h-3 ${showQuality ? "text-sky-400" : ""}`} />
               <span>{isAuto ? "Auto" : currentQualityName}</span>
             </button>
+
+            {/* PiP — only shown when the browser supports it */}
+            {isPipSupported && (
+              <PipButton isPip={isPip} onToggle={onTogglePip} />
+            )}
           </>
         )}
 
@@ -431,6 +466,80 @@ function useFullscreen(containerRef: React.RefObject<HTMLElement | null>) {
   return { isFullscreen, isCssFullscreen, toggleFullscreen };
 }
 
+// ─── Picture-in-Picture hook ──────────────────────────────────────────────────
+//
+// Wraps the Picture-in-Picture API for native <video> elements.
+// Only available in browsers that support document.pictureInPictureEnabled.
+// Safari uses the webkit-prefixed API with identical semantics.
+//
+// Returns:
+//   isPipSupported — true when the browser can do PiP for video elements
+//   isPip          — true while the video is currently in a PiP window
+//   togglePip      — enter or exit PiP; safe to call even if unsupported
+
+function usePictureInPicture(videoRef: React.RefObject<HTMLVideoElement | null>) {
+  const [isPip, setIsPip] = useState(false);
+
+  // Check browser support once on mount
+  const isPipSupported =
+    typeof document !== "undefined" &&
+    ("pictureInPictureEnabled" in document
+      ? (document as Document & { pictureInPictureEnabled: boolean }).pictureInPictureEnabled
+      : typeof (HTMLVideoElement.prototype as any).webkitSetPresentationMode === "function");
+
+  // Sync state with native PiP events
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const onEnter = () => setIsPip(true);
+    const onLeave = () => setIsPip(false);
+
+    video.addEventListener("enterpictureinpicture", onEnter);
+    video.addEventListener("leavepictureinpicture", onLeave);
+    // Safari webkit prefix
+    video.addEventListener("webkitpresentationmodechanged", () => {
+      setIsPip((video as any).webkitPresentationMode === "picture-in-picture");
+    });
+
+    return () => {
+      video.removeEventListener("enterpictureinpicture", onEnter);
+      video.removeEventListener("leavepictureinpicture", onLeave);
+    };
+  }, [videoRef]);
+
+  const togglePip = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      // Standard API (Chrome, Edge, Firefox)
+      if ("pictureInPictureElement" in document) {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          await video.requestPictureInPicture();
+        }
+        return;
+      }
+
+      // Safari webkit prefix
+      const webkitVideo = video as any;
+      if (typeof webkitVideo.webkitSetPresentationMode === "function") {
+        webkitVideo.webkitSetPresentationMode(
+          webkitVideo.webkitPresentationMode === "picture-in-picture"
+            ? "inline"
+            : "picture-in-picture"
+        );
+      }
+    } catch {
+      // PiP blocked (e.g. video not playing yet, or browser policy)
+    }
+  }, [videoRef]);
+
+  return { isPip, isPipSupported, togglePip };
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function StreamPlayer({
@@ -455,6 +564,7 @@ export function StreamPlayer({
   const lastTapRef = useRef<number>(0);
 
   const { isFullscreen, isCssFullscreen, toggleFullscreen } = useFullscreen(containerRef);
+  const { isPip, isPipSupported, togglePip } = usePictureInPicture(videoRef);
 
   // Build ordered source list
   const sources = buildStreamSources({
@@ -488,8 +598,9 @@ export function StreamPlayer({
     return () => clearInterval(id);
   }, []);
 
-  // Keyboard shortcut: F = toggle fullscreen.
-  // Escape for CSS fullscreen is handled inside useFullscreen.
+  // Keyboard shortcuts:
+  //   F — toggle fullscreen  (Escape for CSS FS is handled inside useFullscreen)
+  //   P — toggle picture-in-picture
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -497,10 +608,14 @@ export function StreamPlayer({
         e.preventDefault();
         toggleFullscreen();
       }
+      if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        togglePip();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [toggleFullscreen]);
+  }, [toggleFullscreen, togglePip]);
 
   // Always show controls when in any fullscreen mode so the exit button is reachable
   useEffect(() => {
@@ -686,9 +801,12 @@ export function StreamPlayer({
                 isLive={isLive}
                 showQuality={showQuality}
                 isFullscreen={isFullscreen}
+                isPip={isPip}
+                isPipSupported={isPipSupported}
                 onToggleQuality={() => setShowQuality(p => !p)}
                 onSeekLive={seekToLiveEdge}
                 onToggleFullscreen={toggleFullscreen}
+                onTogglePip={togglePip}
               />
             </div>
           </motion.div>
