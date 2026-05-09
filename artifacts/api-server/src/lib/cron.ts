@@ -1,4 +1,6 @@
 import { startMediaRetryScheduler, stopMediaRetryScheduler } from "./media-processor.js";
+import { startMediaAbuseGuard, stopMediaAbuseGuard } from "./media-abuse-guard.js";
+import { sendMediaDigest } from "./media-digest.js";
 import { syncRecentIncremental, syncIncremental, harvestAll, QuotaExceededError, subscribeToWebSub, enrichVideoIds, refreshFeaturedSermon } from "./youtube-sync.js";
 import { ingestAllSermons, ingestActivityLearning, ingestTestimonies, ingestBlogPosts, runFullContentSync } from "./knowledge-ingestion.js";
 import { startContentSyncScheduler, stopContentSyncScheduler } from "./content-sync-scheduler.js";
@@ -48,6 +50,7 @@ let lastSyncError: { time: string; message: string; source: string } | null = nu
 let serviceReminderSentAt: number | null = null;
 let devotionNotificationSentDate: string | null = null; // ISO date string (YYYY-MM-DD)
 let devotionEmailBroadcastDate: string | null = null;   // ISO date string (YYYY-MM-DD)
+let mediaDigestSentDate: string | null = null;          // ISO date string (YYYY-MM-DD)
 
 // ── Warri Crusade Day 2 hourly campaign broadcast ────────────────────────────
 // Day 2 starts at 6:00 PM WAT (17:00 UTC) on May 1, 2026. The hourly cron
@@ -951,6 +954,31 @@ function buildEventReminderNotification(
       timestamp: new Date().toISOString(),
     },
   };
+}
+
+// ─── Daily Media Download Digest ──────────────────────────────────────────────
+// Sends a download activity email to all admin/pastor accounts at 7:00 AM WAT
+// (= 6:00 AM UTC). Deduplicates with mediaDigestSentDate so it only fires once
+// per calendar day regardless of how many minute-tick cycles pass.
+
+function checkAndSendMediaDigest(log: Logger): void {
+  const now    = new Date();
+  const watMs  = now.getTime() + 60 * 60 * 1000; // WAT = UTC+1
+  const wat    = new Date(watMs);
+  const hour   = wat.getUTCHours();
+  const minute = wat.getUTCMinutes();
+  const today  = todayUTC();
+
+  // Target: 7:00–7:04 AM WAT — only send once per day
+  if (hour !== 7 || minute > 4) return;
+  if (mediaDigestSentDate === today) return;
+
+  mediaDigestSentDate = today;
+  log.info({ date: today }, "7 AM WAT: sending daily media download digest to admins");
+
+  sendMediaDigest(log).catch(err => {
+    log.warn({ err }, "Daily media digest send failed (non-fatal)");
+  });
 }
 
 function checkAndSendEventReminders(log: Logger): void {
@@ -2150,6 +2178,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
       checkAndResendDay1CorrectedEmail(log).catch(err =>
         log.warn({ err }, "Day 1 midnight corrected-date resend cron tick error"),
       );
+      checkAndSendMediaDigest(log);
     } catch (err) {
       log.warn({ err }, "Service reminder/devotion check error");
     }
@@ -2254,11 +2283,13 @@ export function startCron(log: Logger, websubUrl?: string): void {
   // Re-queues failed download jobs that have a next_retry_at timestamp in the
   // past. Runs every 5 minutes with a 20-second startup delay for warmup.
   startMediaRetryScheduler();
+  startMediaAbuseGuard();
 
-  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Self-warm | Media retry scheduler");
+  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Self-warm | Media retry scheduler | Auto-block guard (15-min) | Daily media digest (7 AM WAT)");
 }
 
 export function stopCron(): void {
+  stopMediaAbuseGuard();
   stopMediaRetryScheduler();
   stopEventNotificationWorker();
   stopContentSyncScheduler();

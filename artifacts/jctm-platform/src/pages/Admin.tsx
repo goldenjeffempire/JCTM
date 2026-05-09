@@ -6641,6 +6641,7 @@ interface MediaAuditData {
     activeTokens: number;
     suspiciousIps: number;
   };
+  autoBlockedLast24h: number;
   topVideos: { videoId: string; format: string; downloadCount: number; totalBytes: number; sermonTitle: string | null }[];
   recentDownloads: {
     ip: string;
@@ -7466,6 +7467,26 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
                 </div>
               )}
             </Card>
+
+            {/* ── Auto-Block Guard Status ── */}
+            <div className={`rounded-xl border p-4 flex items-start gap-4 ${data.autoBlockedLast24h > 0 ? "border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800" : "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800"}`}>
+              <div className={`mt-0.5 rounded-full p-2 ${data.autoBlockedLast24h > 0 ? "bg-red-100 dark:bg-red-900/40" : "bg-emerald-100 dark:bg-emerald-900/40"}`}>
+                <Shield className={`w-4 h-4 ${data.autoBlockedLast24h > 0 ? "text-red-600" : "text-emerald-600"}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold text-sm ${data.autoBlockedLast24h > 0 ? "text-red-700 dark:text-red-300" : "text-emerald-700 dark:text-emerald-300"}`}>
+                  Auto-Block Guard — Active
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {data.autoBlockedLast24h > 0
+                    ? `${data.autoBlockedLast24h} IP${data.autoBlockedLast24h !== 1 ? "s" : ""} automatically blocked in the last 24 hours for exceeding the download threshold (>${data.thresholds.high.per1h}/h or >${data.thresholds.high.per24h}/24h). See the blocked list below.`
+                    : `No IPs auto-blocked in the last 24 hours. Threshold: >${data.thresholds.high.per1h} downloads/hour or >${data.thresholds.high.per24h} downloads/24h. The guard scans every 15 minutes.`}
+                </p>
+              </div>
+              {data.autoBlockedLast24h > 0 && (
+                <span className="shrink-0 text-2xl font-bold tabular-nums text-red-600 dark:text-red-400">{data.autoBlockedLast24h}</span>
+              )}
+            </div>
 
             {/* ── IP Activity & Abuse Detection ── */}
             <IpAbusePanel data={data} onRefresh={refetch} />

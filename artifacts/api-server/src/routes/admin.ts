@@ -1407,7 +1407,7 @@ router.get(
     try {
       const { pool: dbPool } = await import("@workspace/db");
 
-      const [summary, topVideos, recentDownloads, formatBreakdown, qualityBreakdown, dailyActivity, activeTokens, ipActivity, blockedIpsResult] =
+      const [summary, topVideos, recentDownloads, formatBreakdown, qualityBreakdown, dailyActivity, activeTokens, ipActivity, blockedIpsResult, autoBlockedLast24hResult] =
         await Promise.all([
           // Overall counts + bytes
           dbPool.query<{
@@ -1536,6 +1536,14 @@ router.get(
             FROM   blocked_ips
             ORDER  BY created_at DESC
           `),
+
+          // Auto-blocks fired in last 24 h by the abuse guard
+          dbPool.query<{ count: string }>(`
+            SELECT COUNT(*) AS count
+            FROM   blocked_ips
+            WHERE  blocked_by = 'auto-guard'
+              AND  created_at >= now() - INTERVAL '24 hours'
+          `),
         ]);
 
       // Abuse thresholds: high = >10/1h or >30/24h; medium = >5/1h or >15/24h
@@ -1561,6 +1569,8 @@ router.get(
         r => r.dl1h >= HIGH_1H || r.dl24h >= HIGH_24H
       ).length;
 
+      const autoBlockedLast24h = Number(autoBlockedLast24hResult.rows[0]?.count ?? 0);
+
       res.setHeader("Cache-Control", "no-store");
       res.json({
         thresholds: { high: { per1h: HIGH_1H, per24h: HIGH_24H }, medium: { per1h: MED_1H, per24h: MED_24H } },
@@ -1572,6 +1582,7 @@ router.get(
           activeTokens:     Number(activeTokens.rows[0]?.count ?? 0),
           suspiciousIps,
         },
+        autoBlockedLast24h,
         topVideos: topVideos.rows.map(r => ({
           videoId:       r.video_id,
           format:        r.format,
