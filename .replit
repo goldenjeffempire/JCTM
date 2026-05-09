@@ -81,6 +81,8 @@ SMTP_USER = "info@jctm.org.ng"
 SMTP_REPLY_TO = "info@jctm.org.ng"
 SMTP_POOL_MAX = "3"
 SMTP_RATE_LIMIT = "5"
+YT_DLP_PATH = "/nix/store/am2x1y1qyja0hbyjpffj7rcvycp9d644-yt-dlp-2025.6.30/bin/yt-dlp"
+FFMPEG_PATH = "/nix/store/x5hwjkyng8385q1pqhz8wyqkq0izmhpi-replit-runtime-path/bin/ffmpeg"
 
 [[ports]]
 localPort = 5000
