@@ -30,6 +30,7 @@ type MediaType = "youtube_audio" | "youtube_video" | "gallery_image";
 type Format = "mp3" | "m4a" | "mp4" | "jpeg" | "png" | "webp";
 type Quality = "low" | "medium" | "high" | "ultra";
 type JobStatus = "queued" | "processing" | "ready" | "failed";
+type ApiErrorCode = "LIVE_STREAM" | string;
 
 interface Job {
   jobId: string;
@@ -216,8 +217,12 @@ export default function MediaDownloadSheet({
   const [selectedQuality, setSelectedQuality] = useState<Quality>("high");
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<ApiErrorCode | null>(null);
   const sseRef = useRef<EventSource | null>(null);
   const downloadedRef = useRef(false);
+  // Track whether the current attempt should skip dedup (true after first failure)
+  const forceNewJob = useRef(false);
 
   // Adjust quality options when format changes
   const qualityOptions = getQualityOptions(selectedFormat);
@@ -231,7 +236,10 @@ export default function MediaDownloadSheet({
       setSelectedQuality("high");
       setJob(null);
       setLoading(false);
+      setErrorMsg(null);
+      setErrorCode(null);
       downloadedRef.current = false;
+      forceNewJob.current = false;
     } else {
       closeSSE();
     }
@@ -296,6 +304,8 @@ export default function MediaDownloadSheet({
 
   async function startConversion() {
     setLoading(true);
+    setErrorMsg(null);
+    setErrorCode(null);
     try {
       // When a youtube_audio sheet requests MP4, route to the video processor
       const effectiveType =
@@ -311,14 +321,23 @@ export default function MediaDownloadSheet({
           title: propTitle,
           thumbnailUrl: propThumbnail,
           duration: propDuration,
-          deduplicate: true,
+          // After first failure, always create a fresh job (bypass dedup of stale failures)
+          deduplicate: !forceNewJob.current,
         }),
       });
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error ?? "Server error");
+        const errBody = await res.json().catch(() => ({})) as { error?: string; code?: string };
+        const code = errBody.code ?? null;
+        const msg = errBody.error ?? "Server error — please try again.";
+        setErrorCode(code);
+        setErrorMsg(msg);
+        setStep("error");
+        return;
       }
+
       const data = await res.json() as Job & { cached?: boolean; message?: string };
+      forceNewJob.current = false; // reset after success
 
       setJob(data);
       if (data.jobId) onJobCreated?.(data.jobId);
@@ -332,7 +351,8 @@ export default function MediaDownloadSheet({
         openSSEForJob(data.jobId);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to start conversion. Please try again.");
+      setErrorMsg(err instanceof Error ? err.message : "Failed to start conversion. Please try again.");
+      setStep("error");
     } finally {
       setLoading(false);
     }
@@ -372,7 +392,12 @@ export default function MediaDownloadSheet({
     closeSSE();
     setStep("pick");
     setJob(null);
+    setErrorMsg(null);
+    setErrorCode(null);
     downloadedRef.current = false;
+    // Force a fresh job on retry — bypass deduplication so stale failed/processing
+    // jobs from a previous server run are not returned instead of a new attempt.
+    forceNewJob.current = true;
   }
 
   const availableFormats = FORMAT_OPTIONS.filter(f => {
@@ -683,33 +708,57 @@ export default function MediaDownloadSheet({
               {step === "error" && (
                 <div className="px-5 pb-8">
                   <div className="flex flex-col items-center text-center py-4">
-                    <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center
-                                   justify-center mb-4 ring-2 ring-red-500/20">
-                      <AlertCircle className="h-10 w-10 text-red-400" />
-                    </div>
-                    <p className="text-white font-bold text-lg mb-1">Conversion Failed</p>
-                    {job?.error && (
-                      <p className="text-white/40 text-xs mb-4 max-w-[260px] break-words">
-                        {job.error.slice(0, 140)}
-                      </p>
+                    {errorCode === "LIVE_STREAM" ? (
+                      <>
+                        <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center
+                                       justify-center mb-4 ring-2 ring-red-500/20">
+                          <span className="text-4xl">🔴</span>
+                        </div>
+                        <p className="text-white font-bold text-lg mb-2">Stream is Live Now</p>
+                        <p className="text-white/50 text-sm mb-5 max-w-[260px]">
+                          Downloads are available once the stream ends. Come back after the service
+                          to save the full recording.
+                        </p>
+                        <button
+                          onClick={onClose}
+                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
+                                     bg-white/10 hover:bg-white/15 text-white font-bold text-base
+                                     transition-all duration-200 active:scale-[0.98]"
+                        >
+                          Got it
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center
+                                       justify-center mb-4 ring-2 ring-red-500/20">
+                          <AlertCircle className="h-10 w-10 text-red-400" />
+                        </div>
+                        <p className="text-white font-bold text-lg mb-1">Conversion Failed</p>
+                        {(errorMsg ?? job?.error) && (
+                          <p className="text-white/40 text-xs mb-4 max-w-[260px] break-words">
+                            {(errorMsg ?? job?.error ?? "").slice(0, 160)}
+                          </p>
+                        )}
+                        {job?.retryCount !== undefined && job.retryCount > 0 && (
+                          <p className="text-amber-400/60 text-[11px] mb-3">
+                            Failed after {job.retryCount + 1} attempt{job.retryCount > 0 ? "s" : ""}
+                          </p>
+                        )}
+                        <button
+                          onClick={retryJob}
+                          className="mt-2 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
+                                     bg-white/10 hover:bg-white/15 text-white font-bold text-base
+                                     transition-all duration-200 active:scale-[0.98]"
+                        >
+                          <RefreshCw className="h-5 w-5" />
+                          Try Again
+                        </button>
+                        <p className="mt-3 text-[11px] text-white/25">
+                          YouTube content may be unavailable or geo-restricted.
+                        </p>
+                      </>
                     )}
-                    {job?.retryCount !== undefined && job.retryCount > 0 && (
-                      <p className="text-amber-400/60 text-[11px] mb-3">
-                        Failed after {job.retryCount + 1} attempt{job.retryCount > 0 ? "s" : ""}
-                      </p>
-                    )}
-                    <button
-                      onClick={retryJob}
-                      className="mt-2 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
-                                 bg-white/10 hover:bg-white/15 text-white font-bold text-base
-                                 transition-all duration-200 active:scale-[0.98]"
-                    >
-                      <RefreshCw className="h-5 w-5" />
-                      Try Again
-                    </button>
-                    <p className="mt-3 text-[11px] text-white/25">
-                      YouTube content may be unavailable or geo-restricted.
-                    </p>
                   </div>
                 </div>
               )}

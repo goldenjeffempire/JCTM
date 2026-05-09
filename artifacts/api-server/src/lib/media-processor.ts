@@ -115,7 +115,8 @@ const YT_DLP_BIN: string = ((): string => {
 })();
 
 /** Spawn yt-dlp using the eagerly resolved binary path. */
-function spawnYtDlp(args: string[]) {
+function spawnYtDlp(args: string[], _opts?: unknown) {
+  void _opts; // timeout is managed by the calling code via process kill
   return spawn(YT_DLP_BIN, args);
 }
 
@@ -711,6 +712,34 @@ async function processJobWithRetry(job: MediaJob): Promise<void> {
   const current = activeJobs.get(job.id) ?? job;
   updateJob(current, { status: "failed", error: errMsg, retryCount: MAX_RETRY_ATTEMPTS });
   activeJobs.delete(job.id);
+}
+
+// ─── Startup recovery ─────────────────────────────────────────────────────────
+
+/**
+ * Called once at server startup, AFTER migrations complete.
+ *
+ * Any job that is still `processing` or `queued` in the DB at startup time was
+ * orphaned by a previous server crash or restart — the in-memory queue that was
+ * driving those jobs no longer exists. Mark them all as `failed` with a clear
+ * message so the user can safely try again.
+ */
+export async function recoverOrphanedJobs(): Promise<void> {
+  try {
+    const { rowCount } = await pool.query(`
+      UPDATE media_download_jobs
+         SET status     = 'failed',
+             error      = 'Server restarted while this job was running — please try again',
+             updated_at = now()
+       WHERE status IN ('processing', 'queued')
+         AND expires_at > now()
+    `);
+    if (rowCount && rowCount > 0) {
+      logger.info({ recovered: rowCount }, "Recovered orphaned media jobs from previous server run");
+    }
+  } catch (err) {
+    logger.warn({ err }, "recoverOrphanedJobs: non-fatal, continuing");
+  }
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

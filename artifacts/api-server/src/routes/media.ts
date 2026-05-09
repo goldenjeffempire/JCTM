@@ -34,6 +34,7 @@ import {
   type JobFormat,
   type JobQuality,
 } from "../lib/media-processor.js";
+import { pool } from "@workspace/db";
 import pino from "pino";
 
 const router: IRouter = Router();
@@ -179,6 +180,24 @@ router.post("/media/request", async (req: Request, res: Response): Promise<void>
   const format = inferFormat(type as JobType, parsed.data.format);
 
   try {
+    // ── Live stream guard ─────────────────────────────────────────────────────
+    // yt-dlp cannot extract audio/video from an active YouTube live stream
+    // (HLS segments are incomplete until the stream ends). Return a clear 409
+    // so the UI can show a helpful message instead of a cryptic yt-dlp error.
+    if (type === "youtube_audio" || type === "youtube_video") {
+      const { rows: liveRows } = await pool.query<{ is_live: boolean }>(
+        `SELECT is_live FROM sermon_data WHERE video_id = $1 LIMIT 1`,
+        [sourceId],
+      );
+      if (liveRows[0]?.is_live) {
+        res.status(409).json({
+          error: "This sermon is currently live — audio/video download becomes available after the stream ends.",
+          code: "LIVE_STREAM",
+        });
+        return;
+      }
+    }
+
     // Check for duplicate/cached job first
     if (deduplicate) {
       const existing = await findDuplicateJob({

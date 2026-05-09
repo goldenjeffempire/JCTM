@@ -7,6 +7,7 @@ import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { startAISyncScheduler, stopAISyncScheduler } from "./lib/ai-sync-scheduler.js";
 import { startPreprocessScheduler, stopPreprocessScheduler } from "./lib/media-preprocess.js";
+import { recoverOrphanedJobs } from "./lib/media-processor.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
@@ -52,6 +53,11 @@ const server = app.listen(port, async (err) => {
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
   }
+
+  // ── Recover orphaned media jobs (processing/queued → failed on restart) ────
+  recoverOrphanedJobs().catch((err) =>
+    logger.warn({ err }, "Orphaned job recovery failed — continuing startup"),
+  );
 
   // ── Uptime check ──────────────────────────────────────────────────────────
   try {
