@@ -212,6 +212,208 @@ async function checkAndBroadcastMinistersConferenceDay2Hourly(log: Logger): Prom
   }
 }
 
+// ── Ministers Conference Day 3 auto-transition + hourly broadcast ─────────────
+// At 23:00–23:09 UTC on May 9 (= midnight WAT / start of May 10), the cron
+// flips the event_promotions row from Day 2 to Day 3 so banners immediately
+// show "Day 3 Starting Soon" with a fresh 8-hour countdown. The hourly
+// broadcast then fires throughout May 10 in the same pattern as Day 2.
+
+const MC_DAY3_DB_TRANSITION_UTC_DATE = "2026-05-09"; // Transition fires at 23:00 UTC
+const MC_DAY3_DB_TRANSITION_UTC_HOUR = 23;
+
+const MC_DAY3_START_MS = new Date("2026-05-10T07:00:00Z").getTime(); // 8:00 AM WAT May 10
+const MC_DAY3_END_MS   = new Date("2026-05-10T20:00:00Z").getTime(); // 9:00 PM WAT May 10
+const MC_DAY3_TITLE    = "Ministers Conference Day 3 — Apostolic Fire";
+const MC_DAY3_BODY     = "Ministers Conference Day 3 broadcast";
+const MC_DAY3_URL      = "/livestream";
+
+const MC_DAY3_UPCOMING_MESSAGES = [
+  "⏰ Ministers Conference Day 3 starts at 8 AM WAT — the final day! Prepare!",
+  "🔔 The closing day of Ministers Conference 2026 begins at 8 AM WAT — join us!",
+  "🙏 Day 3 — Apostolic Fire! Service starts at 8 AM WAT at JCTM Auditorium!",
+  "🌍 Final day of the Ministers Conference — 8 AM WAT today. Don't miss it!",
+  "🕊️ Day 3 is the day of the great outpouring — 8 AM WAT at JCTM!",
+  "📖 Last day of Ministers Conference 2026 — join us at 8 AM WAT!",
+  "🔥 Day 3 — Apostolic Fire closes the conference at 8 AM WAT today!",
+  "🙌 Bring someone for the final day — Day 3 starts at 8 AM WAT!",
+] as const;
+
+const MC_DAY3_LIVE_MESSAGES = [
+  "🔥 Ministers Conference Day 3 is LIVE — the final Apostolic Fire session!",
+  "⚡ Day 3 closing session is happening NOW — signs and wonders at JCTM!",
+  "🙏 Don't miss the closing day of Ministers Conference 2026 — live NOW!",
+  "🌍 Final day — ministers gathered in the fire of God. Join now!",
+  "🕊️ The Holy Spirit is moving at Day 3 — tune in to the JCTM livestream!",
+  "📖 Prophet Amos is releasing the apostolic fire on Day 3 — join us!",
+  "🔔 Ministers Conference Day 3 is ongoing — share the closing service!",
+  "🙌 The final anointing outpouring of Ministers Conference 2026 — join now!",
+] as const;
+
+// One-shot in-memory guard so the transition doesn't re-fire across restarts
+const mcDay3Transitioned = { done: false };
+
+async function checkAndTransitionToDay3(log: Logger): Promise<void> {
+  const now = new Date();
+  const utcDate = now.toISOString().slice(0, 10);
+  const utcHour = now.getUTCHours();
+  const utcMin  = now.getUTCMinutes();
+
+  // Fire at 23:00–23:09 UTC on May 9 (= midnight WAT, start of May 10)
+  if (utcDate !== MC_DAY3_DB_TRANSITION_UTC_DATE) return;
+  if (utcHour !== MC_DAY3_DB_TRANSITION_UTC_HOUR || utcMin > 9) return;
+
+  if (mcDay3Transitioned.done) return;
+
+  // DB dedup — check if the row is already on Day 3
+  try {
+    const check = await pool.query<{ start_at: Date }>(
+      `SELECT start_at FROM event_promotions WHERE slug = 'ministers-conference-2026' LIMIT 1`,
+    );
+    if (check.rows.length === 0) return; // row doesn't exist — nothing to do
+    const existing = check.rows[0]!;
+    // If start_at is already >= May 10 07:00 UTC, we've already transitioned
+    if (existing.start_at.getTime() >= MC_DAY3_START_MS) {
+      mcDay3Transitioned.done = true;
+      return;
+    }
+  } catch (err) {
+    log.warn({ err }, "Day 3 transition — pre-check failed (non-fatal)");
+    return;
+  }
+
+  mcDay3Transitioned.done = true; // Optimistic lock
+
+  try {
+    await pool.query(
+      `UPDATE event_promotions
+       SET
+         title             = $1,
+         subtitle          = 'Final Day · 8:00 AM WAT · JCTM Auditorium, Ebrumede Roundabout',
+         cta_text          = 'Join Day 3',
+         start_at          = '2026-05-10T07:00:00Z',
+         push_sent_at      = NULL,
+         updated_at        = now()
+       WHERE slug = 'ministers-conference-2026'
+         AND start_at < '2026-05-10T07:00:00Z'`,
+      [MC_DAY3_TITLE],
+    );
+
+    log.info(
+      { utcDate, utcHour },
+      "Ministers Conference Day 3 transition complete — event_promotions updated to Day 3",
+    );
+
+    // Notify all subscribers about the final day starting soon
+    const notif: NotificationPayload = {
+      title: "⏰ Ministers Conference Day 3 — Starts at 8 AM WAT",
+      body: "The final day of Ministers Conference 2026 begins at 8:00 AM WAT — join us for the closing Apostolic Fire session!",
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/badge-72x72.png",
+      url: MC_DAY3_URL,
+      tag: "ministers-conf-day3-2026",
+      requireInteraction: false,
+      data: { type: "ministers_conf_day3_promo", broadcastType: "event_reminder", timestamp: new Date().toISOString() },
+    };
+    const webResult = await dispatchPushNotification(notif, log, "ministers_conf_day3_promo");
+    const expoResult = await dispatchExpoPush(notif.title, notif.body, { url: MC_DAY3_URL, type: "ministers_conf_day3_promo" }, log);
+    log.info(
+      { web: webResult, expo: expoResult },
+      "Ministers Conference Day 3 midnight transition push sent (web + expo)",
+    );
+  } catch (err) {
+    mcDay3Transitioned.done = false; // Allow retry next minute
+    log.error({ err }, "Ministers Conference Day 3 transition failed — will retry next minute");
+  }
+}
+
+function buildMinistersConferenceDay3Notification(bucket: string): NotificationPayload {
+  const parts = bucket.split("-");
+  const hourNum = parseInt(parts[3] ?? "0", 10);
+  const now = Date.now();
+  const isLive = now >= MC_DAY3_START_MS && now < MC_DAY3_END_MS;
+  const isUpcoming = now < MC_DAY3_START_MS;
+  const messages = isUpcoming ? MC_DAY3_UPCOMING_MESSAGES : MC_DAY3_LIVE_MESSAGES;
+  const body = messages[hourNum % messages.length]!;
+  const title = isLive
+    ? "🔴 Ministers Conference Day 3 — Live Now"
+    : "⏰ Ministers Conference Day 3 — Final Day, 8 AM WAT";
+  return {
+    title,
+    body,
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/badge-72x72.png",
+    url: MC_DAY3_URL,
+    tag: "ministers-conf-day3-2026",
+    requireInteraction: isLive,
+    actions: [
+      { action: "open", title: isLive ? "Watch Live" : "Learn More" },
+      { action: "share", title: "Share" },
+    ],
+    data: {
+      type: "ministers_conf_day3_promo",
+      broadcastType: isUpcoming ? "event_reminder" : "live_service",
+      isLive,
+      isUpcoming,
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+async function checkAndBroadcastMinistersConferenceDay3Hourly(log: Logger): Promise<void> {
+  const now = Date.now();
+  // Only active during Day 3 window (midnight WAT May 10 → 9 PM WAT May 10)
+  if (now < new Date("2026-05-10T00:00:00Z").getTime()) return; // not Day 3 yet
+  if (now >= MC_DAY3_END_MS) return; // Day 3 ended
+
+  // Only fire within the first 5 minutes of each UTC hour
+  const minutePastHour = new Date(now).getUTCMinutes();
+  if (minutePastHour >= 5) return;
+
+  const bucket = hourBucketUTC(now);
+  const dedupMessage = `${MC_DAY3_BODY} [slot:${bucket}]`;
+
+  try {
+    const existing = await pool.query<{ id: number }>(
+      `SELECT id FROM broadcast_events
+        WHERE type = 'ministers_conf_day3_promo' AND title = $1 AND message = $2
+        LIMIT 1`,
+      [MC_DAY3_TITLE, dedupMessage],
+    );
+    if (existing.rowCount && existing.rowCount > 0) return;
+
+    await pool.query(
+      `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+      ["ministers_conf_day3_promo", MC_DAY3_TITLE, dedupMessage, MC_DAY3_URL],
+    );
+
+    const isLive = now >= MC_DAY3_START_MS;
+    log.info(
+      { bucket, isLive },
+      "Ministers Conference Day 3 hourly broadcast — dispatching push + in-app toast",
+    );
+
+    const notif = buildMinistersConferenceDay3Notification(bucket);
+    const result = await dispatchPushNotification(notif, log, "ministers_conf_day3_promo");
+    const expoResult = await dispatchExpoPush(
+      notif.title,
+      notif.body,
+      { url: notif.url, type: "ministers_conf_day3_promo" },
+      log,
+    );
+
+    log.info(
+      {
+        bucket,
+        web: { sent: result.sent, failed: result.failed, deactivated: result.deactivated },
+        expo: expoResult,
+      },
+      "Ministers Conference Day 3 hourly broadcast complete (web + expo)",
+    );
+  } catch (err) {
+    log.warn({ err, bucket }, "Ministers Conference Day 3 hourly broadcast failed (non-fatal)");
+  }
+}
+
 // ── Expo Push Notification Dispatcher ────────────────────────────────────────
 // Sends push notifications to mobile devices registered via expo-notifications.
 // Uses the Expo Push API (https://exp.host/--/api/v2/push/send) — no SDK needed.
@@ -1824,6 +2026,12 @@ export function startCron(log: Logger, websubUrl?: string): void {
       );
       checkAndBroadcastMinistersConferenceDay2Hourly(log).catch(err =>
         log.warn({ err }, "Ministers Conference Day 2 hourly broadcast tick error"),
+      );
+      checkAndTransitionToDay3(log).catch(err =>
+        log.warn({ err }, "Ministers Conference Day 3 midnight transition tick error"),
+      );
+      checkAndBroadcastMinistersConferenceDay3Hourly(log).catch(err =>
+        log.warn({ err }, "Ministers Conference Day 3 hourly broadcast tick error"),
       );
       checkAndBroadcastCampaignPromotions(log).catch(err =>
         log.warn({ err }, "Campaign promotion broadcast tick error"),
