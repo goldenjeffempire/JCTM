@@ -1264,5 +1264,58 @@ export async function runMigrations(): Promise<void> {
     WHERE event_promotions.start_at < EXCLUDED.start_at
   `);
 
+  // ── Seed sample approved testimonies (only if table is empty) ────────────────
+  await pool.query(`
+    INSERT INTO testimonies (name, title, content, category, approved, like_count, created_at)
+    SELECT * FROM (VALUES
+      (
+        'Blessing O.',
+        'Healed from a Chronic Condition',
+        'I had been suffering from a severe back condition for three years. The doctors said I needed surgery. But after a prayer session during the JCTM Sunday service, I felt the pain leave my body completely. I went back for a scan and the doctors were amazed — there was no trace of the condition. Jesus Christ is truly the Healer. Glory to God through this ministry.',
+        'healing',
+        true,
+        12,
+        now() - interval '14 days'
+      ),
+      (
+        'Emeka F.',
+        'Restored from Financial Ruin',
+        'I lost my business and was in serious debt. I came across JCTM teachings on YouTube and began applying the word to my life. Within six months, God restored everything and opened a door for a contract that cleared all my debts. I am living proof that God is a provider. Thank you Prophet Amos for teaching us to trust God completely.',
+        'provision',
+        true,
+        9,
+        now() - interval '21 days'
+      ),
+      (
+        'Sister Grace A.',
+        'Saved and Delivered from a Broken Life',
+        'I was living a life far from God — addiction, broken relationships, and deep depression. A friend shared a JCTM sermon with me. That message broke me. I gave my life to Christ, and over the following months, every chain fell off. My family was restored. My mind was healed. I am a new creation.',
+        'salvation',
+        true,
+        18,
+        now() - interval '7 days'
+      ),
+      (
+        'Brother Daniel K.',
+        'Marriage Restored Against All Odds',
+        'My wife and I were on the verge of divorce. We had tried counselling with no result. We began watching JCTM services online and praying together. The word of God rebuilt the foundation of our marriage. Today we are stronger than ever. Do not give up on your family — God restores what the enemy tries to steal.',
+        'family',
+        true,
+        14,
+        now() - interval '30 days'
+      ),
+      (
+        'Ngozi M.',
+        'Child Delivered from a Life-Threatening Illness',
+        'My three-year-old daughter was admitted to the hospital with a diagnosis that terrified us. The doctors gave us very little hope. Our JCTM prayer group interceded for 72 hours. On the third day, the fever broke and the test results came back clear. The medical team called it unexplainable. We call it a miracle. God is faithful.',
+        'healing',
+        true,
+        21,
+        now() - interval '45 days'
+      )
+    ) AS v(name, title, content, category, approved, like_count, created_at)
+    WHERE NOT EXISTS (SELECT 1 FROM testimonies WHERE approved = true LIMIT 1)
+  `);
+
   logger.info("All migrations complete");
 }

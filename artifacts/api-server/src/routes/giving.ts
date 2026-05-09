@@ -65,18 +65,17 @@ router.get("/giving/stats", async (_req, res): Promise<void> => {
   }
 });
 
-router.post("/giving", async (req, res): Promise<void> => {
-  const parsed = InitiateDonationBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-
-  const { donorName, donorEmail, amount, currency = "NGN", purpose } = parsed.data;
+async function processDonation(
+  req: import("express").Request,
+  res: import("express").Response,
+  donorName: string | null | undefined,
+  donorEmail: string,
+  amount: number,
+  currency: string,
+  purpose: string | null | undefined,
+): Promise<void> {
   const reference = generateReference();
-
   const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-
   let authorizationUrl: string | null = null;
 
   if (PAYSTACK_SECRET) {
@@ -95,9 +94,7 @@ router.post("/giving", async (req, res): Promise<void> => {
           metadata: { donorName, purpose },
         }),
       });
-
       const paystackData = await paystackRes.json() as { status: boolean; data?: { authorization_url: string } };
-
       if (paystackData.status && paystackData.data) {
         authorizationUrl = paystackData.data.authorization_url;
       }
@@ -107,7 +104,7 @@ router.post("/giving", async (req, res): Promise<void> => {
   }
 
   await db.insert(givingLogsTable).values({
-    donorName,
+    donorName: donorName ?? null,
     donorEmail,
     amount,
     currency,
@@ -117,13 +114,56 @@ router.post("/giving", async (req, res): Promise<void> => {
     paymentMethod: PAYSTACK_SECRET ? "paystack" : "manual",
   });
 
-  res.json(InitiateDonationResponse.parse({
+  const message = authorizationUrl
+    ? "Donation initiated. Proceed to payment gateway."
+    : `Donation recorded. Reference: ${reference}. Please transfer to JCTM account.`;
+
+  res.json({
     reference,
     authorizationUrl,
-    message: authorizationUrl
-      ? "Donation initiated. Proceed to payment gateway."
-      : `Donation recorded. Reference: ${reference}. Please transfer to JCTM account.`,
-  }));
+    paymentUrl: authorizationUrl,
+    message,
+  });
+}
+
+// POST /giving — legacy route (kept for backward compatibility)
+router.post("/giving", async (req, res): Promise<void> => {
+  const parsed = InitiateDonationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { donorName, donorEmail, amount, currency = "NGN", purpose } = parsed.data;
+  await processDonation(req, res, donorName, donorEmail, amount, currency, purpose);
+});
+
+// POST /giving/initiate — primary route used by Give.tsx
+// Accepts givingType (tithe/offering/etc.) mapped to purpose field.
+router.post("/giving/initiate", async (req, res): Promise<void> => {
+  const body = req.body as {
+    amount?: unknown;
+    currency?: unknown;
+    givingType?: unknown;
+    donorName?: unknown;
+    donorEmail?: unknown;
+  };
+
+  const amount = typeof body.amount === "number" ? body.amount : parseFloat(String(body.amount ?? "0"));
+  const donorEmail = typeof body.donorEmail === "string" ? body.donorEmail.trim() : "";
+  const currency = typeof body.currency === "string" ? body.currency.toUpperCase() : "NGN";
+  const donorName = typeof body.donorName === "string" ? body.donorName.trim() : null;
+  const purpose = typeof body.givingType === "string" ? body.givingType : null;
+
+  if (!donorEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(donorEmail)) {
+    res.status(400).json({ error: "A valid email address is required." });
+    return;
+  }
+  if (!amount || amount < 1) {
+    res.status(400).json({ error: "Amount must be at least 1." });
+    return;
+  }
+
+  await processDonation(req, res, donorName || null, donorEmail, amount, currency, purpose);
 });
 
 router.get("/giving/verify/:reference", async (req, res): Promise<void> => {

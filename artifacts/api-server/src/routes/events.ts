@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { gte, desc, asc } from "drizzle-orm";
+import { eq, gte, desc, asc } from "drizzle-orm";
 import { db, eventsTable } from "@workspace/db";
 import {
   ListEventsQueryParams,
@@ -61,6 +61,35 @@ router.get("/events/upcoming", async (req, res): Promise<void> => {
     res.json(GetUpcomingEventsResponse.parse(serialized));
   } catch {
     res.status(500).json({ error: "Failed to load upcoming events" });
+  }
+});
+
+router.get("/events/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid event ID." });
+    return;
+  }
+  try {
+    const [event] = await db
+      .select()
+      .from(eventsTable)
+      .where(eq(eventsTable.id, id))
+      .limit(1);
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found." });
+      return;
+    }
+    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    res.json({
+      ...event,
+      startDate: event.startDate instanceof Date ? event.startDate.toISOString() : event.startDate,
+      endDate: event.endDate instanceof Date ? event.endDate.toISOString() : event.endDate,
+      createdAt: event.createdAt instanceof Date ? event.createdAt.toISOString() : event.createdAt,
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to load event" });
   }
 });
 
