@@ -36,7 +36,7 @@ export default function Crusade() {
   };
 
   const shareText = encodeURIComponent(
-    `🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n6:00 PM Daily\n📍 Ighogbadu Primary School, Warri\n\n📞 ${CONTACT}\n🌐 www.jctm.org.ng`
+    `🔥 WARRI CITY CRUSADE 2026!\n\n"${EVENT_THEME}"\n\nThursday 30th April & Friday 1st May, 2026\n6:00 PM Daily\n📍 Ighogbadu Primary School, Warri\n\n📞 ${CONTACT}\n🌐 jctm.org.ng`
   );
 
   return (

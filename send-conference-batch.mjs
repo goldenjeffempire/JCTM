@@ -202,7 +202,7 @@ function renderConferenceEmail(unsubUrl) {
     "Social: @TEMPLE TV/JCTM",
     "",
     "— Jesus Christ Temple Ministry · Warri, Nigeria",
-    `info@jctm.org.ng · www.jctm.org.ng · +234(0)8081313111`,
+    `info@jctm.org.ng · jctm.org.ng · +234(0)8081313111`,
     "",
     "You're receiving this because you are part of the JCTM Ministers Conference 2026 community.",
     `Unsubscribe: ${unsubUrl}`,
@@ -231,7 +231,7 @@ function renderConferenceEmail(unsubUrl) {
               <p style="margin:3px 0 0 0;font-size:10px;color:#4a6f99;letter-spacing:.12em;text-transform:uppercase;">The Land of Good News</p>
             </td>
             <td align="right">
-              <p style="margin:0;font-size:11px;color:#4a6f99;">www.jctm.org.ng</p>
+              <p style="margin:0;font-size:11px;color:#4a6f99;">jctm.org.ng</p>
             </td>
           </tr>
         </table>
@@ -345,7 +345,7 @@ function renderConferenceEmail(unsubUrl) {
         <p style="margin:24px 0 4px 0;font-size:13px;color:#1a3a6b;font-weight:700;">Jesus Christ Temple Ministry</p>
         <p style="margin:0 0 10px 0;font-size:12px;color:#6b7280;line-height:1.7;">
           Km 1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State, Nigeria<br>
-          <a href="${BASE_URL}" style="color:#1a3a6b;text-decoration:none;">www.jctm.org.ng</a>
+          <a href="${BASE_URL}" style="color:#1a3a6b;text-decoration:none;">jctm.org.ng</a>
           &nbsp;·&nbsp; info@jctm.org.ng
           &nbsp;·&nbsp; +234(0)8081313111
         </p>

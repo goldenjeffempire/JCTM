@@ -67,7 +67,7 @@ function CountdownBlock({ value, label }: { value: number; label: string }) {
 
 function ConferenceFlyerShowcase() {
   const shareText = encodeURIComponent(
-    `🙏 MINISTERS CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n📞 ${CONF_CONTACT}\n🌐 www.jctm.org.ng\n\n#MinistersConference2026 #JCTM #ProphetAmos`
+    `🙏 MINISTERS CONFERENCE 2026!\n\n"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders"\n\nFriday 8th – Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n📞 ${CONF_CONTACT}\n🌐 jctm.org.ng\n\n#MinistersConference2026 #JCTM #ProphetAmos`
   );
   const shareUrl = encodeURIComponent("https://jctm.org.ng/conference-registration");
   const platforms = [
@@ -332,7 +332,7 @@ function ConferenceInviteCardGenerator({ initialName = "", initialPhoto = null }
 
       // ── FOOTER ─────────────────────────────────────────────────────
       ctx.fillStyle = "rgba(216,180,254,0.35)"; ctx.font = "bold 18px sans-serif";
-      ctx.fillText("www.jctm.org.ng  ·  #MinistersConference2026  ·  #JCTM", W / 2, H - 52);
+      ctx.fillText("jctm.org.ng  ·  #MinistersConference2026  ·  #JCTM", W / 2, H - 52);
 
       setGenerated(true);
       setTimeout(() => cardAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 80);
@@ -1403,7 +1403,7 @@ export default function ConferenceRegistration() {
                             `📅 May 8–10, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 Ebrumede Roundabout, Effurun Uvwie, Delta State\n\n` +
                             `Click the link below to register and secure your place:\n` +
                             `${window.location.origin}/conference-registration?invited_by=${encodeURIComponent(rsvpName)}\n\n` +
-                            `This is a divine appointment — don't miss it!\n🌐 www.jctm.org.ng`
+                            `This is a divine appointment — don't miss it!\n🌐 jctm.org.ng`
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"

@@ -20,7 +20,7 @@ import {
   Settings, Wifi, WifiOff, Signal, AlertCircle, RefreshCw,
   Activity, Zap, Radio, Tv2, Maximize2, Minimize2,
   PictureInPicture2, PictureInPictureIcon,
-  Share2, Check, Link2,
+  Share2, Check, Link2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStreamPlayer } from "@/hooks/useStreamPlayer";
@@ -28,6 +28,19 @@ import { buildStreamSources, detectNetworkQuality, type NetworkQuality } from "@
 import { buildYouTubeUrl } from "@/components/DualStreamToggle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+// ─── Viewer Count Badge ────────────────────────────────────────────────────────
+
+function ViewerCountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 border border-white/10 text-[10px] font-semibold text-white/70 backdrop-blur-sm">
+      <Users className="w-3 h-3 text-red-400" />
+      <span className="tabular-nums">{count.toLocaleString()}</span>
+      <span className="text-white/40">watching</span>
+    </span>
+  );
+}
 
 export interface StreamPlayerProps {
   hlsManifestUrl?: string | null;
@@ -39,6 +52,7 @@ export interface StreamPlayerProps {
   muted?: boolean;
   preferredQuality?: string;
   className?: string;
+  viewerCount?: number;
   onLoad?: () => void;
   onError?: (err: string) => void;
 }
@@ -284,6 +298,7 @@ interface PlayerControlsProps {
   isFullscreen: boolean;
   isPip: boolean;
   isPipSupported: boolean;
+  viewerCount: number;
   onToggleQuality: () => void;
   onSeekLive: () => void;
   onToggleFullscreen: () => void;
@@ -304,6 +319,7 @@ function PlayerControls({
   isFullscreen,
   isPip,
   isPipSupported,
+  viewerCount,
   onToggleQuality,
   onSeekLive,
   onToggleFullscreen,
@@ -314,7 +330,7 @@ function PlayerControls({
 
   return (
     <div className="absolute bottom-0 left-0 right-0 px-3 py-2 z-10 flex items-center justify-between gap-2">
-      {/* Left: engine badge + latency */}
+      {/* Left: engine badge + viewer count + latency */}
       <div className="flex items-center gap-2">
         {isNative && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 border border-white/10 text-[10px] font-bold text-white/60 backdrop-blur-sm">
@@ -322,6 +338,7 @@ function PlayerControls({
             {engine.toUpperCase()}
           </span>
         )}
+        <ViewerCountBadge count={viewerCount} />
         {isLive && isNative && latencyMs > 0 && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 border border-white/10 text-[10px] font-medium text-white/50 backdrop-blur-sm">
             <Radio className="w-3 h-3 text-red-400" />
@@ -646,6 +663,7 @@ export function StreamPlayer({
   muted = false,
   preferredQuality,
   className = "",
+  viewerCount = 0,
   onLoad,
   onError,
 }: StreamPlayerProps) {
@@ -812,12 +830,13 @@ export function StreamPlayer({
           </div>
         )}
 
-        {/* YouTube ABR badge */}
-        <div className="absolute bottom-3 left-3 pointer-events-none">
+        {/* YouTube ABR badge + viewer count */}
+        <div className="absolute bottom-3 left-3 pointer-events-none flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[10px] font-semibold text-white/50 backdrop-blur-md">
             <Tv2 className="w-3 h-3" />
             YouTube ABR
           </span>
+          <ViewerCountBadge count={viewerCount} />
         </div>
       </div>
     );
@@ -904,6 +923,7 @@ export function StreamPlayer({
                 isFullscreen={isFullscreen}
                 isPip={isPip}
                 isPipSupported={isPipSupported}
+                viewerCount={viewerCount}
                 onToggleQuality={() => setShowQuality(p => !p)}
                 onSeekLive={seekToLiveEdge}
                 onToggleFullscreen={toggleFullscreen}

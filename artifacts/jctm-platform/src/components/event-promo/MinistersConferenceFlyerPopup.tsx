@@ -47,7 +47,7 @@ const COOLDOWN_MS  = 24 * 60 * 60 * 1000;
 const OPEN_DELAY_MS = 3_000;
 
 const SHARE_TEXT = encodeURIComponent(
-  "🙏 MINISTERS CONFERENCE 2026!\n\n\"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders\"\n\nFriday 8th – Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 JCTM Auditorium, Ebrumede Roundabout, Effurun — Delta State\n\n📞 +234(0)8081313111\n🌐 www.jctm.org.ng\n\n#MinistersConference2026 #JCTM #ProphetAmos",
+  "🙏 MINISTERS CONFERENCE 2026!\n\n\"An Apostolic Gathering of Ministers, Leaders & Kingdom Builders\"\n\nFriday 8th – Sunday 10th May, 2026\n⏰ 8:00 AM Daily (WAT)\n📍 JCTM Auditorium, Ebrumede Roundabout, Effurun — Delta State\n\n📞 +234(0)8081313111\n🌐 jctm.org.ng\n\n#MinistersConference2026 #JCTM #ProphetAmos",
 );
 const SHARE_URL = encodeURIComponent("https://jctm.org.ng/conference-registration");
 

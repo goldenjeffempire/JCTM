@@ -966,6 +966,7 @@ function HeroSection() {
                     isLive={true}
                     title={liveTitle ?? "Temple TV"}
                     autoPlay={true}
+                    viewerCount={liveViewerCount}
                     onLoad={() => { if (!playerError) setPlayerLoading(false); }}
                     onError={() => { setPlayerError(true); setPlayerLoading(false); }}
                     className="w-full h-full"
@@ -1026,6 +1027,7 @@ function HeroSection() {
                   title={rebroadcastForWidget.title ?? "Rebroadcast"}
                   autoPlay={true}
                   preferredQuality={liveQuality}
+                  viewerCount={rebroadcastViewerCount}
                   className="absolute inset-0 w-full h-full"
                 />
               </div>
@@ -2868,7 +2870,7 @@ Jesus Christ Temple Ministry presents Ministers Conference 2026.
 📍 ${MCONF_LOCATION}
 
 📞 +234(0)8081313111
-🌐 www.jctm.org.ng
+🌐 jctm.org.ng
 
 Download and share the official flyer.
 

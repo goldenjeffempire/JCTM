@@ -266,7 +266,7 @@ ${event.description ? event.description.replace(/\|/g, "\n").split("\n").slice(0
 This is a divine invitation — come expecting miracles, healing, and a fresh encounter with God!
 
 📞 Enquiries: +234(0)8081313111
-🌐 www.jctm.org.ng
+🌐 jctm.org.ng
 
 Share this post and tag someone who needs to be there. Free entry for ALL!
 
@@ -292,7 +292,7 @@ Share this post. Print it out. Tag your friends and family. Send it in your What
 WATCH LIVE:
 Follow us on YouTube: youtube.com/@JesusChristTempleMinistry
 Facebook: facebook.com/TEMPLETV
-Website: www.jctm.org.ng
+Website: jctm.org.ng
 
 📞 For enquiries: +234(0)8081313111
 
@@ -678,7 +678,7 @@ function StaticEventCard({ event, index }: { event: StaticEvent; index: number }
                   `📍 ${event.location}\n\n` +
                   `${event.description.split("|")[0]}\n\n` +
                   `✋ Register here:\n${window.location.origin}${event.registerUrl}\n\n` +
-                  `📞 +234(0)8081313111\n🌐 www.jctm.org.ng\n\n#JCTM #${event.eventType.replace(/\s+/g, "")}2026`
+                  `📞 +234(0)8081313111\n🌐 jctm.org.ng\n\n#JCTM #${event.eventType.replace(/\s+/g, "")}2026`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -866,7 +866,7 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
                     (event.location ? `📍 ${event.location}\n` : "") +
                     `\nYou are specially invited to this anointed Ministers' Conference hosted by Jesus Christ Temple Ministry!\n\n` +
                     `✋ Register & get your invite card here:\n${window.location.origin}/conference-registration\n\n` +
-                    `📞 Enquiries: +234(0)8081313111\n🌐 www.jctm.org.ng`
+                    `📞 Enquiries: +234(0)8081313111\n🌐 jctm.org.ng`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

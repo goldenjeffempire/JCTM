@@ -18,6 +18,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 import { safeLocalGet, safeLocalSet } from "@/lib/utils";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
+import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { StreamPlayer } from "@/components/StreamPlayer";
 import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 
@@ -107,6 +108,8 @@ export default function Sermons() {
   const rebroadcastVideoId = liveStatus.rebroadcast.videoId;
   const rebroadcastTitle = liveStatus.rebroadcast.title;
   const rebroadcastMode = liveStatus.rebroadcast.mode;
+  const liveViewerCount = useLiveViewerCount(livePlaying && Boolean(liveVideoId), "live");
+  const rebroadcastViewerCount = useLiveViewerCount(playingId === rebroadcastVideoId && Boolean(rebroadcastVideoId), "rebroadcast");
   const loaderRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { quality, toggle: toggleQuality } = useStreamQuality();
@@ -410,6 +413,7 @@ export default function Sermons() {
                       isLive={true}
                       autoPlay={true}
                       title={liveTitle ?? "Warri Crusade Day 2"}
+                      viewerCount={liveViewerCount}
                     />
                   </div>
                 )}
@@ -462,6 +466,7 @@ export default function Sermons() {
                       isLive={false}
                       autoPlay={true}
                       title={rebroadcastTitle ?? "Service Rebroadcast — JCTM"}
+                      viewerCount={rebroadcastViewerCount}
                     />
                   </div>
                 )}

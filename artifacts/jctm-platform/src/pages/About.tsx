@@ -506,8 +506,8 @@ export default function About() {
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Website</p>
-                    <a href="https://www.jctm.org.ng" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                      www.jctm.org.ng
+                    <a href="https://jctm.org.ng" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      jctm.org.ng
                     </a>
                   </div>
                   <div>
