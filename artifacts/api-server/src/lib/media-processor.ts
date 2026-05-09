@@ -55,15 +55,15 @@ fs.mkdirSync(MEDIA_DIR, { recursive: true });
 
 // ── yt-dlp binary resolution ──────────────────────────────────────────────────
 
-const YT_DLP_BIN: string = ((): string => {
+function resolveYtDlpBin(): { bin: string; found: boolean } {
   const fromEnv = process.env.YT_DLP_PATH;
   if (fromEnv) {
-    try { if (fs.existsSync(fromEnv)) return fromEnv; } catch { /* skip */ }
+    try { if (fs.existsSync(fromEnv)) return { bin: fromEnv, found: true }; } catch { /* skip */ }
   }
 
   try {
     const found = execSync("which yt-dlp", { encoding: "utf8", timeout: 5000 }).trim();
-    if (found) return found;
+    if (found) return { bin: found, found: true };
   } catch { /* not on PATH */ }
 
   for (const p of [
@@ -76,7 +76,7 @@ const YT_DLP_BIN: string = ((): string => {
     path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"),
     "/home/runner/workspace/.pythonlibs/bin/yt-dlp",
   ]) {
-    try { if (fs.existsSync(p)) return p; } catch { /* skip */ }
+    try { if (fs.existsSync(p)) return { bin: p, found: true }; } catch { /* skip */ }
   }
 
   try {
@@ -85,13 +85,18 @@ const YT_DLP_BIN: string = ((): string => {
     }).trim();
     for (const entry of scan.split("\n")) {
       const candidate = `/nix/store/${entry.trim()}/bin/yt-dlp`;
-      try { if (fs.existsSync(candidate)) return candidate; } catch { /* skip */ }
+      try { if (fs.existsSync(candidate)) return { bin: candidate, found: true }; } catch { /* skip */ }
     }
   } catch { /* /nix/store not accessible */ }
 
-  logger.error("yt-dlp NOT FOUND — downloads will fail. Install yt-dlp or set YT_DLP_PATH.");
-  return "yt-dlp";
-})();
+  logger.warn("yt-dlp not found — media downloads are unavailable. Install yt-dlp or set YT_DLP_PATH.");
+  return { bin: "yt-dlp", found: false };
+}
+
+const { bin: YT_DLP_BIN, found: YT_DLP_FOUND } = resolveYtDlpBin();
+
+/** Returns true only when a yt-dlp binary was actually located on this host. */
+export function isYtDlpAvailable(): boolean { return YT_DLP_FOUND; }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -186,6 +191,11 @@ const PERMANENT_ERROR_RE = [
 
 function isPermanentError(msg: string): boolean {
   return PERMANENT_ERROR_RE.some(re => re.test(msg));
+}
+
+/** ENOENT on spawn means the yt-dlp binary is simply not installed — no point retrying. */
+function isYtDlpMissingError(msg: string): boolean {
+  return /ENOENT/i.test(msg) && /yt-dlp/i.test(msg);
 }
 
 function isStallError(msg: string): boolean {
@@ -750,6 +760,23 @@ async function processWithRetry(job: MediaJob): Promise<void> {
       const msg = err instanceof Error ? err.message : String(err);
       const isLast = attempt === MAX_RETRIES;
       const totalCount = (job.retryCount ?? 0) + attempt;
+
+      // yt-dlp binary not installed — no amount of retrying will fix this.
+      // Mark permanent immediately so the retry scheduler never picks it back up.
+      if (isYtDlpMissingError(msg)) {
+        logger.warn({ jobId: job.id }, "yt-dlp binary not found on this host — marking job as permanent failure (no retry)");
+        cleanupTempFiles(job.id);
+        const cur = activeJobs.get(job.id) ?? job;
+        patch(cur, {
+          status: "failed",
+          error: "Media downloads are unavailable on this server (yt-dlp is not installed).",
+          retryCount: totalCount,
+          isPermanentFailure: true,
+          nextRetryAt: null,
+        });
+        activeJobs.delete(job.id);
+        return;
+      }
 
       if (isPermanentError(msg)) {
         logger.warn({ err, jobId: job.id, attempt }, "Permanent error — not retrying");

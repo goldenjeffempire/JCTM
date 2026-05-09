@@ -22,7 +22,7 @@
 
 import pino from "pino";
 import { pool } from "@workspace/db";
-import { findDuplicateJob, createJob } from "./media-processor.js";
+import { findDuplicateJob, createJob, isYtDlpAvailable } from "./media-processor.js";
 
 const logger = pino({ name: "media-preprocess" });
 
@@ -162,8 +162,13 @@ async function queuePreprocessJobs(sermons: SermonRow[], source: string): Promis
 /**
  * Scan all featured sermons and queue MP3 jobs for any without a cached file.
  * Called on startup and every 6 hours.
+ * No-ops silently when yt-dlp is not installed on this host.
  */
 export async function preprocessFeaturedSermons(): Promise<void> {
+  if (!isYtDlpAvailable()) {
+    logger.debug("Pre-process sweep: yt-dlp not available on this host — skipping");
+    return;
+  }
   try {
     const sermons = await getFeaturedWithoutCache(BATCH_SIZE);
     if (sermons.length === 0) {
@@ -182,9 +187,11 @@ export async function preprocessFeaturedSermons(): Promise<void> {
 /**
  * Queue MP3 jobs for specific video IDs (called after a YouTube sync).
  * Featured sermons within the list are prioritised.
+ * No-ops silently when yt-dlp is not installed on this host.
  */
 export async function preprocessNewSermons(videoIds: string[]): Promise<void> {
   if (videoIds.length === 0) return;
+  if (!isYtDlpAvailable()) return;
   try {
     const sermons = await getRecentWithoutCache(videoIds, Math.min(videoIds.length, BATCH_SIZE));
     if (sermons.length === 0) return;
