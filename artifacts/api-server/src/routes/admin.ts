@@ -1407,7 +1407,7 @@ router.get(
     try {
       const { pool: dbPool } = await import("@workspace/db");
 
-      const [summary, topVideos, recentDownloads, formatBreakdown, dailyActivity, activeTokens] =
+      const [summary, topVideos, recentDownloads, formatBreakdown, dailyActivity, activeTokens, ipActivity] =
         await Promise.all([
           // Overall counts + bytes
           dbPool.query<{
@@ -1486,25 +1486,72 @@ router.get(
             FROM   download_tokens
             WHERE  expires_at > now() AND used_at IS NULL
           `),
+
+          // Per-IP activity with rolling window counts
+          dbPool.query<{
+            ip: string;
+            dl_1h: string;
+            dl_24h: string;
+            dl_7d: string;
+            dl_total: string;
+            total_bytes: string;
+            first_seen: string;
+            last_seen: string;
+          }>(`
+            SELECT ip,
+                   COUNT(*) FILTER (WHERE created_at > now() - interval '1 hour')   AS dl_1h,
+                   COUNT(*) FILTER (WHERE created_at > now() - interval '24 hours') AS dl_24h,
+                   COUNT(*) FILTER (WHERE created_at > now() - interval '7 days')   AS dl_7d,
+                   COUNT(*)                                                          AS dl_total,
+                   COALESCE(SUM(bytes_served), 0)::text                             AS total_bytes,
+                   MIN(created_at)                                                  AS first_seen,
+                   MAX(created_at)                                                  AS last_seen
+            FROM   media_audit_log
+            WHERE  event = 'download_served'
+            GROUP  BY ip
+            ORDER  BY dl_24h DESC
+            LIMIT  100
+          `),
         ]);
+
+      // Abuse thresholds: high = >10/1h or >30/24h; medium = >5/1h or >15/24h
+      const HIGH_1H = 10, HIGH_24H = 30;
+      const MED_1H  =  5, MED_24H  = 15;
+
+      const ipRows = ipActivity.rows.map(r => ({
+        ip:         r.ip ? r.ip.replace(/(\.\d+)$/, ".***") : "—",
+        dl1h:       Number(r.dl_1h),
+        dl24h:      Number(r.dl_24h),
+        dl7d:       Number(r.dl_7d),
+        dlTotal:    Number(r.dl_total),
+        totalBytes: Number(r.total_bytes),
+        firstSeen:  r.first_seen,
+        lastSeen:   r.last_seen,
+      }));
+
+      const suspiciousIps = ipRows.filter(
+        r => r.dl1h >= HIGH_1H || r.dl24h >= HIGH_24H
+      ).length;
 
       res.setHeader("Cache-Control", "no-store");
       res.json({
+        thresholds: { high: { per1h: HIGH_1H, per24h: HIGH_24H }, medium: { per1h: MED_1H, per24h: MED_24H } },
         summary: {
           jobsCreated:      Number(summary.rows[0]?.jobs_created ?? 0),
           tokensIssued:     Number(summary.rows[0]?.tokens_issued ?? 0),
           downloadsServed:  Number(summary.rows[0]?.downloads_served ?? 0),
           totalBytes:       Number(summary.rows[0]?.total_bytes ?? 0),
           activeTokens:     Number(activeTokens.rows[0]?.count ?? 0),
+          suspiciousIps,
         },
-        topVideos:      topVideos.rows.map(r => ({
+        topVideos: topVideos.rows.map(r => ({
           videoId:       r.video_id,
           format:        r.format,
           downloadCount: Number(r.download_count),
           totalBytes:    Number(r.total_bytes),
         })),
         recentDownloads: recentDownloads.rows.map(r => ({
-          ip:          r.ip ? r.ip.replace(/(\.\d+)$/, ".***") : "—",  // partially mask IP
+          ip:          r.ip ? r.ip.replace(/(\.\d+)$/, ".***") : "—",
           videoId:     r.video_id,
           format:      r.format,
           quality:     r.quality,
@@ -1521,6 +1568,7 @@ router.get(
           jobs:      Number(r.jobs),
           downloads: Number(r.downloads),
         })),
+        ipActivity: ipRows,
       });
     } catch (err) {
       logger.error({ err }, "Failed to fetch media audit data");

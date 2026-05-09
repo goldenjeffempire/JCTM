@@ -6612,13 +6612,26 @@ function ChangePassInline({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
 
 // ─── Downloads Audit Section ──────────────────────────────────────────────────
 
+interface IpActivityRow {
+  ip: string;
+  dl1h: number;
+  dl24h: number;
+  dl7d: number;
+  dlTotal: number;
+  totalBytes: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
 interface MediaAuditData {
+  thresholds: { high: { per1h: number; per24h: number }; medium: { per1h: number; per24h: number } };
   summary: {
     jobsCreated: number;
     tokensIssued: number;
     downloadsServed: number;
     totalBytes: number;
     activeTokens: number;
+    suspiciousIps: number;
   };
   topVideos: { videoId: string; format: string; downloadCount: number; totalBytes: number }[];
   recentDownloads: {
@@ -6632,6 +6645,7 @@ interface MediaAuditData {
   }[];
   formatBreakdown: { format: string; count: number }[];
   dailyActivity: { day: string; jobs: number; downloads: number }[];
+  ipActivity: IpActivityRow[];
 }
 
 function fmtBytes(bytes: number): string {
@@ -6693,8 +6707,8 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
         </div>
 
         {isLoading && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
                 <div className="h-3 w-20 bg-muted rounded mb-2" />
                 <div className="h-7 w-14 bg-muted rounded" />
@@ -6712,20 +6726,21 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
         {data && (
           <>
             {/* ── Summary Cards ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
-                { label: "Conversions Created",   value: data.summary.jobsCreated.toLocaleString(),     icon: <Zap className="w-3.5 h-3.5" />,      color: "text-amber-500" },
-                { label: "Tokens Issued",          value: data.summary.tokensIssued.toLocaleString(),    icon: <Shield className="w-3.5 h-3.5" />,    color: "text-blue-500" },
-                { label: "Files Served",           value: data.summary.downloadsServed.toLocaleString(), icon: <Download className="w-3.5 h-3.5" />,  color: "text-emerald-500" },
-                { label: "Data Transferred",       value: fmtBytes(data.summary.totalBytes),             icon: <Activity className="w-3.5 h-3.5" />,  color: "text-violet-500" },
-                { label: "Live Tokens",            value: data.summary.activeTokens.toLocaleString(),    icon: <Clock className="w-3.5 h-3.5" />,     color: "text-orange-400" },
-              ].map(({ label, value, icon, color }) => (
-                <div key={label} className="rounded-xl border border-border bg-card p-4">
-                  <div className={`flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 ${color}`}>
+                { label: "Conversions",    value: data.summary.jobsCreated.toLocaleString(),     icon: <Zap className="w-3.5 h-3.5" />,      color: "text-amber-500",  alert: false },
+                { label: "Tokens Issued",  value: data.summary.tokensIssued.toLocaleString(),    icon: <Shield className="w-3.5 h-3.5" />,    color: "text-blue-500",   alert: false },
+                { label: "Files Served",   value: data.summary.downloadsServed.toLocaleString(), icon: <Download className="w-3.5 h-3.5" />,  color: "text-emerald-500",alert: false },
+                { label: "Data Served",    value: fmtBytes(data.summary.totalBytes),             icon: <Activity className="w-3.5 h-3.5" />,  color: "text-violet-500", alert: false },
+                { label: "Live Tokens",    value: data.summary.activeTokens.toLocaleString(),    icon: <Clock className="w-3.5 h-3.5" />,     color: "text-orange-400", alert: false },
+                { label: "Flagged IPs",    value: data.summary.suspiciousIps.toLocaleString(),   icon: <AlertCircle className="w-3.5 h-3.5" />, color: data.summary.suspiciousIps > 0 ? "text-red-500" : "text-muted-foreground", alert: data.summary.suspiciousIps > 0 },
+              ].map(({ label, value, icon, color, alert }) => (
+                <div key={label} className={`rounded-xl border p-4 ${alert ? "border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800" : "border-border bg-card"}`}>
+                  <div className={`flex items-center gap-1.5 text-xs mb-1.5 ${color}`}>
                     {icon}
-                    <span className="text-muted-foreground">{label}</span>
+                    <span className={alert ? color : "text-muted-foreground"}>{label}</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary tabular-nums">{value}</p>
+                  <p className={`text-2xl font-bold tabular-nums ${alert ? "text-red-600 dark:text-red-400" : "text-primary"}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -6875,6 +6890,77 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
                           <td className="py-2 font-mono text-[10px] text-muted-foreground">{row.ip}</td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+
+            {/* ── IP Activity & Abuse Detection ── */}
+            <Card>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="font-bold text-sm">IP Activity &amp; Abuse Detection</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    All unique downloader IPs with rolling-window counts. Thresholds — High:&nbsp;
+                    <span className="font-semibold text-red-500">&gt;{data.thresholds.high.per1h}/1h</span> or&nbsp;
+                    <span className="font-semibold text-red-500">&gt;{data.thresholds.high.per24h}/24h</span>&nbsp;·&nbsp;
+                    Medium: <span className="font-semibold text-amber-500">&gt;{data.thresholds.medium.per1h}/1h</span> or&nbsp;
+                    <span className="font-semibold text-amber-500">&gt;{data.thresholds.medium.per24h}/24h</span>
+                  </p>
+                </div>
+                {data.summary.suspiciousIps > 0 && (
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400">
+                    <AlertCircle className="w-3 h-3" />
+                    {data.summary.suspiciousIps} flagged
+                  </span>
+                )}
+              </div>
+
+              {data.ipActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No IP activity on record yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">IP Address</th>
+                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">Risk</th>
+                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">1 h</th>
+                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">24 h</th>
+                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">7 d</th>
+                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">All-time</th>
+                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">Bytes</th>
+                        <th className="text-left py-2 font-semibold text-muted-foreground">Last seen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.ipActivity.map((row) => {
+                        const isHigh = row.dl1h >= data.thresholds.high.per1h || row.dl24h >= data.thresholds.high.per24h;
+                        const isMed  = !isHigh && (row.dl1h >= data.thresholds.medium.per1h || row.dl24h >= data.thresholds.medium.per24h);
+                        const rowCls = isHigh
+                          ? "border-b border-red-100 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/10 hover:bg-red-50 dark:hover:bg-red-950/20"
+                          : isMed
+                          ? "border-b border-amber-100 dark:border-amber-900/30 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                          : "border-b border-border/40 hover:bg-muted/30";
+                        const riskBadge = isHigh
+                          ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-red-100 text-red-600 border-red-200 dark:bg-red-950/40 dark:border-red-700 dark:text-red-400"><AlertCircle className="w-2.5 h-2.5" /> High</span>
+                          : isMed
+                          ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-400"><AlertCircle className="w-2.5 h-2.5" /> Med</span>
+                          : <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400"><CheckCircle className="w-2.5 h-2.5" /> OK</span>;
+                        return (
+                          <tr key={row.ip} className={`${rowCls} transition-colors`}>
+                            <td className="py-2 pr-3 font-mono text-[10px] text-muted-foreground">{row.ip}</td>
+                            <td className="py-2 pr-3">{riskBadge}</td>
+                            <td className={`py-2 pr-3 text-right font-bold tabular-nums ${isHigh && row.dl1h >= data.thresholds.high.per1h ? "text-red-600 dark:text-red-400" : isMed && row.dl1h >= data.thresholds.medium.per1h ? "text-amber-600 dark:text-amber-400" : ""}`}>{row.dl1h}</td>
+                            <td className={`py-2 pr-3 text-right font-bold tabular-nums ${isHigh && row.dl24h >= data.thresholds.high.per24h ? "text-red-600 dark:text-red-400" : isMed && row.dl24h >= data.thresholds.medium.per24h ? "text-amber-600 dark:text-amber-400" : ""}`}>{row.dl24h}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{row.dl7d}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{row.dlTotal}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{fmtBytes(row.totalBytes)}</td>
+                            <td className="py-2 text-muted-foreground whitespace-nowrap">{rel(row.lastSeen)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
