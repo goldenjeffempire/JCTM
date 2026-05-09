@@ -414,6 +414,101 @@ async function checkAndBroadcastMinistersConferenceDay3Hourly(log: Logger): Prom
   }
 }
 
+// ── Ministers Conference 2026 post-conference wind-down ───────────────────────
+// At 20:00–20:09 UTC on May 10 (= 9 PM WAT), marks the event_promotions row
+// as 'ended', disables broadcast, and sends a one-shot "Thank you" push to all
+// web push + Expo mobile subscribers. Fully deduped via broadcast_events table
+// and an in-memory guard.
+
+const MC_WIND_DOWN_START_MS = new Date("2026-05-10T20:00:00Z").getTime(); // 9:00 PM WAT May 10
+const MC_WIND_DOWN_END_MS   = new Date("2026-05-10T20:10:00Z").getTime(); // 10-minute fire window
+
+const mcWindDownFired = { done: false };
+
+async function checkAndFireConferenceWindDown(log: Logger): Promise<void> {
+  const now = Date.now();
+  if (now < MC_WIND_DOWN_START_MS || now >= MC_WIND_DOWN_END_MS) return;
+  if (mcWindDownFired.done) return;
+
+  // DB dedup — bail if the wind-down notification was already sent
+  try {
+    const check = await pool.query<{ id: number }>(
+      `SELECT id FROM broadcast_events WHERE type = 'ministers_conf_wind_down' LIMIT 1`,
+    );
+    if (check.rowCount && check.rowCount > 0) {
+      mcWindDownFired.done = true;
+      return;
+    }
+  } catch (err) {
+    log.warn({ err }, "Conference wind-down dedup check failed (non-fatal)");
+    return;
+  }
+
+  mcWindDownFired.done = true; // Optimistic lock before async work
+
+  try {
+    // 1. Mark the promotion as ended and disable future broadcasts
+    await pool.query(
+      `UPDATE event_promotions
+       SET status             = 'ended',
+           broadcast_enabled  = false,
+           updated_at         = now()
+       WHERE slug = 'ministers-conference-2026'
+         AND status != 'ended'`,
+    );
+
+    // 2. Persist dedup record
+    await pool.query(
+      `INSERT INTO broadcast_events (type, title, message, url)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        "ministers_conf_wind_down",
+        "Ministers Conference 2026 — Thank You!",
+        "Conference wind-down notification sent after 9 PM WAT May 10",
+        "/sermons",
+      ],
+    );
+
+    log.info("Ministers Conference 2026 event_promotions marked as ended");
+
+    // 3. Send "Thank You" push to all subscribers (web + Expo mobile)
+    const notif: NotificationPayload = {
+      title: "🙏 Thank You for Ministers Conference 2026!",
+      body: "The Ministers Conference 2026 has concluded. Thank you for joining the Apostolic Fire! Watch all sessions on Temple TV.",
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/badge-72x72.png",
+      url: "/sermons",
+      tag: "ministers-conf-wind-down-2026",
+      requireInteraction: false,
+      actions: [
+        { action: "open", title: "Watch Sessions" },
+        { action: "share", title: "Share" },
+      ],
+      data: {
+        type: "ministers_conf_wind_down",
+        broadcastType: "event_ended",
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    const webResult  = await dispatchPushNotification(notif, log, "ministers_conf_wind_down");
+    const expoResult = await dispatchExpoPush(
+      notif.title,
+      notif.body,
+      { url: "/sermons", type: "ministers_conf_wind_down" },
+      log,
+    );
+
+    log.info(
+      { web: webResult, expo: expoResult },
+      "Ministers Conference 2026 wind-down push sent (web + expo)",
+    );
+  } catch (err) {
+    mcWindDownFired.done = false; // Allow retry on next minute tick
+    log.error({ err }, "Ministers Conference wind-down failed — will retry next minute");
+  }
+}
+
 // ── Expo Push Notification Dispatcher ────────────────────────────────────────
 // Sends push notifications to mobile devices registered via expo-notifications.
 // Uses the Expo Push API (https://exp.host/--/api/v2/push/send) — no SDK needed.
@@ -2032,6 +2127,9 @@ export function startCron(log: Logger, websubUrl?: string): void {
       );
       checkAndBroadcastMinistersConferenceDay3Hourly(log).catch(err =>
         log.warn({ err }, "Ministers Conference Day 3 hourly broadcast tick error"),
+      );
+      checkAndFireConferenceWindDown(log).catch(err =>
+        log.warn({ err }, "Ministers Conference wind-down tick error"),
       );
       checkAndBroadcastCampaignPromotions(log).catch(err =>
         log.warn({ err }, "Campaign promotion broadcast tick error"),

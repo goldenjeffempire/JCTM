@@ -34,17 +34,17 @@ function OverseerSlideshow() {
       ${fadeOutStart}%  { opacity: 1; }
       ${fadeOutEnd}%    { opacity: 0; }
     }
-    @keyframes jctmKenBurns {
-      0%             { transform: scale(1.09) translate(2%, 1%); }
-      ${fadeOutEnd}% { transform: scale(1.01) translate(-1.5%, -0.5%); }
-      100%           { transform: scale(1.09) translate(2%, 1%); }
+    @keyframes jctmBackdropDrift {
+      0%             { transform: scale(1.18) translate(2%, 1%); }
+      ${fadeOutEnd}% { transform: scale(1.10) translate(-2%, -1%); }
+      100%           { transform: scale(1.18) translate(2%, 1%); }
     }
     @keyframes jctmLabelIn {
-      0%, ${(pct(fadeDuration * 0.5))}%  { opacity: 0; transform: translateY(6px); }
-      ${fadeInEnd}%                       { opacity: 1; transform: translateY(0); }
-      ${fadeOutStart}%                    { opacity: 1; transform: translateY(0); }
-      ${fadeOutEnd}%                      { opacity: 0; transform: translateY(-4px); }
-      100%                                { opacity: 0; transform: translateY(6px); }
+      0%, ${pct(fadeDuration * 0.5)}%  { opacity: 0; transform: translateY(6px); }
+      ${fadeInEnd}%                     { opacity: 1; transform: translateY(0); }
+      ${fadeOutStart}%                  { opacity: 1; transform: translateY(0); }
+      ${fadeOutEnd}%                    { opacity: 0; transform: translateY(-4px); }
+      100%                              { opacity: 0; transform: translateY(6px); }
     }
     @keyframes jctmProgressFill {
       0%             { transform: scaleX(0); }
@@ -56,39 +56,91 @@ function OverseerSlideshow() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
-      <div className="relative w-full h-full min-h-[380px] overflow-hidden select-none">
+      {/*
+        Container: dark base so object-contain images never show raw white.
+        min-h-[480px] gives portrait shots generous vertical room.
+        h-full inherits the parent's stretched height in the side-by-side layout.
+      */}
+      <div
+        className="relative w-full h-full min-h-[480px] overflow-hidden select-none"
+        style={{ background: "#060e1a" }}
+      >
         {OVERSEER_IMAGES.map((img, i) => {
           const delay = `${(i * slotDuration).toFixed(1)}s`;
+          const crossfadeStyle = {
+            opacity: 0,
+            animation: `jctmCrossfade ${total}s ease-in-out ${delay} infinite`,
+          };
+          const fallbackSrc = (img as { fallback?: string }).fallback;
+
           return (
-            <div
-              key={img.key}
-              className="absolute inset-0"
-              style={{ opacity: 0, animation: `jctmCrossfade ${total}s ease-in-out ${delay} infinite` }}
-            >
+            <div key={img.key} className="absolute inset-0" style={crossfadeStyle}>
+
+              {/* ── Blurred backdrop ───────────────────────────────────────────
+                  Same source image, heavily blurred + dimmed, with a slow drift
+                  animation. Fills the container so there are no bare dark bars
+                  behind the contained foreground image.                        */}
               <img
                 src={img.src}
-                alt={img.label}
-                className="absolute inset-0 w-full h-full object-cover"
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 style={{
+                  filter: "blur(22px) brightness(0.28) saturate(1.3)",
+                  transform: "scale(1.18)",
+                  animation: `jctmBackdropDrift ${total}s ease-in-out ${delay} infinite`,
                   willChange: "transform",
-                  animation: `jctmKenBurns ${total}s ease-in-out ${delay} infinite`,
+                }}
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  if (fallbackSrc) (e.target as HTMLImageElement).src = fallbackSrc;
+                }}
+              />
+
+              {/* ── Foreground — full image, never cropped ─────────────────────
+                  object-contain keeps every pixel of the photo visible.
+                  Padding reserves space at the bottom for the label strip.      */}
+              <img
+                src={img.src}
+                alt={`Prophet Amos Evomobor — ${img.label}`}
+                className="absolute inset-0 w-full h-full"
+                style={{
+                  objectFit: "contain",
+                  objectPosition: "center top",
+                  padding: "10px 12px 52px",
+                  filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.55))",
                 }}
                 loading={i < 2 ? "eager" : "lazy"}
                 decoding="async"
                 onError={(e) => {
-                  const fb = (img as { fallback?: string }).fallback;
-                  if (fb) (e.target as HTMLImageElement).src = fb;
+                  if (fallbackSrc) (e.target as HTMLImageElement).src = fallbackSrc;
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#001a33]/90 via-[#001a33]/20 to-transparent" />
+
+              {/* ── Bottom gradient — blends into the label strip ────────────── */}
               <div
-                className="absolute bottom-8 left-5 right-5 z-10"
+                className="absolute inset-x-0 bottom-0 pointer-events-none"
+                style={{
+                  height: "40%",
+                  background: "linear-gradient(to top, rgba(0,16,32,0.92) 0%, rgba(0,16,32,0.55) 40%, transparent 100%)",
+                }}
+              />
+
+              {/* ── Subtle top vignette ─────────────────────────────────────── */}
+              <div
+                className="absolute inset-x-0 top-0 h-16 pointer-events-none"
+                style={{ background: "linear-gradient(to bottom, rgba(0,16,32,0.45) 0%, transparent 100%)" }}
+              />
+
+              {/* ── Caption label ────────────────────────────────────────────── */}
+              <div
+                className="absolute bottom-7 left-5 right-5 z-10"
                 style={{ opacity: 0, animation: `jctmLabelIn ${total}s ease-in-out ${delay} infinite` }}
               >
-                <span className="inline-block bg-accent/25 backdrop-blur-sm border border-accent/35 text-accent text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full mb-2">
+                <span className="inline-block bg-accent/20 backdrop-blur-sm border border-accent/30 text-accent text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full mb-1.5">
                   {img.tag}
                 </span>
-                <p className="text-white font-serif font-bold text-sm leading-snug drop-shadow-lg">
+                <p className="text-white/95 font-serif font-bold text-sm leading-snug drop-shadow-lg">
                   {img.label}
                 </p>
               </div>
@@ -96,12 +148,11 @@ function OverseerSlideshow() {
           );
         })}
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/25 to-transparent z-10" />
-
+        {/* ── Progress rail ─────────────────────────────────────────────────── */}
         <div className="absolute bottom-0 left-0 right-0 z-20">
-          <div className="flex h-[3px] overflow-hidden">
+          <div className="flex h-[2px]">
             {OVERSEER_IMAGES.map((img, i) => (
-              <div key={img.key} className="flex-1 relative bg-white/10">
+              <div key={img.key} className="flex-1 relative" style={{ background: "rgba(255,255,255,0.08)" }}>
                 <div
                   className="absolute inset-0 bg-accent origin-left"
                   style={{
@@ -284,7 +335,7 @@ export default function About() {
           <div className="glass-panel rounded-2xl mb-10" style={{ overflow: "visible" }}>
             <div className="flex flex-col md:flex-row">
               {/* Continuous crossfade slideshow */}
-              <div className="md:w-80 shrink-0 rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none overflow-hidden self-stretch min-h-[380px]">
+              <div className="md:w-80 shrink-0 rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none overflow-hidden self-stretch">
                 <OverseerSlideshow />
               </div>
 
