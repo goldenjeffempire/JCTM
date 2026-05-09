@@ -1407,7 +1407,7 @@ router.get(
     try {
       const { pool: dbPool } = await import("@workspace/db");
 
-      const [summary, topVideos, recentDownloads, formatBreakdown, dailyActivity, activeTokens, ipActivity, blockedIpsResult] =
+      const [summary, topVideos, recentDownloads, formatBreakdown, qualityBreakdown, dailyActivity, activeTokens, ipActivity, blockedIpsResult] =
         await Promise.all([
           // Overall counts + bytes
           dbPool.query<{
@@ -1424,21 +1424,24 @@ router.get(
             FROM media_audit_log
           `),
 
-          // Top 10 most downloaded videos
+          // Top 10 most downloaded videos — join sermon_data for titles
           dbPool.query<{
             video_id: string;
             format: string;
             download_count: string;
             total_bytes: string;
+            sermon_title: string | null;
           }>(`
-            SELECT video_id,
-                   format,
-                   COUNT(*)                           AS download_count,
-                   COALESCE(SUM(bytes_served), 0)::text AS total_bytes
-            FROM   media_audit_log
-            WHERE  event = 'download_served'
-              AND  video_id IS NOT NULL
-            GROUP  BY video_id, format
+            SELECT al.video_id,
+                   al.format,
+                   COUNT(*)                                AS download_count,
+                   COALESCE(SUM(al.bytes_served), 0)::text AS total_bytes,
+                   sd.title                               AS sermon_title
+            FROM   media_audit_log al
+            LEFT   JOIN sermon_data sd ON sd.video_id = al.video_id
+            WHERE  al.event = 'download_served'
+              AND  al.video_id IS NOT NULL
+            GROUP  BY al.video_id, al.format, sd.title
             ORDER  BY download_count DESC
             LIMIT  10
           `),
@@ -1466,6 +1469,15 @@ router.get(
             FROM   media_audit_log
             WHERE  event = 'download_served' AND format IS NOT NULL
             GROUP  BY format
+            ORDER  BY count DESC
+          `),
+
+          // Quality tier breakdown
+          dbPool.query<{ quality: string; count: string }>(`
+            SELECT quality, COUNT(*) AS count
+            FROM   media_audit_log
+            WHERE  event = 'download_served' AND quality IS NOT NULL
+            GROUP  BY quality
             ORDER  BY count DESC
           `),
 
@@ -1530,8 +1542,11 @@ router.get(
       const HIGH_1H = 10, HIGH_24H = 30;
       const MED_1H  =  5, MED_24H  = 15;
 
+      const blockedIpSet = new Set(blockedIpsResult.rows.map(r => r.ip));
+
+      // Admin endpoint — do NOT mask IPs; admins need real IPs to block abusers
       const ipRows = ipActivity.rows.map(r => ({
-        ip:         r.ip ? r.ip.replace(/(\.\d+)$/, ".***") : "—",
+        ip:         r.ip ?? "—",
         dl1h:       Number(r.dl_1h),
         dl24h:      Number(r.dl_24h),
         dl7d:       Number(r.dl_7d),
@@ -1539,6 +1554,7 @@ router.get(
         totalBytes: Number(r.total_bytes),
         firstSeen:  r.first_seen,
         lastSeen:   r.last_seen,
+        blocked:    blockedIpSet.has(r.ip),
       }));
 
       const suspiciousIps = ipRows.filter(
@@ -1561,6 +1577,7 @@ router.get(
           format:        r.format,
           downloadCount: Number(r.download_count),
           totalBytes:    Number(r.total_bytes),
+          sermonTitle:   r.sermon_title ?? null,
         })),
         recentDownloads: recentDownloads.rows.map(r => ({
           ip:          r.ip ? r.ip.replace(/(\.\d+)$/, ".***") : "—",
@@ -1575,12 +1592,22 @@ router.get(
           format: r.format,
           count:  Number(r.count),
         })),
+        qualityBreakdown: qualityBreakdown.rows.map(r => ({
+          quality: r.quality,
+          count:   Number(r.count),
+        })),
         dailyActivity: dailyActivity.rows.map(r => ({
           day:       String(r.day),
           jobs:      Number(r.jobs),
           downloads: Number(r.downloads),
         })),
         ipActivity: ipRows,
+        blockedIps: blockedIpsResult.rows.map(r => ({
+          ip:        r.ip,
+          reason:    r.reason,
+          blockedBy: r.blocked_by,
+          createdAt: r.created_at,
+        })),
       });
     } catch (err) {
       logger.error({ err }, "Failed to fetch media audit data");
@@ -1790,6 +1817,71 @@ router.post(
     } catch (err) {
       logger.error({ err }, "Admin: failed to purge media jobs");
       res.status(500).json({ error: "Failed to purge jobs." });
+    }
+  },
+);
+
+// ─── POST /api/admin/block-ip ─────────────────────────────────────────────────
+// Block an IP address from downloading. Requires any admin role.
+
+router.post(
+  "/admin/block-ip",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (req: Request, res: Response): Promise<void> => {
+    const { ip, reason } = req.body as { ip?: string; reason?: string };
+    if (!ip || typeof ip !== "string" || ip.trim().length === 0) {
+      res.status(400).json({ error: "IP address is required." });
+      return;
+    }
+    const cleanIp = ip.trim();
+    const cleanReason = (reason?.trim()) || "Blocked by admin";
+    try {
+      const { pool: dbPool } = await import("@workspace/db");
+      await dbPool.query(
+        `INSERT INTO blocked_ips (ip, reason, blocked_by, created_at)
+         VALUES ($1, $2, 'admin', now())
+         ON CONFLICT (ip) DO UPDATE
+           SET reason     = EXCLUDED.reason,
+               blocked_by = 'admin',
+               created_at = now()`,
+        [cleanIp, cleanReason],
+      );
+      logger.info({ ip: cleanIp, reason: cleanReason }, "Admin blocked IP");
+      res.json({ ok: true, ip: cleanIp, reason: cleanReason });
+    } catch (err) {
+      logger.error({ err }, "Admin: failed to block IP");
+      res.status(500).json({ error: "Failed to block IP address." });
+    }
+  },
+);
+
+// ─── DELETE /api/admin/block-ip/:ip ──────────────────────────────────────────
+// Unblock an IP address. Requires any admin role.
+
+router.delete(
+  "/admin/block-ip/:ip",
+  requireAdminRole(["sermon", "gallery", "livestream"]),
+  async (req: Request, res: Response): Promise<void> => {
+    const ip = req.params["ip"];
+    if (!ip) {
+      res.status(400).json({ error: "IP address is required." });
+      return;
+    }
+    try {
+      const { pool: dbPool } = await import("@workspace/db");
+      const { rowCount } = await dbPool.query(
+        "DELETE FROM blocked_ips WHERE ip = $1",
+        [ip],
+      );
+      if (!rowCount || rowCount === 0) {
+        res.status(404).json({ error: "IP not found in block list." });
+        return;
+      }
+      logger.info({ ip }, "Admin unblocked IP");
+      res.json({ ok: true, ip });
+    } catch (err) {
+      logger.error({ err }, "Admin: failed to unblock IP");
+      res.status(500).json({ error: "Failed to unblock IP address." });
     }
   },
 );

@@ -6641,7 +6641,7 @@ interface MediaAuditData {
     activeTokens: number;
     suspiciousIps: number;
   };
-  topVideos: { videoId: string; format: string; downloadCount: number; totalBytes: number }[];
+  topVideos: { videoId: string; format: string; downloadCount: number; totalBytes: number; sermonTitle: string | null }[];
   recentDownloads: {
     ip: string;
     videoId: string | null;
@@ -6652,6 +6652,7 @@ interface MediaAuditData {
     createdAt: string;
   }[];
   formatBreakdown: { format: string; count: number }[];
+  qualityBreakdown: { quality: string; count: number }[];
   dailyActivity: { day: string; jobs: number; downloads: number }[];
   ipActivity: IpActivityRow[];
   blockedIps: BlockedIpEntry[];
@@ -6967,6 +6968,228 @@ function JobQueuePanel({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
   );
 }
 
+// ─── IP Abuse Panel ───────────────────────────────────────────────────────────
+
+function IpAbusePanel({ data, onRefresh }: { data: MediaAuditData; onRefresh: () => void }) {
+  const queryClient = useQueryClient();
+  const [blockingIp, setBlockingIp] = useState<string | null>(null);
+
+  async function handleBlock(ip: string) {
+    setBlockingIp(ip);
+    try {
+      const r = await fetch(`${BASE}/api/admin/block-ip`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip, reason: "Flagged: high download volume" }),
+      });
+      if (!r.ok) throw new Error("Block failed");
+      toast.success(`Blocked ${ip}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-media-audit"] });
+      onRefresh();
+    } catch {
+      toast.error("Failed to block IP");
+    } finally {
+      setBlockingIp(null);
+    }
+  }
+
+  async function handleUnblock(ip: string) {
+    setBlockingIp(ip);
+    try {
+      const r = await fetch(`${BASE}/api/admin/block-ip/${encodeURIComponent(ip)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Unblock failed");
+      toast.success(`Unblocked ${ip}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-media-audit"] });
+      onRefresh();
+    } catch {
+      toast.error("Failed to unblock IP");
+    } finally {
+      setBlockingIp(null);
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-sm">IP Activity &amp; Abuse Detection</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Rolling-window download counts per IP. Thresholds — High:&nbsp;
+            <span className="font-semibold text-red-500">&gt;{data.thresholds.high.per1h}/1h</span> or&nbsp;
+            <span className="font-semibold text-red-500">&gt;{data.thresholds.high.per24h}/24h</span>&nbsp;·&nbsp;
+            Medium: <span className="font-semibold text-amber-500">&gt;{data.thresholds.medium.per1h}/1h</span> or&nbsp;
+            <span className="font-semibold text-amber-500">&gt;{data.thresholds.medium.per24h}/24h</span>
+          </p>
+        </div>
+        {data.summary.suspiciousIps > 0 && (
+          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400">
+            <AlertCircle className="w-3 h-3" />
+            {data.summary.suspiciousIps} flagged
+          </span>
+        )}
+      </div>
+
+      {data.ipActivity.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">No IP activity on record yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">IP Address</th>
+                <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">Risk</th>
+                <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">1 h</th>
+                <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">24 h</th>
+                <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">7 d</th>
+                <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">All-time</th>
+                <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">Bytes</th>
+                <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">Last seen</th>
+                <th className="text-left py-2 font-semibold text-muted-foreground">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.ipActivity.map((row) => {
+                const isHigh    = row.dl1h >= data.thresholds.high.per1h || row.dl24h >= data.thresholds.high.per24h;
+                const isMed     = !isHigh && (row.dl1h >= data.thresholds.medium.per1h || row.dl24h >= data.thresholds.medium.per24h);
+                const isBlocked = row.blocked;
+                const isBusy    = blockingIp === row.ip;
+
+                const rowCls = isBlocked
+                  ? "border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 opacity-60"
+                  : isHigh
+                  ? "border-b border-red-100 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/10 hover:bg-red-50 dark:hover:bg-red-950/20"
+                  : isMed
+                  ? "border-b border-amber-100 dark:border-amber-900/30 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                  : "border-b border-border/40 hover:bg-muted/30";
+
+                const riskBadge = isBlocked
+                  ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400"><Lock className="w-2.5 h-2.5" /> Blocked</span>
+                  : isHigh
+                  ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-red-100 text-red-600 border-red-200 dark:bg-red-950/40 dark:border-red-700 dark:text-red-400"><AlertCircle className="w-2.5 h-2.5" /> High</span>
+                  : isMed
+                  ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-400"><AlertCircle className="w-2.5 h-2.5" /> Med</span>
+                  : <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400"><CheckCircle className="w-2.5 h-2.5" /> OK</span>;
+
+                return (
+                  <tr key={row.ip} className={`${rowCls} transition-colors`}>
+                    <td className="py-2 pr-3 font-mono text-[10px]">{row.ip}</td>
+                    <td className="py-2 pr-3">{riskBadge}</td>
+                    <td className={`py-2 pr-3 text-right font-bold tabular-nums ${isHigh && row.dl1h >= data.thresholds.high.per1h ? "text-red-600 dark:text-red-400" : isMed && row.dl1h >= data.thresholds.medium.per1h ? "text-amber-600 dark:text-amber-400" : ""}`}>{row.dl1h}</td>
+                    <td className={`py-2 pr-3 text-right font-bold tabular-nums ${isHigh && row.dl24h >= data.thresholds.high.per24h ? "text-red-600 dark:text-red-400" : isMed && row.dl24h >= data.thresholds.medium.per24h ? "text-amber-600 dark:text-amber-400" : ""}`}>{row.dl24h}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{row.dl7d}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{row.dlTotal}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{fmtBytes(row.totalBytes)}</td>
+                    <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">{rel(row.lastSeen)}</td>
+                    <td className="py-2">
+                      {isBlocked ? (
+                        <button
+                          onClick={() => handleUnblock(row.ip)}
+                          disabled={isBusy}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-50"
+                        >
+                          {isBusy ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <CheckCircle className="w-2.5 h-2.5" />}
+                          Unblock
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleBlock(row.ip)}
+                          disabled={isBusy}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                        >
+                          {isBusy ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Shield className="w-2.5 h-2.5" />}
+                          Block
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── Blocked IPs Panel ────────────────────────────────────────────────────────
+
+function BlockedIpsPanel({ blockedIps, onRefresh }: { blockedIps: BlockedIpEntry[]; onRefresh: () => void }) {
+  const queryClient = useQueryClient();
+  const [unblockingIp, setUnblockingIp] = useState<string | null>(null);
+
+  async function handleUnblock(ip: string) {
+    setUnblockingIp(ip);
+    try {
+      const r = await fetch(`${BASE}/api/admin/block-ip/${encodeURIComponent(ip)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Unblock failed");
+      toast.success(`Unblocked ${ip}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-media-audit"] });
+      onRefresh();
+    } catch {
+      toast.error("Failed to unblock IP");
+    } finally {
+      setUnblockingIp(null);
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-sm flex items-center gap-2">
+            <Shield className="w-4 h-4 text-red-500" />
+            Blocked IPs
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            These addresses are permanently denied download access. Click Unblock to restore access.
+          </p>
+        </div>
+        {blockedIps.length > 0 && (
+          <span className="shrink-0 inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400">
+            {blockedIps.length} blocked
+          </span>
+        )}
+      </div>
+
+      {blockedIps.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">No IPs are currently blocked.</p>
+      ) : (
+        <div className="divide-y divide-border">
+          {blockedIps.map((entry) => {
+            const isBusy = unblockingIp === entry.ip;
+            return (
+              <div key={entry.ip} className="flex items-center gap-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-xs font-semibold">{entry.ip}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {entry.reason} · blocked by <span className="font-medium">{entry.blockedBy}</span> · {rel(entry.createdAt)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleUnblock(entry.ip)}
+                  disabled={isBusy}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-50"
+                >
+                  {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                  Unblock
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── Downloads Section ────────────────────────────────────────────────────────
 
 function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
@@ -7085,10 +7308,7 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
                         <div key={format} className="flex items-center gap-3">
                           <FormatBadge format={format} />
                           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-accent rounded-full transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
+                            <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-xs font-bold tabular-nums w-8 text-right">{count}</span>
                           <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
@@ -7099,49 +7319,91 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
                 )}
               </Card>
 
-              {/* ── Top Downloaded Videos ── */}
+              {/* ── Quality Tier Breakdown ── */}
               <Card>
-                <SectionHeader title="Top Downloaded Videos" description="Most requested content (by YouTube ID)" />
-                {data.topVideos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No downloads yet.</p>
+                <SectionHeader title="Quality Tier Breakdown" description="Which quality users choose most" />
+                {(data.qualityBreakdown ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No quality data yet.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left py-2 font-semibold text-muted-foreground">#</th>
-                          <th className="text-left py-2 font-semibold text-muted-foreground">Video ID</th>
-                          <th className="text-left py-2 font-semibold text-muted-foreground">Format</th>
-                          <th className="text-right py-2 font-semibold text-muted-foreground">Downloads</th>
-                          <th className="text-right py-2 font-semibold text-muted-foreground">Bytes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.topVideos.map(({ videoId, format, downloadCount, totalBytes }, i) => (
-                          <tr key={`${videoId}-${format}`} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                            <td className="py-2 text-muted-foreground tabular-nums">{i + 1}</td>
-                            <td className="py-2">
-                              <a
-                                href={`https://youtu.be/${videoId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono text-[10px] text-accent hover:underline flex items-center gap-1"
-                              >
-                                {videoId}
-                                <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-                              </a>
-                            </td>
-                            <td className="py-2"><FormatBadge format={format} /></td>
-                            <td className="py-2 text-right font-bold tabular-nums">{downloadCount}</td>
-                            <td className="py-2 text-right text-muted-foreground tabular-nums">{fmtBytes(totalBytes)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="space-y-2">
+                    {(data.qualityBreakdown ?? []).map(({ quality, count }) => {
+                      const total = (data.qualityBreakdown ?? []).reduce((s, r) => s + r.count, 0);
+                      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                      const QUALITY_COLORS: Record<string, { bar: string; badge: string }> = {
+                        ultra:  { bar: "bg-violet-500", badge: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-300 dark:border-violet-800" },
+                        high:   { bar: "bg-blue-500",   badge: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800" },
+                        medium: { bar: "bg-amber-500",  badge: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800" },
+                        low:    { bar: "bg-slate-400",  badge: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" },
+                      };
+                      const style = QUALITY_COLORS[quality] ?? { bar: "bg-muted-foreground", badge: "bg-muted text-muted-foreground border-border" };
+                      const LABELS: Record<string, string> = { ultra: "1080p Full HD", high: "720p HD", medium: "480p", low: "360p" };
+                      return (
+                        <div key={quality} className="flex items-center gap-3">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-20 justify-center flex-shrink-0 ${style.badge}`}>
+                            {LABELS[quality] ?? quality}
+                          </span>
+                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${style.bar}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs font-bold tabular-nums w-8 text-right">{count}</span>
+                          <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </Card>
             </div>
+
+            {/* ── Top Downloaded Videos ── */}
+            <Card>
+              <SectionHeader title="Top Downloaded Sermons" description="Most requested content — ranked by completed downloads" />
+              {data.topVideos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No downloads yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">#</th>
+                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">Sermon</th>
+                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">Format</th>
+                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">Downloads</th>
+                        <th className="text-right py-2 font-semibold text-muted-foreground">Data Served</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.topVideos.map(({ videoId, format, downloadCount, totalBytes, sermonTitle }, i) => (
+                        <tr key={`${videoId}-${format}`} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                          <td className="py-2 pr-3 text-muted-foreground tabular-nums">{i + 1}</td>
+                          <td className="py-2 pr-3 max-w-[260px]">
+                            <a
+                              href={`https://youtu.be/${videoId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex flex-col gap-0.5 hover:text-accent transition-colors group"
+                            >
+                              {sermonTitle ? (
+                                <span className="font-medium text-foreground group-hover:text-accent line-clamp-1">
+                                  {sermonTitle}
+                                </span>
+                              ) : null}
+                              <span className="font-mono text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                {videoId}
+                                <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                              </span>
+                            </a>
+                          </td>
+                          <td className="py-2 pr-3"><FormatBadge format={format} /></td>
+                          <td className="py-2 pr-3 text-right font-bold tabular-nums">{downloadCount}</td>
+                          <td className="py-2 text-right text-muted-foreground tabular-nums">{fmtBytes(totalBytes)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
 
             {/* ── Recent Downloads Feed ── */}
             <Card>
@@ -7194,75 +7456,10 @@ function DownloadsSection({ auth }: { auth: ReturnType<typeof useAdminAuth> }) {
             </Card>
 
             {/* ── IP Activity & Abuse Detection ── */}
-            <Card>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-bold text-sm">IP Activity &amp; Abuse Detection</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    All unique downloader IPs with rolling-window counts. Thresholds — High:&nbsp;
-                    <span className="font-semibold text-red-500">&gt;{data.thresholds.high.per1h}/1h</span> or&nbsp;
-                    <span className="font-semibold text-red-500">&gt;{data.thresholds.high.per24h}/24h</span>&nbsp;·&nbsp;
-                    Medium: <span className="font-semibold text-amber-500">&gt;{data.thresholds.medium.per1h}/1h</span> or&nbsp;
-                    <span className="font-semibold text-amber-500">&gt;{data.thresholds.medium.per24h}/24h</span>
-                  </p>
-                </div>
-                {data.summary.suspiciousIps > 0 && (
-                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400">
-                    <AlertCircle className="w-3 h-3" />
-                    {data.summary.suspiciousIps} flagged
-                  </span>
-                )}
-              </div>
+            <IpAbusePanel data={data} onRefresh={refetch} />
 
-              {data.ipActivity.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No IP activity on record yet.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">IP Address</th>
-                        <th className="text-left py-2 pr-3 font-semibold text-muted-foreground">Risk</th>
-                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">1 h</th>
-                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">24 h</th>
-                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">7 d</th>
-                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">All-time</th>
-                        <th className="text-right py-2 pr-3 font-semibold text-muted-foreground">Bytes</th>
-                        <th className="text-left py-2 font-semibold text-muted-foreground">Last seen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.ipActivity.map((row) => {
-                        const isHigh = row.dl1h >= data.thresholds.high.per1h || row.dl24h >= data.thresholds.high.per24h;
-                        const isMed  = !isHigh && (row.dl1h >= data.thresholds.medium.per1h || row.dl24h >= data.thresholds.medium.per24h);
-                        const rowCls = isHigh
-                          ? "border-b border-red-100 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/10 hover:bg-red-50 dark:hover:bg-red-950/20"
-                          : isMed
-                          ? "border-b border-amber-100 dark:border-amber-900/30 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20"
-                          : "border-b border-border/40 hover:bg-muted/30";
-                        const riskBadge = isHigh
-                          ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-red-100 text-red-600 border-red-200 dark:bg-red-950/40 dark:border-red-700 dark:text-red-400"><AlertCircle className="w-2.5 h-2.5" /> High</span>
-                          : isMed
-                          ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-400"><AlertCircle className="w-2.5 h-2.5" /> Med</span>
-                          : <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400"><CheckCircle className="w-2.5 h-2.5" /> OK</span>;
-                        return (
-                          <tr key={row.ip} className={`${rowCls} transition-colors`}>
-                            <td className="py-2 pr-3 font-mono text-[10px] text-muted-foreground">{row.ip}</td>
-                            <td className="py-2 pr-3">{riskBadge}</td>
-                            <td className={`py-2 pr-3 text-right font-bold tabular-nums ${isHigh && row.dl1h >= data.thresholds.high.per1h ? "text-red-600 dark:text-red-400" : isMed && row.dl1h >= data.thresholds.medium.per1h ? "text-amber-600 dark:text-amber-400" : ""}`}>{row.dl1h}</td>
-                            <td className={`py-2 pr-3 text-right font-bold tabular-nums ${isHigh && row.dl24h >= data.thresholds.high.per24h ? "text-red-600 dark:text-red-400" : isMed && row.dl24h >= data.thresholds.medium.per24h ? "text-amber-600 dark:text-amber-400" : ""}`}>{row.dl24h}</td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{row.dl7d}</td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{row.dlTotal}</td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{fmtBytes(row.totalBytes)}</td>
-                            <td className="py-2 text-muted-foreground whitespace-nowrap">{rel(row.lastSeen)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
+            {/* ── Blocked IPs ── */}
+            <BlockedIpsPanel blockedIps={data.blockedIps ?? []} onRefresh={refetch} />
           </>
         )}
       </div>
