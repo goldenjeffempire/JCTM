@@ -30,23 +30,68 @@ const logger = pino({ name: "media-processor" });
 
 export const MEDIA_DIR = process.env.MEDIA_TEMP_DIR ?? path.join(os.tmpdir(), "jctm-media");
 
-// yt-dlp binary: check known locations in priority order
-function resolveYtDlpBin(): string {
-  if (process.env.YT_DLP_PATH) return process.env.YT_DLP_PATH;
-  const candidates = [
-    path.join(process.cwd(), ".pythonlibs", "bin", "yt-dlp"),
-    path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"),
-    "/home/runner/workspace/.pythonlibs/bin/yt-dlp",
-    "/usr/local/bin/yt-dlp",
-    "/usr/bin/yt-dlp",
-  ];
-  for (const c of candidates) {
-    try { if (fs.existsSync(c)) return c; } catch { /* skip */ }
+// yt-dlp invocation: resolved lazily at first spawn so the binary installed
+// during the production build (`pip install yt-dlp`) is detected correctly.
+// Falls back to `python3 -m yt_dlp` when no standalone binary is found.
+type YtDlpInvoker = { cmd: string; prefix: string[] };
+let _ytDlpInvoker: YtDlpInvoker | null = null;
+
+function getYtDlpInvoker(): YtDlpInvoker {
+  if (_ytDlpInvoker) return _ytDlpInvoker;
+
+  // 1. Explicit override via env var
+  if (process.env.YT_DLP_PATH) {
+    _ytDlpInvoker = { cmd: process.env.YT_DLP_PATH, prefix: [] };
+    return _ytDlpInvoker;
   }
-  return candidates[0]!;
+
+  // 2. Well-known binary locations (checked at spawn time so pip-installed
+  //    binaries from the production build are visible)
+  const binaryCandidates = [
+    "/usr/local/bin/yt-dlp",          // pip install --system (Render/VM)
+    "/usr/bin/yt-dlp",                // system package
+    path.join(os.homedir(), ".local", "bin", "yt-dlp"),  // pip install --user
+    path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"), // Replit dev
+    path.join(process.cwd(), ".pythonlibs", "bin", "yt-dlp"), // cwd-relative
+    "/home/runner/workspace/.pythonlibs/bin/yt-dlp",     // Replit absolute
+    "/opt/homebrew/bin/yt-dlp",       // macOS Homebrew
+  ];
+
+  for (const c of binaryCandidates) {
+    try { if (fs.existsSync(c)) { _ytDlpInvoker = { cmd: c, prefix: [] }; return _ytDlpInvoker; } }
+    catch { /* skip */ }
+  }
+
+  // 3. Python module fallback — works wherever `pip install yt-dlp` ran
+  const pythonCandidates = [
+    process.env.PYTHON_PATH,
+    path.join(os.homedir(), ".pythonlibs", "bin", "python3"),
+    "/usr/bin/python3",
+    "/usr/local/bin/python3",
+    "python3",
+  ].filter(Boolean) as string[];
+
+  for (const py of pythonCandidates) {
+    try {
+      if (py === "python3" || fs.existsSync(py)) {
+        _ytDlpInvoker = { cmd: py, prefix: ["-m", "yt_dlp"] };
+        logger.info({ python: py }, "yt-dlp binary not found — using python3 -m yt_dlp fallback");
+        return _ytDlpInvoker;
+      }
+    } catch { /* skip */ }
+  }
+
+  // 4. Last resort: assume it's on PATH after pip install
+  logger.warn("yt-dlp not found in any known location — attempting 'yt-dlp' from PATH");
+  _ytDlpInvoker = { cmd: "yt-dlp", prefix: [] };
+  return _ytDlpInvoker;
 }
 
-const YT_DLP_BIN = resolveYtDlpBin();
+/** Spawn yt-dlp with the correct binary or python module invocation. */
+function spawnYtDlp(args: string[], opts?: { timeout?: number }) {
+  const { cmd, prefix } = getYtDlpInvoker();
+  return spawn(cmd, [...prefix, ...args], opts ?? {});
+}
 
 // Ensure temp directory exists
 fs.mkdirSync(MEDIA_DIR, { recursive: true });
@@ -312,7 +357,7 @@ async function fetchYtMetadata(videoId: string): Promise<YtMetadata | null> {
       `https://www.youtube.com/watch?v=${videoId}`,
     ];
 
-    const proc = spawn(YT_DLP_BIN, args, { timeout: 25_000 });
+    const proc = spawnYtDlp(args, { timeout: 25_000 });
     let stdout = "";
     proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
     proc.on("close", (code) => {
@@ -362,19 +407,21 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
     const ytArgs = [
       "--no-playlist",
       "--no-warnings",
-      "-x",
-      "--audio-format", "bestaudio",
-      "--audio-quality", "0",
+      "--progress",
+      "--newline",              // one progress line per stderr write — enables regex match
+      "-f", "bestaudio/best",   // format SELECTOR — picks best available audio stream
+      "-x",                     // extract audio (keep raw; ffmpeg re-encodes below)
       "-o", tmpFile,
       "--no-part",
       "--socket-timeout", "30",
-      "--retries", "3",
-      "--fragment-retries", "3",
-      "--concurrent-fragments", "4",
+      "--retries", "5",
+      "--fragment-retries", "5",
+      "--concurrent-fragments", "2",  // 2 is gentler on YouTube; less throttling
+      "--throttled-rate", "100K",     // retry fragment if speed drops below 100 KB/s
       `https://www.youtube.com/watch?v=${job.sourceId}`,
     ];
 
-    const proc = spawn(YT_DLP_BIN, ytArgs);
+    const proc = spawnYtDlp(ytArgs);
     let stderr = "";
 
     proc.stderr.on("data", (d: Buffer) => {
@@ -390,7 +437,10 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       if (code === 0) resolve();
       else reject(new Error(`yt-dlp exited ${code}: ${stderr.slice(-300)}`));
     });
-    proc.on("error", (e) => reject(new Error(`yt-dlp spawn error: ${e.message}. Binary: ${YT_DLP_BIN}`)));
+    proc.on("error", (e) => {
+      const { cmd, prefix } = getYtDlpInvoker();
+      reject(new Error(`yt-dlp spawn error: ${e.message}. Invocation: ${cmd} ${prefix.join(" ")}`));
+    });
   });
 
   currentJob = updateJob(currentJob, { progress: 83 });
@@ -462,18 +512,21 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
     const ytArgs = [
       "--no-playlist",
       "--no-warnings",
+      "--progress",
+      "--newline",
       "-f", fmtSelector,
       "--merge-output-format", "mp4",
       "-o", outFile,
       "--no-part",
       "--socket-timeout", "30",
-      "--retries", "3",
-      "--fragment-retries", "3",
-      "--concurrent-fragments", "4",
+      "--retries", "5",
+      "--fragment-retries", "5",
+      "--concurrent-fragments", "2",
+      "--throttled-rate", "100K",
       `https://www.youtube.com/watch?v=${job.sourceId}`,
     ];
 
-    const proc = spawn(YT_DLP_BIN, ytArgs);
+    const proc = spawnYtDlp(ytArgs);
     let stderr = "";
 
     proc.stderr.on("data", (d: Buffer) => {
