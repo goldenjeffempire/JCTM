@@ -667,6 +667,11 @@ const HERO_IMAGES = [
   { key: "img6", src: "/founder/DSC1774.jpg", label: "Prayer", tag: "Intercession", title: "Intercession & Prayer", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img7", src: "/founder/DSC5377.jpg", label: "Anointing", tag: "Prophet", title: "The Anointed Voice", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img8", src: "/founder/DSC5382.jpg", label: "Proclamation", tag: "Apostolic", title: "Apostolic Proclamation", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img9", src: "/founder/DSC6453.jpg", label: "Ministers Conference", tag: "Prophetic", title: "Ministers Conference 2026", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img10", src: "/founder/DSC6455.jpg", label: "The Word", tag: "Apostolic", title: "Declaring the Apostolic Word", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img11", src: "/founder/DSC6459.jpg", label: "The Mandate", tag: "Ministry", title: "Walking in the Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img12", src: "/founder/DSC6468.jpg", label: "Triumphant", tag: "Victory", title: "Triumphant in the Spirit", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img13", src: "/founder/P1409629.jpg", label: "Congregation", tag: "Gathering", title: "Gathered Under the Word", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
 ];
 
 function HeroSection() {
@@ -2079,6 +2084,11 @@ const FOUNDER_PHOTOS = [
   { key: "photo6", src: "/founder/DSC1774.jpg", label: "Prayer" },
   { key: "photo7", src: "/founder/DSC5377.jpg", label: "Anointing" },
   { key: "photo8", src: "/founder/DSC5382.jpg", label: "Proclamation" },
+  { key: "photo9", src: "/founder/DSC6453.jpg", label: "Conference" },
+  { key: "photo10", src: "/founder/DSC6455.jpg", label: "The Word" },
+  { key: "photo11", src: "/founder/DSC6459.jpg", label: "The Mandate" },
+  { key: "photo12", src: "/founder/DSC6468.jpg", label: "Triumphant" },
+  { key: "photo13", src: "/founder/P1409629.jpg", label: "Gathered" },
 ];
 
 function ProphetSection() {
@@ -2301,13 +2311,46 @@ function MandateReveal() {
   const op3 = useTransform(scrollYProgress, [0.35, 0.65, 0.75, 0.95], [0, 1, 1, 0]);
   const bgScale = useTransform(scrollYProgress, [0, 1], [1.06, 1.0]);
 
+  const OVERSEER_PHOTOS = [
+    { src: "/founder/DSC6468.jpg", label: "Triumphant in the Spirit" },
+    { src: "/founder/DSC6459.jpg", label: "Walking in the Mandate" },
+    { src: "/founder/P1409629.jpg", label: "Gathered Under the Word" },
+  ];
+
   return (
     <section ref={ref} className="relative py-40 overflow-hidden" style={{ background: "#020b18" }}>
+      {/* ── Cinematic photo backdrop ── */}
       <motion.div style={{ scale: bgScale }} className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#001830] to-[#020b18]" />
-        <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(56,189,248,0.1) 0%, transparent 60%), radial-gradient(circle at 80% 50%, rgba(0,51,102,0.2) 0%, transparent 60%)" }} />
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle, rgba(56,189,248,0.4) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+        {/* Split-panel photo mosaic */}
+        <div className="absolute inset-0 flex">
+          {OVERSEER_PHOTOS.map((photo, i) => (
+            <div key={i} className="relative flex-1 overflow-hidden">
+              <img
+                src={photo.src}
+                alt={photo.label}
+                className="absolute inset-0 w-full h-full object-cover object-top"
+                style={{ filter: "grayscale(40%) contrast(1.1)" }}
+                loading="lazy"
+                decoding="async"
+              />
+              {/* Deep ink wash per panel */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: i === 1
+                    ? "linear-gradient(180deg, rgba(2,11,24,0.55) 0%, rgba(2,11,24,0.72) 100%)"
+                    : "linear-gradient(180deg, rgba(2,11,24,0.72) 0%, rgba(2,11,24,0.85) 100%)",
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        {/* Full-width overlay to unify the mosaic */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#020b18]/60 via-transparent to-[#020b18]/70" />
+        <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(56,189,248,0.08) 0%, transparent 60%), radial-gradient(circle at 80% 50%, rgba(0,51,102,0.15) 0%, transparent 60%)" }} />
+        <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: "radial-gradient(circle, rgba(56,189,248,0.4) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
       </motion.div>
+
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto space-y-10 text-center">
           <motion.div style={{ x: x1, opacity: op1 }}>
