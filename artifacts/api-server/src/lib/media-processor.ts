@@ -453,12 +453,18 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9\s\-_()[\]]/g, "").replace(/\s+/g, "_").slice(0, 100);
 }
 
-function cleanupTempFiles(jobId: string): void {
+function cleanupTempFiles(jobId: string, alsoOutput = false): void {
   try {
     const files = fs.readdirSync(MEDIA_DIR);
     for (const f of files) {
       if (f.startsWith(`${jobId}_raw`) || f === `${jobId}.mp4.part`) {
         try { fs.unlinkSync(path.join(MEDIA_DIR, f)); } catch { /* non-fatal */ }
+      }
+    }
+    // Remove any partially-written output file left behind by a killed encode
+    if (alsoOutput) {
+      for (const ext of ["mp3", "m4a", "mp4", "jpeg", "png", "webp"]) {
+        try { fs.unlinkSync(path.join(MEDIA_DIR, `${jobId}.${ext}`)); } catch { /* non-fatal */ }
       }
     }
   } catch { /* non-fatal */ }
@@ -565,10 +571,12 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
           clearTimeout(stallKill);
           stallKill = makeStallTimer(STALL_AUDIO_MS);
           // Derive progress from file size vs expected (duration * ~16KB/s for 128kbps)
-          if (cur.duration && cur.duration > 0 && cur.progress < 78) {
-            const expectedBytes = cur.duration * 16_000;
+          // Always read live state so progress never regresses
+          const live = activeJobs.get(job.id) ?? cur;
+          if (live.duration && live.duration > 0 && live.progress < 78) {
+            const expectedBytes = live.duration * 16_000;
             const pct = Math.min(78, Math.round((total / expectedBytes) * 68) + 12);
-            if (pct > (cur.progress ?? 0)) patch(cur, { progress: pct });
+            if (pct > live.progress) patch(live, { progress: pct });
           }
         }
       } catch { /* ignore */ }
@@ -721,8 +729,9 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
     let lastVideoSize = 0;
     const videoFileSizePoller = setInterval(() => {
       try {
+        // Scan ALL files for this job (video writes directly to outFile, not _raw)
         const total = fs.readdirSync(MEDIA_DIR)
-          .filter(f => f.startsWith(`${job.id}_raw`) && !f.endsWith(".ytdl"))
+          .filter(f => f.startsWith(job.id) && !f.endsWith(".ytdl"))
           .reduce((acc, f) => {
             try { return acc + fs.statSync(path.join(MEDIA_DIR, f)).size; } catch { return acc; }
           }, 0);
@@ -731,11 +740,13 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
           clearTimeout(stallKill);
           stallKill = makeVideoStallTimer(STALL_VIDEO_MS);
           // Derive progress from file size vs expected (duration * ~500KB/s for 720p)
-          if (cur.duration && cur.duration > 0 && cur.progress < 94) {
+          // Always read live state so progress never regresses
+          const live = activeJobs.get(job.id) ?? cur;
+          if (live.duration && live.duration > 0 && live.progress < 94) {
             const bitrateMap: Record<string, number> = { low: 150_000, medium: 300_000, high: 500_000, ultra: 1_000_000 };
-            const expectedBytes = cur.duration * (bitrateMap[job.quality ?? "high"] ?? 500_000);
+            const expectedBytes = live.duration * (bitrateMap[job.quality ?? "high"] ?? 500_000);
             const pct = Math.min(94, Math.round((total / expectedBytes) * 84) + 12);
-            if (pct > (cur.progress ?? 0)) patch(cur, { progress: pct });
+            if (pct > live.progress) patch(live, { progress: pct });
           }
         }
       } catch { /* ignore */ }
@@ -901,7 +912,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
       // yt-dlp binary not installed — no amount of retrying will fix this.
       if (isYtDlpMissingError(msg)) {
         logger.warn({ jobId: job.id }, "yt-dlp binary not found on this host — marking job as permanent failure (no retry)");
-        cleanupTempFiles(job.id);
+        cleanupTempFiles(job.id, true);
         const cur = activeJobs.get(job.id) ?? job;
         patch(cur, {
           status: "failed",
@@ -916,7 +927,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
 
       if (isPermanentError(msg)) {
         logger.warn({ err, jobId: job.id, attempt }, "Permanent error — not retrying");
-        cleanupTempFiles(job.id);
+        cleanupTempFiles(job.id, true);
         const cur = activeJobs.get(job.id) ?? job;
         patch(cur, { status: "failed", error: msg, retryCount: totalCount, isPermanentFailure: true, nextRetryAt: null });
         activeJobs.delete(job.id);
@@ -930,7 +941,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
           : Math.pow(2, attempt - 1) * 3_000;
 
         logger.warn({ err, jobId: job.id, attempt, delayMs, stall }, "Job failed — retrying");
-        cleanupTempFiles(job.id);
+        cleanupTempFiles(job.id, true);
 
         const cur = activeJobs.get(job.id) ?? job;
 
@@ -949,6 +960,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
             if (s <= 0) { clearInterval(ticker); return; }
             patch(live, { error: `Throttled by YouTube — retrying in ${s}s…` });
           }, 10_000);
+          ticker.unref();
 
           await new Promise(r => setTimeout(r, delayMs));
           clearInterval(ticker);
@@ -974,7 +986,7 @@ async function processWithRetry(job: MediaJob): Promise<void> {
     logger.error({ jobId: job.id, totalCount }, "Job permanently failed after all retry cycles");
   }
 
-  cleanupTempFiles(job.id);
+  cleanupTempFiles(job.id, true);
   const cur = activeJobs.get(job.id) ?? job;
   patch(cur, { status: "failed", error: msg, retryCount: totalCount, nextRetryAt, isPermanentFailure: false });
   activeJobs.delete(job.id);
@@ -993,7 +1005,8 @@ export async function recoverOrphanedJobs(): Promise<void> {
                                    ELSE NULL END,
               updated_at    = now()
         WHERE status IN ('processing', 'queued')
-          AND expires_at > now()`,
+          AND expires_at > now()
+          AND updated_at < now() - INTERVAL '30 seconds'`,
       [TOTAL_MAX_RETRIES],
     );
     if (rowCount && rowCount > 0) {
@@ -1159,7 +1172,16 @@ export async function getUserJobs(limit = 20): Promise<MediaJob[]> {
       LIMIT $1`,
     [limit],
   );
-  return rows.map(mapRow);
+  // Override DB rows with live in-memory state (activeJobs has fresher progress/status
+  // for jobs currently queued or processing — DB writes are fire-and-forget)
+  const merged = new Map<string, MediaJob>();
+  for (const row of rows) merged.set(row.id, mapRow(row));
+  for (const job of activeJobs.values()) {
+    if (job.expiresAt > new Date()) merged.set(job.id, job);
+  }
+  return [...merged.values()]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit);
 }
 
 export function getFilePath(job: MediaJob): string | null {

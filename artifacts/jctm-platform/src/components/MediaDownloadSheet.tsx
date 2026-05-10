@@ -353,6 +353,27 @@ export default function MediaDownloadSheet({
     setIsTriggering(true);
     try {
       const tokenRes = await fetch(`${BASE}/api/media/token/${job.jobId}`, { method: "POST" });
+
+      // Handle specific token-endpoint errors before falling back
+      if (!tokenRes.ok) {
+        const body = await tokenRes.json().catch(() => ({})) as { error?: string; code?: string };
+
+        if (tokenRes.status === 410 || body.code === "TOKEN_EXPIRED") {
+          // File or link has expired — direct the user to re-convert
+          toast.error("This download link has expired. Tap 'Convert again' to get a fresh file.", { duration: 6000 });
+          setIsTriggering(false);
+          return;
+        }
+
+        if (tokenRes.status === 429) {
+          toast.error("Too many download requests — please wait a moment and try again.", { duration: 5000 });
+          setIsTriggering(false);
+          return;
+        }
+
+        // For other non-fatal errors (5xx etc.) fall through to direct URL as last resort
+      }
+
       const dlUrl = tokenRes.ok
         ? `${BASE}${(await tokenRes.json() as { downloadUrl: string }).downloadUrl}`
         : `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;

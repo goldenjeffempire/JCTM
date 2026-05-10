@@ -222,6 +222,7 @@ export function startPreprocessScheduler(): void {
     logger.info("Starting initial featured-sermon MP3 pre-processing sweep");
     await preprocessFeaturedSermons();
   }, STARTUP_DELAY_MS);
+  startupTimer.unref(); // Don't prevent clean shutdown during the 30-s delay window
 
   // Periodic re-scan (unref so it doesn't prevent clean shutdown)
   rescanTimer = setInterval(async () => {

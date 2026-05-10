@@ -123,6 +123,24 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000).unref();
 
+// Token rate limit: max 10 per IP per 10 minutes (prevents flood attacks)
+const ipTokenCount = new Map<string, { count: number; resetAt: number }>();
+function checkTokenRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipTokenCount.get(ip);
+  if (!entry || entry.resetAt < now) {
+    ipTokenCount.set(ip, { count: 1, resetAt: now + 10 * 60 * 1000 });
+    return true;
+  }
+  if (entry.count >= 10) return false;
+  entry.count++;
+  return true;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of ipTokenCount) if (e.resetAt < now) ipTokenCount.delete(ip);
+}, 60 * 60 * 1000).unref();
+
 // ─── Shared range-aware file server ──────────────────────────────────────────
 //
 // Handles: ETag / Last-Modified conditional requests, suffix ranges (bytes=-N),
@@ -523,6 +541,11 @@ router.post("/media/token/:id", async (req: Request, res: Response): Promise<voi
 
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
     res.status(400).json({ error: "Invalid job ID" });
+    return;
+  }
+
+  if (!checkTokenRateLimit(ip)) {
+    res.status(429).json({ error: "Too many token requests — please wait a moment before downloading again." });
     return;
   }
 
