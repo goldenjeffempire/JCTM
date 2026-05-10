@@ -82,10 +82,11 @@ export function emitTrackJob(jobId: string): void {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MediaJobsPanel() {
-  const [jobs,      setJobs]      = useState<PanelJob[]>([]);
-  const [open,      setOpen]      = useState(false);
-  const [minimized, setMinimized] = useState(false);
-  const sseRefs   = useRef<Map<string, EventSource>>(new Map());
+  const [jobs,          setJobs]          = useState<PanelJob[]>([]);
+  const [open,          setOpen]          = useState(false);
+  const [minimized,     setMinimized]     = useState(false);
+  const [triggeringIds, setTriggeringIds] = useState<Set<string>>(new Set());
+  const sseRefs    = useRef<Map<string, EventSource>>(new Map());
   const trackedIds = useRef<Set<string>>(new Set());
 
   useCountdownTick(jobs);
@@ -168,23 +169,33 @@ export function MediaJobsPanel() {
     });
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    async function pollOnce(): Promise<boolean> {
+      try {
+        const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
+        if (!r.ok) return false;
+        const update = await r.json() as PanelJob;
+        setJobs(prev => prev.map(j => j.jobId === jobId ? { ...j, ...update } : j));
+        if (update.status === "ready" || update.status === "failed") {
+          onFinished(update);
+          return true;
+        }
+        return false;
+      } catch { return false; }
+    }
+
     es.onerror = () => {
       es.close();
       sseRefs.current.delete(jobId);
       if (pollTimer) return;
-      pollTimer = setInterval(async () => {
-        try {
-          const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
-          if (!r.ok) return;
-          const update = await r.json() as PanelJob;
-          setJobs(prev => prev.map(j => j.jobId === jobId ? { ...j, ...update } : j));
-          if (update.status === "ready" || update.status === "failed") {
-            clearInterval(pollTimer!);
-            pollTimer = null;
-            onFinished(update);
-          }
-        } catch { /* non-fatal */ }
-      }, 3000);
+      // Fetch immediately — job may already be done (server returned JSON, not SSE)
+      void pollOnce().then(done => {
+        if (done) return;
+        pollTimer = setInterval(async () => {
+          const finished = await pollOnce();
+          if (finished) { clearInterval(pollTimer!); pollTimer = null; }
+        }, 3000);
+      });
     };
   }, []);
 
@@ -209,27 +220,42 @@ export function MediaJobsPanel() {
   }
 
   async function triggerDownload(job: PanelJob) {
-    if (!job.jobId) return;
+    if (!job.jobId || triggeringIds.has(job.jobId)) return;
+    setTriggeringIds(prev => new Set(prev).add(job.jobId));
     try {
       const tokenRes = await fetch(`${BASE}/api/media/token/${job.jobId}`, { method: "POST" });
-      if (tokenRes.ok) {
-        const { downloadUrl } = await tokenRes.json() as { downloadUrl: string };
+      const dlUrl = tokenRes.ok
+        ? `${BASE}${(await tokenRes.json() as { downloadUrl: string }).downloadUrl}`
+        : job.downloadUrl ? `${BASE}${job.downloadUrl}` : null;
+
+      if (!dlUrl) return;
+
+      const ext     = job.format ?? "mp3";
+      const rawName = job.title
+        ? job.title.replace(/[^\w\s\-()']/g, "").replace(/\s+/g, "_").trim().slice(0, 80)
+        : `jctm_media_${job.jobId.slice(0, 8)}`;
+      const filename = rawName.endsWith(`.${ext}`) ? rawName : `${rawName}.${ext}`;
+
+      // iOS Safari ignores <a download> for server URLs — open in new tab instead
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+                    !(window as unknown as { MSStream?: unknown }).MSStream;
+      if (isIOS) {
+        window.open(dlUrl, "_blank", "noopener,noreferrer");
+      } else {
         const a = document.createElement("a");
-        a.href = `${BASE}${downloadUrl}`;
-        a.download = job.title ?? "jctm_media";
+        a.href = dlUrl;
+        a.download = filename;
+        a.rel = "noopener noreferrer";
+        a.style.display = "none";
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        return;
+        setTimeout(() => document.body.removeChild(a), 1000);
       }
-    } catch { /* fall through */ }
-    if (job.downloadUrl) {
-      const a = document.createElement("a");
-      a.href = `${BASE}${job.downloadUrl}`;
-      a.download = job.title ?? "jctm_media";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    } catch { /* non-fatal */ }
+    finally {
+      setTimeout(() => {
+        setTriggeringIds(prev => { const s = new Set(prev); s.delete(job.jobId); return s; });
+      }, 3000);
     }
   }
 
@@ -391,11 +417,18 @@ export function MediaJobsPanel() {
                           {job.status === "ready" && !expiry.expired && (
                             <button
                               onClick={() => triggerDownload(job)}
-                              className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40
-                                         text-emerald-400 transition-colors"
+                              disabled={triggeringIds.has(job.jobId)}
+                              className={cn(
+                                "p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40",
+                                "text-emerald-400 transition-colors",
+                                triggeringIds.has(job.jobId) && "opacity-60 cursor-not-allowed",
+                              )}
                               title="Download file"
                             >
-                              <Download className="h-3.5 w-3.5" />
+                              {triggeringIds.has(job.jobId)
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Download className="h-3.5 w-3.5" />
+                              }
                             </button>
                           )}
                           <button

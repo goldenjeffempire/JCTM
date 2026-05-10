@@ -202,10 +202,10 @@ export default function MediaDownloadSheet({
   const [quality,         setQuality]         = useState<Quality>("high");
   const [job,             setJob]             = useState<Job | null>(null);
   const [loading,         setLoading]         = useState(false);
+  const [isTriggering,    setIsTriggering]    = useState(false);
   const [errorMsg,        setErrorMsg]        = useState<string | null>(null);
   const [errorCode,       setErrorCode]       = useState<string | null>(null);
   const sseRef            = useRef<EventSource | null>(null);
-  const downloadedRef     = useRef(false);
   const forceNewJob       = useRef(false);
 
   const qOpts = qualityOptions(format);
@@ -218,9 +218,9 @@ export default function MediaDownloadSheet({
       setQuality("high");
       setJob(null);
       setLoading(false);
+      setIsTriggering(false);
       setErrorMsg(null);
       setErrorCode(null);
-      downloadedRef.current = false;
       forceNewJob.current = false;
     } else {
       closeSSE();
@@ -258,19 +258,30 @@ export default function MediaDownloadSheet({
     });
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    async function pollOnce(): Promise<boolean> {
+      try {
+        const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
+        if (!r.ok) return false;
+        const data: Job = await r.json();
+        setJob(data);
+        if (data.status === "ready")  { setStep("done");  return true; }
+        if (data.status === "failed") { setStep("error"); return true; }
+        return false;
+      } catch { return false; }
+    }
+
     es.onerror = () => {
       closeSSE();
       if (pollTimer) return;
-      pollTimer = setInterval(async () => {
-        try {
-          const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
-          if (!r.ok) return;
-          const data: Job = await r.json();
-          setJob(data);
-          if (data.status === "ready")  { setStep("done");  clearInterval(pollTimer!); }
-          if (data.status === "failed") { setStep("error"); clearInterval(pollTimer!); }
-        } catch { /* silent */ }
-      }, 2000);
+      // Fetch immediately — the server may have returned JSON (job already complete)
+      void pollOnce().then(done => {
+        if (done) return;
+        pollTimer = setInterval(async () => {
+          const finished = await pollOnce();
+          if (finished) { clearInterval(pollTimer!); pollTimer = null; }
+        }, 2000);
+      });
     };
   }, []);
 
@@ -327,24 +338,42 @@ export default function MediaDownloadSheet({
   }
 
   async function triggerDownload() {
-    if (!job?.jobId || downloadedRef.current) return;
-    downloadedRef.current = true;
+    if (!job?.jobId || isTriggering) return;
+    setIsTriggering(true);
     try {
       const tokenRes = await fetch(`${BASE}/api/media/token/${job.jobId}`, { method: "POST" });
       const dlUrl = tokenRes.ok
         ? `${BASE}${(await tokenRes.json() as { downloadUrl: string }).downloadUrl}`
         : `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;
 
-      const a = document.createElement("a");
-      a.href = dlUrl;
-      a.download = job.title ?? "jctm_media";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
+      const ext      = job.format ?? format;
+      const rawName  = job.title
+        ? job.title.replace(/[^\w\s\-()']/g, "").replace(/\s+/g, "_").trim().slice(0, 80)
+        : `jctm_media_${job.jobId.slice(0, 8)}`;
+      const filename = rawName.endsWith(`.${ext}`) ? rawName : `${rawName}.${ext}`;
+
+      // iOS Safari ignores <a download> for server URLs — open in new tab instead
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+                    !(window as unknown as { MSStream?: unknown }).MSStream;
+      if (isIOS) {
+        window.open(dlUrl, "_blank", "noopener,noreferrer");
+        toast.success("File opened — use the Share menu (box with arrow) to save it to your device.", { duration: 6000 });
+      } else {
+        const a = document.createElement("a");
+        a.href = dlUrl;
+        a.download = filename;
+        a.rel = "noopener noreferrer";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => document.body.removeChild(a), 1000);
+        toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
+      }
     } catch {
-      downloadedRef.current = false;
       toast.error("Failed to start download. Please try again.");
+    } finally {
+      // Allow re-download after a short delay (prevents accidental double-click)
+      setTimeout(() => setIsTriggering(false), 3000);
     }
   }
 
@@ -354,7 +383,7 @@ export default function MediaDownloadSheet({
     setJob(null);
     setErrorMsg(null);
     setErrorCode(null);
-    downloadedRef.current = false;
+    setIsTriggering(false);
     forceNewJob.current = true;
   }
 
@@ -601,19 +630,22 @@ export default function MediaDownloadSheet({
 
                   <button
                     onClick={triggerDownload}
+                    disabled={isTriggering}
                     className={cn(
                       "w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl",
                       "bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-base",
                       "transition-all duration-200 active:scale-[0.98] shadow-lg shadow-emerald-500/25",
+                      isTriggering && "opacity-70 cursor-not-allowed",
                     )}
                   >
-                    <Download className="h-5 w-5" />
-                    Save File
-                    <ArrowRight className="h-4 w-4" />
+                    {isTriggering
+                      ? <><Loader2 className="h-5 w-5 animate-spin" /> Preparing…</>
+                      : <><Download className="h-5 w-5" /> Save File <ArrowRight className="h-4 w-4" /></>
+                    }
                   </button>
 
                   <button
-                    onClick={() => { setStep("pick"); setJob(null); downloadedRef.current = false; }}
+                    onClick={() => { setStep("pick"); setJob(null); setIsTriggering(false); }}
                     className="text-xs text-white/30 hover:text-white/60 transition-colors"
                   >
                     Download in a different format
@@ -624,22 +656,33 @@ export default function MediaDownloadSheet({
               {/* ── Step: Error ──────────────────────────────────────────── */}
               {step === "error" && (
                 <div className="px-5 pb-8 flex flex-col items-center text-center gap-5">
-                  <div className="w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center mt-2">
-                    <AlertCircle className="h-8 w-8 text-red-400" />
+                  <div className={cn(
+                    "w-16 h-16 rounded-full flex items-center justify-center mt-2",
+                    errorCode === "LIVE_STREAM" ? "bg-red-500/15" :
+                    errorCode === "NOT_IN_LIBRARY" ? "bg-amber-500/15" : "bg-red-500/15",
+                  )}>
+                    <AlertCircle className={cn(
+                      "h-8 w-8",
+                      errorCode === "NOT_IN_LIBRARY" ? "text-amber-400" : "text-red-400",
+                    )} />
                   </div>
 
                   <div className="space-y-1.5 px-2">
                     <p className="text-white font-bold text-base">
-                      {errorCode === "LIVE_STREAM" ? "Sermon is Live" : "Conversion Failed"}
+                      {errorCode === "LIVE_STREAM"     ? "Sermon is Live" :
+                       errorCode === "NOT_IN_LIBRARY"  ? "Not in Library" :
+                       "Conversion Failed"}
                     </p>
                     <p className="text-white/50 text-sm leading-relaxed">
                       {errorCode === "LIVE_STREAM"
                         ? "Downloads are only available after the live stream ends."
+                        : errorCode === "NOT_IN_LIBRARY"
+                        ? "This video is not yet in the JCTM sermon library. Only JCTM-published teachings can be downloaded."
                         : errorMsg ?? job?.error ?? "Something went wrong. Please try again."}
                     </p>
                   </div>
 
-                  {errorCode !== "LIVE_STREAM" && (
+                  {errorCode !== "LIVE_STREAM" && errorCode !== "NOT_IN_LIBRARY" && (
                     <button
                       onClick={retry}
                       className={cn(
