@@ -291,9 +291,13 @@ function replyToOption(): { replyTo?: string } {
 }
 
 export function getPublicBaseUrl(): string {
-  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
-  // Always use the canonical production domain in emails — never expose Replit dev URLs
-  return "https://jctm.org.ng";
+  const canonical = "https://jctm.org.ng";
+  const configured = process.env.PUBLIC_BASE_URL?.replace(/\/$/, "");
+  // Never use Replit dev/preview URLs in emails — always fall back to the canonical domain
+  if (configured && !/replit\.(dev|app|co)|\.repl\.|riker\./i.test(configured)) {
+    return configured;
+  }
+  return canonical;
 }
 
 function defaultFrom(): string {
