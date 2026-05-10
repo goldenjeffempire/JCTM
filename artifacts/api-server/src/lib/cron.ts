@@ -13,6 +13,7 @@ import { startEventNotificationWorker, stopEventNotificationWorker } from "./eve
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl, verifyEmailTransport } from "./email-engine.js";
 import { checkAndSendConferencePreReminder, checkAndSendConferenceLiveEmail, checkAndSendConferenceMorningBulkEmail, checkAndResendDay1CorrectedEmail } from "./email-automation.js";
+import { getActiveSubscribersMissedToday, recordDelivery, makeUnsubscribeUrl } from "./subscriber-manager.js";
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
 import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
@@ -1759,40 +1760,84 @@ async function broadcastDailyDevotionEmail(log: Logger): Promise<void> {
       );
 
     if (subscribers.length === 0) {
-      log.info({ date: today }, "Devotion email broadcast: no eligible subscribers");
-      return;
-    }
+      log.info({ date: today }, "Devotion email broadcast: no eligible devotion_subscribers");
+    } else {
+      log.info(
+        { date: today, recipients: subscribers.length },
+        "Devotion email broadcast starting (devotion_subscribers)",
+      );
 
-    log.info(
-      { date: today, recipients: subscribers.length },
-      "Devotion email broadcast starting",
-    );
+      let sent = 0;
+      let failed = 0;
 
-    let sent = 0;
-    let failed = 0;
-
-    for (const sub of subscribers) {
-      const unsubscribeUrl =
-        `${getPublicBaseUrl()}/api/devotion/unsubscribe?token=${encodeURIComponent(sub.unsubscribeToken)}`;
-      const ok = await sendDevotionEmail(sub.email, devotion, unsubscribeUrl, log);
-      if (ok) {
-        sent++;
-        await db
-          .update(devotionSubscribersTable)
-          .set({ lastSentDate: today })
-          .where(eq(devotionSubscribersTable.id, sub.id));
-      } else {
-        failed++;
+      for (const sub of subscribers) {
+        const unsubscribeUrl =
+          `${getPublicBaseUrl()}/api/devotion/unsubscribe?token=${encodeURIComponent(sub.unsubscribeToken)}`;
+        const ok = await sendDevotionEmail(sub.email, devotion, unsubscribeUrl, log);
+        if (ok) {
+          sent++;
+          await db
+            .update(devotionSubscribersTable)
+            .set({ lastSentDate: today })
+            .where(eq(devotionSubscribersTable.id, sub.id));
+        } else {
+          failed++;
+        }
+        // Light pacing to be polite to SMTP relays (especially Gmail) — 200ms
+        // gap = ~5 emails/sec, well under standard provider rate limits.
+        await new Promise((r) => setTimeout(r, 200));
       }
-      // Light pacing to be polite to SMTP relays (especially Gmail) — 200ms
-      // gap = ~5 emails/sec, well under standard provider rate limits.
-      await new Promise((r) => setTimeout(r, 200));
+
+      log.info(
+        { date: today, sent, failed, total: subscribers.length },
+        "Devotion email broadcast complete (devotion_subscribers)",
+      );
     }
 
-    log.info(
-      { date: today, sent, failed, total: subscribers.length },
-      "Devotion email broadcast complete",
-    );
+    // ── Phase 2: unified subscribers table ───────────────────────────────────
+    // Sends to everyone in the main `subscribers` table who hasn't received
+    // today's devotion_daily email. `getActiveSubscribersMissedToday` checks
+    // email_delivery_log, so a mid-broadcast server restart resumes safely
+    // without re-sending to addresses already served.
+    const unifiedSubscribers = await getActiveSubscribersMissedToday("devotion_daily", log);
+
+    if (unifiedSubscribers.length === 0) {
+      log.info({ date: today }, "Devotion email broadcast (unified): no eligible subscribers");
+    } else {
+      const base = getPublicBaseUrl();
+      const campaignKey = `devotion-daily-broadcast-${today}`;
+
+      log.info(
+        { date: today, recipients: unifiedSubscribers.length, campaignKey },
+        "Devotion email broadcast starting (unified subscribers)",
+      );
+
+      let uSent = 0;
+      let uFailed = 0;
+
+      for (const sub of unifiedSubscribers) {
+        const unsubUrl = makeUnsubscribeUrl(sub.email, base);
+        const ok = await sendDevotionEmail(sub.email, devotion, unsubUrl, log);
+        await recordDelivery(
+          {
+            subscriberId: sub.id,
+            email: sub.email,
+            emailType: "devotion_daily",
+            campaignKey,
+            status: ok ? "sent" : "failed",
+          },
+          log,
+        );
+        if (ok) uSent++; else uFailed++;
+        // 200 ms pacing — ~5 emails/sec, well within SMTP rate limits
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      log.info(
+        { date: today, sent: uSent, failed: uFailed, total: unifiedSubscribers.length, campaignKey },
+        "Devotion email broadcast complete (unified subscribers)",
+      );
+    }
   } catch (err) {
     log.warn({ err, date: today }, "Devotion email broadcast failed");
   }
