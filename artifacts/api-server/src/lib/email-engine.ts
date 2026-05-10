@@ -292,8 +292,8 @@ function replyToOption(): { replyTo?: string } {
 
 export function getPublicBaseUrl(): string {
   if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
-  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
-  return "http://localhost:5000";
+  // Always use the canonical production domain in emails — never expose Replit dev URLs
+  return "https://jctm.org.ng";
 }
 
 function defaultFrom(): string {
