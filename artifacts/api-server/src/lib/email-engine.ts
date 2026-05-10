@@ -358,7 +358,7 @@ export function renderDevotionEmail(d: DailyDevotion, unsubscribeUrl: string): {
     `"${d.declaration}"`,
     ``,
     `— Jesus Christ Temple Ministry, Warri, Nigeria`,
-    `Read devotions online: ${base}/devotion`,
+    `Read devotions online: https://jctm.org.ng/devotion`,
     ``,
     `To unsubscribe: ${unsubscribeUrl}`,
   ].join("\n");
@@ -432,7 +432,7 @@ export function renderDevotionEmail(d: DailyDevotion, unsubscribeUrl: string): {
 
     <!-- CTA -->
     <tr><td style="background:#ffffff;padding:0 36px 32px;text-align:center;">
-      <a href="${escapeHtml(base)}/devotion"
+      <a href="https://jctm.org.ng/devotion"
          style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:50px;font-size:14px;font-weight:700;letter-spacing:0.02em;margin-top:4px;">
         Read on the web →
       </a>
@@ -1111,6 +1111,12 @@ export interface ConferenceBroadcastEmailOpts {
   location: string;
   registrationUrl: string;
   ministryWebsite?: string;
+  /** When true, switches the email to an urgent "Starting Soon" variant */
+  startingSoon?: boolean;
+  /** Human-readable countdown label, e.g. "Starting in 45 minutes" or "Starting NOW" */
+  countdownLabel?: string;
+  /** Optional sub-label shown under the countdown, e.g. "TODAY · Sunday 10 May 2026" */
+  countdownSub?: string;
 }
 
 export function renderConferenceAnnouncementEmail(
@@ -1125,30 +1131,134 @@ export function renderConferenceAnnouncementEmail(
     location,
     registrationUrl,
     ministryWebsite = getPublicBaseUrl(),
+    startingSoon = false,
+    countdownLabel = "Starting Soon",
+    countdownSub,
   } = opts;
 
   const greeting = recipientName ? `Dear ${escapeHtml(recipientName)},` : "Dear Beloved,";
-  const subject = `📣 ${conferenceTitle} — You're Invited | JCTM`;
+  const subject = startingSoon
+    ? `🔴 LIVE NOW: ${conferenceTitle} — ${countdownLabel} | JCTM`
+    : `📣 ${conferenceTitle} — You're Invited | JCTM`;
 
-  const text = [
-    `${conferenceTitle}`,
-    tagline,
-    ``,
-    greeting.replace(/&amp;/g, "&").replace(/&#[0-9]+;/g, ""),
-    ``,
-    `We are excited to announce the ${conferenceTitle}!`,
-    ``,
-    `📅 When: ${dateStr} · ${timeStr}`,
-    `📍 Where: ${location}`,
-    ``,
-    `${tagline}`,
-    ``,
-    `Register now and secure your place: ${registrationUrl}`,
-    ``,
-    `— Jesus Christ Temple Ministry, Warri, Nigeria`,
-    `Website: ${ministryWebsite}`,
-  ].join("\n");
+  const text = startingSoon
+    ? [
+        `🔴 ${conferenceTitle} — ${countdownLabel}`,
+        ``,
+        greeting.replace(/&amp;/g, "&").replace(/&#[0-9]+;/g, ""),
+        ``,
+        `The ${conferenceTitle} is starting soon — don't miss this powerful move of God!`,
+        ``,
+        `⏰ ${countdownLabel}`,
+        countdownSub ? `📅 ${countdownSub}` : `📅 ${dateStr} · ${timeStr}`,
+        `📍 ${location}`,
+        ``,
+        `Join us live online: ${ministryWebsite}/sermons`,
+        ``,
+        `— Jesus Christ Temple Ministry, Warri, Nigeria`,
+      ].join("\n")
+    : [
+        `${conferenceTitle}`,
+        tagline,
+        ``,
+        greeting.replace(/&amp;/g, "&").replace(/&#[0-9]+;/g, ""),
+        ``,
+        `We are excited to announce the ${conferenceTitle}!`,
+        ``,
+        `📅 When: ${dateStr} · ${timeStr}`,
+        `📍 Where: ${location}`,
+        ``,
+        `${tagline}`,
+        ``,
+        `Register now and secure your place: ${registrationUrl}`,
+        ``,
+        `— Jesus Christ Temple Ministry, Warri, Nigeria`,
+        `Website: ${ministryWebsite}`,
+      ].join("\n");
 
+  // ── Starting-Soon email variant ──────────────────────────────────────────────
+  if (startingSoon) {
+    const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(conferenceTitle)} — ${escapeHtml(countdownLabel)}</title></head>
+<body style="margin:0;padding:0;background:#0f0f0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#f1f5f9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f0f;padding:28px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#111827;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.5);">
+
+        <!-- LIVE banner -->
+        <tr><td style="background:#dc2626;padding:10px 32px;text-align:center;">
+          <p style="margin:0;font-size:13px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;">🔴 &nbsp; STARTING SOON — JOIN NOW &nbsp; 🔴</p>
+        </td></tr>
+
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#1e1b4b 0%,#1e3a5f 60%,#0f172a 100%);padding:36px 32px 28px 32px;text-align:center;">
+          <p style="margin:0 0 8px 0;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#93c5fd;font-weight:700;">Jesus Christ Temple Ministry · Warri, Nigeria</p>
+          <h1 style="margin:0 0 10px 0;font-size:26px;font-weight:800;color:#ffffff;line-height:1.2;">${escapeHtml(conferenceTitle)}</h1>
+          <p style="margin:0;font-size:15px;color:#bfdbfe;font-style:italic;">"${escapeHtml(tagline)}"</p>
+        </td></tr>
+
+        <!-- Countdown block -->
+        <tr><td style="background:#1e1b4b;padding:28px 32px;text-align:center;border-bottom:1px solid #312e81;">
+          <p style="margin:0 0 8px 0;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#a5b4fc;font-weight:700;">⏱ Countdown</p>
+          <p style="margin:0;font-size:38px;font-weight:900;color:#ffffff;letter-spacing:-0.02em;line-height:1.1;">${escapeHtml(countdownLabel)}</p>
+          ${countdownSub ? `<p style="margin:10px 0 0 0;font-size:14px;color:#c7d2fe;font-weight:600;">${escapeHtml(countdownSub)}</p>` : `<p style="margin:10px 0 0 0;font-size:14px;color:#c7d2fe;font-weight:600;">${escapeHtml(dateStr)} &nbsp;·&nbsp; ${escapeHtml(timeStr)}</p>`}
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:28px 32px 12px 32px;">
+          <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;color:#f1f5f9;">${greeting}</p>
+          <p style="margin:0 0 16px 0;font-size:15px;line-height:1.7;color:#cbd5e1;">
+            The <strong style="color:#ffffff;">${escapeHtml(conferenceTitle)}</strong> is about to begin. 
+            This is a powerful move of the Holy Spirit — do not miss this moment!
+          </p>
+          <p style="margin:0 0 22px 0;font-size:15px;line-height:1.7;color:#cbd5e1;">
+            Whether you are joining us in person at <strong style="color:#f1f5f9;">${escapeHtml(location)}</strong> or streaming online, 
+            God has something special waiting for you today.
+          </p>
+        </td></tr>
+
+        <!-- Location box -->
+        <tr><td style="padding:0 32px 24px 32px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden;">
+            <tr><td style="padding:16px 22px;border-bottom:1px solid #334155;">
+              <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;font-weight:600;">📍 In-Person Venue</p>
+              <p style="margin:6px 0 0 0;font-size:15px;font-weight:700;color:#f1f5f9;">${escapeHtml(location)}</p>
+            </td></tr>
+            <tr><td style="padding:16px 22px;">
+              <p style="margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;font-weight:600;">📺 Watch Live Online</p>
+              <p style="margin:6px 0 0 0;font-size:14px;font-weight:600;color:#60a5fa;">
+                <a href="${escapeHtml(ministryWebsite)}/sermons" style="color:#60a5fa;text-decoration:none;">${escapeHtml(ministryWebsite)}/sermons</a>
+              </p>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- CTA -->
+        <tr><td style="padding:8px 32px 32px 32px;text-align:center;">
+          <a href="${escapeHtml(ministryWebsite)}/sermons" style="display:inline-block;background:#dc2626;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:9999px;font-size:17px;font-weight:800;letter-spacing:0.02em;">
+            Watch Live Now →
+          </a>
+          <p style="margin:14px 0 0 0;font-size:12px;color:#64748b;">Free to watch · No sign-in required</p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:20px 32px;border-top:1px solid #1e293b;background:#0f172a;">
+          <p style="margin:0;font-size:12px;color:#475569;line-height:1.7;">
+            You received this because you're subscribed to updates from Jesus Christ Temple Ministry, Warri, Nigeria.<br>
+            © 2026 Jesus Christ Temple Ministry · <a href="${escapeHtml(ministryWebsite)}" style="color:#475569;text-decoration:none;">${escapeHtml(ministryWebsite.replace(/^https?:\/\//, ""))}</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+    return { subject, text, html };
+  }
+
+  // ── Standard announcement email variant ──────────────────────────────────────
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

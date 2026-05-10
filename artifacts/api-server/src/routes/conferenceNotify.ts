@@ -150,6 +150,9 @@ router.post(
       timeStr,
       location,
       channels = ["push", "email"],
+      startingSoon = false,
+      countdownLabel,
+      countdownSub,
     } = req.body as {
       conferenceTitle?: string;
       tagline?: string;
@@ -157,6 +160,9 @@ router.post(
       timeStr?: string;
       location?: string;
       channels?: string[];
+      startingSoon?: boolean;
+      countdownLabel?: string;
+      countdownSub?: string;
     };
 
     try {
@@ -175,6 +181,9 @@ router.post(
         location:
           location ?? event?.location ?? "JCTM Auditorium, Ebrumede Roundabout, Effurun",
         registrationUrl: `${base}/conference-registration`,
+        startingSoon,
+        countdownLabel: countdownLabel ?? (startingSoon ? "Starting Soon" : undefined),
+        countdownSub,
       };
 
       const result: {
@@ -187,21 +196,39 @@ router.post(
 
       // ── Web push ──
       if (channels.includes("push")) {
-        const pushPayload: NotificationPayload = {
-          title: `📣 ${conf.conferenceTitle}`,
-          body: `${conf.dateStr} · ${conf.location}. Register now — seats are limited!`,
-          icon: "/icons/icon-192x192.png",
-          badge: "/icons/badge-72x72.png",
-          url: "/conference-registration",
-          tag: "ministers-conference-2026",
-          requireInteraction: true,
-          actions: [{ action: "register", title: "Register Now" }],
-          data: {
-            type: "conference_announcement",
-            conferenceTitle: conf.conferenceTitle,
-            timestamp: new Date().toISOString(),
-          },
-        };
+        const pushPayload: NotificationPayload = conf.startingSoon
+          ? {
+              title: `🔴 STARTING SOON — ${conf.conferenceTitle}`,
+              body: conf.countdownLabel
+                ? `${conf.countdownLabel} · ${conf.location}. Join us live now!`
+                : `Service is about to begin at ${conf.location}. Join us live now!`,
+              icon: "/icons/icon-192x192.png",
+              badge: "/icons/badge-72x72.png",
+              url: "/sermons",
+              tag: "ministers-conference-2026-live",
+              requireInteraction: true,
+              actions: [{ action: "watch", title: "Watch Live" }],
+              data: {
+                type: "conference_starting_soon",
+                conferenceTitle: conf.conferenceTitle,
+                timestamp: new Date().toISOString(),
+              },
+            }
+          : {
+              title: `📣 ${conf.conferenceTitle}`,
+              body: `${conf.dateStr} · ${conf.location}. Register now — seats are limited!`,
+              icon: "/icons/icon-192x192.png",
+              badge: "/icons/badge-72x72.png",
+              url: "/conference-registration",
+              tag: "ministers-conference-2026",
+              requireInteraction: true,
+              actions: [{ action: "register", title: "Register Now" }],
+              data: {
+                type: "conference_announcement",
+                conferenceTitle: conf.conferenceTitle,
+                timestamp: new Date().toISOString(),
+              },
+            };
 
         const pushResult = await dispatchPushNotification(pushPayload, req.log, "conference_announcement");
         result.push = { ...pushResult, skipped: false };
