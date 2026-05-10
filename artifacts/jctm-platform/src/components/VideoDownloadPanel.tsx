@@ -136,12 +136,17 @@ export default function VideoDownloadPanel({
   const [errMsg,  setErrMsg]  = useState<string | null>(null);
 
   const sseRef         = useRef<EventSource | null>(null);
+  const pollRef        = useRef<ReturnType<typeof setInterval> | null>(null);
   const downloadedRef  = useRef(false);
   const forceNew       = useRef(false);
 
-  useEffect(() => () => { sseRef.current?.close(); }, []);
+  useEffect(() => () => { closeSSE(); }, []);
 
-  const closeSSE = () => { sseRef.current?.close(); sseRef.current = null; };
+  const closeSSE = () => {
+    sseRef.current?.close();
+    sseRef.current = null;
+    if (pollRef.current !== null) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
 
   const openSSE = useCallback((jobId: string) => {
     closeSSE();
@@ -161,21 +166,26 @@ export default function VideoDownloadPanel({
       } catch { /* ignore */ }
     });
 
-    let poll: ReturnType<typeof setInterval> | null = null;
     es.onerror = () => {
-      closeSSE();
-      if (poll) return;
-      poll = setInterval(async () => {
+      es.close();
+      sseRef.current = null;
+      if (pollRef.current !== null) return;
+      pollRef.current = setInterval(async () => {
         try {
           const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
           if (!r.ok) return;
           const data: Job = await r.json();
           setJob(data);
-          if (data.status === "ready")  { setStep("done");  clearInterval(poll!); }
+          if (data.status === "ready") {
+            setStep("done");
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
+          }
           if (data.status === "failed") {
             setStep("error");
             setErrMsg(data.error ?? "Conversion failed.");
-            clearInterval(poll!);
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
           }
         } catch { /* silent */ }
       }, 2500);
@@ -237,13 +247,31 @@ export default function VideoDownloadPanel({
         ? `${BASE}${(await tokenRes.json() as { downloadUrl: string }).downloadUrl}`
         : `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;
 
-      const a = document.createElement("a");
-      a.href = dlUrl;
-      a.download = job.title ?? propTitle ?? "jctm_sermon";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
+      const rawName = (job.title ?? propTitle ?? "jctm_sermon")
+        .replace(/[^\w\s\-()']/g, "")
+        .replace(/\s+/g, "_")
+        .trim()
+        .slice(0, 80);
+      const filename = rawName.endsWith(".mp4") ? rawName : `${rawName}.mp4`;
+
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+                    !(window as unknown as { MSStream?: unknown }).MSStream;
+      if (isIOS) {
+        window.open(dlUrl, "_blank", "noopener,noreferrer");
+        toast.success("File opened — use the Share menu to save it to your device.", { duration: 6000 });
+      } else {
+        const a = document.createElement("a");
+        a.href = dlUrl;
+        a.download = filename;
+        a.rel = "noopener noreferrer";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => document.body.removeChild(a), 1000);
+        toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
+      }
+      // Allow re-download after 10 s (covers double-click prevention while allowing retry)
+      setTimeout(() => { downloadedRef.current = false; }, 10_000);
     } catch {
       downloadedRef.current = false;
       toast.error("Could not start download. Please try again.");

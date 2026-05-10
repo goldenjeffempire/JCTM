@@ -115,6 +115,100 @@ function checkRateLimit(ip: string): boolean {
   entry.count++;
   return true;
 }
+// Sweep expired rate-limit buckets every hour to prevent unbounded Map growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of ipJobCount) {
+    if (entry.resetAt < now) ipJobCount.delete(ip);
+  }
+}, 60 * 60 * 1000).unref();
+
+// ─── Shared range-aware file server ──────────────────────────────────────────
+//
+// Handles: ETag / Last-Modified conditional requests, suffix ranges (bytes=-N),
+// invalid-range → 416, proper Content-Range clamping, and common security headers.
+// Used by both /download/:id and /dl/:token so the logic stays in one place.
+
+function serveFile(
+  req: Request, res: Response,
+  filePath: string, stats: fs.Stats,
+  mime: string, fname: string,
+  cacheMaxAge: number,
+): void {
+  const etag        = `"${stats.size.toString(16)}-${stats.mtimeMs.toString(16)}"`;
+  const lastModified = stats.mtime.toUTCString();
+
+  res.setHeader("Access-Control-Allow-Origin",  "*");
+  res.setHeader("Access-Control-Expose-Headers",
+    "Content-Disposition, Content-Length, Content-Range, ETag, Last-Modified, Accept-Ranges");
+  res.setHeader("Content-Encoding",       "identity");
+  res.setHeader("ETag",                   etag);
+  res.setHeader("Last-Modified",          lastModified);
+  res.setHeader("Accept-Ranges",          "bytes");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+
+  // Conditional request — skip body if client already has this version
+  const ifNoneMatch    = req.headers["if-none-match"];
+  const ifModifiedSince = req.headers["if-modified-since"];
+  if (
+    (ifNoneMatch && ifNoneMatch === etag) ||
+    (!ifNoneMatch && ifModifiedSince && new Date(ifModifiedSince) >= stats.mtime)
+  ) {
+    res.status(304).end();
+    return;
+  }
+
+  const rawRange = req.headers.range;
+  if (rawRange) {
+    // Only handle the simple single-range format: bytes=start-end
+    const m = /^bytes=(\d*)-(\d*)$/.exec(rawRange.trim());
+    if (!m) {
+      res.status(416).setHeader("Content-Range", `bytes */${stats.size}`).end();
+      return;
+    }
+
+    const hasStart = m[1] !== "";
+    const hasEnd   = m[2] !== "";
+    let start: number;
+    let end: number;
+
+    if (!hasStart && hasEnd) {
+      // Suffix range: bytes=-500  →  last 500 bytes
+      const suffix = parseInt(m[2]!, 10);
+      start = Math.max(0, stats.size - suffix);
+      end   = stats.size - 1;
+    } else {
+      start = parseInt(m[1]!, 10);
+      end   = hasEnd ? Math.min(parseInt(m[2]!, 10), stats.size - 1) : stats.size - 1;
+    }
+
+    if (isNaN(start) || isNaN(end) || start < 0 || start > end || start >= stats.size) {
+      res.status(416).setHeader("Content-Range", `bytes */${stats.size}`).end();
+      return;
+    }
+
+    res.status(206);
+    res.setHeader("Content-Range",       `bytes ${start}-${end}/${stats.size}`);
+    res.setHeader("Content-Length",      String(end - start + 1));
+    res.setHeader("Content-Type",        mime);
+    res.setHeader("Content-Disposition", `attachment; filename="${fname}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
+    res.setHeader("Cache-Control",       `private, max-age=${cacheMaxAge}`);
+
+    const stream = fs.createReadStream(filePath, { start, end, highWaterMark: 4 * 1024 * 1024 });
+    stream.pipe(res);
+    stream.on("error", (err) => { logger.warn({ err }, "Range stream error"); if (!res.writableEnded) res.end(); });
+  } else {
+    res.status(200);
+    res.setHeader("Content-Type",        mime);
+    res.setHeader("Content-Length",      String(stats.size));
+    res.setHeader("Content-Disposition", `attachment; filename="${fname}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
+    res.setHeader("Cache-Control",       `private, max-age=${cacheMaxAge}`);
+
+    const stream = fs.createReadStream(filePath, { highWaterMark: 4 * 1024 * 1024 });
+    stream.pipe(res);
+    stream.on("error", (err) => { logger.warn({ err }, "Download stream error"); if (!res.writableEnded) res.end(); });
+  }
+}
 
 type AnyJob = Awaited<ReturnType<typeof getJob>>;
 
@@ -292,6 +386,9 @@ router.get("/media/progress/:id", async (req: Request, res: Response): Promise<v
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
+    // Tell the browser to reconnect after 5 s if the connection drops
+    res.write("retry: 5000\n\n");
+
     // Send current state immediately
     res.write(`event: progress\ndata: ${JSON.stringify(serializeJob(job))}\n\n`);
 
@@ -366,39 +463,7 @@ router.get("/media/download/:id", async (req: Request, res: Response): Promise<v
     const mime  = mimeFor(job.format);
     const fname = safeFilename({ title: job.title, format: job.format, id: job.id });
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Range");
-    res.setHeader("Content-Encoding", "identity");
-
-    const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0]!, 10);
-      const end   = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
-
-      res.status(206);
-      res.setHeader("Content-Range",       `bytes ${start}-${end}/${stats.size}`);
-      res.setHeader("Accept-Ranges",       "bytes");
-      res.setHeader("Content-Length",      String(end - start + 1));
-      res.setHeader("Content-Type",        mime);
-      res.setHeader("Content-Disposition", `attachment; filename="${fname}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
-      res.setHeader("Cache-Control",       "private, max-age=3600");
-
-      const stream = fs.createReadStream(filePath, { start, end, highWaterMark: 4 * 1024 * 1024 });
-      stream.pipe(res);
-      stream.on("error", (err) => { logger.warn({ err }, "Range stream error"); if (!res.writableEnded) res.end(); });
-    } else {
-      res.setHeader("Content-Type",        mime);
-      res.setHeader("Content-Length",      String(stats.size));
-      res.setHeader("Content-Disposition", `attachment; filename="${fname}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
-      res.setHeader("Accept-Ranges",       "bytes");
-      res.setHeader("Cache-Control",       "private, max-age=3600");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-
-      const stream = fs.createReadStream(filePath, { highWaterMark: 4 * 1024 * 1024 });
-      stream.pipe(res);
-      stream.on("error", (err) => { logger.warn({ err }, "Download stream error"); if (!res.writableEnded) res.end(); });
-    }
+    serveFile(req, res, filePath, stats, mime, fname, 3600);
   } catch (err) {
     logger.error({ err }, "Failed to serve download");
     if (!res.headersSent) res.status(500).json({ error: "Failed to serve file." });
@@ -557,39 +622,7 @@ router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void
       quality: job.quality, bytesServed: stats.size, jobId: job.id,
     });
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Range");
-    res.setHeader("Content-Encoding", "identity");
-
-    const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0]!, 10);
-      const end   = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
-
-      res.status(206);
-      res.setHeader("Content-Range",       `bytes ${start}-${end}/${stats.size}`);
-      res.setHeader("Accept-Ranges",       "bytes");
-      res.setHeader("Content-Length",      String(end - start + 1));
-      res.setHeader("Content-Type",        mime);
-      res.setHeader("Content-Disposition", `attachment; filename="${fname}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
-      res.setHeader("Cache-Control",       "private, max-age=1800");
-
-      const stream = fs.createReadStream(filePath, { start, end, highWaterMark: 4 * 1024 * 1024 });
-      stream.pipe(res);
-      stream.on("error", (err) => { logger.warn({ err }, "Range stream error (token)"); if (!res.writableEnded) res.end(); });
-    } else {
-      res.setHeader("Content-Type",        mime);
-      res.setHeader("Content-Length",      String(stats.size));
-      res.setHeader("Content-Disposition", `attachment; filename="${fname}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
-      res.setHeader("Accept-Ranges",       "bytes");
-      res.setHeader("Cache-Control",       "private, max-age=1800");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-
-      const stream = fs.createReadStream(filePath, { highWaterMark: 4 * 1024 * 1024 });
-      stream.pipe(res);
-      stream.on("error", (err) => { logger.warn({ err }, "Download stream error (token)"); if (!res.writableEnded) res.end(); });
-    }
+    serveFile(req, res, filePath, stats, mime, fname, 1800);
   } catch (err) {
     logger.error({ err }, "Failed to serve tokenized download");
     if (!res.headersSent) res.status(500).json({ error: "Failed to serve file." });

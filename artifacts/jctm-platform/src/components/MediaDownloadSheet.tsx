@@ -206,6 +206,7 @@ export default function MediaDownloadSheet({
   const [errorMsg,        setErrorMsg]        = useState<string | null>(null);
   const [errorCode,       setErrorCode]       = useState<string | null>(null);
   const sseRef            = useRef<EventSource | null>(null);
+  const pollTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
   const forceNewJob       = useRef(false);
 
   const qOpts = qualityOptions(format);
@@ -232,6 +233,10 @@ export default function MediaDownloadSheet({
   function closeSSE() {
     sseRef.current?.close();
     sseRef.current = null;
+    if (pollTimerRef.current !== null) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
   }
 
   const openSSE = useCallback((jobId: string) => {
@@ -257,8 +262,6 @@ export default function MediaDownloadSheet({
       } catch { /* ignore */ }
     });
 
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-
     async function pollOnce(): Promise<boolean> {
       try {
         const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
@@ -272,14 +275,18 @@ export default function MediaDownloadSheet({
     }
 
     es.onerror = () => {
-      closeSSE();
-      if (pollTimer) return;
+      es.close();
+      sseRef.current = null;
+      if (pollTimerRef.current !== null) return;
       // Fetch immediately — the server may have returned JSON (job already complete)
       void pollOnce().then(done => {
         if (done) return;
-        pollTimer = setInterval(async () => {
+        pollTimerRef.current = setInterval(async () => {
           const finished = await pollOnce();
-          if (finished) { clearInterval(pollTimer!); pollTimer = null; }
+          if (finished) {
+            clearInterval(pollTimerRef.current!);
+            pollTimerRef.current = null;
+          }
         }, 2000);
       });
     };

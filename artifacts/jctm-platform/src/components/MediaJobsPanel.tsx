@@ -86,8 +86,9 @@ export function MediaJobsPanel() {
   const [open,          setOpen]          = useState(false);
   const [minimized,     setMinimized]     = useState(false);
   const [triggeringIds, setTriggeringIds] = useState<Set<string>>(new Set());
-  const sseRefs    = useRef<Map<string, EventSource>>(new Map());
-  const trackedIds = useRef<Set<string>>(new Set());
+  const sseRefs     = useRef<Map<string, EventSource>>(new Map());
+  const pollTimers  = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+  const trackedIds  = useRef<Set<string>>(new Set());
 
   useCountdownTick(jobs);
 
@@ -135,6 +136,8 @@ export function MediaJobsPanel() {
       listeners.delete(cb);
       sseRefs.current.forEach(es => es.close());
       sseRefs.current.clear();
+      pollTimers.current.forEach(t => clearInterval(t));
+      pollTimers.current.clear();
     };
   }, []);
 
@@ -144,9 +147,15 @@ export function MediaJobsPanel() {
     const es = new EventSource(`${BASE}/api/media/progress/${jobId}`);
     sseRefs.current.set(jobId, es);
 
+    function clearPollTimer() {
+      const t = pollTimers.current.get(jobId);
+      if (t !== undefined) { clearInterval(t); pollTimers.current.delete(jobId); }
+    }
+
     function onFinished(update: PanelJob) {
       es.close();
       sseRefs.current.delete(jobId);
+      clearPollTimer();
       if (update.status === "ready" && "Notification" in window && Notification.permission === "granted") {
         const label = update.title ?? "Your download";
         try {
@@ -168,8 +177,6 @@ export function MediaJobsPanel() {
       } catch { /* ignore */ }
     });
 
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-
     async function pollOnce(): Promise<boolean> {
       try {
         const r = await fetch(`${BASE}/api/media/jobs/${jobId}`);
@@ -187,14 +194,15 @@ export function MediaJobsPanel() {
     es.onerror = () => {
       es.close();
       sseRefs.current.delete(jobId);
-      if (pollTimer) return;
+      if (pollTimers.current.has(jobId)) return;
       // Fetch immediately — job may already be done (server returned JSON, not SSE)
       void pollOnce().then(done => {
         if (done) return;
-        pollTimer = setInterval(async () => {
+        const t = setInterval(async () => {
           const finished = await pollOnce();
-          if (finished) { clearInterval(pollTimer!); pollTimer = null; }
+          if (finished) clearPollTimer();
         }, 3000);
+        pollTimers.current.set(jobId, t);
       });
     };
   }, []);
@@ -202,6 +210,8 @@ export function MediaJobsPanel() {
   function removeJob(jobId: string) {
     sseRefs.current.get(jobId)?.close();
     sseRefs.current.delete(jobId);
+    const t = pollTimers.current.get(jobId);
+    if (t !== undefined) { clearInterval(t); pollTimers.current.delete(jobId); }
     trackedIds.current.delete(jobId);
     setJobs(prev => {
       const next = prev.filter(j => j.jobId !== jobId);
@@ -213,6 +223,8 @@ export function MediaJobsPanel() {
   function clearAll() {
     sseRefs.current.forEach(es => es.close());
     sseRefs.current.clear();
+    pollTimers.current.forEach(t => clearInterval(t));
+    pollTimers.current.clear();
     trackedIds.current.clear();
     setJobs([]);
     saveIds([]);
