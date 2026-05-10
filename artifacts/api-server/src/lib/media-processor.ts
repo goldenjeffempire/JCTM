@@ -8,10 +8,10 @@
  *
  * Architecture:
  *   • In-memory job map + PostgreSQL persistence (survives restarts)
- *   • Concurrency-limited queue (5 parallel jobs max)
+ *   • Priority concurrency: user jobs (up to 5 slots) vs background jobs (2 slots max)
  *   • Per-job SSE progress broadcasting
  *   • Deduplication — reuses existing ready/active jobs
- *   • Retry with exponential back-off (3 attempts)
+ *   • Retry with exponential back-off (3 attempts, 9-attempt total budget)
  *   • Process registry — cancelJob actually kills yt-dlp/ffmpeg
  *   • Automatic temp-file and expired-job cleanup
  */
@@ -164,12 +164,14 @@ const VIDEO_HEIGHT: Record<JobQuality, number> = {
 };
 
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
+// Long sermons can exceed 3 hours — give yt-dlp plenty of time.
+// Stall timers are generous: format switches + reconnects can take 2-3 min.
 
-const AUDIO_KILL_MS = 12 * 60 * 1000;
-const VIDEO_KILL_MS = 25 * 60 * 1000;
-const META_KILL_MS  = 30 * 1000;
-const STALL_AUDIO_MS = 90_000;
-const STALL_VIDEO_MS = 120_000;
+const AUDIO_KILL_MS  = 45 * 60 * 1000;   // 45 min hard kill  (was 12 min)
+const VIDEO_KILL_MS  = 75 * 60 * 1000;   // 75 min hard kill  (was 25 min)
+const META_KILL_MS   = 30 * 1000;         // 30 s metadata fetch
+const STALL_AUDIO_MS = 4 * 60 * 1000;    // 4 min stall       (was 90 s)
+const STALL_VIDEO_MS = 5 * 60 * 1000;    // 5 min stall       (was 120 s)
 
 // ─── Permanent error patterns (no retry) ─────────────────────────────────────
 
@@ -182,11 +184,16 @@ const PERMANENT_ERROR_RE = [
   /sign in to confirm your age/i,
   /members.only/i,
   /this video is not available/i,
+  /this video has been removed by the uploader/i,
   /video is no longer available/i,
+  /the following content is not available on this app/i,
+  /content is not available/i,
+  /not available in your country/i,
   /copyright/i,
   /account.*terminated/i,
-  /not available in your country/i,
   /geo.?restrict/i,
+  /this live event has ended/i,
+  /sign in to access/i,
 ];
 
 function isPermanentError(msg: string): boolean {
@@ -211,21 +218,63 @@ function sanitizeYtDlpError(stderr: string): string {
   return "yt-dlp failed with no parseable output";
 }
 
-// ─── Concurrency control ──────────────────────────────────────────────────────
+// ─── Priority concurrency control ─────────────────────────────────────────────
+// User jobs (priority="user") run freely across all MAX_CONCURRENT slots.
+// Background/preprocess jobs (priority="background") are limited to
+// MAX_BACKGROUND_SLOTS so they never starve user-initiated downloads.
+
+const MAX_CONCURRENT        = 5;
+const MAX_BACKGROUND_SLOTS  = 2;
 
 const activeJobs = new Map<string, MediaJob>();
-let concurrentJobs = 0;
-const MAX_CONCURRENT = 5;
-const jobQueue: Array<() => Promise<void>> = [];
+let concurrentJobs      = 0;
+let backgroundConcurrent = 0;
+
+// Separate queues: user jobs drain first; background jobs fill remaining slots.
+const userQueue:       Array<() => Promise<void>> = [];
+const backgroundQueue: Array<() => Promise<void>> = [];
 
 /** Registry of live child processes keyed by job ID — enables true cancellation. */
 const activeProcesses = new Map<string, ChildProcess>();
 
 function drainQueue() {
-  while (jobQueue.length > 0 && concurrentJobs < MAX_CONCURRENT) {
-    const task = jobQueue.shift()!;
+  // Always drain user queue first (highest priority).
+  while (userQueue.length > 0 && concurrentJobs < MAX_CONCURRENT) {
+    const fn = userQueue.shift()!;
     concurrentJobs++;
-    task().finally(() => { concurrentJobs--; drainQueue(); });
+    fn().finally(() => { concurrentJobs--; drainQueue(); });
+  }
+  // Then drain background queue (only if background slots available).
+  while (
+    backgroundQueue.length > 0 &&
+    concurrentJobs < MAX_CONCURRENT &&
+    backgroundConcurrent < MAX_BACKGROUND_SLOTS
+  ) {
+    const fn = backgroundQueue.shift()!;
+    concurrentJobs++;
+    backgroundConcurrent++;
+    fn().finally(() => { concurrentJobs--; backgroundConcurrent--; drainQueue(); });
+  }
+}
+
+function scheduleJob(job: MediaJob, background: boolean) {
+  const task = () => processWithRetry(job).finally(() => { activeJobs.delete(job.id); });
+
+  if (background) {
+    if (concurrentJobs < MAX_CONCURRENT && backgroundConcurrent < MAX_BACKGROUND_SLOTS) {
+      concurrentJobs++;
+      backgroundConcurrent++;
+      task().finally(() => { concurrentJobs--; backgroundConcurrent--; drainQueue(); });
+    } else {
+      backgroundQueue.push(task);
+    }
+  } else {
+    if (concurrentJobs < MAX_CONCURRENT) {
+      concurrentJobs++;
+      task().finally(() => { concurrentJobs--; drainQueue(); });
+    } else {
+      userQueue.push(task);
+    }
   }
 }
 
@@ -306,33 +355,45 @@ function mapRow(r: JobRow): MediaJob {
 }
 
 async function dbUpsert(job: MediaJob): Promise<void> {
-  await pool.query(
-    `INSERT INTO media_download_jobs
-       (id, type, source_id, format, quality, status, progress, error,
-        output_path, title, duration, file_size, thumbnail_url, retry_count,
-        next_retry_at, is_permanent_failure,
-        created_at, updated_at, expires_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-     ON CONFLICT (id) DO UPDATE SET
-       status               = EXCLUDED.status,
-       progress             = EXCLUDED.progress,
-       error                = EXCLUDED.error,
-       output_path          = EXCLUDED.output_path,
-       file_size            = EXCLUDED.file_size,
-       title                = EXCLUDED.title,
-       retry_count          = EXCLUDED.retry_count,
-       next_retry_at        = EXCLUDED.next_retry_at,
-       is_permanent_failure = EXCLUDED.is_permanent_failure,
-       updated_at           = EXCLUDED.updated_at`,
-    [
-      job.id, job.type, job.sourceId, job.format, job.quality,
-      job.status, job.progress, job.error, job.outputPath,
-      job.title, job.duration, job.fileSize, job.thumbnailUrl,
-      job.retryCount ?? 0,
-      job.nextRetryAt ?? null, job.isPermanentFailure ?? false,
-      job.createdAt, job.updatedAt, job.expiresAt,
-    ],
-  );
+  try {
+    await pool.query(
+      `INSERT INTO media_download_jobs
+         (id, type, source_id, format, quality, status, progress, error,
+          output_path, title, duration, file_size, thumbnail_url, retry_count,
+          next_retry_at, is_permanent_failure,
+          created_at, updated_at, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+       ON CONFLICT (id) DO UPDATE SET
+         status               = EXCLUDED.status,
+         progress             = EXCLUDED.progress,
+         error                = EXCLUDED.error,
+         output_path          = EXCLUDED.output_path,
+         file_size            = EXCLUDED.file_size,
+         title                = EXCLUDED.title,
+         retry_count          = EXCLUDED.retry_count,
+         next_retry_at        = EXCLUDED.next_retry_at,
+         is_permanent_failure = EXCLUDED.is_permanent_failure,
+         updated_at           = EXCLUDED.updated_at`,
+      [
+        job.id, job.type, job.sourceId, job.format, job.quality,
+        job.status, job.progress, job.error, job.outputPath,
+        job.title, job.duration, job.fileSize, job.thumbnailUrl,
+        job.retryCount ?? 0,
+        job.nextRetryAt ?? null, job.isPermanentFailure ?? false,
+        job.createdAt, job.updatedAt, job.expiresAt,
+      ],
+    );
+  } catch (err: unknown) {
+    // Gracefully handle partial UNIQUE index violations (source_id+format+quality
+    // for active statuses). This can happen in rare race conditions between the
+    // preprocess scheduler and the retry scheduler creating jobs concurrently.
+    const pgErr = err as { code?: string };
+    if (pgErr?.code === "23505") {
+      logger.warn({ jobId: job.id, sourceId: job.sourceId }, "dbUpsert: unique constraint conflict — duplicate active job ignored");
+      return;
+    }
+    throw err;
+  }
 }
 
 async function dbGet(id: string): Promise<MediaJob | null> {
@@ -455,12 +516,15 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const proc = spawn(YT_DLP_BIN, [
       "--no-playlist", "--no-warnings", "--progress", "--newline",
-      "-f", "bestaudio/best", "-x",
+      // Use the iOS player client — different CDN routing, bypasses server-IP throttle
+      "--extractor-args", "youtube:player_client=ios",
+      "-f", "bestaudio[ext=m4a]/bestaudio/best",
+      "-x",
       "-o", tmpFile,
       "--no-part", "--socket-timeout", "30",
-      "--retries", "3", "--fragment-retries", "3",
-      "--concurrent-fragments", "1",
-      "--throttled-rate", "100K",
+      "--retries", "10", "--fragment-retries", "10",
+      "--skip-unavailable-fragments",
+      "--sleep-requests", "0.5",
       `https://www.youtube.com/watch?v=${job.sourceId}`,
     ]);
 
@@ -475,33 +539,69 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       reject(new Error("yt-dlp killed after timeout — audio download took too long"));
     }, AUDIO_KILL_MS);
 
-    let stallKill = setTimeout(() => {
-      clearTimeout(hardKill);
-      try { proc.kill("SIGKILL"); } catch {}
-      reject(new Error("yt-dlp stalled — no progress for 90 s. YouTube may be throttling. Please retry."));
-    }, STALL_AUDIO_MS);
+    function makeStallTimer(ms: number) {
+      return setTimeout(() => {
+        clearTimeout(hardKill);
+        clearInterval(fileSizePoller);
+        try { proc.kill("SIGKILL"); } catch {}
+        reject(new Error(`yt-dlp stalled — no progress for ${Math.round(ms / 60000)} min. YouTube may be throttling. Please retry.`));
+      }, ms);
+    }
+
+    let stallKill = makeStallTimer(STALL_AUDIO_MS);
+
+    // File-size polling: yt-dlp buffers stderr in non-TTY mode, so stderr data
+    // events may never fire. Reset the stall timer whenever the download file grows.
+    let lastAudioSize = 0;
+    const fileSizePoller = setInterval(() => {
+      try {
+        const total = fs.readdirSync(MEDIA_DIR)
+          .filter(f => f.startsWith(`${job.id}_raw`) && !f.endsWith(".ytdl"))
+          .reduce((acc, f) => {
+            try { return acc + fs.statSync(path.join(MEDIA_DIR, f)).size; } catch { return acc; }
+          }, 0);
+        if (total > lastAudioSize) {
+          lastAudioSize = total;
+          clearTimeout(stallKill);
+          stallKill = makeStallTimer(STALL_AUDIO_MS);
+          // Derive progress from file size vs expected (duration * ~16KB/s for 128kbps)
+          if (cur.duration && cur.duration > 0 && cur.progress < 78) {
+            const expectedBytes = cur.duration * 16_000;
+            const pct = Math.min(78, Math.round((total / expectedBytes) * 68) + 12);
+            if (pct > (cur.progress ?? 0)) patch(cur, { progress: pct });
+          }
+        }
+      } catch { /* ignore */ }
+    }, 15_000);
 
     proc.stderr.on("data", (d: Buffer) => {
       clearTimeout(stallKill);
-      stallKill = setTimeout(() => {
-        clearTimeout(hardKill);
-        try { proc.kill("SIGKILL"); } catch {}
-        reject(new Error("yt-dlp stalled — no progress for 90 s. YouTube may be throttling. Please retry."));
-      }, STALL_AUDIO_MS);
+      stallKill = makeStallTimer(STALL_AUDIO_MS);
 
       stderrBuf += d.toString();
       const lines = stderrBuf.split("\n");
       stderrBuf = lines.pop() ?? "";
       for (const line of lines) {
         stderr += line + "\n";
-        const m = /(\d+(?:\.\d+)?)%/.exec(line);
-        if (m) patch(cur, { progress: Math.min(80, 12 + Math.round(parseFloat(m[1]!) * 0.68)) });
+        // Overall percentage (simple or DASH merged) e.g. "  12.3% of ~17 MiB"
+        const pctMatch = /(\d+(?:\.\d+)?)%/.exec(line);
+        if (pctMatch) {
+          patch(cur, { progress: Math.min(80, 12 + Math.round(parseFloat(pctMatch[1]!) * 0.68)) });
+        } else {
+          // DASH/HLS fragment progress e.g. "(frag 48/407)"
+          const fragMatch = /\(frag\s+(\d+)\/(\d+)\)/.exec(line);
+          if (fragMatch) {
+            const fragPct = (parseInt(fragMatch[1]!, 10) / parseInt(fragMatch[2]!, 10)) * 100;
+            patch(cur, { progress: Math.min(80, 12 + Math.round(fragPct * 0.68)) });
+          }
+        }
       }
     });
 
     proc.on("close", (code) => {
       clearTimeout(hardKill);
       clearTimeout(stallKill);
+      clearInterval(fileSizePoller);
       activeProcesses.delete(job.id);
       if (code === 0) resolve();
       else reject(new Error(sanitizeYtDlpError(stderr) || `yt-dlp exited ${code}`));
@@ -509,6 +609,7 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
     proc.on("error", (e) => {
       clearTimeout(hardKill);
       clearTimeout(stallKill);
+      clearInterval(fileSizePoller);
       activeProcesses.delete(job.id);
       reject(new Error(`yt-dlp spawn error: ${e.message}`));
     });
@@ -582,13 +683,15 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
 
     const proc = spawn(YT_DLP_BIN, [
       "--no-playlist", "--no-warnings", "--progress", "--newline",
+      // Use the iOS player client — different CDN routing, bypasses server-IP throttle
+      "--extractor-args", "youtube:player_client=ios",
       "-f", fmtSel,
       "--merge-output-format", "mp4",
       "-o", outFile,
       "--no-part", "--socket-timeout", "30",
-      "--retries", "3", "--fragment-retries", "3",
-      "--concurrent-fragments", "1",
-      "--throttled-rate", "100K",
+      "--retries", "10", "--fragment-retries", "10",
+      "--skip-unavailable-fragments",
+      "--sleep-requests", "0.5",
       `https://www.youtube.com/watch?v=${job.sourceId}`,
     ]);
 
@@ -603,33 +706,69 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
       reject(new Error("yt-dlp killed after timeout — video download took too long"));
     }, VIDEO_KILL_MS);
 
-    let stallKill = setTimeout(() => {
-      clearTimeout(hardKill);
-      try { proc.kill("SIGKILL"); } catch {}
-      reject(new Error("yt-dlp stalled — no progress for 2 minutes. Please retry."));
-    }, STALL_VIDEO_MS);
+    function makeVideoStallTimer(ms: number) {
+      return setTimeout(() => {
+        clearTimeout(hardKill);
+        clearInterval(videoFileSizePoller);
+        try { proc.kill("SIGKILL"); } catch {}
+        reject(new Error(`yt-dlp stalled — no progress for ${Math.round(ms / 60000)} min. YouTube may be throttling. Please retry.`));
+      }, ms);
+    }
+
+    let stallKill = makeVideoStallTimer(STALL_VIDEO_MS);
+
+    // File-size polling fallback for non-TTY stderr buffering
+    let lastVideoSize = 0;
+    const videoFileSizePoller = setInterval(() => {
+      try {
+        const total = fs.readdirSync(MEDIA_DIR)
+          .filter(f => f.startsWith(`${job.id}_raw`) && !f.endsWith(".ytdl"))
+          .reduce((acc, f) => {
+            try { return acc + fs.statSync(path.join(MEDIA_DIR, f)).size; } catch { return acc; }
+          }, 0);
+        if (total > lastVideoSize) {
+          lastVideoSize = total;
+          clearTimeout(stallKill);
+          stallKill = makeVideoStallTimer(STALL_VIDEO_MS);
+          // Derive progress from file size vs expected (duration * ~500KB/s for 720p)
+          if (cur.duration && cur.duration > 0 && cur.progress < 94) {
+            const bitrateMap: Record<string, number> = { low: 150_000, medium: 300_000, high: 500_000, ultra: 1_000_000 };
+            const expectedBytes = cur.duration * (bitrateMap[job.quality ?? "high"] ?? 500_000);
+            const pct = Math.min(94, Math.round((total / expectedBytes) * 84) + 12);
+            if (pct > (cur.progress ?? 0)) patch(cur, { progress: pct });
+          }
+        }
+      } catch { /* ignore */ }
+    }, 15_000);
 
     proc.stderr.on("data", (d: Buffer) => {
       clearTimeout(stallKill);
-      stallKill = setTimeout(() => {
-        clearTimeout(hardKill);
-        try { proc.kill("SIGKILL"); } catch {}
-        reject(new Error("yt-dlp stalled — no progress for 2 minutes. Please retry."));
-      }, STALL_VIDEO_MS);
+      stallKill = makeVideoStallTimer(STALL_VIDEO_MS);
 
       stderrBuf += d.toString();
       const lines = stderrBuf.split("\n");
       stderrBuf = lines.pop() ?? "";
       for (const line of lines) {
         stderr += line + "\n";
-        const m = /(\d+(?:\.\d+)?)%/.exec(line);
-        if (m) patch(cur, { progress: Math.min(96, 12 + Math.round(parseFloat(m[1]!) * 0.84)) });
+        // Overall percentage e.g. "  12.3% of ~240 MiB"
+        const pctMatch = /(\d+(?:\.\d+)?)%/.exec(line);
+        if (pctMatch) {
+          patch(cur, { progress: Math.min(96, 12 + Math.round(parseFloat(pctMatch[1]!) * 0.84)) });
+        } else {
+          // DASH/HLS fragment progress e.g. "(frag 48/407)"
+          const fragMatch = /\(frag\s+(\d+)\/(\d+)\)/.exec(line);
+          if (fragMatch) {
+            const fragPct = (parseInt(fragMatch[1]!, 10) / parseInt(fragMatch[2]!, 10)) * 100;
+            patch(cur, { progress: Math.min(96, 12 + Math.round(fragPct * 0.84)) });
+          }
+        }
       }
     });
 
     proc.on("close", (code) => {
       clearTimeout(hardKill);
       clearTimeout(stallKill);
+      clearInterval(videoFileSizePoller);
       activeProcesses.delete(job.id);
       if (code === 0) resolve();
       else reject(new Error(sanitizeYtDlpError(stderr) || `yt-dlp video exited ${code}`));
@@ -637,6 +776,7 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
     proc.on("error", (e) => {
       clearTimeout(hardKill);
       clearTimeout(stallKill);
+      clearInterval(videoFileSizePoller);
       activeProcesses.delete(job.id);
       reject(new Error(`yt-dlp spawn error: ${e.message}`));
     });
@@ -733,12 +873,9 @@ async function processGalleryImage(job: MediaJob): Promise<void> {
 const MAX_RETRIES = 3;
 
 // Total attempt budget across all server runs (3 in-process × 3 restart cycles).
-// When a job exhausts its in-process retries, the persistent scheduler re-queues
-// it up to (TOTAL_MAX_RETRIES / MAX_RETRIES - 1) additional times.
 const TOTAL_MAX_RETRIES = 9;
 
 // Backoff between scheduler-driven restart cycles (grows with total attempt count).
-// cycle 1 (retries 0-3) → 15 min · cycle 2 (retries 3-6) → 45 min · cycle 3+ → no more
 function schedulerBackoffMs(baseRetryCount: number): number | null {
   const cycle = Math.floor(baseRetryCount / MAX_RETRIES); // 1, 2
   if (cycle >= Math.floor(TOTAL_MAX_RETRIES / MAX_RETRIES)) return null; // exhausted
@@ -762,7 +899,6 @@ async function processWithRetry(job: MediaJob): Promise<void> {
       const totalCount = (job.retryCount ?? 0) + attempt;
 
       // yt-dlp binary not installed — no amount of retrying will fix this.
-      // Mark permanent immediately so the retry scheduler never picks it back up.
       if (isYtDlpMissingError(msg)) {
         logger.warn({ jobId: job.id }, "yt-dlp binary not found on this host — marking job as permanent failure (no retry)");
         cleanupTempFiles(job.id);
@@ -848,10 +984,6 @@ async function processWithRetry(job: MediaJob): Promise<void> {
 
 export async function recoverOrphanedJobs(): Promise<void> {
   try {
-    // Jobs interrupted by a restart get a 30-second next_retry_at so the
-    // scheduler picks them up on its first tick after startup warmup.
-    // Jobs that have already hit TOTAL_MAX_RETRIES get no next_retry_at
-    // (they are permanently exhausted).
     const { rowCount } = await pool.query(
       `UPDATE media_download_jobs
           SET status        = 'failed',
@@ -873,55 +1005,53 @@ export async function recoverOrphanedJobs(): Promise<void> {
 }
 
 // ─── Persistent retry scheduler ───────────────────────────────────────────────
-// Jobs that exhaust their 3 in-process retries are marked failed with a
-// next_retry_at timestamp. This scheduler picks those rows back up and re-queues
-// them so they get another full 3-attempt window after a backoff period.
-// Backoff schedule: 15 min → 45 min → permanently failed (TOTAL_MAX_RETRIES = 9).
 
-const RETRY_SCHEDULER_INTERVAL_MS = 5 * 60_000; // poll every 5 minutes
+const RETRY_SCHEDULER_INTERVAL_MS = 5 * 60_000;
 let retrySchedulerHandle: ReturnType<typeof setInterval> | null = null;
 
 async function requeueEligibleFailedJobs(): Promise<number> {
+  // Use a CTE to pick at most ONE failed row per (source_id, format, quality) key
+  // to avoid the partial-unique-index 23505 violation when multiple failed rows
+  // share the same dedup key and both would qualify for requeueing.
   const { rows } = await pool.query<JobRow>(
-    `UPDATE media_download_jobs
+    `WITH eligible AS (
+       SELECT DISTINCT ON (source_id, format, quality) id
+         FROM media_download_jobs
+        WHERE status               = 'failed'
+          AND is_permanent_failure = false
+          AND retry_count          < $1
+          AND next_retry_at IS NOT NULL
+          AND next_retry_at        <= now()
+          AND expires_at           > now()
+          AND NOT EXISTS (
+            SELECT 1 FROM media_download_jobs dup
+             WHERE dup.source_id = media_download_jobs.source_id
+               AND dup.format    = media_download_jobs.format
+               AND dup.quality   = media_download_jobs.quality
+               AND dup.status    IN ('queued', 'processing', 'ready')
+               AND dup.id        != media_download_jobs.id
+          )
+        ORDER BY source_id, format, quality, next_retry_at ASC
+     )
+     UPDATE media_download_jobs j
         SET status        = 'queued',
             progress      = 0,
             error         = 'Scheduled for automatic retry…',
             next_retry_at = NULL,
             updated_at    = now()
-      WHERE status                = 'failed'
-        AND is_permanent_failure  = false
-        AND retry_count           < $1
-        AND next_retry_at IS NOT NULL
-        AND next_retry_at         <= now()
-        AND expires_at            > now()
-        AND NOT EXISTS (
-          SELECT 1 FROM media_download_jobs dup
-           WHERE dup.source_id = media_download_jobs.source_id
-             AND dup.format    = media_download_jobs.format
-             AND dup.quality   = media_download_jobs.quality
-             AND dup.status    IN ('queued', 'processing', 'ready')
-             AND dup.id        != media_download_jobs.id
-        )
-      RETURNING *,
-        COALESCE(retry_count, 0)    AS retry_count,
-        COALESCE(is_permanent_failure, false) AS is_permanent_failure`,
+       FROM eligible
+      WHERE j.id = eligible.id
+      RETURNING j.*,
+        COALESCE(j.retry_count, 0)           AS retry_count,
+        COALESCE(j.is_permanent_failure, false) AS is_permanent_failure`,
     [TOTAL_MAX_RETRIES],
   );
 
   for (const row of rows) {
     const job = mapRow(row);
     activeJobs.set(job.id, job);
-    const task = () => processWithRetry(job).finally(() => { activeJobs.delete(job.id); });
-    if (concurrentJobs < MAX_CONCURRENT) {
-      concurrentJobs++;
-      task().finally(() => { concurrentJobs--; drainQueue(); });
-    } else {
-      jobQueue.push(() => {
-        concurrentJobs++;
-        return task().finally(() => { concurrentJobs--; drainQueue(); });
-      });
-    }
+    // Retried jobs go into the background queue — don't starve user jobs.
+    scheduleJob(job, true);
   }
 
   return rows.length;
@@ -930,7 +1060,6 @@ async function requeueEligibleFailedJobs(): Promise<number> {
 export function startMediaRetryScheduler(): void {
   if (retrySchedulerHandle) return;
 
-  // Run once shortly after startup so jobs from a previous crash are picked up.
   const startupTimer = setTimeout(async () => {
     try {
       const n = await requeueEligibleFailedJobs();
@@ -979,9 +1108,13 @@ export function cleanupOrphanedTempFiles(): void {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export async function createJob(input: CreateJobInput): Promise<MediaJob> {
+export async function createJob(
+  input: CreateJobInput,
+  options?: { background?: boolean },
+): Promise<MediaJob> {
   const now     = new Date();
   const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const background = options?.background ?? false;
 
   const job: MediaJob = {
     id:                 randomUUID(),
@@ -993,10 +1126,10 @@ export async function createJob(input: CreateJobInput): Promise<MediaJob> {
     progress:           0,
     error:              null,
     outputPath:         null,
-    title:              input.title        ?? null,
-    duration:           input.duration     ?? null,
+    title:              input.title              ?? null,
+    duration:           input.duration           ?? null,
     fileSize:           null,
-    thumbnailUrl:       input.thumbnailUrl ?? null,
+    thumbnailUrl:       input.thumbnailUrl       ?? null,
     retryCount:         0,
     nextRetryAt:        null,
     isPermanentFailure: false,
@@ -1008,17 +1141,7 @@ export async function createJob(input: CreateJobInput): Promise<MediaJob> {
   activeJobs.set(job.id, job);
   await dbUpsert(job);
 
-  const task = () => processWithRetry(job).finally(() => { activeJobs.delete(job.id); });
-
-  if (concurrentJobs < MAX_CONCURRENT) {
-    concurrentJobs++;
-    task().finally(() => { concurrentJobs--; drainQueue(); });
-  } else {
-    jobQueue.push(() => {
-      concurrentJobs++;
-      return task().finally(() => { concurrentJobs--; drainQueue(); });
-    });
-  }
+  scheduleJob(job, background);
 
   return job;
 }
@@ -1054,10 +1177,8 @@ export function formatFileSize(bytes: number): string {
 
 /**
  * Cancel a job and kill any running child process.
- * The DB row is NOT deleted here — the caller deletes it after cancellation.
  */
 export function cancelJob(id: string): void {
-  // Kill the running process if any
   const proc = activeProcesses.get(id);
   if (proc) {
     try { proc.kill("SIGKILL"); } catch { /* non-fatal */ }
@@ -1073,14 +1194,32 @@ export function cancelJob(id: string): void {
   cleanupTempFiles(id);
 }
 
-export function getQueueStats(): { queued: number; processing: number; concurrent: number; max: number } {
+export function getQueueStats(): {
+  queued: number;
+  processing: number;
+  concurrent: number;
+  max: number;
+  backgroundConcurrent: number;
+  maxBackground: number;
+  userQueueLength: number;
+  backgroundQueueLength: number;
+} {
   let queued = 0;
   let processing = 0;
   for (const job of activeJobs.values()) {
     if (job.status === "queued")     queued++;
     if (job.status === "processing") processing++;
   }
-  return { queued, processing, concurrent: concurrentJobs, max: MAX_CONCURRENT };
+  return {
+    queued,
+    processing,
+    concurrent: concurrentJobs,
+    max: MAX_CONCURRENT,
+    backgroundConcurrent,
+    maxBackground: MAX_BACKGROUND_SLOTS,
+    userQueueLength: userQueue.length,
+    backgroundQueueLength: backgroundQueue.length,
+  };
 }
 
 // ─── Periodic cleanup (every 4 hours) ────────────────────────────────────────

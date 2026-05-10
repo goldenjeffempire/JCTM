@@ -29,7 +29,7 @@ const logger = pino({ name: "media-preprocess" });
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 /** Max sermons to pre-process in a single sweep (avoids drowning the queue). */
-const BATCH_SIZE = 8;
+const BATCH_SIZE = 3;
 
 /** Rescan interval: 6 hours. */
 const RESCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -143,7 +143,7 @@ async function queuePreprocessJobs(sermons: SermonRow[], source: string): Promis
         title:        sermon.title,
         thumbnailUrl: sermon.thumbnail_url,
         duration:     sermon.duration ? parseInt(sermon.duration, 10) || undefined : undefined,
-      });
+      }, { background: true });
 
       created++;
       logger.debug({ videoId: sermon.video_id, title: sermon.title, source }, "Pre-process: job queued");

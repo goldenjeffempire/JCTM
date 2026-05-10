@@ -291,8 +291,12 @@ export default function MediaDownloadSheet({
     setErrorCode(null);
 
     try {
-      const effectiveType =
-        type === "youtube_audio" && format === "mp4" ? "youtube_video" : type;
+      const effectiveType: MediaType =
+        type === "gallery_image"
+          ? "gallery_image"
+          : format === "mp4"
+          ? "youtube_video"
+          : "youtube_audio";
 
       const res = await fetch(`${BASE}/api/media/request`, {
         method: "POST",
