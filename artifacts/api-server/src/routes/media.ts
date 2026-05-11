@@ -64,9 +64,12 @@ function inferFormat(type: JobType, requested?: string): JobFormat {
 }
 
 function safeFilename(job: { title: string | null; format: string; id: string }): string {
-  const base = job.title
-    ? job.title.replace(/[^a-zA-Z0-9\s\-_()]/g, "").replace(/\s+/g, "_").slice(0, 80)
-    : `jctm_media_${job.id.slice(0, 8)}`;
+  const sanitized = (job.title ?? "")
+    .replace(/[^a-zA-Z0-9\s\-_()]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/^_+|_+$/g, "")  // trim leading/trailing underscores
+    .slice(0, 80);
+  const base = sanitized || `jctm_media_${job.id.slice(0, 8)}`;
   return `${base}.${job.format}`;
 }
 

@@ -351,15 +351,28 @@ export default function MediaDownloadSheet({
   async function triggerDownload() {
     if (!job?.jobId || isTriggering) return;
     setIsTriggering(true);
+
+    // iOS Safari (including iPadOS 13+ which reports "Macintosh") ignores
+    // <a download> for server URLs. We must use window.open — but window.open
+    // called *after* an await loses the user-gesture token and Safari blocks
+    // it as a popup. The fix: open a blank window synchronously RIGHT NOW
+    // (inside the click handler, before any awaits), then navigate it to the
+    // real URL once we have it.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+    const iosWin = isIOS ? window.open("", "_blank", "noopener,noreferrer") : null;
+
     try {
       const tokenRes = await fetch(`${BASE}/api/media/token/${job.jobId}`, { method: "POST" });
 
       // Handle specific token-endpoint errors before falling back
       if (!tokenRes.ok) {
+        if (iosWin && !iosWin.closed) iosWin.close();
+
         const body = await tokenRes.json().catch(() => ({})) as { error?: string; code?: string };
 
         if (tokenRes.status === 410 || body.code === "TOKEN_EXPIRED") {
-          // File or link has expired — direct the user to re-convert
           toast.error("This download link has expired. Tap 'Convert again' to get a fresh file.", { duration: 6000 });
           setIsTriggering(false);
           return;
@@ -374,23 +387,40 @@ export default function MediaDownloadSheet({
         // For other non-fatal errors (5xx etc.) fall through to direct URL as last resort
       }
 
-      const dlUrl = tokenRes.ok
-        ? `${BASE}${(await tokenRes.json() as { downloadUrl: string }).downloadUrl}`
-        : `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;
+      // Parse the token response only if the request succeeded, with a safe fallback
+      // so a malformed body never surfaces a cryptic error to the user.
+      let dlUrl: string;
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json().catch(() => null) as { downloadUrl?: string } | null;
+        dlUrl = tokenData?.downloadUrl
+          ? `${BASE}${tokenData.downloadUrl}`
+          : `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;
+      } else {
+        dlUrl = `${BASE}${job.downloadUrl ?? `/api/media/download/${job.jobId}`}`;
+      }
 
-      const ext      = job.format ?? format;
-      const rawName  = job.title
-        ? job.title.replace(/[^\w\s\-()']/g, "").replace(/\s+/g, "_").trim().slice(0, 80)
-        : `jctm_media_${job.jobId.slice(0, 8)}`;
+      const ext = job.format ?? format;
+      // Sanitize title — strip characters that break filenames, then fall back
+      // to a safe default if the result is empty (e.g. title was all symbols).
+      const sanitized = (job.title ?? "")
+        .replace(/[^\w\s\-()']/g, "")
+        .replace(/\s+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 80);
+      const rawName  = sanitized || `jctm_media_${job.jobId.slice(0, 8)}`;
       const filename = rawName.endsWith(`.${ext}`) ? rawName : `${rawName}.${ext}`;
 
-      // iOS Safari ignores <a download> for server URLs — open in new tab instead
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-                    !(window as unknown as { MSStream?: unknown }).MSStream;
       if (isIOS) {
-        window.open(dlUrl, "_blank", "noopener,noreferrer");
+        // Navigate the pre-opened blank window to the download URL.
+        // If it was blocked (iosWin is null or already closed), try a fresh open.
+        if (iosWin && !iosWin.closed) {
+          iosWin.location.href = dlUrl;
+        } else {
+          window.open(dlUrl, "_blank", "noopener,noreferrer");
+        }
         toast.success("File opened — use the Share menu (box with arrow) to save it to your device.", { duration: 6000 });
       } else {
+        if (iosWin && !iosWin.closed) iosWin.close();
         const a = document.createElement("a");
         a.href = dlUrl;
         a.download = filename;
@@ -402,6 +432,7 @@ export default function MediaDownloadSheet({
         toast.success("Download started! Check your Downloads folder.", { duration: 4000 });
       }
     } catch {
+      if (iosWin && !iosWin.closed) iosWin.close();
       toast.error("Failed to start download. Please try again.");
     } finally {
       // Allow re-download after a short delay (prevents accidental double-click)
