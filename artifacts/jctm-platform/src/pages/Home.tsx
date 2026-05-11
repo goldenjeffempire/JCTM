@@ -1973,7 +1973,6 @@ function ProphetSection() {
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const filmstripRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
 
   // Auto-advance: runs every 3 s, fully independent of renders
@@ -1985,26 +1984,7 @@ function ProphetSection() {
     return () => clearInterval(id);
   }, [isPaused]);
 
-  // Auto-scroll filmstrip to keep active thumb centred
-  useEffect(() => {
-    const strip = filmstripRef.current;
-    if (!strip) return;
-    const thumb = strip.children[activeIdx] as HTMLElement | undefined;
-    if (!thumb) return;
-    const stripRect  = strip.getBoundingClientRect();
-    const thumbRect  = thumb.getBoundingClientRect();
-    const offset     = thumbRect.left - stripRect.left - (stripRect.width - thumbRect.width) / 2;
-    strip.scrollBy({ left: offset, behavior: "smooth" });
-  }, [activeIdx]);
-
   const activePhoto = FOUNDER_PHOTOS[activeIdx]!;
-
-  const handleThumbClick = (idx: number) => {
-    setActiveIdx(idx);
-    setIsPaused(true);
-    // Resume auto-play after 6 s of manual control
-    setTimeout(() => setIsPaused(false), 6000);
-  };
 
   const handlePrev = () => { setActiveIdx(i => (i - 1 + FOUNDER_PHOTOS.length) % FOUNDER_PHOTOS.length); setIsPaused(true); setTimeout(() => setIsPaused(false), 6000); };
   const handleNext = () => { setActiveIdx(i => (i + 1) % FOUNDER_PHOTOS.length); setIsPaused(true); setTimeout(() => setIsPaused(false), 6000); };
@@ -2056,77 +2036,6 @@ function ProphetSection() {
           {/* Overlays */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#001830]/90 via-[#001830]/25 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#001830]/20 via-transparent to-transparent" />
-
-          {/* ── Horizontal filmstrip tray ── */}
-          <motion.div
-            className="absolute bottom-[88px] left-0 right-0 z-20 px-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.55 }}
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-          >
-            {/* Frosted tray */}
-            <div className="flex items-center gap-2 bg-[#001830]/70 backdrop-blur-xl rounded-2xl px-3 py-2.5 border border-white/10 shadow-2xl">
-
-              {/* Prev arrow */}
-              <button
-                onClick={handlePrev}
-                className="shrink-0 w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all duration-200 active:scale-90"
-                aria-label="Previous photo"
-              >
-                <ChevronLeft className="h-3.5 w-3.5 text-white" />
-              </button>
-
-              {/* Scrollable thumbnail row */}
-              <div
-                ref={filmstripRef}
-                className="flex gap-2 overflow-x-auto scroll-smooth"
-                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-              >
-                {FOUNDER_PHOTOS.map((photo, i) => (
-                  <button
-                    key={photo.key}
-                    onClick={() => handleThumbClick(i)}
-                    className={`relative shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-lg
-                      ${activeIdx === i
-                        ? "w-[52px] h-[66px] border-accent shadow-accent/40 scale-105"
-                        : "w-[44px] h-[56px] border-white/20 hover:border-white/55 opacity-70 hover:opacity-100"
-                      }`}
-                    style={{ transition: "width 0.3s, height 0.3s, opacity 0.3s, border-color 0.3s, transform 0.3s" }}
-                  >
-                    <img
-                      src={photo.src}
-                      alt={photo.label}
-                      className="w-full h-full object-cover object-top"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => {
-                        if ("fallback" in photo && photo.fallback)
-                          (e.target as HTMLImageElement).src = (photo as { fallback: string }).fallback;
-                      }}
-                    />
-                    {activeIdx === i && (
-                      <div className="absolute inset-0 ring-2 ring-inset ring-accent/60 rounded-xl pointer-events-none" />
-                    )}
-                    {activeIdx === i && (
-                      <div className="absolute top-1 right-1 h-1.5 w-1.5 bg-accent rounded-full animate-pulse shadow-sm shadow-accent" />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* Next arrow */}
-              <button
-                onClick={handleNext}
-                className="shrink-0 w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center transition-all duration-200 active:scale-90"
-                aria-label="Next photo"
-              >
-                <ChevronRight className="h-3.5 w-3.5 text-white" />
-              </button>
-
-            </div>
-          </motion.div>
 
           {/* Floating credentials badges */}
           <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="absolute top-6 left-6 z-10">
