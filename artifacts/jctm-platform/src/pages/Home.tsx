@@ -2100,6 +2100,7 @@ function ProphetSection() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const filmstripRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
 
   // Auto-advance: runs every 3 s, fully independent of renders
   useEffect(() => {
@@ -2152,6 +2153,14 @@ function ProphetSection() {
           animate={inView ? { opacity: 1, x: 0 } : {}}
           transition={{ type: "spring", stiffness: 55, damping: 20 }}
           className="relative overflow-hidden min-h-[480px] lg:min-h-full"
+          onTouchStart={(e) => { touchStartX.current = e.touches[0]!.clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return;
+            const delta = e.changedTouches[0]!.clientX - touchStartX.current;
+            touchStartX.current = null;
+            if (Math.abs(delta) < 40) return;
+            if (delta < 0) handleNext(); else handlePrev();
+          }}
         >
           {/* Background base photo */}
           <motion.div style={{ y: yImg }} className="absolute inset-0 scale-110">
