@@ -2242,10 +2242,6 @@ function ProphetSection() {
                 <ChevronRight className="h-3.5 w-3.5 text-white" />
               </button>
 
-              {/* Photo counter */}
-              <span className="shrink-0 text-white/40 text-[10px] font-mono tabular-nums">
-                {String(activeIdx + 1).padStart(2, "0")}/{String(FOUNDER_PHOTOS.length).padStart(2, "0")}
-              </span>
             </div>
           </motion.div>
 
