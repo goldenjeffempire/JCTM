@@ -43,7 +43,6 @@ import { GeoServiceTimes } from "@/components/GeoServiceTimes";
 import { GeoContentBanner } from "@/components/GeoContentBanner";
 import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
-import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 import { toast } from "sonner";
 
 const GlobalAltar3D = lazy(() => import("@/components/GlobalAltar3D").then(m => ({ default: m.GlobalAltar3D })));
@@ -667,7 +666,7 @@ const HERO_IMAGES = [
   { key: "img6", src: "/founder/DSC1774.jpg", label: "Prayer", tag: "Intercession", title: "Intercession & Prayer", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img7", src: "/founder/DSC5377.jpg", label: "Anointing", tag: "Prophet", title: "The Anointed Voice", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img8", src: "/founder/DSC5382.jpg", label: "Proclamation", tag: "Apostolic", title: "Apostolic Proclamation", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
-  { key: "img9", src: "/founder/DSC6453.jpg", label: "Ministers Conference", tag: "Prophetic", title: "Ministers Conference 2026", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
+  { key: "img9", src: "/founder/DSC6453.jpg", label: "Prophetic Gathering", tag: "Prophetic", title: "Prophetic Gathering", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img10", src: "/founder/DSC6455.jpg", label: "The Word", tag: "Apostolic", title: "Declaring the Apostolic Word", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img11", src: "/founder/DSC6459.jpg", label: "The Mandate", tag: "Ministry", title: "Walking in the Mandate", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
   { key: "img12", src: "/founder/DSC6468.jpg", label: "Triumphant", tag: "Victory", title: "Triumphant in the Spirit", sub: "Jesus Christ Temple Ministry — Warri, Nigeria" },
@@ -704,23 +703,6 @@ function HeroSection() {
   const [isPaused, setIsPaused] = useState(false);
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
 
-  // Ministers Conference 2026 — live countdown inside the hero
-  const [, setConfTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setConfTick(t => t + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const CONF_START = new Date("2026-05-08T07:00:00.000Z"); // 8 AM WAT
-  const CONF_END   = new Date("2026-05-10T20:00:00.000Z"); // 9 PM WAT
-  const confNow   = new Date();
-  const confDiff  = Math.max(0, CONF_START.getTime() - confNow.getTime());
-  const confOver  = confNow > CONF_END;
-  const confLive  = confNow >= CONF_START && !confOver;
-  const showConfWidget = !confOver;
-  const confDays  = Math.floor(confDiff / 86400000);
-  const confHours = Math.floor((confDiff % 86400000) / 3600000);
-  const confMins  = Math.floor((confDiff % 3600000) / 60000);
-  const confSecs  = Math.floor((confDiff % 60000) / 1000);
 
   // Rebroadcast widget: derived from SSE hook — same real-time updates as live state
   const rebroadcastForWidget = (liveStatus.rebroadcast.available && liveStatus.rebroadcast.videoId && !isLive && !isUpcoming)
@@ -1252,114 +1234,6 @@ function HeroSection() {
                 </motion.div>
               ))}
             </motion.div>
-
-            {/* ── Ministers Conference 2026 Hero Countdown Widget ── */}
-            {showConfWidget && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.5 }}
-                className="mb-8"
-              >
-                <Link href="/conference-registration">
-                  <motion.div
-                    whileHover={{ scale: 1.015, y: -2 } as never}
-                    whileTap={{ scale: 0.985 } as never}
-                    className="relative mx-auto max-w-2xl rounded-2xl overflow-hidden cursor-pointer"
-                    style={{
-                      background: "linear-gradient(135deg, #13051c 0%, #2d0f3d 50%, #1e0b2e 100%)",
-                      border: "1px solid rgba(168,85,247,0.35)",
-                      boxShadow: "0 8px 40px rgba(168,85,247,0.22), 0 2px 8px rgba(0,0,0,0.18)",
-                    }}
-                  >
-                    {/* Gold shimmer top bar */}
-                    <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,#d4a017,#facc15,#d4a017,transparent)" }} />
-
-                    {/* Subtle animated glow orb */}
-                    <motion.div
-                      animate={{ opacity: [0.18, 0.38, 0.18], scale: [1, 1.15, 1] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute -top-8 left-1/2 -translate-x-1/2 w-48 h-24 rounded-full pointer-events-none"
-                      style={{ background: "radial-gradient(circle, rgba(168,85,247,0.55), transparent 70%)", filter: "blur(12px)" }}
-                    />
-
-                    <div className="relative px-5 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
-
-                      {/* Left: label */}
-                      <div className="flex-1 min-w-0 text-center sm:text-left">
-                        <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                          <motion.span
-                            animate={{ opacity: confLive ? [1, 0.4, 1] : 1 }}
-                            transition={{ duration: 1.2, repeat: confLive ? Infinity : 0 }}
-                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full"
-                            style={{
-                              background: confLive ? "rgba(239,68,68,0.25)" : "rgba(212,160,23,0.18)",
-                              color: confLive ? "#f87171" : "#facc15",
-                              border: confLive ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(212,160,23,0.35)",
-                            }}
-                          >
-                            {confLive ? (
-                              <><span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-400" /></span> Happening Now</>
-                            ) : (
-                              <><Calendar className="h-2.5 w-2.5" /> Coming Soon</>
-                            )}
-                          </motion.span>
-                        </div>
-                        <p className="text-white font-serif font-bold text-base sm:text-lg leading-tight tracking-tight">
-                          Ministers Conference 2026
-                        </p>
-                        <p className="text-purple-300/60 text-[11px] mt-0.5 truncate">
-                          May 8–10 · 8 AM Daily · Effurun, Delta State
-                        </p>
-                      </div>
-
-                      {/* Center: countdown digits */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        {confLive ? (
-                          <span className="text-white font-serif font-black text-base tracking-wide px-3 py-1 rounded-xl" style={{ background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.35)" }}>
-                            🔥 The Conference Is LIVE!
-                          </span>
-                        ) : (
-                          <>
-                            {[
-                              { v: confDays,  l: "D" },
-                              { v: confHours, l: "H" },
-                              { v: confMins,  l: "M" },
-                              { v: confSecs,  l: "S" },
-                            ].map(({ v, l }) => (
-                              <div key={l} className="flex flex-col items-center rounded-xl px-2.5 py-1.5 min-w-[40px]"
-                                style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}>
-                                <span className="text-lg font-black text-white font-mono tabular-nums leading-none">
-                                  {String(v).padStart(2, "0")}
-                                </span>
-                                <span className="text-[9px] text-purple-400/60 uppercase tracking-wider mt-0.5">{l}</span>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </div>
-
-                      {/* Right: CTA */}
-                      <motion.div
-                        whileHover={{ scale: 1.05 } as never}
-                        whileTap={{ scale: 0.96 } as never}
-                        className="shrink-0 px-5 py-2.5 rounded-xl font-serif font-black text-sm tracking-wide flex items-center gap-2"
-                        style={{
-                          background: "linear-gradient(135deg,#d4a017,#facc15)",
-                          color: "#13051c",
-                          boxShadow: "0 4px 18px rgba(212,160,23,0.35)",
-                        }}
-                      >
-                        Register Now <ArrowRight className="h-3.5 w-3.5" />
-                      </motion.div>
-                    </div>
-
-                    {/* Gold shimmer bottom bar */}
-                    <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.4),transparent)" }} />
-                  </motion.div>
-                </Link>
-              </motion.div>
-            )}
 
             {/* ── Ministry Gallery Strip + Slideshow Controls ── */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6 }} className="flex flex-col items-center gap-3">
@@ -2967,273 +2841,34 @@ function ScriptureFeature() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MINISTER CONFERENCE 2026 — Invite Section
-// ═══════════════════════════════════════════════════════════════════════════
-const MCONF_YT = "hQFA1Y9NAcY";
-const MCONF_TITLE = "Ministers Conference 2026";
-const MCONF_LOCATION = "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State";
-const MCONF_SHARE_TEXT = `🔥 MINISTERS CONFERENCE 2026!
-
-Jesus Christ Temple Ministry presents Ministers Conference 2026.
-
-📅 Friday 8th May — Sunday 10th May, 2026
-⏰ 8:00 AM Daily (WAT)
-📍 ${MCONF_LOCATION}
-
-📞 +234(0)8081313111
-🌐 jctm.org.ng
-
-Download and share the official flyer.
-
-#MinistersConference2026 #JCTM #ProphetAmos #ApostolicFire`;
-const MCONF_SHARE = encodeURIComponent(MCONF_SHARE_TEXT);
-const MCONF_DATES = "May 8–10, 2026";
-const MCONF_TIME = "8:00 AM Daily (WAT)";
-const MCONF_CONTACT = "+234(0)8081313111";
-
-
-function MinisterConferenceSection() {
-  const [, setTick] = useState(0);
-  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(id); }, []);
-
-  const target = new Date("2026-05-08T07:00:00.000Z"); // 8:00 AM WAT = UTC+1
-  const now = new Date();
-  const diff = Math.max(0, target.getTime() - now.getTime());
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  const secs = Math.floor((diff % 60000) / 1000);
-  const shareUrl = `${window.location.origin}${BASE}/events`;
-
-  const sharePlatforms = [
-    { label: "WhatsApp", emoji: "💬", bg: "#25D366", href: `https://wa.me/?text=${MCONF_SHARE}` },
-    { label: "Facebook", emoji: "👍", bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${MCONF_SHARE}` },
-    { label: "X", emoji: "𝕏", bg: "#000", href: `https://twitter.com/intent/tweet?text=${MCONF_SHARE}&url=${encodeURIComponent(shareUrl)}` },
-    { label: "Telegram", emoji: "✈️", bg: "#0088CC", href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${MCONF_SHARE}` },
-    { label: "LinkedIn", emoji: "in", bg: "#0A66C2", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
-    { label: "Instagram", emoji: "📷", bg: "linear-gradient(135deg,#E1306C,#833AB4,#F77737)", href: "https://www.instagram.com/templetv.jctm/" },
-  ];
-
-  const handleDownloadFlyer = () => {
-    const link = document.createElement("a");
-    link.href = ministerConferenceFlyer;
-    link.download = "ministers-conference-2026-flyer.jpeg";
-    link.click();
-  };
-
-  const handleNativeShare = async () => {
-    const payload = {
-      title: MCONF_TITLE,
-      text: MCONF_SHARE_TEXT,
-      url: shareUrl,
-    };
-    if (navigator.share) {
-      try {
-        await navigator.share(payload);
-      } catch {
-        return;
-      }
-    } else {
-      await navigator.clipboard.writeText(`${MCONF_SHARE_TEXT}\n\n${shareUrl}`);
-    }
-  };
-
-  return (
-    <section className="py-0 relative overflow-hidden" style={{ background: "linear-gradient(180deg,#0d020f 0%,#2a0a35 50%,#0d020f 100%)" }}>
-      {/* Starfield */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 50 }).map((_, i) => (
-          <div key={i} className="absolute rounded-full" style={{
-            width: `${(i % 3) * 0.8 + 0.6}px`, height: `${(i % 3) * 0.8 + 0.6}px`,
-            top: `${(i * 37 + 11) % 100}%`, left: `${(i * 53 + 7) % 100}%`,
-            background: `rgba(220,180,255,${(i % 5) * 0.08 + 0.08})`,
-          }} />
-        ))}
-      </div>
-
-      {/* Purple glow orbs */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full blur-3xl" style={{ background: "radial-gradient(ellipse, rgba(168,85,247,0.12) 0%, transparent 70%)" }} />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] rounded-full blur-2xl" style={{ background: "radial-gradient(ellipse, rgba(212,160,23,0.08) 0%, transparent 70%)" }} />
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-20">
-        <div className="max-w-5xl mx-auto">
-
-          {/* Label */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8">
-            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border mb-4"
-              style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.12)", color: "#d8b4fe" }}>
-              <Flame className="h-3.5 w-3.5" /> Jesus Christ Temple Ministry Presents
-            </span>
-            <h2 className="font-serif font-black text-4xl md:text-6xl text-white mb-3 leading-tight">
-              Ministers{" "}
-              <span style={{ WebkitTextStroke: "2px #a855f7", color: "transparent" }}>Conference</span>{" "}
-              <span className="text-purple-300">2026</span>
-            </h2>
-            <p className="text-purple-200/70 font-serif italic text-lg max-w-xl mx-auto">&ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;</p>
-          </motion.div>
-
-          {/* 2-col layout: Invite Card + Details */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-
-            {/* Left — styled conference invite card */}
-            <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
-              <div className="relative rounded-3xl overflow-hidden border-2 shadow-2xl shadow-purple-500/20 h-full flex flex-col"
-                style={{ borderColor: "rgba(168,85,247,0.45)", background: "linear-gradient(145deg,#1a0525 0%,#2d0f3d 50%,#1a0525 100%)" }}>
-
-                {/* Top accent bar */}
-                <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,transparent,#a855f7 20%,#d8b4fe 50%,#a855f7 80%,transparent)" }} />
-
-                <div className="relative bg-black/30">
-                  <img
-                    src={ministerConferenceFlyer}
-                    alt="Ministers Conference 2026 official flyer"
-                    className="w-full h-auto object-contain"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-
-                <div className="px-5 py-5 text-center space-y-4">
-                  <p className="text-purple-200/80 text-sm font-medium">
-                    Download the official flyer, then share it across WhatsApp, Facebook, Instagram, X, Telegram, LinkedIn, and your groups.
-                  </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <button
-                      onClick={handleDownloadFlyer}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                      style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download Flyer
-                    </button>
-                    <button
-                      onClick={handleNativeShare}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                      style={{ background: "linear-gradient(135deg,#d4a017,#facc15)", color: "#13051c" }}
-                    >
-                      <Share2 className="h-3.5 w-3.5" /> Share Flyer
-                    </button>
-                    {sharePlatforms.map(p => (
-                      <a key={p.label} href={p.href} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-3 py-2 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 shadow-md"
-                        style={{ background: p.bg }}>
-                        <span>{p.emoji}</span> {p.label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bottom accent bar */}
-                <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg,transparent,rgba(212,160,23,0.5),transparent)" }} />
-              </div>
-            </motion.div>
-
-            {/* Right — countdown + details + video */}
-            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}
-              className="flex flex-col gap-6">
-
-              {/* Countdown */}
-              <div className="rounded-3xl p-6 text-center" style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                <p className="text-purple-400/70 text-xs uppercase tracking-widest font-bold mb-4">
-                  {diff > 0 ? "Conference Begins In" : "🔥 The Conference Is NOW!"}
-                </p>
-                {diff > 0 && (
-                  <div className="flex justify-center gap-3">
-                    {[{ v: days, l: "Days" }, { v: hours, l: "Hrs" }, { v: mins, l: "Min" }, { v: secs, l: "Sec" }].map(({ v, l }) => (
-                      <div key={l} className="flex flex-col items-center rounded-xl px-3 py-2 min-w-[52px]"
-                        style={{ background: "linear-gradient(135deg,#2d0f3d,#4c1d70)", border: "1px solid rgba(168,85,247,0.3)" }}>
-                        <span className="text-2xl font-black text-white font-mono tabular-nums">{String(v).padStart(2, "0")}</span>
-                        <span className="text-[9px] text-purple-400/60 uppercase tracking-wider">{l}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Details */}
-              <div className="rounded-3xl p-6 space-y-3" style={{ background: "rgba(45,15,61,0.8)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                {[
-                  { icon: Calendar, text: "Friday 8th May — Sunday 10th May, 2026" },
-                  { icon: Clock, text: "8:00 AM Daily (West Africa Time)" },
-                  { icon: MapPin, text: MCONF_LOCATION },
-                  { icon: Globe, text: "Watch on Temple TV · jctm.org.ng" },
-                ].map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-start gap-3 text-sm text-white/80">
-                    <Icon className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
-                    <span>{text}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Ministers Conference promo — eager autoplay loop */}
-              <div className="rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(168,85,247,0.25)" }}>
-                <MutedVideoPlayer
-                  videoId={MCONF_YT}
-                  title="Ministers Conference 2026"
-                  mode="eager"
-                  autoplay={true}
-                  loop={true}
-                  audioOnly={true}
-                  analyticsPage="/"
-                />
-              </div>
-
-              {/* CTAs */}
-              <div className="flex flex-col gap-3">
-                <Link href="/conference-registration">
-                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                    className="w-full py-4 rounded-2xl font-serif font-black text-xl tracking-wide"
-                    style={{ background: "linear-gradient(135deg,#d4a017,#facc15)", color: "#13051c", boxShadow: "0 8px 32px rgba(212,160,23,0.35)" }}>
-                    ✋ Register to Attend
-                  </motion.button>
-                </Link>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link href="/events" className="flex-1">
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      className="w-full py-3 rounded-2xl font-serif font-bold text-base tracking-wide"
-                      style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}>
-                      View Conference Details
-                    </motion.button>
-                  </Link>
-                  <a href={`https://youtu.be/${MCONF_YT}`} target="_blank" rel="noopener noreferrer" className="flex-1">
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                      className="w-full py-3 rounded-2xl font-serif font-bold text-base tracking-wide flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white">
-                      <Youtube className="h-5 w-5" /> Watch on YouTube
-                    </motion.button>
-                  </a>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // UPCOMING EVENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
 function EventsSection() {
-  const { data: events, isLoading } = useGetUpcomingEvents({ query: { queryKey: getGetUpcomingEventsQueryKey() } });
   return (
     <section className="home-section bg-gradient-to-b from-[#f0f6ff] to-white">
       <div className="container mx-auto px-4">
         {/* Section header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-14 gap-6">
           <div>
-            <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-3"><span className="h-px w-6 bg-accent inline-block" />Gatherings</span>
+            <span className="text-accent text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-3">
+              <span className="h-px w-6 bg-accent inline-block" />Gatherings
+            </span>
             <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Gather With Us</h2>
-            <p className="text-muted-foreground mt-3 text-lg max-w-md">Experience transformation through our weekly services and special prophetic encounters.</p>
+            <p className="text-muted-foreground mt-3 text-lg max-w-md">
+              Experience transformation through our weekly services and special prophetic encounters.
+            </p>
           </div>
-          <Link href="/events"><Button variant="outline" className="rounded-full px-7 group border-primary/20">Browse Calendar <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" /></Button></Link>
+          <Link href="/events">
+            <Button variant="outline" className="rounded-full px-7 group border-primary/20">
+              Browse Calendar <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
         </div>
 
         {/* ── Upcoming Special Events ── */}
         <div>
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-8">
             <span className="h-px flex-1 bg-border/60" />
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-accent" /> Upcoming Events
@@ -3241,102 +2876,27 @@ function EventsSection() {
             <span className="h-px flex-1 bg-border/60" />
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-border">
-                  <Skeleton className="w-full h-48" />
-                  <div className="p-6 space-y-3">
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                    <Skeleton className="h-4 w-2/3" />
-                    <Skeleton className="h-10 w-full rounded-xl" />
-                  </div>
-                </div>
-              ))}
+          {/* Empty state */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col items-center justify-center py-20 px-6 rounded-3xl border border-border/50 bg-white/60 text-center"
+          >
+            <div className="h-16 w-16 rounded-2xl bg-accent/8 flex items-center justify-center mb-5 border border-accent/10">
+              <Calendar className="h-7 w-7 text-accent/40" />
             </div>
-          ) : (
-            <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {/* ── Ministers Conference 2026 — Always Featured ── */}
-              <motion.div variants={fadeUp}>
-                <TiltCard>
-                  <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border-2 group relative overflow-hidden h-full flex flex-col"
-                    style={{ borderColor: "rgba(168,85,247,0.45)", boxShadow: "0 0 36px 6px rgba(168,85,247,0.12), 0 4px 24px rgba(0,0,0,0.08)" }}>
-                    <div className="absolute top-0 left-0 w-full h-1 z-10" style={{ background: "linear-gradient(90deg,#7c3aed,#a855f7,#d8b4fe,#a855f7,#7c3aed)" }} />
-                    <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                      <img
-                        src={ministerConferenceFlyer}
-                        alt="Ministers Conference 2026 official flyer"
-                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
-                      <div className="absolute top-3 right-3">
-                        <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg" style={{ background: "#a855f7", color: "#fff" }}>Conference</span>
-                      </div>
-                    </div>
-                    <div className="p-6 flex flex-col flex-1">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="rounded-xl px-3 py-1.5 text-white text-center" style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}>
-                          <span className="block font-bold text-xs leading-none uppercase">May 8</span>
-                        </div>
-                        <Badge className="rounded-full text-xs" style={{ background: "rgba(168,85,247,0.1)", color: "#7c3aed", borderColor: "rgba(168,85,247,0.3)" }}>Upcoming</Badge>
-                      </div>
-                      <h3 className="text-lg font-bold text-primary mb-1 leading-tight group-hover:text-accent transition-colors">Ministers Conference 2026</h3>
-                      <p className="text-xs italic text-muted-foreground mb-3 line-clamp-2">&ldquo;An Apostolic Gathering of Ministers, Leaders &amp; Kingdom Builders&rdquo;</p>
-                      <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
-                        <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: "#a855f7" }} />Fri 8 – Sun 10 May, 2026</div>
-                        <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 shrink-0" style={{ color: "#a855f7" }} />8:00 AM Daily (WAT)</div>
-                        <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "#a855f7" }} /><span className="leading-snug">Church Auditorium, Ebrumede Roundabout, Effurun Uvwie, Delta State</span></div>
-                      </div>
-                      <Link href="/conference-registration">
-                        <Button className="w-full rounded-xl font-bold border-none shadow-none transition-all duration-200 text-white" style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}>
-                          Register to Attend
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </TiltCard>
-              </motion.div>
-
-              {/* ── Dynamic DB events (only those with a flyer image) ── */}
-              {events && (events as Array<{ id: string | number; imageUrl?: string | null; startDate: string; title?: string; location?: string | null; description?: string | null; eventType?: string | null }>).filter((e) => !!e.imageUrl).slice(0, 5).map((event) => {
-                const date = new Date(event.startDate);
-                return (
-                  <motion.div key={event.id} variants={fadeUp}>
-                    <TiltCard>
-                      <div className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-border group relative overflow-hidden h-full flex flex-col">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                        <div className="relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
-                          <img src={event.imageUrl!} alt={event.title} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" loading="lazy" decoding="async" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-3 left-3">
-                            <span className="bg-accent text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{event.eventType}</span>
-                          </div>
-                        </div>
-                        <div className="p-6 flex flex-col flex-1">
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="bg-gradient-to-br from-accent to-[#0284C7] rounded-xl px-3 py-1.5 text-white text-center">
-                              <span className="block font-bold text-xs leading-none uppercase">{format(date, "MMM d")}</span>
-                            </div>
-                            <Badge variant="secondary" className="rounded-full text-xs">{event.eventType}</Badge>
-                          </div>
-                          <h3 className="text-lg font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{event.title}</h3>
-                          <div className="space-y-1.5 mb-5 text-sm text-muted-foreground flex-1">
-                            <div className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-accent shrink-0" />{format(date, "EEEE, MMMM d, yyyy")}</div>
-                            <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-accent shrink-0" />{format(date, "h:mm a")} WAT</div>
-                            <div className="flex items-start gap-2"><MapPin className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" /><span className="leading-snug">{event.location || "Main Sanctuary, Warri"}</span></div>
-                          </div>
-                          <Link href="/events"><Button className="w-full rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white border-none shadow-none transition-all duration-200">View Details</Button></Link>
-                        </div>
-                      </div>
-                    </TiltCard>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          )}
+            <h3 className="text-xl font-serif font-bold text-primary mb-2">No Upcoming Events Available</h3>
+            <p className="text-muted-foreground text-sm max-w-sm mb-7 leading-relaxed">
+              There are no events scheduled at this time. Check back soon or explore our event history for past gatherings.
+            </p>
+            <Link href="/events">
+              <Button variant="outline" className="rounded-full px-7 group border-primary/20">
+                View Past Events <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </div>
     </section>
@@ -4740,7 +4300,6 @@ export default function Home() {
       <MinistryPillars />
       <ScriptureFeature />
       <EventsSection />
-      <MinisterConferenceSection />
       <GlobalReach />
       <GlobalAltarSection />
       <GivingBand />

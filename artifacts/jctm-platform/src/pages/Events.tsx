@@ -215,6 +215,26 @@ const STATIC_UPCOMING_EVENTS: StaticEvent[] = [];
 
 const STATIC_PAST_EVENTS: StaticEvent[] = [
   {
+    id: "ministers-conference-2026",
+    title: "Ministers Conference 2026",
+    subtitle: "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders",
+    description: "An anointed three-day apostolic conference bringing together ministers, church leaders, and kingdom builders from across Nigeria and beyond.|Powerful expository teaching, prophetic impartation, and corporate worship over three transformative sessions. Hosted by Jesus Christ Temple Ministry, Warri — Delta State. Free entry for all ministers and believers.",
+    startDate: "2026-05-08T07:00:00.000Z",
+    endDate: "2026-05-10T20:00:00.000Z",
+    location: "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State",
+    eventType: "Conference",
+    imageUrl: ministerConferenceFlyer,
+    youtubeVideoId: "hQFA1Y9NAcY",
+    registerUrl: "/conference-registration",
+    accentHex: "#a855f7",
+    labelColor: "#ffffff",
+    highlights: [
+      "Apostolic teaching & prophetic impartation",
+      "3 days of supernatural encounters",
+      "Open to all ministers & believers",
+    ],
+  },
+  {
     id: "warri-crusade-2026",
     title: "Warri City Crusade 2026",
     subtitle: "Prophet Amos Global Crusade",

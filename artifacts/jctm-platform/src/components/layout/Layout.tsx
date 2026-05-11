@@ -12,8 +12,6 @@ import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
 import { EventPromoPreviewToggle } from "../event-promo/EventPromoPreviewToggle";
 import { WarriCrusadeStickyBanner } from "../event-promo/WarriCrusadeStickyBanner";
 import { CrusadeInlineAd } from "../event-promo/CrusadeInlineAd";
-import { FloatingJoinCrusadeCTA } from "../event-promo/FloatingJoinCrusadeCTA";
-import { MinistersConferenceFlyerPopup } from "../event-promo/MinistersConferenceFlyerPopup";
 import { MediaJobsPanel } from "../MediaJobsPanel";
 
 interface LayoutProps {
@@ -63,12 +61,6 @@ export function Layout({ children }: LayoutProps) {
       {/* Admin-driven floating event banner */}
       <GlobalEventAdBanner />
       <EventPromoPreviewToggle />
-
-      {/* Ministers Conference floating register FAB */}
-      <FloatingJoinCrusadeCTA />
-
-      {/* Full-screen flyer popup — auto-opens once per session */}
-      <MinistersConferenceFlyerPopup />
 
       {/* Global floating download queue */}
       <MediaJobsPanel />
