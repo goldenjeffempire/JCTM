@@ -1,0 +1,154 @@
+Perform a complete production-level SEO and sitemap debugging for the domain https://jctm.org.ng.
+
+Current issue:
+
+Google Search Console shows:
+Sitemap Status: Couldn't fetch
+Sitemap Type: Unknown
+Discovered Pages: 0
+The sitemap XML opens in the browser successfully at:
+https://jctm.org.ng/sitemap.xml
+However, Google bots cannot properly fetch or parse it.
+
+Tasks:
+
+1. Validate Sitemap Response Headers
+
+Ensure /sitemap.xml returns:
+
+HTTP Status: 200 OK
+
+Content-Type:
+
+application/xml
+
+or
+
+text/xml
+
+Remove incorrect headers such as:
+
+text/html
+application/json
+
+Ensure:
+
+no redirect loops
+no 403 protection for bots
+no Cloudflare blocking
+no authentication requirements
+2. Fix XML Structure
+
+Validate the sitemap against the official sitemap schema.
+
+Ensure:
+
+valid XML declaration
+proper namespaces
+UTF-8 encoding
+no malformed tags
+no duplicated namespaces
+no invalid image/video schema usage
+
+Ensure the sitemap begins exactly like:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+ xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+3. Remove Invalid or Broken URLs
+
+Automatically scan all sitemap URLs and remove:
+
+404 pages
+500 pages
+redirect chains
+blocked routes
+private routes
+broken image URLs
+
+Only include valid production URLs.
+
+4. Fix robots.txt
+
+Ensure:
+https://jctm.org.ng/robots.txt
+
+Contains:
+
+User-agent: *
+Allow: /
+
+Sitemap: https://jctm.org.ng/sitemap.xml
+
+Ensure robots.txt is publicly accessible with HTTP 200.
+
+5. Generate Production-Grade Dynamic Sitemap
+
+Rebuild sitemap generation completely.
+
+Requirements:
+
+auto-update dynamically
+include canonical URLs only
+remove duplicate URLs
+proper priorities
+proper lastmod timestamps
+support:
+pages
+blogs
+sermons
+gallery
+topics
+
+Use enterprise-grade implementation.
+
+6. Add Server-Side SEO Validation
+
+Implement:
+
+canonical tags
+proper metadata
+Open Graph tags
+structured data
+crawlable links
+indexable pages
+
+Ensure all sitemap URLs are crawlable by Googlebot.
+
+7. Verify Hosting & SSL
+
+Check:
+
+SSL certificate validity
+DNS propagation
+HTTPS enforcement
+mixed content issues
+firewall restrictions
+CDN caching issues
+
+Ensure Googlebot can access the sitemap globally.
+
+8. Add Monitoring & Error Logging
+
+Implement:
+
+sitemap validation logs
+Googlebot request logs
+automated sitemap health checks
+production error tracking
+9. Final Validation
+
+After fixes:
+
+validate sitemap with Google standards
+test with live fetch
+ensure Search Console recognizes sitemap type correctly
+ensure pages become discoverable
+
+Expected result:
+
+Sitemap status becomes Success
+Sitemap type recognized correctly
+Google discovers and indexes pages successfully
+SEO infrastructure becomes production-grade and enterprise-ready

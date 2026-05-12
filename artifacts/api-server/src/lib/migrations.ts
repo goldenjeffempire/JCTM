@@ -11,6 +11,14 @@ import { logger } from "./logger.js";
  * continue (preDeployCommand should abort; server startup should continue).
  */
 export async function runMigrations(): Promise<void> {
+  // ── pgvector extension — must be first so vector() type is available ─────────
+  try {
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+    logger.info("pgvector extension ready");
+  } catch (vecErr) {
+    logger.warn({ err: vecErr }, "pgvector extension not available — semantic search disabled");
+  }
+
   // ── Drizzle-managed base tables (must exist before ALTER TABLE statements) ──
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sermon_data (
