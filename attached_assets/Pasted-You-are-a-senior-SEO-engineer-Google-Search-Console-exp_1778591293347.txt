@@ -1,0 +1,140 @@
+You are a senior SEO engineer, Google Search Console expert, enterprise full-stack engineer, and Google AdSense optimization specialist.
+
+Your task is to fully optimize, validate, enhance, and productionize the XML sitemap infrastructure for:
+
+https://jctm.org.ng
+
+Current sitemap:
+https://jctm.org.ng/sitemap.xml
+
+Objectives:
+
+* Maximize Google crawling efficiency
+* Improve indexing speed
+* Improve AdSense approval probability
+* Improve enterprise SEO quality
+* Ensure sitemap scalability
+* Ensure production-grade XML compliance
+
+Critical Tasks
+
+1. Validate XML Sitemap Structure
+   Validate:
+
+* XML syntax
+* namespaces
+* encoding
+* schema compliance
+* URL validity
+* canonical consistency
+* HTTPS enforcement
+
+Ensure compatibility with:
+
+* Google Search
+* Google News
+* Google Images
+* Google Videos
+* Bing
+* Yahoo
+
+2. Detect and Fix Sitemap Issues
+   Identify and fix:
+
+* broken URLs
+* redirected URLs
+* duplicate URLs
+* non-canonical URLs
+* orphan pages
+* invalid image entries
+* invalid video entries
+* inaccessible resources
+* inconsistent priorities
+* malformed XML nodes
+
+3. Improve Sitemap Architecture
+   Implement:
+
+* sitemap index
+* segmented sitemaps
+* blog sitemap
+* sermon sitemap
+* image sitemap
+* video sitemap
+* topic sitemap
+* page sitemap
+
+Ensure scalability for thousands of pages.
+
+4. Enterprise SEO Optimization
+   Ensure:
+
+* proper priority distribution
+* accurate changefreq values
+* accurate lastmod timestamps
+* canonical URL consistency
+* structured media metadata
+* optimized crawling hierarchy
+
+5. Media SEO Optimization
+   Optimize:
+
+* image titles
+* image captions
+* video metadata
+* Open Graph media
+* media crawlability
+
+6. Performance Optimization
+   Ensure:
+
+* fast sitemap generation
+* CDN compatibility
+* compression support
+* caching optimization
+* low server overhead
+
+7. Google Search Console Optimization
+   Validate:
+
+* sitemap submission readiness
+* crawlability
+* indexing readiness
+* robots.txt compatibility
+
+Ensure:
+
+* no blocked resources
+* no noindex conflicts
+* no crawl traps
+
+8. Generate Technical Audit Report
+   Provide:
+
+* all issues found
+* fixes implemented
+* SEO score
+* crawlability score
+* indexing readiness score
+* AdSense readiness score
+
+9. Generate Recommendations
+   Recommend:
+
+* advanced SEO improvements
+* structured schema enhancements
+* internal linking improvements
+* crawl optimization strategies
+* future scalability enhancements
+
+Important:
+
+* Do NOT break existing routes
+* Maintain streaming functionality
+* Maintain media functionality
+* Maintain responsive infrastructure
+* Ensure production-grade scalability
+* Ensure enterprise-grade SEO architecture
+
+Final Goal:
+Transform the sitemap infrastructure of jctm.org.ng into a fully enterprise-grade, scalable, SEO-optimized, Google crawler-friendly architecture that maximizes indexing performance and Google AdSense approval readiness.

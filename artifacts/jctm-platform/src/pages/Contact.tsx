@@ -85,8 +85,27 @@ export default function Contact() {
       <SEO
         title="Contact Us — Jesus Christ Temple Ministry (JCTM)"
         description="Get in touch with Jesus Christ Temple Ministry (JCTM), Warri, Nigeria. Reach us by email, phone, or visit our church at Ebrumede, Warri. Service times, location, and online channels."
-        canonical="https://jctm.org.ng/contact"
+        path="/contact"
         keywords="JCTM contact, Jesus Christ Temple Ministry contact, JCTM Warri address, Temple TV contact, church Warri Nigeria, JCTM phone email"
+        type="website"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          "@id": "https://jctm.org.ng/contact#webpage",
+          "name": "Contact Jesus Christ Temple Ministry (JCTM)",
+          "description": "Contact page for Jesus Christ Temple Ministry — email, phone, address, and service times.",
+          "url": "https://jctm.org.ng/contact",
+          "inLanguage": "en-NG",
+          "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+          "publisher": { "@id": "https://jctm.org.ng/#organization" },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://jctm.org.ng/" },
+              { "@type": "ListItem", "position": 2, "name": "Contact", "item": "https://jctm.org.ng/contact" }
+            ]
+          }
+        }}
       />
 
       <main className="min-h-screen bg-background">

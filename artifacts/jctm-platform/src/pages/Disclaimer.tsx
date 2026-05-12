@@ -53,7 +53,26 @@ export default function Disclaimer() {
         title="Disclaimer — JCTM Digital Sanctuary"
         description="Disclaimer for the JCTM Digital Sanctuary — Jesus Christ Temple Ministry, Warri Nigeria. Read our disclaimer regarding spiritual content, AI tools, advertising, and liability."
         path="/disclaimer"
-        keywords="JCTM disclaimer, Jesus Christ Temple Ministry disclaimer"
+        keywords="JCTM disclaimer, Jesus Christ Temple Ministry disclaimer, spiritual content disclaimer, AI tools disclaimer"
+        type="website"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "@id": "https://jctm.org.ng/disclaimer#webpage",
+          "name": "Disclaimer — JCTM Digital Sanctuary",
+          "description": "Disclaimer for the JCTM Digital Sanctuary regarding spiritual content, AI tools, advertising, and liability.",
+          "url": "https://jctm.org.ng/disclaimer",
+          "inLanguage": "en-NG",
+          "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+          "publisher": { "@id": "https://jctm.org.ng/#organization" },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://jctm.org.ng/" },
+              { "@type": "ListItem", "position": 2, "name": "Disclaimer", "item": "https://jctm.org.ng/disclaimer" }
+            ]
+          }
+        }}
       />
       <div className="container mx-auto px-4 py-16 max-w-3xl">
         <motion.div

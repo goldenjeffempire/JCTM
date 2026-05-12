@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -509,6 +510,10 @@ export default function AdminConferenceNotify() {
 
   return (
     <Layout>
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta name="googlebot" content="noindex, nofollow" />
+      </Helmet>
       <AdminLoginGate role="livestream" auth={auth} title="Ministers Conference 2026 — Broadcast Notifications">
         <ConferenceNotifyInner adminToken={auth.token ?? ""} />
       </AdminLoginGate>

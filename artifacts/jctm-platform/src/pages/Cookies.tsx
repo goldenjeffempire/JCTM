@@ -83,7 +83,26 @@ export default function Cookies() {
         title="Cookie Policy — JCTM Digital Sanctuary"
         description="Cookie policy for the JCTM Digital Sanctuary — how Jesus Christ Temple Ministry uses cookies, Google AdSense, and third-party tracking technologies."
         path="/cookies"
-        keywords="JCTM cookie policy, Jesus Christ Temple Ministry cookies, JCTM AdSense cookies"
+        keywords="JCTM cookie policy, Jesus Christ Temple Ministry cookies, JCTM AdSense cookies, Google advertising cookies"
+        type="website"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "@id": "https://jctm.org.ng/cookies#webpage",
+          "name": "Cookie Policy — JCTM Digital Sanctuary",
+          "description": "Cookie policy explaining how JCTM uses essential, analytics, and advertising cookies including Google AdSense.",
+          "url": "https://jctm.org.ng/cookies",
+          "inLanguage": "en-NG",
+          "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+          "publisher": { "@id": "https://jctm.org.ng/#organization" },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://jctm.org.ng/" },
+              { "@type": "ListItem", "position": 2, "name": "Cookie Policy", "item": "https://jctm.org.ng/cookies" }
+            ]
+          }
+        }}
       />
       <div className="container mx-auto px-4 py-16 max-w-3xl">
         <motion.div

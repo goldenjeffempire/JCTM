@@ -1355,16 +1355,16 @@ router.get(
       };
     });
 
-    // Verify ads.txt is accessible and has correct publisher line
+    // Verify ads.txt is accessible and has correct publisher line.
+    // Use process.cwd() (workspace root) rather than import.meta.url — esbuild
+    // bundles all routes into a single dist/index.mjs, so import.meta.url always
+    // points to the bundle entry, making relative ../ hops unreliable.
     let adsTxtStatus: "ok" | "missing" | "wrong" | "error" = "error";
     let adsTxtContent: string | null = null;
     try {
       const { readFile } = await import("node:fs/promises");
       const { join } = await import("node:path");
-      const { fileURLToPath } = await import("node:url");
-      const __dirname = fileURLToPath(new URL(".", import.meta.url));
-      // ads.txt lives in the jctm-platform dist/public/ directory
-      const adsTxtPath = join(__dirname, "..", "..", "..", "jctm-platform", "dist", "public", "ads.txt");
+      const adsTxtPath = join(process.cwd(), "artifacts", "jctm-platform", "dist", "public", "ads.txt");
       adsTxtContent = await readFile(adsTxtPath, "utf8");
       const pubNum = publisherId.replace("ca-pub-", "");
       if (adsTxtContent.includes(`pub-${pubNum}`) || adsTxtContent.includes(publisherId)) {

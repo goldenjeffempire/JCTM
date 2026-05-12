@@ -20,6 +20,9 @@ User-agent: AdsBot-Google-Mobile
 Allow: /
 
 # ── All crawlers — allow everything public ────────────────────────────────────
+# NOTE: No Crawl-delay here — any delay on User-agent:* would inadvertently
+# throttle AdsBot-Google and Mediapartners-Google (which inherit this rule
+# as a fallback) and slow down AdSense site verification and ad crawling.
 User-agent: *
 Allow: /
 Disallow: /src/
@@ -28,7 +31,6 @@ Disallow: /node_modules/
 Disallow: /api/auth/
 Disallow: /api/giving/
 Disallow: /api/admin/
-Crawl-delay: 1
 
 # ── Google (full access, no delay) ───────────────────────────────────────────
 User-agent: Googlebot

@@ -179,7 +179,10 @@ app.use((_req, res, next) => {
       "picture-in-picture=(self)",
       "publickey-credentials-get=()",
       "screen-wake-lock=(self)",
-      "sync-xhr=()",
+      // Allow sync-xhr from self only: some Google AdSense measurement and
+      // ad-quality scripts still use synchronous XHR for impression tracking.
+      // Blocking it entirely (sync-xhr=()) silently breaks ad reporting.
+      "sync-xhr=(self)",
       "usb=()",
       "xr-spatial-tracking=()",
     ].join(", "),
@@ -301,7 +304,12 @@ app.use("/api/gallery/admin", galleryAdminLimiter);
 
 // Render's port-detection probe sends HEAD / before routing to healthCheckPath.
 // Handle HEAD only so GET / falls through to the SPA static handler in production.
-app.head("/", (_req, res) => res.status(200).end());
+// X-Robots-Tag ensures Google crawlers (including AdsBot-Google / Mediapartners-Google)
+// receive an explicit index,follow signal even when they use HEAD to preflight pages.
+app.head("/", (_req, res) => {
+  res.setHeader("X-Robots-Tag", "index, follow");
+  res.status(200).end();
+});
 
 // ── Sitemaps served at root (not under /api) for search engine discovery ─────
 app.use(seoRouter);
@@ -352,6 +360,13 @@ if (process.env.NODE_ENV === "production") {
         // AdsBot-Google and Mediapartners-Google see the correct indexing signal.
         if (filePath.endsWith(".html") || filePath.endsWith("robots.txt") || filePath.endsWith("ads.txt")) {
           res.setHeader("X-Robots-Tag", "index, follow");
+        }
+        // ads.txt and app-ads.txt MUST be readable by Google's ads.txt crawler
+        // from any origin. Without ACAO:*, some crawlers may mis-identify the
+        // file as inaccessible and mark publisher verification as failed.
+        if (filePath.endsWith("ads.txt") || filePath.endsWith("app-ads.txt")) {
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
         }
         if (filePath.endsWith("sw.js")) {
           // Service worker MUST always revalidate so users get new versions.

@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7518,6 +7519,11 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Admin dashboard must never be indexed by search engines */}
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta name="googlebot" content="noindex, nofollow" />
+      </Helmet>
 
       {/* ── Top Bar ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-md">

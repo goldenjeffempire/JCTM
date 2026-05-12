@@ -108,11 +108,19 @@
     <link rel="dns-prefetch"  href="https://www.googleapis.com" />
     <link rel="dns-prefetch"  href="https://googlevideo.com" />
     <link rel="dns-prefetch"  href="https://s.ytimg.com" />
-    <!-- AdSense network -->
+    <!-- AdSense network — preconnect to all origins used by auto-ads and display ads -->
     <link rel="preconnect"    href="https://pagead2.googlesyndication.com" crossorigin />
+    <link rel="preconnect"    href="https://tpc.googlesyndication.com" crossorigin />
+    <link rel="preconnect"    href="https://securepubads.g.doubleclick.net" crossorigin />
+    <link rel="preconnect"    href="https://adservice.google.com" crossorigin />
     <link rel="dns-prefetch"  href="https://pagead2.googlesyndication.com" />
     <link rel="dns-prefetch"  href="https://googleads.g.doubleclick.net" />
     <link rel="dns-prefetch"  href="https://adservice.google.com" />
+    <link rel="dns-prefetch"  href="https://tpc.googlesyndication.com" />
+    <link rel="dns-prefetch"  href="https://securepubads.g.doubleclick.net" />
+    <link rel="dns-prefetch"  href="https://fundingchoicesmessages.google.com" />
+    <!-- Sitemap discovery — lets crawlers find the sitemap without waiting for robots.txt -->
+    <link rel="sitemap" type="application/xml" title="JCTM Sitemap" href="/sitemap-index.xml" />
 
     <!-- ── LCP Critical Image Preloads ─────────────────────────────────── -->
     <link rel="preload" as="image" href="/jctm-logo-sm.jpeg"      fetchpriority="high" />

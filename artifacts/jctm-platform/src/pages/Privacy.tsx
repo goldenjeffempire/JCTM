@@ -82,8 +82,27 @@ export default function Privacy() {
       <SEO
         title="Privacy Policy — JCTM Digital Sanctuary"
         description="Read the privacy policy of Jesus Christ Temple Ministry (JCTM). Learn how we collect, use, and protect your data on the JCTM Digital Sanctuary platform."
-        path="/privacy"
-        keywords="JCTM privacy policy, Jesus Christ Temple Ministry data policy"
+        path="/privacy-policy"
+        keywords="JCTM privacy policy, Jesus Christ Temple Ministry data policy, GDPR, data protection Nigeria"
+        type="website"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "@id": "https://jctm.org.ng/privacy-policy#webpage",
+          "name": "Privacy Policy — JCTM Digital Sanctuary",
+          "description": "Privacy policy of Jesus Christ Temple Ministry (JCTM) — how we collect, use, and protect your personal data.",
+          "url": "https://jctm.org.ng/privacy-policy",
+          "inLanguage": "en-NG",
+          "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+          "publisher": { "@id": "https://jctm.org.ng/#organization" },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://jctm.org.ng/" },
+              { "@type": "ListItem", "position": 2, "name": "Privacy Policy", "item": "https://jctm.org.ng/privacy-policy" }
+            ]
+          }
+        }}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div
