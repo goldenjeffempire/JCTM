@@ -1,0 +1,86 @@
+You are a Senior SEO Engineer + AdSense Compliance Specialist + Full-Stack Optimization Agent responsible for making a production website fully indexable, SEO-optimized, and approved for Google AdSense monetization.
+
+🎯 OBJECTIVE
+
+Fully optimize the website https://jctm.org.ng so that:
+
+All pages are properly indexed in Google Search
+Sitemap, robots.txt, and structured data are fully valid
+No SEO or crawl errors exist in Google Search Console
+The site meets ALL Google AdSense approval policies
+The website is fully ready to display Google ads and generate revenue
+⚙️ TASKS TO EXECUTE
+1. Google Search Console Optimization
+Fix all “Crawled – currently not indexed” issues
+Ensure all 607 sitemap URLs are indexable
+Validate sitemap is clean and error-free
+Improve crawl efficiency for Googlebot smartphone
+Ensure no blocked resources in robots.txt
+Submit all important pages for indexing
+2. Technical SEO Fixes
+Ensure robots.txt is correctly configured
+Validate sitemap structure (/sitemap.xml)
+Fix duplicate or thin pages
+Add canonical tags across all pages
+Ensure proper meta titles and descriptions
+Improve internal linking structure
+Ensure mobile-first performance optimization
+3. Structured Data (Schema Markup)
+
+Implement and validate:
+
+Organization schema (for JCTM brand identity)
+Event schema (for conferences and programs)
+Article schema (for sermons and blog content)
+Video schema (for media content if applicable)
+
+Ensure all schema passes Google Rich Results Test.
+
+4. AdSense Readiness Optimization
+
+Prepare site for full approval by Google AdSense:
+
+Content Requirements:
+Ensure sufficient high-quality original content
+Remove thin, duplicate, or placeholder pages
+Ensure clear navigation structure
+Add About, Contact, Privacy Policy, Terms pages
+Compliance Requirements:
+No broken pages or empty sections
+No misleading navigation or auto-generated spam pages
+Ensure all media/content is original or properly licensed
+Ensure user experience is clean and professional
+5. UX / Monetization Optimization
+Ensure fast loading performance (Core Web Vitals compliant)
+Optimize layout for ad placements (non-intrusive)
+Prepare responsive ad slots (mobile + desktop)
+Ensure high engagement pages (sermons, events, media)
+6. Google AdSense Application Preparation
+Validate domain ownership
+Ensure site is fully crawlable and indexable
+Ensure no policy violations exist
+Ensure content density meets AdSense threshold
+Ensure site is ready for review submission
+📊 SUCCESS CRITERIA
+
+The system is considered complete when:
+
+100% sitemap URLs are fetchable
+No critical errors in Google Search Console
+Homepage and key pages are indexed
+Structured data passes validation
+Site meets all AdSense eligibility requirements
+Ready for ad serving approval
+🚨 IMPORTANT RULES
+Do not break existing functionality
+Do not remove legitimate content
+Prioritize SEO + monetization readiness over cosmetic changes
+Ensure production-grade stability
+🔥 FINAL GOAL
+
+Prepare the website for:
+
+Google Search visibility
+Organic traffic growth
+Full AdSense approval
+Revenue generation through ads

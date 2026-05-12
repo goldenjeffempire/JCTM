@@ -4,7 +4,6 @@ import { Link } from "wouter";
 import { useListEvents } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
-import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
 import { motion, AnimatePresence } from "framer-motion";
@@ -214,26 +213,6 @@ type StaticEvent = {
 const STATIC_UPCOMING_EVENTS: StaticEvent[] = [];
 
 const STATIC_PAST_EVENTS: StaticEvent[] = [
-  {
-    id: "ministers-conference-2026",
-    title: "Ministers Conference 2026",
-    subtitle: "An Apostolic Gathering of Ministers, Leaders & Kingdom Builders",
-    description: "An anointed three-day apostolic conference bringing together ministers, church leaders, and kingdom builders from across Nigeria and beyond.|Powerful expository teaching, prophetic impartation, and corporate worship over three transformative sessions. Hosted by Jesus Christ Temple Ministry, Warri — Delta State. Free entry for all ministers and believers.",
-    startDate: "2026-05-08T07:00:00.000Z",
-    endDate: "2026-05-10T20:00:00.000Z",
-    location: "Church Auditorium, Km1 East West Rd., Ebrumede Roundabout, Effurun Uvwie L.G.A., Delta State",
-    eventType: "Conference",
-    imageUrl: ministerConferenceFlyer,
-    youtubeVideoId: "hQFA1Y9NAcY",
-    registerUrl: "/conference-registration",
-    accentHex: "#a855f7",
-    labelColor: "#ffffff",
-    highlights: [
-      "Apostolic teaching & prophetic impartation",
-      "3 days of supernatural encounters",
-      "Open to all ministers & believers",
-    ],
-  },
   {
     id: "warri-crusade-2026",
     title: "Warri City Crusade 2026",
@@ -739,7 +718,7 @@ function StaticEventCard({ event, index }: { event: StaticEvent; index: number }
 function EventCard({ event, index }: { event: EventItem; index: number }) {
   const start = new Date(event.startDate);
   const past = isPast(start);
-  const isMinisterConference = event.title.toLowerCase().includes("minister") && event.title.toLowerCase().includes("conference");
+  const isMinisterConference = event.title.toLowerCase().includes("minister") && (event.title.toLowerCase().includes("conference") || event.title.toLowerCase().includes("apostolic"));
   const imageUrl = isMinisterConference
     ? ministerConferenceFlyer
     : event.imageUrl?.startsWith("/")
@@ -908,8 +887,6 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
   );
 }
 
-const MINISTER_CONF_VIDEO_ID = "hQFA1Y9NAcY";
-
 export default function Events() {
   useAdPageTracker("/events", 1);
   const { data: events, isLoading } = useListEvents({ limit: 20, offset: 0 });
@@ -953,6 +930,44 @@ export default function Events() {
               "name": "Jesus Christ Temple Ministry (JCTM)",
               "url": "https://jctm.org.ng"
             }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": "Ministers Conference 2026 — Apostolic Fire",
+            "description": "An anointed three-day apostolic conference bringing together ministers, church leaders, and kingdom builders from across Nigeria and beyond. Powerful expository teaching, prophetic impartation, and corporate worship over three transformative sessions. Free entry for all ministers and believers.",
+            "startDate": "2026-05-08T07:00:00+00:00",
+            "endDate": "2026-05-10T19:00:00+00:00",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "image": [
+              "https://jctm.org.ng/ministers-conference-2026-flyer.jpeg"
+            ],
+            "location": {
+              "@type": "Place",
+              "name": "Ebrumede Temple, JCTM Headquarters",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Km1 East West Rd., Ebrumede Roundabout",
+                "addressLocality": "Warri",
+                "addressRegion": "Delta State",
+                "addressCountry": "NG"
+              }
+            },
+            "organizer": {
+              "@type": "ReligiousOrganization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng"
+            },
+            "url": "https://jctm.org.ng/conference-registration",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "NGN",
+              "availability": "https://schema.org/InStock",
+              "url": "https://jctm.org.ng/conference-registration"
+            }
           }
         ]}
       />
@@ -963,40 +978,6 @@ export default function Events() {
           <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry Calendar</span>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
           <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
-        </motion.div>
-
-        {/* Ministers Conference 2026 Promo Video */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-10">
-          <h2 className="text-xl font-serif font-bold text-primary mb-5 flex items-center gap-2">
-            <Youtube className="h-5 w-5 text-red-600" /> Event Promo Video
-          </h2>
-          <div className="max-w-2xl">
-            <div className="rounded-2xl overflow-hidden border border-border shadow-lg flex flex-col">
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 bg-muted/30">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white" style={{ background: "#7c3aed" }}>
-                  🙏 Conference
-                </span>
-                <span className="text-sm font-semibold text-primary truncate">Ministers Conference 2026</span>
-                <a
-                  href={`https://www.youtube.com/watch?v=${MINISTER_CONF_VIDEO_ID}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto shrink-0 flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold"
-                >
-                  <Youtube className="h-3.5 w-3.5" /> YouTube
-                </a>
-              </div>
-              <MutedVideoPlayer
-                videoId={MINISTER_CONF_VIDEO_ID}
-                title="Ministers Conference 2026 — Official Promo Video"
-                mode="eager"
-                autoplay={true}
-                loop={true}
-                audioOnly={true}
-                analyticsPage="/events"
-              />
-            </div>
-          </div>
         </motion.div>
 
         <AdSlot slot={ADSENSE_SLOTS.eventsPage} minHeight={100} format="horizontal" className="mb-12" />
