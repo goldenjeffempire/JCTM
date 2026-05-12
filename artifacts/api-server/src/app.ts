@@ -142,10 +142,25 @@ app.use(
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],
-        frameAncestors: ["'self'"],
+        // AdSense publisher tools preview pages in Google-origin iframes.
+        // Restricting to 'self' only blocks that preview, which interferes
+        // with the authorization/review workflow. Allow all Google origins.
+        frameAncestors: [
+          "'self'",
+          "https://www.google.com",
+          "https://*.google.com",
+          "https://googleads.g.doubleclick.net",
+          "https://*.doubleclick.net",
+        ],
         upgradeInsecureRequests: [],
       },
     },
+    // COOP 'same-origin' (Helmet default) breaks AdSense cross-window messaging,
+    // popup ad interactions, and Google's publisher authorization verification
+    // flow — all of which rely on cross-origin window.opener / postMessage.
+    // Setting to false removes the header entirely, restoring default browser
+    // behaviour which Google's ad stack requires.
+    crossOriginOpenerPolicy: false,
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
