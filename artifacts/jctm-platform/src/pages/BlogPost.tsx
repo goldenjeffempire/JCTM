@@ -262,13 +262,75 @@ export default function BlogPost() {
           type="article"
           publishedTime={post.publishedAt ?? undefined}
           modifiedTime={post.updatedAt ?? post.generatedAt ?? undefined}
+          readTimeMinutes={post.readTimeMinutes ?? undefined}
+          articleSection={post.category ?? post.topic.replace(/-/g, " ")}
+          articleTags={post.tags ?? ["JCTM", "holiness", "ministry", "Bible"]}
           keywords={post.tags?.join(", ") ?? "JCTM blog, theology, holiness"}
           breadcrumbs={[
             { name: "Home", url: "https://jctm.org.ng/" },
             { name: "Blog", url: "https://jctm.org.ng/blog" },
             { name: post.title, url: `https://jctm.org.ng/blog/${post.slug}` },
           ]}
-          jsonLd={schemaJson ? [schemaJson] : undefined}
+          jsonLd={[
+            ...(schemaJson ? [schemaJson] : []),
+            {
+              "@context": "https://schema.org",
+              "@type": "Article",
+              "@id": `https://jctm.org.ng/blog/${post.slug}#article`,
+              "headline": (post.seoTitle ?? post.title).slice(0, 110),
+              "description": post.seoDescription ?? post.excerpt ?? post.title,
+              "url": `https://jctm.org.ng/blog/${post.slug}`,
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": `https://jctm.org.ng/blog/${post.slug}`,
+              },
+              "image": {
+                "@type": "ImageObject",
+                "url": "https://jctm.org.ng/opengraph.jpg",
+                "width": 1200,
+                "height": 630,
+              },
+              "author": {
+                "@type": "Person",
+                "@id": "https://jctm.org.ng/#prophet",
+                "name": post.author ?? "Prophet Amos Evomobor",
+                "url": "https://jctm.org.ng/leadership",
+              },
+              "publisher": {
+                "@type": "ReligiousOrganization",
+                "@id": "https://jctm.org.ng/#organization",
+                "name": "Jesus Christ Temple Ministry (JCTM)",
+                "url": "https://jctm.org.ng",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://jctm.org.ng/favicon.png",
+                  "width": 512,
+                  "height": 512,
+                },
+              },
+              ...(post.publishedAt  ? { "datePublished":  post.publishedAt }  : {}),
+              ...(post.updatedAt ?? post.generatedAt
+                ? { "dateModified": post.updatedAt ?? post.generatedAt }
+                : {}),
+              "inLanguage": "en-NG",
+              "isAccessibleForFree": true,
+              "articleSection": post.category ?? post.topic.replace(/-/g, " "),
+              ...(post.tags?.length ? { "keywords": post.tags.join(", ") } : {}),
+              ...(post.readTimeMinutes ? { "timeRequired": `PT${post.readTimeMinutes}M` } : {}),
+              ...(post.content ? { "wordCount": Math.round(post.content.split(/\s+/).length) } : {}),
+              "about": {
+                "@type": "Thing",
+                "name": post.topic.replace(/-/g, " "),
+              },
+              ...((engagement?.viewCount && engagement.viewCount > 0) ? {
+                "interactionStatistic": {
+                  "@type": "InteractionCounter",
+                  "interactionType": "https://schema.org/ReadAction",
+                  "userInteractionCount": engagement.viewCount,
+                },
+              } : {}),
+            },
+          ]}
         />
       )}
 

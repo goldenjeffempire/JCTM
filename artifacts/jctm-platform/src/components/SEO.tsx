@@ -97,6 +97,119 @@ const DEFAULT_KEYWORDS =
   "JCTM Digital Sanctuary, Temple TV rebroadcast, JCTM rebroadcast now, church Nigeria, " +
   "Christian ministry Nigeria, holiness preaching, end time message Nigeria";
 
+/* ── Global Organization schema (emitted on every page) ────────────────────── */
+const ORGANIZATION_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "ReligiousOrganization",
+  "@id": "https://jctm.org.ng/#organization",
+  "name": "Jesus Christ Temple Ministry (JCTM)",
+  "alternateName": ["JCTM", "Temple TV", "Jesus Christ Temple Ministry Warri"],
+  "description": "Jesus Christ Temple Ministry (JCTM) is a holiness-centred, apostolic ministry in Warri, Nigeria, operating under the Correction Mandate — a divine assignment to restore primitive Christianity and correct false doctrines in the global church.",
+  "url": "https://jctm.org.ng",
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://jctm.org.ng/favicon.png",
+    "width": 512,
+    "height": 512,
+  },
+  "image": "https://jctm.org.ng/opengraph.jpg",
+  "foundingDate": "2013-01-03",
+  "founder": {
+    "@type": "Person",
+    "@id": "https://jctm.org.ng/#prophet",
+    "name": "Prophet Amos Evomobor",
+    "honorificPrefix": "Prophet",
+    "jobTitle": "Prophet, Founder and Senior Pastor",
+    "url": "https://jctm.org.ng/leadership",
+    "sameAs": [
+      "https://www.youtube.com/@TEMPLETVJCTM",
+      "https://jctm.org.ng/leadership",
+    ],
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Km1 East West Rd., Ebrumede Roundabout, Effurun",
+    "addressLocality": "Warri",
+    "addressRegion": "Delta State",
+    "postalCode": "330105",
+    "addressCountry": "NG",
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 5.5167,
+    "longitude": 5.75,
+  },
+  "telephone": "+2348081313111",
+  "email": "info@jctm.org.ng",
+  "sameAs": [
+    "https://www.youtube.com/@TEMPLETVJCTM",
+    "https://www.facebook.com/templetvjctm",
+    "https://www.instagram.com/templetv.jctm/",
+    "https://twitter.com/templetvjctm",
+  ],
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Sunday",
+      "opens": "08:00",
+      "closes": "13:00",
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Wednesday",
+      "opens": "17:00",
+      "closes": "20:00",
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Friday",
+      "opens": "17:00",
+      "closes": "20:00",
+    },
+  ],
+  "knowsAbout": [
+    "Correction Mandate",
+    "Primitive Christianity",
+    "Holiness Doctrine",
+    "Apostolic Christianity",
+    "End Times Prophecy",
+    "Water Baptism",
+    "Doctrinal Correction",
+    "Temple TV",
+  ],
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "JCTM Ministry Resources",
+    "itemListElement": [
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Temple TV Sermon Streaming", "url": "https://jctm.org.ng/sermons" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Daily Devotionals", "url": "https://jctm.org.ng/" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Online Giving", "url": "https://jctm.org.ng/give" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "AI Ministry Assistant (TempleBots)", "url": "https://jctm.org.ng/sermon-assistant" } },
+    ],
+  },
+};
+
+/* ── Global WebSite schema with SearchAction sitelinks box ──────────────────── */
+const WEBSITE_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://jctm.org.ng/#website",
+  "name": "JCTM Digital Sanctuary",
+  "alternateName": "Jesus Christ Temple Ministry",
+  "url": "https://jctm.org.ng",
+  "description": "Official digital home of Jesus Christ Temple Ministry (JCTM), Warri Nigeria — sermons, devotionals, testimonies, events, and ministry resources.",
+  "inLanguage": "en-NG",
+  "publisher": { "@id": "https://jctm.org.ng/#organization" },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://jctm.org.ng/sermons?search={search_term_string}",
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
+
 /* ── Component ─────────────────────────────────────────────────────────────── */
 
 export function SEO({
@@ -364,6 +477,8 @@ export function SEO({
 
   /* ── Collect all schemas ─────────────────────────────────────────────────── */
   const allSchemas: object[] = [
+    ORGANIZATION_SCHEMA,
+    WEBSITE_SCHEMA,
     webPageSchema,
     ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : []),
     ...(breadcrumbSchema      ? [breadcrumbSchema]      : []),

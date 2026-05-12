@@ -309,31 +309,53 @@ export default function SermonDetail() {
           "@id": `https://jctm.org.ng/sermons/${id}#video`,
           "name": sermon.title,
           "description": sermon.description ?? seoDesc,
-          "thumbnailUrl": sermon.thumbnailUrl ?? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg`,
+          "thumbnailUrl": [
+            sermon.thumbnailUrl ?? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg`,
+            `https://i.ytimg.com/vi/${sermon.videoId}/hqdefault.jpg`,
+          ],
           "uploadDate": sermon.publishedAt,
           "url": `https://www.youtube.com/watch?v=${sermon.videoId}`,
           "embedUrl": `https://www.youtube.com/embed/${sermon.videoId}`,
           "contentUrl": `https://www.youtube.com/watch?v=${sermon.videoId}`,
+          ...((sermon as { duration?: string }).duration ? { "duration": (sermon as { duration?: string }).duration } : {}),
           "inLanguage": "en-NG",
           "isAccessibleForFree": true,
+          "isFamilyFriendly": true,
+          "regionsAllowed": "NG,US,GB,CA,AU,ZA,GH,KE,DE,NL",
           "publisher": {
             "@type": "ReligiousOrganization",
             "@id": "https://jctm.org.ng/#organization",
             "name": "Jesus Christ Temple Ministry (JCTM)",
             "url": "https://jctm.org.ng",
-            "logo": { "@type": "ImageObject", "url": "https://jctm.org.ng/favicon.png" },
+            "logo": { "@type": "ImageObject", "url": "https://jctm.org.ng/favicon.png", "width": 512, "height": 512 },
           },
           "author": {
             "@type": "Person",
             "@id": "https://jctm.org.ng/#prophet",
             "name": "Prophet Amos Evomobor",
+            "jobTitle": "Prophet, Founder and Senior Pastor",
             "url": "https://jctm.org.ng/leadership",
           },
           "genre": "Religious Teaching",
           "keywords": "JCTM, Temple TV, Prophet Amos Evomobor, holiness, Correction Mandate, apostolic Christianity, primitive Christianity Nigeria",
+          ...((sermon.viewCount && sermon.viewCount > 0) ? {
+            "interactionStatistic": {
+              "@type": "InteractionCounter",
+              "interactionType": "https://schema.org/WatchAction",
+              "userInteractionCount": sermon.viewCount,
+            },
+          } : {}),
           "potentialAction": {
             "@type": "WatchAction",
-            "target": `https://www.youtube.com/watch?v=${sermon.videoId}`,
+            "target": [
+              `https://www.youtube.com/watch?v=${sermon.videoId}`,
+              `https://jctm.org.ng/sermons/${id}`,
+            ],
+          },
+          "isPartOf": {
+            "@type": "PodcastSeries",
+            "name": "Temple TV — Jesus Christ Temple Ministry",
+            "url": "https://jctm.org.ng/sermons",
           },
         }]}
       />

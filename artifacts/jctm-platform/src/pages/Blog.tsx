@@ -270,14 +270,39 @@ export default function Blog() {
           { name: "Home",          url: "https://jctm.org.ng/" },
           { name: "Ministry Blog", url: "https://jctm.org.ng/blog" },
         ]}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "Blog",
-          name: "JCTM Ministry Blog",
-          description: "Sermon-inspired articles and Bible teachings from Jesus Christ Temple Ministry.",
-          url: "https://jctm.org.ng/blog",
-          publisher: { "@type": "Organization", name: "Jesus Christ Temple Ministry" },
-        }}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            "@id": "https://jctm.org.ng/blog#blog",
+            "name": "JCTM Ministry Blog",
+            "description": "A growing ministry publishing library with 80+ articles on holiness, prayer, salvation, family, revival, testimonies, Bible studies, and prophetic messages from Jesus Christ Temple Ministry.",
+            "url": "https://jctm.org.ng/blog",
+            "inLanguage": "en-NG",
+            "isAccessibleForFree": true,
+            "author": {
+              "@type": "Person",
+              "@id": "https://jctm.org.ng/#prophet",
+              "name": "Prophet Amos Evomobor",
+              "url": "https://jctm.org.ng/leadership",
+            },
+            "publisher": {
+              "@type": "ReligiousOrganization",
+              "@id": "https://jctm.org.ng/#organization",
+              "name": "Jesus Christ Temple Ministry (JCTM)",
+              "url": "https://jctm.org.ng",
+              "logo": { "@type": "ImageObject", "url": "https://jctm.org.ng/favicon.png", "width": 512, "height": 512 },
+            },
+            "about": [
+              { "@type": "Thing", "name": "Holiness" },
+              { "@type": "Thing", "name": "Correction Mandate" },
+              { "@type": "Thing", "name": "Apostolic Christianity" },
+              { "@type": "Thing", "name": "End Times" },
+              { "@type": "Thing", "name": "Prayer" },
+              { "@type": "Thing", "name": "Testimonies" },
+            ],
+          },
+        ]}
       />
 
       <div className="container mx-auto px-4 py-14 max-w-7xl">
