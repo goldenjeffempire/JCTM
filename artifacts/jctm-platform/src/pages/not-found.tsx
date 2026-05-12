@@ -11,6 +11,7 @@ export default function NotFound() {
         title="Page Not Found — JCTM Digital Sanctuary"
         description="The page you're looking for doesn't exist on the JCTM Digital Sanctuary. Return to the home of Jesus Christ Temple Ministry."
         path="/404"
+        noIndex
       />
       <motion.div
         initial={{ opacity: 0, y: 30 }}

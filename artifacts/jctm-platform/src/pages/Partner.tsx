@@ -145,16 +145,50 @@ export default function Partner() {
   return (
     <Layout>
       <SEO
-        title="Partner With JCTM | Ministry Partnership & Sponsorship"
-        description="Partner with Jesus Christ Temple Ministry to reach over 40 nations with the Correction Mandate. Sponsorship tiers for individuals, businesses, and organizations."
-        canonicalPath="/partner"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          name: "JCTM Ministry Partnership",
-          description: "Sponsorship and partnership opportunities with Jesus Christ Temple Ministry",
-          url: "https://jctm.org.ng/partner",
-        }}
+        title="Partner With JCTM — Ministry Sponsorship & Partnership"
+        description="Partner with Jesus Christ Temple Ministry to reach over 40 nations with the Correction Mandate. Sponsorship tiers for individuals, businesses, and organizations committed to apostolic Christianity."
+        path="/partner"
+        keywords="JCTM partnership, Jesus Christ Temple Ministry sponsor, Temple TV partnership, ministry sponsorship Nigeria, apostolic Christianity support, JCTM partner tiers, church sponsorship Warri"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Partner With JCTM", url: "https://jctm.org.ng/partner" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": "https://jctm.org.ng/partner#webpage",
+            "name": "Partner With JCTM — Ministry Sponsorship",
+            "description": "Sponsorship and partnership opportunities with Jesus Christ Temple Ministry. Help reach 40+ nations with the Correction Mandate through Temple TV broadcasts, crusades, and digital ministry tools.",
+            "url": "https://jctm.org.ng/partner",
+            "inLanguage": "en-NG",
+            "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+            "publisher": { "@id": "https://jctm.org.ng/#organization" },
+            "about": { "@id": "https://jctm.org.ng/#organization" }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How do I partner with Jesus Christ Temple Ministry?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You can partner with JCTM by choosing one of our sponsorship tiers — Covenant Partner (₦25,000/$25/month), Ministry Sponsor (₦100,000/$100/month), Platform Partner (₦500,000/$500/month), or Apostolic Alliance (custom). Fill out the inquiry form at jctm.org.ng/partner or email info@jctm.org.ng."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What does a JCTM partnership sponsor?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Your partnership with JCTM sponsors free sermon broadcasts on Temple TV (YouTube), AI ministry tools like TempleBots, evangelism crusades in Warri and across Nigeria, devotional content for 1,000+ subscribers, and the Correction Mandate apostolic outreach reaching 40+ nations."
+                }
+              }
+            ]
+          }
+        ]}
       />
 
       {/* Hero */}

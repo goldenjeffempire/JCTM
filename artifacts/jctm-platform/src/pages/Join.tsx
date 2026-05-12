@@ -249,6 +249,55 @@ export default function Join() {
           { name: "Home", url: "https://jctm.org.ng/" },
           { name: "Join JCTM", url: "https://jctm.org.ng/join" },
         ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": "https://jctm.org.ng/join#webpage",
+            "name": "Join the JCTM Digital Sanctuary",
+            "description": "Register as a member of Jesus Christ Temple Ministry (JCTM) Digital Sanctuary. Access exclusive teachings, connect with believers worldwide, and grow in the Correction Mandate.",
+            "url": "https://jctm.org.ng/join",
+            "inLanguage": "en-NG",
+            "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+            "publisher": { "@id": "https://jctm.org.ng/#organization" },
+            "potentialAction": {
+              "@type": "RegisterAction",
+              "name": "Register for JCTM Digital Sanctuary",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://jctm.org.ng/join",
+                "actionPlatform": ["https://schema.org/DesktopWebPlatform", "https://schema.org/MobileWebPlatform"]
+              },
+              "object": {
+                "@type": "ReligiousOrganization",
+                "name": "Jesus Christ Temple Ministry (JCTM)",
+                "url": "https://jctm.org.ng"
+              }
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Who can join the JCTM Digital Sanctuary?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Anyone who believes in the Lord Jesus Christ and desires to walk in holiness, apostolic doctrine, and the Correction Mandate is welcome to register as a member of the JCTM Digital Sanctuary. Membership is free and open to believers worldwide."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What do I get as a JCTM Digital Sanctuary member?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "As a member you can access your personal spiritual journey dashboard, track your faith growth badges, share testimonies, participate in the community, and connect with JCTM ministries in Warri, Nigeria and across the world."
+                }
+              }
+            ]
+          }
+        ]}
       />
       <div className="container mx-auto px-4 py-16">
         <motion.div

@@ -99,6 +99,7 @@ function Router() {
         <Route path="/correction-timeline" component={Timeline} />
         <Route path="/about" component={About} />
         <Route path="/join" component={Join} />
+        <Route path="/privacy-policy" component={Privacy} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/crusade" component={Crusade} />

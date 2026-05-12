@@ -36,6 +36,7 @@ export default function Members() {
         title="Member Directory — JCTM Digital Sanctuary | Jesus Christ Temple Ministry"
         description="Connect with registered members of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria. Join a growing community of believers walking in holiness, apostolic doctrine, and the Correction Mandate."
         path="/members"
+        noIndex
         keywords="JCTM members, Jesus Christ Temple Ministry community, JCTM believers Nigeria, apostolic church members Nigeria, holiness church community Warri, join JCTM, register JCTM Digital Sanctuary"
         breadcrumbs={[
           { name: "Home", url: "https://jctm.org.ng/" },

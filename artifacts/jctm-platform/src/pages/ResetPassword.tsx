@@ -92,6 +92,7 @@ export default function ResetPassword() {
         title="Reset Password — JCTM Digital Sanctuary"
         description="Set a new password for your JCTM Digital Sanctuary member account."
         path="/reset-password"
+        noIndex
       />
       <div className="container mx-auto px-4 py-16 flex justify-center">
         <div className="w-full max-w-md">

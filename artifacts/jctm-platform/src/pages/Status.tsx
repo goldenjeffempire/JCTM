@@ -246,6 +246,7 @@ export default function Status() {
         description="Live status of the Jesus Christ Temple Ministry Digital Sanctuary platform — database, sermon library, AI assistant, push notifications, and live streaming."
         path="/status"
         keywords="JCTM status, platform status, Jesus Christ Temple Ministry uptime"
+        noIndex
       />
 
       <div className="container mx-auto px-4 py-16 max-w-2xl">

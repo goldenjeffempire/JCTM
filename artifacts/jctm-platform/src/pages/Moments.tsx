@@ -751,20 +751,34 @@ export default function Moments() {
           {
             "@context": "https://schema.org",
             "@type": "CollectionPage",
+            "@id": "https://jctm.org.ng/moments#webpage",
             "name": "Temple TV Moments — JCTM Short Video Feed",
             "description": "Temple Moments is a TikTok/Reels-style vertical video feed of powerful short clips from Jesus Christ Temple Ministry (JCTM) Temple TV sermons. Watch prophetic highlights, holiness messages, and Correction Mandate moments.",
             "url": "https://jctm.org.ng/moments",
             "inLanguage": "en-NG",
-            "about": {
-              "@type": "ReligiousOrganization",
-              "name": "Jesus Christ Temple Ministry (JCTM)",
-              "url": "https://jctm.org.ng"
-            },
-            "author": {
-              "@type": "Person",
-              "name": "Prophet Amos Evomobor",
-              "url": "https://jctm.org.ng/leadership"
-            }
+            "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+            "publisher": { "@id": "https://jctm.org.ng/#organization" },
+            "about": { "@id": "https://jctm.org.ng/#organization" },
+            "hasPart": moments.slice(0, 10).map(m => ({
+              "@type": "VideoObject",
+              "name": m.title,
+              "description": `Short video moment from Jesus Christ Temple Ministry — ${m.title}`,
+              "thumbnailUrl": m.thumbnailUrl || `https://img.youtube.com/vi/${m.videoId}/hqdefault.jpg`,
+              "uploadDate": m.publishedAt,
+              "url": `https://jctm.org.ng/moments`,
+              "embedUrl": `https://www.youtube.com/embed/${m.videoId}`,
+              "contentUrl": `https://www.youtube.com/watch?v=${m.videoId}`,
+              "duration": m.duration || undefined,
+              "interactionStatistic": m.viewCount ? {
+                "@type": "InteractionCounter",
+                "interactionType": { "@type": "WatchAction" },
+                "userInteractionCount": m.viewCount
+              } : undefined,
+              "isFamilyFriendly": true,
+              "inLanguage": "en-NG",
+              "author": { "@id": "https://jctm.org.ng/#organization" },
+              "publisher": { "@id": "https://jctm.org.ng/#organization" }
+            }))
           }
         ]}
       />

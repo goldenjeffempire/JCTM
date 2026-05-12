@@ -71,6 +71,7 @@ const STATIC_PAGES = [
   { path: "/warri-crusade",           priority: "0.72", changefreq: "monthly" },
   { path: "/viewing-centres",         priority: "0.72", changefreq: "monthly" },
   { path: "/join",                    priority: "0.70", changefreq: "monthly" },
+  { path: "/partner",                 priority: "0.68", changefreq: "monthly" },
   { path: "/correction-timeline",     priority: "0.68", changefreq: "monthly" },
   { path: "/conference-registration", priority: "0.65", changefreq: "monthly" },
   { path: "/terms",                   priority: "0.30", changefreq: "yearly"  },

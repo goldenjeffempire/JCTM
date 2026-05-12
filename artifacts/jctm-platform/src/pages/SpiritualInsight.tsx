@@ -122,10 +122,60 @@ export default function SpiritualInsight() {
   return (
     <Layout>
       <SEO
-        title="Spiritual Insight | JCTM Digital Sanctuary"
-        description="Receive personalized, prophetically-grounded spiritual insight for your specific situation — scripture-anchored, JCTM doctrine-rooted, and pastorally compassionate."
-        keywords="JCTM spiritual insight, Christian counseling AI, prophetic word, scripture guidance"
+        title="Spiritual Insight — Prophetic AI Guidance | JCTM Digital Sanctuary"
+        description="Receive personalized, prophetically-grounded spiritual insight for your specific situation — scripture-anchored, JCTM doctrine-rooted, and pastorally compassionate. Powered by AI trained on JCTM teachings."
+        keywords="JCTM spiritual insight, Christian counseling AI, prophetic word, scripture guidance, Christian AI, Bible guidance, spiritual advice, JCTM teaching AI, holiness guidance Nigeria"
         path="/spiritual-insight"
+        breadcrumbs={[
+          { name: "Home", url: "https://jctm.org.ng/" },
+          { name: "Spiritual Insight", url: "https://jctm.org.ng/spiritual-insight" },
+        ]}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "@id": "https://jctm.org.ng/spiritual-insight#app",
+            "name": "JCTM Spiritual Insight — Prophetic AI Guidance",
+            "description": "An AI-powered tool from Jesus Christ Temple Ministry that delivers personalized, scripture-based spiritual insight grounded in JCTM's Primitive Christianity doctrine. Covers faith, calling, healing, relationships, peace, and breakthrough.",
+            "url": "https://jctm.org.ng/spiritual-insight",
+            "applicationCategory": "ReligiousApp",
+            "operatingSystem": "All",
+            "inLanguage": "en-NG",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@id": "https://jctm.org.ng/#organization" },
+            "isPartOf": { "@id": "https://jctm.org.ng/#website" },
+            "featureList": [
+              "Faith & Doubt guidance",
+              "Purpose & Calling discernment",
+              "Healing & Health prayer direction",
+              "Relationship counseling grounded in scripture",
+              "Breakthrough and spiritual warfare support",
+              "Scripture-anchored JCTM Correction Mandate doctrine"
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is JCTM Spiritual Insight?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "JCTM Spiritual Insight is an AI-powered pastoral guidance tool from Jesus Christ Temple Ministry. It delivers personalized scripture-based insight for your specific situation — grounded in JCTM's apostolic, holiness doctrine and Primitive Christianity tradition."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is JCTM Spiritual Insight free to use?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. JCTM Spiritual Insight is completely free to use. It is a ministry gift from Jesus Christ Temple Ministry to believers and seekers worldwide who need prophetically-grounded scripture guidance."
+                }
+              }
+            ]
+          }
+        ]}
       />
 
       <div className="min-h-screen bg-gradient-to-br from-[#0d0821] via-[#120d28] to-[#0d0821]">
