@@ -92,7 +92,7 @@ function getFeatureFlags(): Record<string, boolean> {
     pushNotifications: Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
     emailNotifications: Boolean(process.env.SMTP_HOST),
     youtubeSync: Boolean(process.env.YOUTUBE_API_KEY),
-    adsense: Boolean(process.env.VITE_ADSENSE_CLIENT_ID ?? "ca-pub-6817509745706083"),
+    adsense: Boolean(process.env.VITE_ADSENSE_CLIENT_ID ?? "ca-pub-9869546801865196"),
     giving: Boolean(process.env.STRIPE_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY),
     externalAI: false,
   };

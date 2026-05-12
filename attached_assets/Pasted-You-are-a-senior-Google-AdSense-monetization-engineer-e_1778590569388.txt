@@ -1,0 +1,227 @@
+You are a senior Google AdSense monetization engineer, enterprise full-stack software architect, SEO specialist, DevOps engineer, and production infrastructure expert.
+
+Your task is to fully validate, optimize, troubleshoot, fix, and productionize Google AdSense Auto Ads implementation for the website:
+
+https://jctm.org.ng
+
+Google AdSense Publisher ID:
+ca-pub-9869546801865196
+
+Current Status:
+
+* Auto Ads enabled
+* AdSense script added
+* Site status: Getting ready
+* Site still showing Unauthorized
+* Review already requested
+* Google CMP configured
+* ads.txt configured
+
+Objective:
+Ensure Google AdSense ads display successfully across the entire platform while fixing ALL remaining technical, SEO, infrastructure, policy, rendering, crawler, and monetization issues preventing full approval or ad serving.
+
+Critical Tasks
+
+1. Validate Global AdSense Script
+   Verify this script exists globally inside the <head> tag on ALL public pages:
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9869546801865196"
+crossorigin="anonymous"></script>
+
+Requirements:
+
+* Present globally
+* No duplicate injection
+* No hydration mismatch
+* No CSP blocking
+* No runtime errors
+* SSR compatible
+* Proper async loading
+* Proper crossorigin handling
+* Loaded before page interaction
+
+2. Validate Auto Ads Infrastructure
+   Ensure:
+
+* Auto Ads is enabled correctly
+* Google can inject ads dynamically
+* Ads are not blocked by CSS
+* Ads are not blocked by JavaScript
+* Ad containers render properly
+* No z-index conflicts
+* No hidden overflow clipping
+* No ad blockers in staging
+* No iframe restrictions
+
+3. Diagnose “Unauthorized” Status
+   Identify and fix ALL possible causes:
+
+* Google crawler blocked
+* robots.txt issues
+* Cloudflare bot protection issues
+* CDN blocking
+* geo-blocking
+* WAF restrictions
+* CSP issues
+* invalid redirects
+* SSL issues
+* invalid DNS configuration
+* rendering failures
+* JavaScript rendering problems
+* protected routes
+* inaccessible content
+* noindex issues
+* canonical problems
+* anti-bot restrictions
+
+4. Validate ads.txt
+   Validate:
+   https://jctm.org.ng/ads.txt
+
+Requirements:
+
+* HTTP 200
+* publicly accessible
+* correct content
+* correct MIME type
+* no redirects
+* no cache corruption
+* Google crawler accessibility
+
+Required content:
+
+google.com, pub-9869546801865196, DIRECT, f08c47fec0942fa0
+
+5. Enterprise SEO Optimization
+   Validate and fix:
+
+* sitemap.xml
+* robots.txt
+* canonical URLs
+* Open Graph
+* Twitter cards
+* structured schema
+* page indexing
+* mobile SEO
+* crawlability
+* internal linking
+
+Ensure Google indexing readiness.
+
+6. AdSense Policy Compliance Audit
+   Detect and fix:
+
+* thin content
+* empty pages
+* duplicate pages
+* placeholder pages
+* copyright risks
+* accessibility problems
+* poor navigation
+* broken routes
+* low-value pages
+
+Ensure full Google Publisher Policy compliance.
+
+7. Performance Optimization
+   Target:
+
+* Lighthouse score 90+
+* Fast mobile performance
+* Optimized Core Web Vitals
+
+Optimize:
+
+* images
+* video loading
+* lazy loading
+* JavaScript bundles
+* CSS bundles
+* streaming assets
+* caching
+* compression
+* CDN delivery
+
+8. Legal Compliance Validation
+   Ensure these pages exist and are accessible:
+
+/privacy-policy
+/terms
+/cookies
+/disclaimer
+/contact
+/about
+
+Requirements:
+
+* linked globally
+* SEO optimized
+* mobile responsive
+* accessible to crawlers
+
+9. Security & Infrastructure Validation
+   Validate:
+
+* HTTPS enforcement
+* SSL validity
+* CSP compatibility
+* security headers
+* CDN compatibility
+* bot accessibility
+* production deployment health
+
+10. Ad Rendering Diagnostics
+    Investigate why ads may not yet appear.
+
+Check:
+
+* propagation delay
+* account review state
+* inventory availability
+* ad fill status
+* account restrictions
+* page-level eligibility
+* rendering lifecycle
+
+11. Generate Enterprise Audit Report
+    Provide:
+
+* ALL issues found
+* fixes implemented
+* remaining risks
+* monetization readiness score
+* approval readiness estimate
+* performance score
+* SEO score
+* security score
+
+12. Generate Website Owner Manual Guide
+    Generate a separate section called:
+
+“MANUAL ACTIONS FOR WEBSITE OWNER”
+
+Explain:
+
+* how to monitor approval
+* how to know ads are active
+* how to test ads safely
+* how to verify crawler access
+* how to monitor Search Console
+* how to avoid invalid traffic
+* how to maximize future revenue
+* how to maintain compliance permanently
+
+Important:
+
+* Do NOT break existing platform functionality
+* Maintain streaming features
+* Maintain admin features
+* Maintain responsive design
+* Maintain media playback
+* Maintain production stability
+* Ensure enterprise-grade architecture
+* Ensure scalability
+* Ensure future monetization readiness
+
+Final Goal:
+Transform jctm.org.ng into a fully approved, enterprise-grade, high-performance, SEO-optimized, globally monetized Google AdSense platform with active Auto Ads and zero compliance issues.

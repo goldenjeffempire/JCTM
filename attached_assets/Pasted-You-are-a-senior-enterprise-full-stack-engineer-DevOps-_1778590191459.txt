@@ -1,0 +1,232 @@
+You are a senior enterprise full-stack engineer, DevOps architect, SEO specialist, AdTech monetization engineer, Google AdSense compliance expert, and production infrastructure consultant.
+
+Your task is to completely audit, diagnose, fix, optimize, validate, and productionize the website:
+
+https://jctm.org.ng
+
+Current AdSense Status:
+
+* Google AdSense account connected
+* Verification methods implemented
+* Google CMP configured
+* Site currently under review
+* Site status shows:
+  "Getting ready"
+  "Requires review"
+  "Unauthorized"
+
+Google AdSense Publisher ID:
+ca-pub-9869546801865196
+
+Your Objectives:
+
+1. Identify ALL issues preventing full AdSense approval
+2. Fix ALL monetization, SEO, performance, policy, and technical issues
+3. Make the platform enterprise-grade and production-ready
+4. Increase the probability of instant AdSense approval
+5. Generate a detailed step-by-step manual guide for the owner to perform personally
+6. Explain ALL fixes clearly and professionally
+7. Ensure no existing platform functionality breaks
+
+Critical Requirements
+
+A. AdSense Verification Validation
+Verify and validate all required integrations:
+
+1. AdSense Script
+   Ensure this exists globally in <head>:
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9869546801865196"
+crossorigin="anonymous"></script>
+
+Requirements:
+
+* No duplicate scripts
+* Loads on every public page
+* Hydration-safe
+* SSR-safe
+* No CSP violations
+* No runtime errors
+
+2. Meta Tag
+   Ensure this exists globally:
+
+<meta name="google-adsense-account" content="ca-pub-9869546801865196">
+
+Requirements:
+
+* Available on all public pages
+* No duplicates
+* Visible in page source
+
+3. ads.txt
+   Ensure:
+   https://jctm.org.ng/ads.txt
+
+returns:
+
+google.com, pub-9869546801865196, DIRECT, f08c47fec0942fa0
+
+Requirements:
+
+* HTTP 200 response
+* Correct MIME type
+* CDN compatible
+* Publicly accessible
+
+B. Full Website Audit
+Perform deep enterprise audit for:
+
+* SEO issues
+* Performance bottlenecks
+* Accessibility issues
+* AdSense policy violations
+* Thin content
+* Duplicate content
+* Broken routes
+* 404 pages
+* Empty pages
+* Mobile responsiveness
+* Hydration mismatches
+* JavaScript runtime errors
+* React/Next.js issues
+* Security issues
+* CDN problems
+* Core Web Vitals issues
+* Slow page loading
+* Media delivery issues
+* Streaming issues
+* Sitemap issues
+* Robots.txt issues
+
+C. Legal Compliance
+Validate and fix:
+
+/privacy-policy
+/terms
+/cookies
+/disclaimer
+/contact
+/about
+
+Requirements:
+
+* Fully accessible
+* SEO optimized
+* Professionally written
+* Linked in footer
+* Mobile responsive
+
+D. Enterprise SEO Optimization
+Implement and validate:
+
+* Meta titles
+* Meta descriptions
+* Open Graph
+* Twitter cards
+* Structured schema
+* Canonical URLs
+* Sitemap.xml
+* Robots.txt
+* Video schema
+* Article schema
+* Breadcrumb schema
+
+E. Monetization Optimization
+Prepare infrastructure for:
+
+* Auto ads
+* Display ads
+* In-article ads
+* Multiplex ads
+* Responsive ads
+
+Requirements:
+
+* No CLS/layout shifts
+* Mobile optimized
+* Lazy loaded
+* Performance-safe
+
+F. Performance Optimization
+Target:
+
+* Lighthouse score above 90
+* Mobile-first optimization
+* Fast loading globally
+
+Optimize:
+
+* Images
+* Videos
+* Lazy loading
+* Code splitting
+* Caching
+* Compression
+* CDN
+* Fonts
+* Bundle sizes
+
+G. Security Hardening
+Implement:
+
+* HTTPS enforcement
+* Security headers
+* CSP compatibility
+* Bot protection
+* Anti-spam
+* Production-grade deployment standards
+
+H. Generate PERSONAL ACTION GUIDE
+After all fixes and analysis, generate a separate detailed section called:
+
+"PERSONAL MANUAL ACTIONS FOR WEBSITE OWNER"
+
+This section must explain:
+
+1. Exactly what the owner should do personally
+2. Exact dashboard clicks in AdSense
+3. Exact verification steps
+4. Exact Google Search Console setup
+5. Exact Analytics setup
+6. How to monitor approval
+7. How to know approval succeeded
+8. How to request re-review if rejected
+9. How to maintain compliance permanently
+10. How to maximize future revenue professionally
+
+The manual guide must be:
+
+* Beginner-friendly
+* Professional
+* Step-by-step
+* Enterprise-grade
+* Production-ready
+
+I. Final Deliverables
+Provide:
+
+1. Full technical audit report
+2. All detected issues
+3. All fixes implemented
+4. SEO recommendations
+5. Monetization recommendations
+6. Security recommendations
+7. Performance recommendations
+8. Final approval readiness score
+9. Risk analysis
+10. Detailed owner manual guide
+
+Important:
+
+* Maintain all existing features
+* Do not break streaming
+* Do not break admin panel
+* Do not break APIs
+* Maintain responsive design
+* Maintain media playback
+* Maintain live streaming
+* Ensure production-grade architecture
+* Ensure scalability
+* Ensure future monetization readiness
+* Ensure Google AdSense policy compliance throughout the platform

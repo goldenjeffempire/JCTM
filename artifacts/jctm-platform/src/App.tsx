@@ -51,6 +51,7 @@ const Partner = lazy(() => import("@/pages/Partner"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const Disclaimer = lazy(() => import("@/pages/Disclaimer"));
 const Cookies = lazy(() => import("@/pages/Cookies"));
+const Contact = lazy(() => import("@/pages/Contact"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,6 +129,7 @@ function Router() {
         <Route path="/reset-password" component={ResetPassword} />
         <Route path="/disclaimer" component={Disclaimer} />
         <Route path="/cookies" component={Cookies} />
+        <Route path="/contact" component={Contact} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

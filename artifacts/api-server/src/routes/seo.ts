@@ -75,6 +75,9 @@ const STATIC_PAGES = [
   { path: "/conference-registration", priority: "0.65", changefreq: "monthly" },
   { path: "/terms",                   priority: "0.30", changefreq: "yearly"  },
   { path: "/privacy",                 priority: "0.30", changefreq: "yearly"  },
+  { path: "/disclaimer",              priority: "0.25", changefreq: "yearly"  },
+  { path: "/cookies",                 priority: "0.25", changefreq: "yearly"  },
+  { path: "/contact",                 priority: "0.60", changefreq: "monthly" },
 ];
 
 function xmlEscape(str: string): string {

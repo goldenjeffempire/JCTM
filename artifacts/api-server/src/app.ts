@@ -163,6 +163,7 @@ app.use((_req, res, next) => {
       "fullscreen=(self)",
       "geolocation=(self)",
       "gyroscope=()",
+      "interest-cohort=()",
       "magnetometer=()",
       "microphone=(self)",
       "midi=()",

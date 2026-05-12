@@ -1314,7 +1314,7 @@ router.get(
   "/admin/adsense-diagnostics",
   requireAdminRole(["sermon", "gallery", "livestream"]),
   async (_req: Request, res: Response): Promise<void> => {
-    const PUBLISHER_ID_FALLBACK = "ca-pub-6817509745706083";
+    const PUBLISHER_ID_FALLBACK = "ca-pub-9869546801865196";
     const rawClientId = (
       process.env.VITE_ADSENSE_CLIENT_ID ??
       process.env.VITE_GOOGLE_ADSENSE_CLIENT ??
@@ -1363,8 +1363,8 @@ router.get(
       const { join } = await import("node:path");
       const { fileURLToPath } = await import("node:url");
       const __dirname = fileURLToPath(new URL(".", import.meta.url));
-      // ads.txt is written to dist/public/ during build
-      const adsTxtPath = join(__dirname, "..", "..", "dist", "public", "ads.txt");
+      // ads.txt lives in the jctm-platform dist/public/ directory
+      const adsTxtPath = join(__dirname, "..", "..", "..", "jctm-platform", "dist", "public", "ads.txt");
       adsTxtContent = await readFile(adsTxtPath, "utf8");
       const pubNum = publisherId.replace("ca-pub-", "");
       if (adsTxtContent.includes(`pub-${pubNum}`) || adsTxtContent.includes(publisherId)) {
