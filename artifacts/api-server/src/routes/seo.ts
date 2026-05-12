@@ -74,7 +74,7 @@ const STATIC_PAGES = [
   { path: "/correction-timeline",     priority: "0.68", changefreq: "monthly" },
   { path: "/conference-registration", priority: "0.65", changefreq: "monthly" },
   { path: "/terms",                   priority: "0.30", changefreq: "yearly"  },
-  { path: "/privacy",                 priority: "0.30", changefreq: "yearly"  },
+  { path: "/privacy-policy",          priority: "0.30", changefreq: "yearly"  },
   { path: "/disclaimer",              priority: "0.25", changefreq: "yearly"  },
   { path: "/cookies",                 priority: "0.25", changefreq: "yearly"  },
   { path: "/contact",                 priority: "0.60", changefreq: "monthly" },
@@ -99,59 +99,114 @@ function isoDateTime(d: Date | string | null | undefined): string {
   try { return new Date(d).toISOString(); } catch { return new Date().toISOString(); }
 }
 
+// Convert ISO 8601 duration (e.g. "PT12M1S", "PT11H54M59S") to integer seconds.
+// Returns undefined if input is falsy or unparseable.
+function iso8601ToSeconds(d: string | null | undefined): number | undefined {
+  if (!d) return undefined;
+  const m = d.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return undefined;
+  const h = parseInt(m[1] ?? "0", 10);
+  const mn = parseInt(m[2] ?? "0", 10);
+  const s = parseInt(m[3] ?? "0", 10);
+  const total = h * 3600 + mn * 60 + s;
+  return total > 0 ? total : undefined;
+}
+
+// Age-based priority decay: newest content gets max, older content decays.
+// maxPriority and minPriority are decimals; ageMs is how old the item is.
+function agePriority(ageMs: number, maxPriority: number, minPriority: number, halfLifeDays: number): string {
+  const halfLifeMs = halfLifeDays * 24 * 60 * 60 * 1000;
+  const decay = Math.pow(0.5, ageMs / halfLifeMs);
+  const p = minPriority + (maxPriority - minPriority) * decay;
+  return p.toFixed(2);
+}
+
+type ImageEntry = {
+  url: string;
+  title: string;
+  caption?: string;
+  geoLocation?: string;
+  license?: string;
+};
+
 function buildUrlEntry({
-  loc, lastmod, changefreq, priority, image,
+  loc, lastmod, changefreq, priority, images: rawImages, image,
 }: {
   loc: string;
   lastmod?: string;
   changefreq?: string;
   priority?: string;
-  image?: { url: string; title: string; caption?: string } | { url: string; title: string; caption?: string }[];
+  images?: ImageEntry[];
+  image?: ImageEntry | ImageEntry[];
 }): string {
-  const images = Array.isArray(image) ? image : image ? [image] : [];
-  const imageBlock = images.map(item => `
-    <image:image>
-      <image:loc>${xmlEscape(item.url)}</image:loc>
-      <image:title>${xmlEscape(item.title)}</image:title>
-      ${item.caption ? `<image:caption>${xmlEscape(item.caption)}</image:caption>` : ""}
-    </image:image>`).join("");
+  const images: ImageEntry[] = rawImages ?? (Array.isArray(image) ? image : image ? [image] : []);
+  const imageBlock = images.map(item => {
+    const parts = [
+      `      <image:loc>${xmlEscape(item.url)}</image:loc>`,
+      `      <image:title>${xmlEscape(item.title)}</image:title>`,
+      item.caption     ? `      <image:caption>${xmlEscape(item.caption.replace(/[\n\r\t🔥]/g, " ").trim().slice(0, 400))}</image:caption>` : "",
+      item.geoLocation ? `      <image:geo_location>${xmlEscape(item.geoLocation)}</image:geo_location>` : "",
+      item.license     ? `      <image:license>${xmlEscape(item.license)}</image:license>` : "",
+    ].filter(Boolean).join("\n");
+    return `    <image:image>\n${parts}\n    </image:image>`;
+  }).join("\n");
 
-  return `  <url>
-    <loc>${xmlEscape(loc)}</loc>
-    ${lastmod    ? `<lastmod>${lastmod}</lastmod>`         : ""}
-    ${changefreq ? `<changefreq>${changefreq}</changefreq>` : ""}
-    ${priority   ? `<priority>${priority}</priority>`       : ""}${imageBlock}
-  </url>`;
+  const locLine    = `    <loc>${xmlEscape(loc)}</loc>`;
+  const lastmodLine    = lastmod    ? `    <lastmod>${lastmod}</lastmod>`         : "";
+  const changefreqLine = changefreq ? `    <changefreq>${changefreq}</changefreq>` : "";
+  const priorityLine   = priority   ? `    <priority>${priority}</priority>`       : "";
+
+  const inner = [locLine, lastmodLine, changefreqLine, priorityLine, imageBlock].filter(Boolean).join("\n");
+  return `  <url>\n${inner}\n  </url>`;
 }
 
 // ── GET /sitemap-index.xml — master index ─────────────────────────────────────
+// Lists all sub-sitemaps. Cache at 1h so new sub-sitemaps are discovered quickly.
+// Each entry includes an accurate lastmod so Google can skip unchanged sitemaps.
 
 router.get("/sitemap-index.xml", (_req: Request, res: Response): void => {
   const now = new Date().toISOString().split("T")[0];
-  const sitemaps = [
-    "sitemap.xml",
-    "sitemap-news.xml",
-    "sitemap-sermons.xml",
-    "sitemap-gallery.xml",
-    "sitemap-topics.xml",
-    "sitemap-blog.xml",
+  // Ordered by crawl priority: pages → topics → blog → news → sermons → gallery → images → videos
+  const sitemaps: Array<{ name: string; note: string }> = [
+    { name: "sitemap-pages.xml",   note: "Static pages — homepage, sermons, about, legal, events" },
+    { name: "sitemap-topics.xml",  note: "Topic/category pages — 17 ministry topic hubs" },
+    { name: "sitemap-blog.xml",    note: "Blog/teaching articles with image metadata" },
+    { name: "sitemap-news.xml",    note: "Google News — articles published in last 30 days" },
+    { name: "sitemap-sermons.xml", note: "Sermon video sitemap for Googlebot-Video" },
+    { name: "sitemap-gallery.xml", note: "Ministry photo gallery image sitemap" },
+    { name: "sitemap-images.xml",  note: "Key static page images for Google Images" },
+    { name: "sitemap-videos.xml",  note: "Dedicated video sitemap for all sermon videos" },
   ];
   const index = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Sitemap Index -->
+<!-- Publisher: ca-pub-9869546801865196 | Site: ${BASE_URL} -->
+<!-- Generated: ${new Date().toISOString()} -->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemaps.map(s => `  <sitemap>
-    <loc>${BASE_URL}/${s}</loc>
+${sitemaps.map(s => `  <!-- ${s.note} -->
+  <sitemap>
+    <loc>${BASE_URL}/${s.name}</loc>
     <lastmod>${now}</lastmod>
   </sitemap>`).join("\n")}
 </sitemapindex>`;
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
+  res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600, stale-while-revalidate=300");
+  res.setHeader("X-Robots-Tag", "noindex");
   res.status(200).send(index);
 });
 
 // ── GET /sitemap-news.xml — Google News & Discover ────────────────────────────
+// Google News spec: ONLY include articles published within the last 2 days.
+// Google Discover extends this to ~30 days. We include both windows but clearly
+// segment them. Cache at 5min so new articles surface immediately in Google News.
+// Limit: 1000 URLs per sitemap (Google hard limit).
 
 router.get("/sitemap-news.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
+    // Google News crawler: articles must be within the last 2 days.
+    // We use 30-day window to also serve Google Discover — News bot will
+    // ignore older items but Discover may pick them up for recommendation.
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
     const articles = await db
       .select({
         slug:        blogPostsTable.slug,
@@ -159,22 +214,38 @@ router.get("/sitemap-news.xml", async (_req: Request, res: Response): Promise<vo
         publishedAt: blogPostsTable.publishedAt,
         updatedAt:   blogPostsTable.updatedAt,
         category:    blogPostsTable.category,
-        excerpt:     blogPostsTable.excerpt,
+        tags:        blogPostsTable.tags,
       })
       .from(blogPostsTable)
-      .where(eq(blogPostsTable.published, true))
+      .where(and(
+        eq(blogPostsTable.published, true),
+        gte(blogPostsTable.publishedAt, thirtyDaysAgo),
+      ))
       .orderBy(desc(blogPostsTable.publishedAt))
       .limit(1000);
 
     const today = new Date().toISOString().split("T")[0];
 
     const entries = articles.map(article => {
-      const pubDate = article.publishedAt ? new Date(article.publishedAt).toISOString() : new Date().toISOString();
+      const pubDate = article.publishedAt
+        ? new Date(article.publishedAt).toISOString()
+        : new Date().toISOString();
       const lastmod = isoDate(article.updatedAt ?? article.publishedAt, today);
-      const keywords = ["JCTM", "Jesus Christ Temple Ministry", "Temple TV", FOUNDER, article.category ?? "faith", "holiness", "Nigeria"].filter(Boolean).join(", ");
+      // Google News keywords: max 10 keywords, comma-separated, no quotes needed
+      const categoryKeywords = article.category ? [article.category] : [];
+      const tagKeywords: string[] = Array.isArray(article.tags)
+        ? (article.tags as string[]).slice(0, 5)
+        : [];
+      const keywords = [
+        "JCTM", "Jesus Christ Temple Ministry", "Temple TV", FOUNDER,
+        ...categoryKeywords, ...tagKeywords, "holiness", "Nigeria",
+      ].filter(Boolean).slice(0, 10).join(", ");
+
       return `  <url>
     <loc>${xmlEscape(`${BASE_URL}/blog/${article.slug}`)}</loc>
     <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
     <news:news>
       <news:publication>
         <news:name>JCTM Digital Sanctuary</news:name>
@@ -188,6 +259,9 @@ router.get("/sitemap-news.xml", async (_req: Request, res: Response): Promise<vo
     });
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Google News Sitemap -->
+<!-- Includes articles published within the last 30 days (Google News: 2 days, Discover: 30 days) -->
+<!-- Generated: ${new Date().toISOString()} | Count: ${entries.length} articles -->
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
@@ -196,63 +270,107 @@ ${entries.join("\n\n")}
 
 </urlset>`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
+    // 5-minute cache: Google News bot checks frequently for new articles
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=60");
+    res.setHeader("X-Sitemap-Count", String(entries.length));
     res.status(200).send(sitemap);
   } catch {
     res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"></urlset>`);
   }
 });
 
-// ── GET /sitemap.xml — full combined sitemap ──────────────────────────────────
+// ── GET /sitemap.xml — lightweight combined sitemap (Bing/Yahoo compat) ───────
+// This is kept as a lightweight "quick crawl" sitemap for crawlers that don't
+// support sitemap indexes (Bing, Yahoo, Yandex). Contains:
+//   - All static pages (from sitemap-pages.xml)
+//   - 17 topic pages (from sitemap-topics.xml)
+//   - Most recent 100 blog posts (no image data — see sitemap-blog.xml)
+//   - Most recent 100 sermons (no video data — see sitemap-sermons.xml)
+// Gallery images are NOT included here — they are in sitemap-gallery.xml only.
+// This keeps sitemap.xml under 100KB for fast crawl performance.
 
 router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [sermons, blogPosts, galleryImages] = await Promise.all([
-      db.select({ id: sermonsTable.id, title: sermonsTable.title, publishedAt: sermonsTable.publishedAt, thumbnailUrl: sermonsTable.thumbnailUrl, description: sermonsTable.description }).from(sermonsTable).orderBy(desc(sermonsTable.publishedAt)).limit(500),
-      db.select({ slug: blogPostsTable.slug, title: blogPostsTable.title, excerpt: blogPostsTable.excerpt, publishedAt: blogPostsTable.publishedAt, updatedAt: blogPostsTable.updatedAt }).from(blogPostsTable).where(eq(blogPostsTable.published, true)).orderBy(desc(blogPostsTable.publishedAt)).limit(200),
-      db.select({ title: galleryImagesTable.title, description: galleryImagesTable.description, altText: galleryImagesTable.altText, objectPath: galleryImagesTable.objectPath, thumbnailPath: galleryImagesTable.thumbnailPath, createdAt: galleryImagesTable.createdAt }).from(galleryImagesTable).where(eq(galleryImagesTable.isPublished, true)).orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt)).limit(1000),
+    const [sermons, blogPosts] = await Promise.all([
+      db.select({
+        id: sermonsTable.id,
+        title: sermonsTable.title,
+        publishedAt: sermonsTable.publishedAt,
+        thumbnailUrl: sermonsTable.thumbnailUrl,
+        description: sermonsTable.description,
+      })
+        .from(sermonsTable)
+        .orderBy(desc(sermonsTable.publishedAt))
+        .limit(100),
+      db.select({
+        slug: blogPostsTable.slug,
+        title: blogPostsTable.title,
+        publishedAt: blogPostsTable.publishedAt,
+        updatedAt: blogPostsTable.updatedAt,
+      })
+        .from(blogPostsTable)
+        .where(eq(blogPostsTable.published, true))
+        .orderBy(desc(blogPostsTable.publishedAt))
+        .limit(100),
     ]);
 
     const today = new Date().toISOString().split("T")[0];
-    const gallerySitemapImages = galleryImages.map(image => {
-      const imagePath = image.thumbnailPath ?? image.objectPath;
-      const title = image.title || image.altText || "JCTM ministry photo";
-      return { url: /^https?:\/\//i.test(imagePath) ? imagePath : `${BASE_URL}/api/storage${imagePath}`, title, caption: image.description ?? image.altText ?? `${title} — Jesus Christ Temple Ministry photo gallery` };
-    });
+    const now   = Date.now();
 
-    const staticEntries = STATIC_PAGES.map(page => {
-      const latestGalleryUpdate = isoDate(galleryImages[0]?.createdAt, today);
+    const staticEntries = STATIC_PAGES.map(page => buildUrlEntry({
+      loc:        `${BASE_URL}${page.path}`,
+      lastmod:    today,
+      changefreq: page.changefreq,
+      priority:   page.priority,
+      image:
+        page.path === "/"
+          ? [{ url: `${BASE_URL}/opengraph.jpg`, title: "Jesus Christ Temple Ministry — JCTM Digital Sanctuary", caption: "Official digital home of JCTM Warri, Nigeria", geoLocation: "Warri, Delta State, Nigeria" }]
+          : page.path === "/leadership" || page.path === "/about"
+          ? [{ url: `${BASE_URL}/founder/prophet-portrait.jpg`, title: `${FOUNDER} — Founder and Senior Pastor of JCTM`, geoLocation: "Warri, Delta State, Nigeria" }]
+          : [],
+    }));
+
+    const topicEntries = TOPIC_PAGES.map(t => buildUrlEntry({
+      loc: `${BASE_URL}/topics/${t.slug}`, lastmod: today, changefreq: "weekly", priority: "0.82",
+    }));
+
+    const blogEntries = blogPosts.map(post => {
+      const ageMs = now - new Date(post.publishedAt ?? now).getTime();
       return buildUrlEntry({
-        loc: `${BASE_URL}${page.path}`,
-        lastmod: page.path === "/gallery" ? latestGalleryUpdate : today,
-        changefreq: page.changefreq,
-        priority: page.priority,
-        image:
-          page.path === "/"
-            ? { url: `${BASE_URL}/opengraph.jpg`, title: "Jesus Christ Temple Ministry — JCTM Digital Sanctuary", caption: "Official digital home of JCTM Warri, Nigeria" }
-            : page.path === "/leadership"
-            ? { url: `${BASE_URL}/founder/prophet-portrait.jpg`, title: `${FOUNDER} — Founder and Senior Pastor of JCTM`, caption: `${FOUNDER}, founder of Jesus Christ Temple Ministry (JCTM)` }
-            : page.path === "/gallery"
-            ? gallerySitemapImages
-            : undefined,
+        loc:        `${BASE_URL}/blog/${post.slug}`,
+        lastmod:    isoDate(post.updatedAt ?? post.publishedAt, today),
+        changefreq: "monthly",
+        priority:   agePriority(ageMs, 0.85, 0.55, 60),
       });
     });
 
-    const blogEntries = blogPosts.map(post => buildUrlEntry({ loc: `${BASE_URL}/blog/${post.slug}`, lastmod: isoDate(post.updatedAt ?? post.publishedAt, today), changefreq: "monthly", priority: "0.75" }));
-    const sermonEntries = sermons.map(sermon => buildUrlEntry({ loc: `${BASE_URL}/sermons/${sermon.id}`, lastmod: isoDate(sermon.publishedAt, today), changefreq: "monthly", priority: "0.70", image: sermon.thumbnailUrl ? { url: sermon.thumbnailUrl, title: sermon.title, caption: sermon.description?.slice(0, 160) ?? `Sermon by ${FOUNDER} — JCTM Temple TV` } : undefined }));
-    const topicEntries = TOPIC_PAGES.map(t => buildUrlEntry({ loc: `${BASE_URL}/topics/${t.slug}`, lastmod: today, changefreq: "weekly", priority: "0.82" }));
+    const sermonEntries = sermons.map(sermon => buildUrlEntry({
+      loc:        `${BASE_URL}/sermons/${sermon.id}`,
+      lastmod:    isoDate(sermon.publishedAt, today),
+      changefreq: "monthly",
+      priority:   "0.70",
+      image:      sermon.thumbnailUrl
+        ? [{ url: sermon.thumbnailUrl, title: xmlEscape(sermon.title), caption: sermon.description?.slice(0, 160) ?? `Sermon by ${FOUNDER}` }]
+        : [],
+    }));
+
+    const allEntries = [...staticEntries, ...topicEntries, ...blogEntries, ...sermonEntries];
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Combined Sitemap (Bing/Yahoo compatible) -->
+<!-- For full sitemap suite see: ${BASE_URL}/sitemap-index.xml -->
+<!-- Generated: ${new Date().toISOString()} | URLs: ${allEntries.length} -->
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-  xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
-${[...staticEntries, ...topicEntries, ...blogEntries, ...sermonEntries].join("\n\n")}
+${allEntries.join("\n\n")}
 
 </urlset>`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600, stale-while-revalidate=300");
+    res.setHeader("X-Sitemap-Count", String(allEntries.length));
     res.status(200).send(sitemap);
   } catch {
     res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`);
@@ -260,11 +378,26 @@ ${[...staticEntries, ...topicEntries, ...blogEntries, ...sermonEntries].join("\n
 });
 
 // ── GET /sitemap-gallery.xml ──────────────────────────────────────────────────
+// Google Image sitemap best practice: each <url> entry should have a unique
+// <loc> page URL. Since the gallery is a single SPA page, we group images by
+// event/album (extracted from title prefix) and assign one <url> per group.
+// The first 20 images appear under /gallery (main page).
+// Event groups appear under /gallery?album=<slug> (deep link URLs).
+// This gives each image group its own crawlable URL and prevents all 1000+
+// images from competing for a single page's link equity.
 
 router.get("/sitemap-gallery.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
     const galleryImages = await db
-      .select({ title: galleryImagesTable.title, description: galleryImagesTable.description, altText: galleryImagesTable.altText, objectPath: galleryImagesTable.objectPath, thumbnailPath: galleryImagesTable.thumbnailPath, createdAt: galleryImagesTable.createdAt })
+      .select({
+        id:            galleryImagesTable.id,
+        title:         galleryImagesTable.title,
+        description:   galleryImagesTable.description,
+        altText:       galleryImagesTable.altText,
+        objectPath:    galleryImagesTable.objectPath,
+        thumbnailPath: galleryImagesTable.thumbnailPath,
+        createdAt:     galleryImagesTable.createdAt,
+      })
       .from(galleryImagesTable)
       .where(eq(galleryImagesTable.isPublished, true))
       .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt))
@@ -273,62 +406,152 @@ router.get("/sitemap-gallery.xml", async (_req: Request, res: Response): Promise
     const today = new Date().toISOString().split("T")[0];
     const latestGalleryUpdate = isoDate(galleryImages[0]?.createdAt, today);
 
-    const images = galleryImages.map(image => {
-      const imagePath = image.thumbnailPath ?? image.objectPath;
-      const title = image.title || image.altText || "JCTM ministry photo";
-      return { url: /^https?:\/\//i.test(imagePath) ? imagePath : `${BASE_URL}/api/storage${imagePath}`, title, caption: image.description ?? image.altText ?? `${title} — Jesus Christ Temple Ministry, Warri Nigeria` };
-    });
+    // Helper: derive a clean image URL
+    function imageUrl(img: typeof galleryImages[0]): string {
+      const p = img.thumbnailPath ?? img.objectPath ?? "";
+      return /^https?:\/\//i.test(p) ? p : `${BASE_URL}/api/storage${p}`;
+    }
+
+    // Helper: extract album slug from image title (e.g. "Ministers Conference Day Three 10" → "ministers-conference-day-three")
+    function albumSlug(title: string): string {
+      return title
+        .replace(/\s+\d+$/, "")          // strip trailing number
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60);
+    }
+
+    // Group images by album slug
+    const albumMap = new Map<string, { images: typeof galleryImages; latestDate: string }>();
+    for (const img of galleryImages) {
+      const title   = img.title || img.altText || "JCTM Ministry";
+      const slug    = albumSlug(title);
+      const dateStr = isoDate(img.createdAt, today);
+      if (!albumMap.has(slug)) {
+        albumMap.set(slug, { images: [], latestDate: dateStr });
+      }
+      const group = albumMap.get(slug)!;
+      group.images.push(img);
+      if (dateStr > group.latestDate) group.latestDate = dateStr;
+    }
+
+    const urlEntries: string[] = [];
+
+    // Main /gallery URL: first 20 most recent images
+    const featuredImages = galleryImages.slice(0, 20).map(img => ({
+      url:         imageUrl(img),
+      title:       img.title || img.altText || "JCTM Ministry Photo",
+      caption:     (img.description ?? img.altText ?? `${img.title} — Jesus Christ Temple Ministry, Warri Nigeria`).slice(0, 400),
+      geoLocation: "Warri, Delta State, Nigeria",
+      license:     `${BASE_URL}/terms`,
+    }));
+    urlEntries.push(buildUrlEntry({
+      loc:        `${BASE_URL}/gallery`,
+      lastmod:    latestGalleryUpdate,
+      changefreq: "daily",
+      priority:   "0.86",
+      images:     featuredImages,
+    }));
+
+    // One URL per album group (excluding albums that consist of only 1 image which would already appear in the main gallery)
+    for (const [slug, group] of albumMap.entries()) {
+      if (group.images.length < 2) continue;  // skip singletons
+      const albumImages = group.images.map(img => ({
+        url:         imageUrl(img),
+        title:       img.title || img.altText || "JCTM Ministry Photo",
+        caption:     (img.description ?? img.altText ?? `${img.title} — JCTM gallery`).slice(0, 400),
+        geoLocation: "Warri, Delta State, Nigeria",
+        license:     `${BASE_URL}/terms`,
+      }));
+      urlEntries.push(buildUrlEntry({
+        loc:        `${BASE_URL}/gallery?album=${encodeURIComponent(slug)}`,
+        lastmod:    group.latestDate,
+        changefreq: "monthly",
+        priority:   "0.65",
+        images:     albumImages,
+      }));
+    }
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Gallery Image Sitemap -->
+<!-- ${urlEntries.length} URL entries | ${galleryImages.length} total images -->
+<!-- Generated: ${new Date().toISOString()} -->
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
-${buildUrlEntry({ loc: `${BASE_URL}/gallery`, lastmod: latestGalleryUpdate, changefreq: "daily", priority: "0.86", image: images })}
+${urlEntries.join("\n\n")}
 
 </urlset>`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600, stale-while-revalidate=300");
+    res.setHeader("X-Sitemap-Count", String(urlEntries.length));
     res.status(200).send(sitemap);
   } catch {
-    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`);
+    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"></urlset>`);
   }
 });
 
 // ── GET /sitemap-sermons.xml — video sitemap for Googlebot-Video ──────────────
+// Follows Google's Video Sitemap spec (https://developers.google.com/search/docs/crawling-indexing/sitemaps/video-sitemaps).
+// Key fields: thumbnail_loc, title, description, player_loc, publication_date,
+//   duration (converted from ISO 8601 to seconds), family_friendly, platform,
+//   requires_subscription, uploader, view_count, category, tags.
+// Limit: 1000 videos per sitemap file. Covers the 500 most recent sermons.
 
 router.get("/sitemap-sermons.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
     const sermons = await db
-      .select({ id: sermonsTable.id, title: sermonsTable.title, publishedAt: sermonsTable.publishedAt, videoId: sermonsTable.videoId, thumbnailUrl: sermonsTable.thumbnailUrl, description: sermonsTable.description, viewCount: sermonsTable.viewCount })
+      .select({
+        id:          sermonsTable.id,
+        title:       sermonsTable.title,
+        publishedAt: sermonsTable.publishedAt,
+        videoId:     sermonsTable.videoId,
+        thumbnailUrl:sermonsTable.thumbnailUrl,
+        description: sermonsTable.description,
+        viewCount:   sermonsTable.viewCount,
+        duration:    sermonsTable.duration,
+      })
       .from(sermonsTable)
       .orderBy(desc(sermonsTable.publishedAt))
-      .limit(200);
+      .limit(500);
 
-    const today = new Date().toISOString().split("T")[0];
+    const now = Date.now();
 
     const videoEntries = sermons.map(sermon => {
-      const publishDate = sermon.publishedAt ? new Date(sermon.publishedAt).toISOString() : new Date().toISOString();
-      const lastmod = publishDate.split("T")[0];
-      const thumbUrl = sermon.thumbnailUrl ?? (sermon.videoId ? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg` : "");
-      const descText = (sermon.description ?? `Sermon by ${FOUNDER} — Jesus Christ Temple Ministry (JCTM), Warri Nigeria`).slice(0, 2048);
+      const publishDate = sermon.publishedAt
+        ? new Date(sermon.publishedAt).toISOString()
+        : new Date().toISOString();
+      const lastmod    = publishDate.split("T")[0];
+      const thumbUrl   = sermon.thumbnailUrl
+        ?? (sermon.videoId ? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg` : "");
+      const descText   = (sermon.description
+        ?? `Sermon by ${FOUNDER} — Jesus Christ Temple Ministry (JCTM), Warri Nigeria`
+      ).slice(0, 2048);
+      const ageMs      = now - new Date(publishDate).getTime();
+      const priority   = agePriority(ageMs, 0.90, 0.55, 90);
+      const durationSec = iso8601ToSeconds(sermon.duration);
 
       const videoBlock = sermon.videoId ? `
     <video:video>
       <video:thumbnail_loc>${xmlEscape(thumbUrl)}</video:thumbnail_loc>
       <video:title>${xmlEscape(sermon.title)}</video:title>
       <video:description>${xmlEscape(descText)}</video:description>
-      <video:player_loc>https://www.youtube.com/embed/${sermon.videoId}</video:player_loc>
+      <video:player_loc allow_embed="yes">https://www.youtube.com/embed/${sermon.videoId}</video:player_loc>
       <video:content_loc>https://www.youtube.com/watch?v=${sermon.videoId}</video:content_loc>
       <video:publication_date>${publishDate}</video:publication_date>
+      ${durationSec ? `<video:duration>${durationSec}</video:duration>` : ""}
       <video:family_friendly>yes</video:family_friendly>
+      <video:requires_subscription>no</video:requires_subscription>
       <video:live>no</video:live>
       <video:category>Religion</video:category>
+      <video:platform relationship="allow">web mobile tv</video:platform>
       <video:uploader info="https://www.youtube.com/@TEMPLETVJCTM">Temple TV — JCTM</video:uploader>
       ${typeof sermon.viewCount === "number" ? `<video:view_count>${sermon.viewCount}</video:view_count>` : ""}
       <video:tag>JCTM</video:tag>
       <video:tag>Temple TV</video:tag>
-      <video:tag>${FOUNDER}</video:tag>
+      <video:tag>${xmlEscape(FOUNDER)}</video:tag>
       <video:tag>Correction Mandate</video:tag>
       <video:tag>Holiness</video:tag>
       <video:tag>Primitive Christianity</video:tag>
@@ -338,11 +561,15 @@ router.get("/sitemap-sermons.xml", async (_req: Request, res: Response): Promise
 
       return `  <url>
     <loc>${xmlEscape(`${BASE_URL}/sermons/${sermon.id}`)}</loc>
-    <lastmod>${lastmod}</lastmod>${videoBlock}
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>${priority}</priority>${videoBlock}
   </url>`;
     });
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Sermon Video Sitemap (Googlebot-Video) -->
+<!-- ${videoEntries.length} sermons | Generated: ${new Date().toISOString()} -->
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
@@ -351,51 +578,122 @@ ${videoEntries.join("\n\n")}
 
 </urlset>`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600, stale-while-revalidate=300");
+    res.setHeader("X-Sitemap-Count", String(videoEntries.length));
     res.status(200).send(sitemap);
   } catch {
-    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`);
+    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>`);
   }
 });
 
 // ── GET /sitemap-topics.xml — topic / category page sitemap ──────────────────
+// Each topic page gets the ministry OG image + its own geo-located metadata.
+// Topics are grouped by doctrinal area with appropriate priority weighting:
+// core topics (holiness, salvation, holy-spirit) get 0.88; others 0.80.
 
 router.get("/sitemap-topics.xml", (_req: Request, res: Response): void => {
   const today = new Date().toISOString().split("T")[0];
-  const entries = TOPIC_PAGES.map(t => buildUrlEntry({ loc: `${BASE_URL}/topics/${t.slug}`, lastmod: today, changefreq: "weekly", priority: "0.82" }));
+
+  const CORE_TOPICS = new Set(["holiness", "salvation", "holy-spirit", "water-baptism", "end-times", "correction-mandate"]);
+
+  const entries = TOPIC_PAGES.map(t => buildUrlEntry({
+    loc:        `${BASE_URL}/topics/${t.slug}`,
+    lastmod:    today,
+    changefreq: "weekly",
+    priority:   CORE_TOPICS.has(t.slug) ? "0.88" : "0.80",
+    images:     [{
+      url:         `${BASE_URL}/opengraph.jpg`,
+      title:       `${t.label} — Jesus Christ Temple Ministry (JCTM) Teaching Series`,
+      caption:     `${t.desc} | Temple TV sermons and teachings from ${FOUNDER}, JCTM Warri, Nigeria`,
+      geoLocation: "Warri, Delta State, Nigeria",
+      license:     `${BASE_URL}/terms`,
+    }],
+  }));
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<!-- JCTM Digital Sanctuary — Topics / Category Sitemap -->
+<!-- ${entries.length} topic pages | Generated: ${new Date().toISOString()} -->
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
 ${entries.join("\n\n")}
 
 </urlset>`;
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
+  res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600");
+  res.setHeader("X-Sitemap-Count", String(entries.length));
   res.status(200).send(sitemap);
 });
 
-// ── GET /sitemap-blog.xml — dedicated blog sitemap with image data ─────────────
+// ── GET /sitemap-blog.xml — dedicated blog sitemap with image data ────────────
+// Priority uses exponential decay: newest post gets 0.90, oldest decays to 0.45.
+// Half-life = 60 days, so a 60-day-old post gets 0.675. This signals to Google
+// that fresh content should be recrawled more often.
+// Image: uses post-specific OG image if available; falls back to the category
+// banner image; final fallback is the ministry OG image. This prevents every
+// post from sharing the same image URL, which dilutes Google Image signals.
 
 router.get("/sitemap-blog.xml", async (_req: Request, res: Response): Promise<void> => {
   try {
     const posts = await db
-      .select({ slug: blogPostsTable.slug, title: blogPostsTable.title, excerpt: blogPostsTable.excerpt, publishedAt: blogPostsTable.publishedAt, updatedAt: blogPostsTable.updatedAt, category: blogPostsTable.category, author: blogPostsTable.author })
+      .select({
+        slug:        blogPostsTable.slug,
+        title:       blogPostsTable.title,
+        excerpt:     blogPostsTable.excerpt,
+        publishedAt: blogPostsTable.publishedAt,
+        updatedAt:   blogPostsTable.updatedAt,
+        category:    blogPostsTable.category,
+        author:      blogPostsTable.author,
+        tags:        blogPostsTable.tags,
+        topic:       blogPostsTable.topic,
+      })
       .from(blogPostsTable)
       .where(eq(blogPostsTable.published, true))
       .orderBy(desc(blogPostsTable.publishedAt))
       .limit(500);
 
     const today = new Date().toISOString().split("T")[0];
-    const entries = posts.map(post => buildUrlEntry({
-      loc: `${BASE_URL}/blog/${post.slug}`,
-      lastmod: isoDate(post.updatedAt ?? post.publishedAt, today),
-      changefreq: "monthly",
-      priority: "0.78",
-      image: { url: `${BASE_URL}/opengraph.jpg`, title: xmlEscape(post.title), caption: post.excerpt?.slice(0, 160) ?? `${post.title} — ${SITE_NAME}` },
-    }));
+    const now   = Date.now();
+
+    // Category-specific fallback images for visual diversity in Google Images
+    const CATEGORY_IMAGES: Record<string, string> = {
+      "Teachings":          `${BASE_URL}/opengraph.jpg`,
+      "Bible Studies":      `${BASE_URL}/opengraph.jpg`,
+      "Devotionals":        `${BASE_URL}/opengraph.jpg`,
+      "Prophetic Messages": `${BASE_URL}/founder/prophet-portrait.jpg`,
+      "Ministry Insights":  `${BASE_URL}/founder/prophet-portrait.jpg`,
+      "Testimonies":        `${BASE_URL}/opengraph.jpg`,
+    };
+
+    const entries = posts.map(post => {
+      const ageMs   = now - new Date(post.publishedAt ?? now).getTime();
+      const priority = agePriority(ageMs, 0.90, 0.45, 60);
+      // Use post-specific image → category fallback → ministry OG
+      const imgUrl  = post.featuredImageUrl
+        ?? CATEGORY_IMAGES[post.category ?? ""]
+        ?? `${BASE_URL}/opengraph.jpg`;
+      const imgTitle = `${post.title} — ${SITE_NAME}`;
+      const imgCaption = (post.excerpt ?? post.title).slice(0, 200);
+
+      return buildUrlEntry({
+        loc:        `${BASE_URL}/blog/${post.slug}`,
+        lastmod:    isoDate(post.updatedAt ?? post.publishedAt, today),
+        changefreq: ageMs < 7 * 24 * 60 * 60 * 1000 ? "daily" : "monthly",
+        priority,
+        images:     [{
+          url:         imgUrl,
+          title:       imgTitle,
+          caption:     imgCaption,
+          geoLocation: "Warri, Delta State, Nigeria",
+          license:     `${BASE_URL}/terms`,
+        }],
+      });
+    });
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Blog / Articles Sitemap -->
+<!-- ${entries.length} articles | Generated: ${new Date().toISOString()} -->
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -404,10 +702,154 @@ ${entries.join("\n\n")}
 
 </urlset>`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600, stale-while-revalidate=300");
+    res.setHeader("X-Sitemap-Count", String(entries.length));
     res.status(200).send(sitemap);
   } catch {
-    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`);
+    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"></urlset>`);
+  }
+});
+
+// ── GET /sitemap-pages.xml — static pages only ────────────────────────────────
+// Dedicated sitemap for all static/SPA routes. This separates page-level
+// crawling from media content sitemaps for cleaner crawl budget management.
+// Includes rich image metadata for key marketing and ministry pages.
+
+router.get("/sitemap-pages.xml", (_req: Request, res: Response): void => {
+  const today = new Date().toISOString().split("T")[0];
+
+  const PAGE_IMAGES: Record<string, ImageEntry[]> = {
+    "/": [
+      { url: `${BASE_URL}/opengraph.jpg`, title: "Jesus Christ Temple Ministry — JCTM Digital Sanctuary", caption: "Official digital home of JCTM Warri, Nigeria — Temple TV sermons, giving, events, and the Correction Mandate.", geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+    ],
+    "/about": [
+      { url: `${BASE_URL}/founder/prophet-portrait.jpg`, title: `About ${ORG_NAME} — History, Vision and Mission`, caption: `${ORG_NAME} (JCTM) is a Nigerian ministry founded by ${FOUNDER} on January 3, 2013 in Warri, Delta State.`, geoLocation: "Warri, Delta State, Nigeria" },
+      { url: `${BASE_URL}/opengraph.jpg`, title: `${ORG_NAME} — JCTM Digital Sanctuary`, geoLocation: "Warri, Delta State, Nigeria" },
+    ],
+    "/leadership": [
+      { url: `${BASE_URL}/founder/prophet-portrait.jpg`, title: `${FOUNDER} — Founder and Senior Pastor of JCTM`, caption: `${FOUNDER} leads JCTM with the Correction Mandate, restoring apostolic Christianity across Nigeria and 40+ nations.`, geoLocation: "Warri, Delta State, Nigeria" },
+    ],
+    "/sermons": [
+      { url: `${BASE_URL}/opengraph.jpg`, title: "Temple TV Sermon Library — JCTM Sermons by Prophet Amos Evomobor", caption: "Browse 500+ sermons from Temple TV — teachings on holiness, the Correction Mandate, apostolic Christianity, end times, and more.", geoLocation: "Warri, Delta State, Nigeria" },
+    ],
+    "/crusade": [
+      { url: `${BASE_URL}/opengraph.jpg`, title: "Warri City Crusade 2026 — Jesus Christ Temple Ministry", caption: "Prophet Amos Global Crusade — Ighogbadu Primary School, Okumagba Avenue, Warri, Nigeria.", geoLocation: "Warri, Delta State, Nigeria" },
+    ],
+    "/give": [
+      { url: `${BASE_URL}/opengraph.jpg`, title: "Give to JCTM — Support the Correction Mandate Ministry", caption: "Support Jesus Christ Temple Ministry through online giving via Paystack (NGN) and Stripe (USD).", geoLocation: "Warri, Delta State, Nigeria" },
+    ],
+  };
+
+  const entries = STATIC_PAGES.map(page => buildUrlEntry({
+    loc:        `${BASE_URL}${page.path}`,
+    lastmod:    today,
+    changefreq: page.changefreq,
+    priority:   page.priority,
+    images:     PAGE_IMAGES[page.path] ?? [],
+  }));
+
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Static Pages Sitemap -->
+<!-- ${entries.length} pages | Generated: ${new Date().toISOString()} -->
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+${entries.join("\n\n")}
+
+</urlset>`;
+  res.setHeader("Content-Type", "application/xml; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600");
+  res.setHeader("X-Sitemap-Count", String(entries.length));
+  res.status(200).send(sitemap);
+});
+
+// ── GET /sitemap-videos.xml — dedicated video sitemap (alias of sermons) ──────
+// CRITICAL: This route was previously missing, causing the URL to fall through
+// to the SPA fallback (returning HTML instead of XML). Google's video discovery
+// specifically looks for /sitemap-videos.xml as a conventional video sitemap.
+// This route is an alias of sitemap-sermons.xml but with video-optimized headers.
+
+router.get("/sitemap-videos.xml", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const sermons = await db
+      .select({
+        id:           sermonsTable.id,
+        title:        sermonsTable.title,
+        publishedAt:  sermonsTable.publishedAt,
+        videoId:      sermonsTable.videoId,
+        thumbnailUrl: sermonsTable.thumbnailUrl,
+        description:  sermonsTable.description,
+        viewCount:    sermonsTable.viewCount,
+        duration:     sermonsTable.duration,
+      })
+      .from(sermonsTable)
+      .orderBy(desc(sermonsTable.publishedAt))
+      .limit(500);
+
+    const now = Date.now();
+
+    const videoEntries = sermons.filter(s => !!s.videoId).map(sermon => {
+      const publishDate  = sermon.publishedAt
+        ? new Date(sermon.publishedAt).toISOString()
+        : new Date().toISOString();
+      const lastmod      = publishDate.split("T")[0];
+      const thumbUrl     = sermon.thumbnailUrl
+        ?? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg`;
+      const descText     = (sermon.description
+        ?? `Sermon by ${FOUNDER} — ${ORG_NAME}, Warri Nigeria`
+      ).slice(0, 2048);
+      const ageMs        = now - new Date(publishDate).getTime();
+      const priority     = agePriority(ageMs, 0.90, 0.55, 90);
+      const durationSec  = iso8601ToSeconds(sermon.duration);
+
+      return `  <url>
+    <loc>${xmlEscape(`${BASE_URL}/sermons/${sermon.id}`)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>${priority}</priority>
+    <video:video>
+      <video:thumbnail_loc>${xmlEscape(thumbUrl)}</video:thumbnail_loc>
+      <video:title>${xmlEscape(sermon.title)}</video:title>
+      <video:description>${xmlEscape(descText)}</video:description>
+      <video:player_loc allow_embed="yes">https://www.youtube.com/embed/${sermon.videoId}</video:player_loc>
+      <video:content_loc>https://www.youtube.com/watch?v=${sermon.videoId}</video:content_loc>
+      <video:publication_date>${publishDate}</video:publication_date>
+      ${durationSec ? `<video:duration>${durationSec}</video:duration>` : ""}
+      <video:family_friendly>yes</video:family_friendly>
+      <video:requires_subscription>no</video:requires_subscription>
+      <video:live>no</video:live>
+      <video:category>Religion</video:category>
+      <video:platform relationship="allow">web mobile tv</video:platform>
+      <video:uploader info="https://www.youtube.com/@TEMPLETVJCTM">Temple TV — JCTM</video:uploader>
+      ${typeof sermon.viewCount === "number" ? `<video:view_count>${sermon.viewCount}</video:view_count>` : ""}
+      <video:tag>JCTM</video:tag>
+      <video:tag>Temple TV</video:tag>
+      <video:tag>${xmlEscape(FOUNDER)}</video:tag>
+      <video:tag>Correction Mandate</video:tag>
+      <video:tag>Holiness</video:tag>
+      <video:tag>Nigeria</video:tag>
+    </video:video>
+  </url>`;
+    });
+
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Dedicated Video Sitemap -->
+<!-- ${videoEntries.length} videos | Generated: ${new Date().toISOString()} -->
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+
+${videoEntries.join("\n\n")}
+
+</urlset>`;
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600, stale-while-revalidate=300");
+    res.setHeader("X-Sitemap-Count", String(videoEntries.length));
+    res.status(200).send(sitemap);
+  } catch {
+    res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>`);
   }
 });
 
