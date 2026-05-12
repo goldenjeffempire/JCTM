@@ -548,10 +548,10 @@ export default function AdminMonetization() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Quick Links</p>
                 <div className="space-y-2">
                   {[
-                    { label: "AdSense Dashboard",     href: "https://www.google.com/adsense/new/u/0/pub-6817509745706083/home" },
-                    { label: "Ad Units",              href: "https://www.google.com/adsense/new/u/0/pub-6817509745706083/myads/units" },
-                    { label: "Performance Reports",   href: "https://www.google.com/adsense/new/u/0/pub-6817509745706083/report" },
-                    { label: "Policy Center",         href: "https://www.google.com/adsense/new/u/0/pub-6817509745706083/policy" },
+                    { label: "AdSense Dashboard",     href: "https://www.google.com/adsense/new/u/0/pub-9869546801865196/home" },
+                    { label: "Ad Units",              href: "https://www.google.com/adsense/new/u/0/pub-9869546801865196/myads/units" },
+                    { label: "Performance Reports",   href: "https://www.google.com/adsense/new/u/0/pub-9869546801865196/report" },
+                    { label: "Policy Center",         href: "https://www.google.com/adsense/new/u/0/pub-9869546801865196/policy" },
                     { label: "Google Search Console", href: "https://search.google.com/search-console" },
                     { label: "PageSpeed Insights",    href: "https://pagespeed.web.dev/report?url=https://jctm.org.ng" },
                   ].map(link => (
@@ -605,8 +605,8 @@ export default function AdminMonetization() {
             <p className="text-xs text-muted-foreground">Items marked Done are complete in your codebase. Items marked Action Required need your attention in the Google AdSense dashboard.</p>
             <div className="space-y-3">
               {[
-                { done: true,  label: "Publisher ID configured",                    detail: "ca-pub-6817509745706083 set in code and ads.txt" },
-                { done: true,  label: "ads.txt present at /ads.txt",                detail: "Verified: google.com, ca-pub-6817509745706083, DIRECT, f08c47fec0942fa0" },
+                { done: true,  label: "Publisher ID configured",                    detail: "ca-pub-9869546801865196 set in code and ads.txt" },
+                { done: true,  label: "ads.txt present at /ads.txt",                detail: "Verified: google.com, pub-9869546801865196, DIRECT, f08c47fec0942fa0" },
                 { done: true,  label: "Auto Ads script loaded",                     detail: "Async AdSense script in <head> of index.html" },
                 { done: true,  label: "Consent Mode v2 implemented",                detail: "gtag defaults denied; updated on user consent via CookieConsent" },
                 { done: true,  label: "Display ad slots placed (23 slots, 16 pages)",detail: "Topics, Leadership, TopicDetail, ScriptureStudy, SpiritualInsight, and 11 more pages" },

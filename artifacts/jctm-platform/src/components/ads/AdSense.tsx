@@ -8,7 +8,7 @@ declare global {
 }
 
 // ─── Publisher Configuration ──────────────────────────────────────────────────
-const PUBLISHER_ID = "ca-pub-6817509745706083";
+const PUBLISHER_ID = "ca-pub-9869546801865196";
 
 const rawClientId = (
   import.meta.env.VITE_ADSENSE_CLIENT_ID ??

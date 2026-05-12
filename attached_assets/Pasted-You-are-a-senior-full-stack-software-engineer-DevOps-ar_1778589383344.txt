@@ -1,0 +1,253 @@
+You are a senior full-stack software engineer, DevOps architect, SEO engineer, AdTech specialist, and enterprise monetization expert.
+
+Your task is to completely configure, integrate, optimize, validate, and productionize Google AdSense monetization on the live production website:
+
+https://jctm.org.ng
+
+Google AdSense Account:
+[templedeveloper1248@gmail.com](mailto:templedeveloper1248@gmail.com)
+
+Publisher ID:
+ca-pub-9869546801865196
+
+Objectives:
+
+* Fully verify the website ownership with Google AdSense
+* Ensure the website passes Google AdSense review successfully
+* Configure enterprise-grade monetization architecture
+* Implement professional ad delivery infrastructure
+* Optimize the platform for maximum monetization readiness
+* Eliminate all AdSense policy violations
+* Ensure the entire platform is production-ready, scalable, secure, SEO-optimized, and monetization-ready
+
+Critical Tasks
+
+1. Google AdSense Verification
+   Implement ALL required verification methods professionally:
+
+A. AdSense Script Verification
+Insert this script globally inside the <head></head> section across the entire platform:
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9869546801865196"
+crossorigin="anonymous"></script>
+
+Requirements:
+
+* Load asynchronously
+* Ensure no duplicate script injection
+* Ensure CSP compatibility
+* Ensure hydration-safe implementation
+* Ensure script loads on all pages
+* Ensure production deployment success
+
+B. Meta Tag Verification
+Insert globally inside <head></head>:
+
+<meta name="google-adsense-account" content="ca-pub-9869546801865196">
+
+Requirements:
+
+* Ensure tag exists on every public page
+* Ensure SSR compatibility
+* Validate in browser source view
+* Ensure no duplicate meta tags
+
+C. Ads.txt Configuration
+Create or update:
+
+/public/ads.txt
+
+Content:
+
+google.com, pub-9869546801865196, DIRECT, f08c47fec0942fa0
+
+Requirements:
+
+* Accessible publicly at:
+  https://jctm.org.ng/ads.txt
+* Return HTTP 200 status
+* Ensure CDN compatibility
+* Ensure MIME type correctness
+* Ensure caching compatibility
+
+2. AdSense Readiness Audit
+   Perform complete monetization audit of the entire platform.
+
+Fix:
+
+* Broken pages
+* Empty pages
+* Thin content
+* Duplicate content
+* Accessibility issues
+* Mobile responsiveness issues
+* Slow-loading pages
+* SEO issues
+* Invalid HTML structure
+* Hydration issues
+* Console errors
+* 404 errors
+* Performance bottlenecks
+
+3. Legal & Compliance Pages
+   Ensure the following pages exist and are fully production-ready:
+
+/privacy-policy
+/terms
+/disclaimer
+/cookies
+/contact
+/about
+
+Requirements:
+
+* Fully responsive
+* SEO optimized
+* Professional UI/UX
+* Linked in footer
+* Accessible from all pages
+* Structured properly for Google compliance
+
+4. Enterprise SEO Optimization
+   Implement:
+
+* Dynamic meta tags
+* Open Graph tags
+* Twitter cards
+* Structured schema markup
+* Canonical URLs
+* XML sitemap
+* Robots.txt
+* Breadcrumb schema
+* Article schema
+* Video schema where applicable
+
+Ensure:
+
+* Search engine indexing readiness
+* Google crawler optimization
+* Lighthouse SEO score optimization
+
+5. Performance Optimization
+   Optimize:
+
+* Core Web Vitals
+* Largest Contentful Paint
+* First Input Delay
+* Cumulative Layout Shift
+
+Implement:
+
+* Lazy loading
+* Code splitting
+* Image optimization
+* Font optimization
+* CDN optimization
+* Cache headers
+* Compression
+* Static asset optimization
+
+Target:
+
+* Lighthouse score 90+
+* Mobile-first optimization
+* Fast loading worldwide
+
+6. Ad Placement Infrastructure
+   Prepare enterprise ad architecture.
+
+Create reusable components for:
+
+* Display ads
+* In-article ads
+* Multiplex ads
+* Anchor ads
+* Responsive ads
+
+Requirements:
+
+* Mobile optimized
+* Responsive
+* Hydration-safe
+* Lazy loaded
+* No layout shifts
+* GDPR-friendly
+* Performance optimized
+
+Recommended placements:
+
+* Homepage banner
+* Sermon pages
+* Article pages
+* Sidebar
+* Footer
+* Between content sections
+
+7. Google Analytics Integration
+   Integrate Google Analytics professionally.
+
+Requirements:
+
+* Event tracking
+* User analytics
+* Page tracking
+* Video engagement tracking
+* Sermon engagement analytics
+* Conversion tracking
+* Traffic monitoring
+
+8. Security & Stability
+   Ensure:
+
+* HTTPS enforced
+* CSP configured correctly
+* Security headers configured
+* Anti-spam protection
+* Bot protection
+* CDN security compatibility
+
+9. Validation & Verification
+   Validate:
+
+* AdSense script loads correctly
+* Meta tag is detectable
+* Ads.txt accessible publicly
+* No console errors
+* No hydration mismatch
+* No broken deployments
+* No runtime errors
+
+10. Deployment & Finalization
+    After implementation:
+
+* Deploy production build successfully
+* Clear cache/CDN
+* Validate all routes
+* Validate monetization readiness
+* Request Google AdSense review readiness
+
+Final Expected Result:
+
+* jctm.org.ng fully verified with Google AdSense
+* Ads.txt correctly configured
+* Meta tag verified
+* AdSense script verified
+* Website passes Google review
+* Enterprise-grade monetization infrastructure operational
+* SEO optimized
+* Production-ready
+* High-performance
+* Secure
+* Scalable
+* Revenue-ready
+
+Important:
+
+* Do not break any existing features
+* Maintain full responsiveness
+* Maintain streaming functionality
+* Maintain media functionality
+* Maintain admin functionality
+* Ensure backward compatibility
+* Ensure clean production-grade codebase
+* Ensure enterprise architecture best practices throughout implementation
