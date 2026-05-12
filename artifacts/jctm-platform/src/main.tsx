@@ -5,6 +5,9 @@ import App from "./App";
 import "./index.css";
 import { reportClientError } from "./lib/clientErrorReporting";
 import { isChunkLoadError, recoverFromChunkLoadError } from "./lib/chunkRecovery";
+import { initGA4 } from "./lib/analytics";
+
+initGA4();
 
 class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {

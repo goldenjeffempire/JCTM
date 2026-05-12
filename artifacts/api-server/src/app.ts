@@ -63,6 +63,9 @@ app.use(
           // Auto Ads — Google may load scripts from any *.google.com subdomain
           "https://*.google.com",
           "https://fundingchoicesmessages.google.com",
+          // Google Analytics 4 / Google Tag Manager
+          "https://www.googletagmanager.com",
+          "https://www.google-analytics.com",
         ],
         styleSrc: [
           "'self'",
@@ -120,6 +123,11 @@ app.use(
           "https://csi.gstatic.com",
           "https://www.gstatic.com",
           "https://fundingchoicesmessages.google.com",
+          // Google Analytics 4 beacon + collect endpoints
+          "https://www.google-analytics.com",
+          "https://analytics.google.com",
+          "https://www.googletagmanager.com",
+          "https://region1.google-analytics.com",
           "wss:",
           "ws:",
         ],

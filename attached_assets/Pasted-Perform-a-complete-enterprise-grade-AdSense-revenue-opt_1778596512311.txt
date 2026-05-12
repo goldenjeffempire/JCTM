@@ -1,0 +1,205 @@
+Perform a complete enterprise-grade AdSense revenue optimization and SEO scaling overhaul for https://jctm.org.ng.
+
+Current status:
+
+AdSense account approved
+Site connected successfully
+Ads settings confirmed
+Payments configured
+However earnings remain at $0.00
+
+Goal:
+Transform the platform into a high-traffic, SEO-optimized, revenue-generating digital ministry platform with professional AdSense monetization.
+
+1. Verify Ads Are Actually Rendering
+
+Audit all pages and confirm:
+
+ads are displaying publicly
+ads render on desktop and mobile
+no blank ad containers
+no JavaScript errors
+no CSP blocking
+no ad blockers caused by implementation mistakes
+
+Check:
+
+homepage
+sermon pages
+blogs
+gallery
+topics
+article pages
+
+Fix all rendering failures.
+
+2. Optimize Ad Placement for Maximum CTR
+
+Implement production-grade placements:
+
+Desktop
+header banner ads
+in-content ads
+sidebar sticky ads
+related-content ads
+footer ads
+Mobile
+anchor ads
+vignette ads
+responsive in-feed ads
+in-article ads
+
+Requirements:
+
+responsive
+CLS-safe
+lazy-loaded
+policy compliant
+
+Avoid:
+
+accidental clicks
+overcrowding
+intrusive layouts
+3. Increase Organic Traffic
+
+Perform complete SEO overhaul:
+
+Technical SEO
+fix sitemap indexing
+optimize robots.txt
+canonical URLs
+schema markup
+Open Graph tags
+Twitter cards
+internal linking
+Content SEO
+
+Generate and optimize:
+
+sermon summaries
+devotionals
+Bible study guides
+Christian lifestyle articles
+prayer topics
+faith-based educational content
+
+Target:
+
+long-tail keywords
+high-volume Christian search terms
+evergreen SEO traffic
+4. Improve Indexing & Crawlability
+
+Ensure:
+
+all important pages indexed
+pages discoverable by Googlebot
+no orphan pages
+no duplicate pages
+no crawl errors
+
+Fix:
+
+broken URLs
+redirect chains
+slow-loading pages
+blocked resources
+5. Improve Core Web Vitals
+
+Optimize:
+
+LCP
+CLS
+INP/FID
+
+Implement:
+
+image optimization
+CDN caching
+route prefetching
+code splitting
+compression
+lazy loading
+remove unused JS/CSS
+
+Target:
+
+PageSpeed 90+
+6. Increase Session Duration
+
+Implement:
+
+related sermons
+autoplay next teachings
+recommended content
+trending posts
+featured topics
+smart search
+pagination
+engagement widgets
+
+Goal:
+
+increase page views
+increase ad impressions
+reduce bounce rate
+7. Monetization Expansion
+
+Add:
+
+newsletter subscriptions
+donation integrations
+sponsored content structure
+premium teachings
+YouTube embedding optimization
+
+Integrate:
+
+Google Analytics 4
+Google Tag Manager
+event tracking
+conversion tracking
+
+Track:
+
+CTR
+RPM
+CPC
+session duration
+ad visibility
+8. AdSense Compliance Audit
+
+Audit entire platform for:
+
+thin content
+copyrighted media
+invalid traffic risks
+duplicate content
+excessive ads
+hidden ads
+misleading placements
+
+Ensure full compliance with AdSense policies.
+
+9. Production Monitoring
+
+Implement:
+
+SEO monitoring
+indexing health monitoring
+ad rendering monitoring
+traffic analytics
+uptime monitoring
+error logging
+10. Final Expected Result
+
+Expected outcome:
+
+ads rendering correctly
+pages indexed properly
+increasing organic traffic
+improved CTR and RPM
+stable AdSense earnings
+professional enterprise-grade monetization system
+scalable digital ministry infrastructure

@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { lazy, Suspense, useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
@@ -13,6 +13,7 @@ import { CookieConsent } from "@/components/ads/CookieConsent";
 import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 import { BroadcastEngagementSystem } from "@/components/BroadcastEngagementSystem";
 import { useVisitorHeartbeat } from "@/hooks/useVisitorHeartbeat";
+import { trackPageView } from "@/lib/analytics";
 
 const Home = lazy(() => import("@/pages/Home"));
 const Sermons = lazy(() => import("@/pages/Sermons"));
@@ -142,6 +143,14 @@ function VisitorHeartbeat() {
   return null;
 }
 
+function GA4PageTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
+  return null;
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -152,6 +161,7 @@ function App() {
               <ErrorBoundary>
                 <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
                   <Router />
+                  <GA4PageTracker />
                 </WouterRouter>
                 <VoiceTempleBots />
                 <CookieConsent />

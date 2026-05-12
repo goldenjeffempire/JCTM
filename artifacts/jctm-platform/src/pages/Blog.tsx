@@ -527,6 +527,15 @@ export default function Blog() {
                 ))}
               </div>
             </div>
+
+            {/* Sidebar ad */}
+            <AdSlot
+              slot={ADSENSE_SLOTS.sermonSidebar}
+              format="rectangle"
+              minHeight={280}
+              lazy={true}
+              label="Blog sidebar advertisement"
+            />
           </aside>
         </div>
 
