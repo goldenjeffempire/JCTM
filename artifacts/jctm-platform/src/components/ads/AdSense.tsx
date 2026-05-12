@@ -145,14 +145,18 @@ export function useAdPageTracker(page: string, adSlotsInView: number) {
 }
 
 // ─── AdSense Script Loader ────────────────────────────────────────────────────
+// The AdSense script is already injected in index.html <head> so we never need
+// to add it again. This guard simply marks the module as ready and prevents
+// any accidental duplicate injection — two copies of pagead2.js with the same
+// client ID will cause "TagError" errors and break auto-ads entirely.
 let scriptInjected = false;
 function ensureAdSenseScript() {
   if (scriptInjected) return;
   if (typeof document === "undefined") return;
-  const existing = document.querySelector(
-    `script[src*="pagead2.googlesyndication.com"][src*="${PUBLISHER_ID}"]`
-  );
+  // Detect any pagead2 script — publisher ID may differ between env vars and index.html
+  const existing = document.querySelector("script[src*='pagead2.googlesyndication.com']");
   if (existing) { scriptInjected = true; return; }
+  // Fallback injection (only fires if index.html script tag is somehow missing)
   const script = document.createElement("script");
   script.async = true;
   script.crossOrigin = "anonymous";
@@ -252,11 +256,14 @@ export function AdSlot({
     <aside
       ref={containerRef}
       aria-label={label}
-      className={`relative overflow-hidden rounded-2xl border border-border/40 bg-muted/20 ${className}`}
-      style={{
-        minHeight: reservedHeight,
-        contain: "layout style",
-      }}
+      // IMPORTANT: Do NOT use overflow-hidden here — it clips ad creatives that
+      // render outside the initial container bounds (e.g. expanding ads, sticky
+      // anchors). Do NOT use CSS containment (contain: layout/style/paint) as
+      // it creates an independent formatting context that breaks auto-ads
+      // viewport measurement and prevents Google's ad scripts from calculating
+      // correct ad sizes and positions.
+      className={`relative rounded-lg border border-border/40 bg-muted/20 ${className}`}
+      style={{ minHeight: reservedHeight }}
     >
       <p className="absolute left-3 top-2 z-[1] text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50 select-none pointer-events-none">
         Advertisement

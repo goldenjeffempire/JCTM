@@ -1,0 +1,243 @@
+You are a senior enterprise-grade Google AdSense compliance engineer, full-stack software architect, DevOps engineer, SEO expert, web performance engineer, and production infrastructure specialist.
+
+Your task is to fully diagnose, investigate, fix, optimize, validate, and productionize all issues preventing full Google AdSense approval for the website:
+
+https://jctm.org.ng
+
+Current AdSense Status:
+
+* Site Status: Getting ready
+* Issue Label: Unauthorized
+* Google Account: [templedeveloper1248@gmail.com](mailto:templedeveloper1248@gmail.com)
+* Publisher ID: ca-pub-9869546801865196
+* Review already requested
+* Google CMP already configured
+
+Objective:
+Identify and fix ALL possible causes of the “Unauthorized” and “Getting ready” AdSense status until the platform becomes fully approved and monetization-ready.
+
+Critical Tasks
+
+1. Full AdSense Verification Audit
+   Validate ALL ownership verification methods.
+
+A. AdSense Script Validation
+Verify this script exists globally in the <head> section on ALL public pages:
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9869546801865196"
+crossorigin="anonymous"></script>
+
+Requirements:
+
+* Present on every page
+* No duplicate injection
+* Loads successfully
+* No CSP blocking
+* No hydration mismatch
+* No runtime JavaScript errors
+* SSR-safe implementation
+* Proper async loading
+* Proper crossorigin handling
+
+B. Meta Tag Validation
+Verify this exists globally:
+
+<meta name="google-adsense-account" content="ca-pub-9869546801865196">
+
+Requirements:
+
+* Present on all pages
+* Visible in raw page source
+* No duplicate tags
+* SSR-compatible
+
+C. ads.txt Validation
+Verify:
+https://jctm.org.ng/ads.txt
+
+returns EXACTLY:
+
+google.com, pub-9869546801865196, DIRECT, f08c47fec0942fa0
+
+Requirements:
+
+* HTTP 200 response
+* Public accessibility
+* CDN compatibility
+* Correct MIME type
+* No redirects
+* No 404 errors
+* No caching corruption
+
+2. Unauthorized Status Root Cause Analysis
+   Deeply investigate ALL potential reasons for “Unauthorized” status including:
+
+* Google crawler blocked
+* robots.txt misconfiguration
+* firewall restrictions
+* Cloudflare bot blocking
+* CDN blocking Google bots
+* CSP issues
+* invalid SSL configuration
+* mixed content
+* invalid DNS setup
+* improper redirects
+* broken canonical URLs
+* inaccessible pages
+* JavaScript rendering issues
+* SSR failures
+* authentication walls
+* protected pages
+* HTTP security misconfiguration
+* geo-blocking
+* browser rendering failures
+* anti-bot systems blocking Google
+
+3. SEO & Indexing Audit
+   Fix ALL SEO and indexing issues.
+
+Validate:
+
+* sitemap.xml
+* robots.txt
+* canonical tags
+* Open Graph tags
+* structured schema
+* indexing accessibility
+* page crawlability
+* mobile friendliness
+* Lighthouse SEO score
+
+Ensure:
+
+* Google can fully crawl the site
+* All public pages are indexable
+* No accidental noindex tags
+* No blocked resources
+
+4. AdSense Policy Compliance Audit
+   Identify and fix:
+
+* Thin content
+* Duplicate content
+* Empty pages
+* Broken pages
+* Placeholder pages
+* Copyright risks
+* Excessive ads
+* Low-value pages
+* Poor navigation
+* Accessibility issues
+* Mobile UX problems
+
+Ensure compliance with:
+
+* Google AdSense policies
+* Google Publisher policies
+* GDPR/CMP requirements
+
+5. Enterprise Performance Optimization
+   Target:
+
+* Lighthouse score above 90
+* Fast mobile performance
+* Optimized Core Web Vitals
+
+Optimize:
+
+* image loading
+* lazy loading
+* font loading
+* JavaScript bundles
+* CSS bundles
+* caching
+* compression
+* CDN
+* streaming assets
+* video optimization
+
+6. Security & Infrastructure Validation
+   Validate:
+
+* HTTPS everywhere
+* SSL certificates
+* security headers
+* CSP compatibility
+* HSTS
+* DNS health
+* CDN health
+* production deployment stability
+
+7. Legal & Trust Signals
+   Ensure these pages exist and are fully accessible:
+
+/privacy-policy
+/terms
+/disclaimer
+/cookies
+/contact
+/about
+
+Requirements:
+
+* linked globally
+* mobile responsive
+* professionally written
+* SEO optimized
+* accessible to Google crawlers
+
+8. Google Search Console Integration
+   Validate:
+
+* domain ownership
+* sitemap submission
+* indexing coverage
+* crawl reports
+* mobile usability
+* Core Web Vitals
+* security issues
+
+Fix all warnings and errors.
+
+9. Generate Fix Report
+   After analysis provide:
+
+* ALL detected issues
+* root causes
+* fixes implemented
+* remaining risks
+* monetization readiness score
+* approval probability estimate
+* production-readiness assessment
+
+10. Generate Owner Action Plan
+    Generate a detailed section called:
+
+“MANUAL ACTIONS FOR WEBSITE OWNER”
+
+Explain:
+
+* Exact actions the owner should perform in AdSense
+* Exact actions in Search Console
+* How to monitor approval progress
+* How to validate ads.txt
+* How to verify Google crawler access
+* How to request re-review if needed
+* How to maintain compliance permanently
+
+Important Requirements:
+
+* Do NOT break existing platform functionality
+* Maintain streaming functionality
+* Maintain admin functionality
+* Maintain media playback
+* Maintain responsive design
+* Maintain API stability
+* Maintain production environment integrity
+* Use enterprise-grade coding standards
+* Ensure scalability
+* Ensure future monetization readiness
+* Ensure Google AdSense policy compliance throughout the platform
+
+Final Goal:
+Transform jctm.org.ng into a fully approved, enterprise-grade, production-ready, SEO-optimized, high-performance, Google AdSense monetized platform with zero compliance issues and maximum approval readiness.

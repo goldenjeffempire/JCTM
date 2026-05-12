@@ -2,6 +2,23 @@
 # https://jctm.org.ng
 # Updated for AI search engines, LLM crawlers, and next-generation discovery
 
+# ══════════════════════════════════════════════════════════════════════════════
+# GOOGLE ADSENSE CRAWLERS — Full access required for ad serving and approval
+# These MUST be listed FIRST and explicitly allowed before any other rule.
+# Mediapartners-Google crawls pages to determine relevant ad content.
+# AdsBot-Google validates landing pages for ad policy compliance.
+# Without these, AdSense cannot serve ads or approve your site.
+# ══════════════════════════════════════════════════════════════════════════════
+
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: AdsBot-Google-Mobile
+Allow: /
+
 # ── All crawlers — allow everything public ────────────────────────────────────
 User-agent: *
 Allow: /

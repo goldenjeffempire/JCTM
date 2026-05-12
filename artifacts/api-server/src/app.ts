@@ -60,6 +60,9 @@ app.use(
           "https://www.googletagservices.com",
           "https://accounts.google.com",
           "https://cdn.onesignal.com",
+          // Auto Ads — Google may load scripts from any *.google.com subdomain
+          "https://*.google.com",
+          "https://fundingchoicesmessages.google.com",
         ],
         styleSrc: [
           "'self'",
@@ -84,6 +87,7 @@ app.use(
           "https://www.gstatic.com",
         ],
         // Allow YouTube player iframes + AdSense iframes
+        // *.google.com covers auto-ads iframes (vary by campaign/format)
         frameSrc: [
           "https://www.youtube.com",
           "https://youtube.com",
@@ -94,6 +98,8 @@ app.use(
           "https://*.doubleclick.net",
           "https://*.adtrafficquality.google",
           "https://www.google.com",
+          "https://*.google.com",
+          "https://fundingchoicesmessages.google.com",
         ],
         connectSrc: [
           "'self'",
@@ -108,10 +114,12 @@ app.use(
           "https://googleads.g.doubleclick.net",
           "https://*.doubleclick.net",
           "https://www.google.com",
+          "https://*.google.com",
           "https://www.googletagservices.com",
           "https://accounts.google.com",
           "https://csi.gstatic.com",
           "https://www.gstatic.com",
+          "https://fundingchoicesmessages.google.com",
           "wss:",
           "ws:",
         ],
@@ -339,6 +347,12 @@ if (process.env.NODE_ENV === "production") {
       lastModified: true,
       index: false,
       setHeaders(res, filePath) {
+        // Explicitly allow Google bots to index all public static content.
+        // This header reinforces the robots.txt Allow directives and ensures
+        // AdsBot-Google and Mediapartners-Google see the correct indexing signal.
+        if (filePath.endsWith(".html") || filePath.endsWith("robots.txt") || filePath.endsWith("ads.txt")) {
+          res.setHeader("X-Robots-Tag", "index, follow");
+        }
         if (filePath.endsWith("sw.js")) {
           // Service worker MUST always revalidate so users get new versions.
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -384,6 +398,9 @@ if (process.env.NODE_ENV === "production") {
     res.setHeader("CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
     res.setHeader("Cloudflare-CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
     res.setHeader("Vary", "Accept-Encoding");
+    // Explicitly signal to Google bots that all SPA routes are indexable.
+    // This is critical for AdsBot-Google and Mediapartners-Google crawlers.
+    res.setHeader("X-Robots-Tag", "index, follow");
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }
