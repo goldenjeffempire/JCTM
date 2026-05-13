@@ -1901,4 +1901,170 @@ router.delete(
   },
 );
 
+// ── AI Intelligence Insights ──────────────────────────────────────────────────
+// Aggregates TempleBots performance, knowledge health, giving trends, and
+// sermon engagement into a single admin intelligence dashboard endpoint.
+router.get(
+  "/admin/ai-insights",
+  requireAdminRole("sermon"),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const [
+        chatStats,
+        topIntents,
+        knowledgeStats,
+        givingStats,
+        topSermons,
+        memberStats,
+      ] = await Promise.allSettled([
+        // TempleBots conversation volume
+        pool.query<{ total: string; today: string; week: string }>(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 day') as today,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as week
+          FROM conversations
+        `),
+        // Top query intents from message content (keyword frequency analysis)
+        pool.query<{ word: string; count: string }>(`
+          SELECT word, COUNT(*) as count
+          FROM (
+            SELECT regexp_split_to_table(lower(content), '\\s+') as word
+            FROM messages
+            WHERE role = 'user'
+              AND created_at > NOW() - INTERVAL '30 days'
+              AND length(content) > 3
+          ) words
+          WHERE length(word) > 4
+            AND word NOT IN ('what','when','when','where','which','while','would','could','should','there','their','about','after','before','being','every','those','these','through','within','without','because','between','though','under','still','since','other','first','some','have','that','with','this','from','they','will','your','more','into','just','also','than','then','been','only','such','each','like','very','over','make','most','both','even','much','same','back','does','help','know','need','want','please','tell','give')
+          GROUP BY word
+          ORDER BY count DESC
+          LIMIT 15
+        `),
+        // Knowledge base health
+        pool.query<{ total: string; embedded: string; by_type: string }>(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE embedding IS NOT NULL) as embedded,
+            jsonb_object_agg(chunk_type, cnt) as by_type
+          FROM (
+            SELECT chunk_type, COUNT(*) as cnt, embedding
+            FROM knowledge_chunks
+            GROUP BY chunk_type, embedding IS NOT NULL
+          ) sub
+        `),
+        // Giving stats last 30 days
+        pool.query<{ total_ngn: string; total_usd: string; count_30d: string; count_7d: string; top_purpose: string }>(`
+          SELECT
+            COALESCE(SUM(amount) FILTER (WHERE currency = 'NGN'), 0)::text as total_ngn,
+            COALESCE(SUM(amount) FILTER (WHERE currency = 'USD'), 0)::text as total_usd,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as count_30d,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as count_7d,
+            MODE() WITHIN GROUP (ORDER BY purpose) as top_purpose
+          FROM giving_records
+          WHERE created_at > NOW() - INTERVAL '30 days'
+        `),
+        // Top sermons by view count
+        pool.query<{ video_id: string; title: string; view_count: number; published_at: string }>(`
+          SELECT video_id, title, view_count, published_at
+          FROM sermon_data
+          WHERE view_count IS NOT NULL
+          ORDER BY view_count DESC
+          LIMIT 5
+        `),
+        // Member registration stats
+        pool.query<{ total: string; this_week: string; this_month: string }>(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as this_week,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as this_month
+          FROM member_auth
+        `),
+      ]);
+
+      const chatData = chatStats.status === "fulfilled" ? chatStats.value.rows[0] : null;
+      const intentData = topIntents.status === "fulfilled" ? topIntents.value.rows : [];
+      const kbRaw = knowledgeStats.status === "fulfilled" ? knowledgeStats.value.rows[0] : null;
+      const givingData = givingStats.status === "fulfilled" ? givingStats.value.rows[0] : null;
+      const sermonData = topSermons.status === "fulfilled" ? topSermons.value.rows : [];
+      const memberData = memberStats.status === "fulfilled" ? memberStats.value.rows[0] : null;
+
+      // Derive AI intelligence signals from intent frequency
+      const intentMap: Record<string, string[]> = {
+        salvation: ["saved","salvation","born","repent","accept","sinner","grace"],
+        holiness: ["holy","holiness","sanctif","purity","consecrat","sin"],
+        prophecy: ["prophet","prophecy","vision","dream","word","mandate"],
+        doctrine: ["doctrine","teach","baptist","spirit","covenant","law"],
+        giving: ["tithe","give","offering","seed","money","donate","support"],
+        prayer: ["pray","prayer","intercession","fast","fasting","petition"],
+        events: ["conference","crusade","event","service","meeting","schedule"],
+        healing: ["heal","healing","sick","miracle","deliver","breakthrough"],
+        endtimes: ["rapture","tribulation","antichrist","mark","666","end"],
+        family: ["marriage","family","children","parenting","divorce","spouse"],
+      };
+
+      const topCategoryMap: Record<string, number> = {};
+      for (const row of intentData) {
+        for (const [cat, keywords] of Object.entries(intentMap)) {
+          if (keywords.some(k => row.word.includes(k))) {
+            topCategoryMap[cat] = (topCategoryMap[cat] ?? 0) + parseInt(row.count, 10);
+          }
+        }
+      }
+      const topCategories = Object.entries(topCategoryMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([cat, count]) => ({ category: cat, count }));
+
+      // Knowledge gap analysis — intents with no matching chunks
+      const allIntentLabels = Object.keys(intentMap);
+      const gaps = allIntentLabels.filter(intent =>
+        !topCategories.some(c => c.category === intent) && intentData.length > 0
+      );
+
+      res.json({
+        templebots: {
+          totalConversations: parseInt(chatData?.total ?? "0", 10),
+          conversationsToday: parseInt(chatData?.today ?? "0", 10),
+          conversationsThisWeek: parseInt(chatData?.week ?? "0", 10),
+          topQueryCategories: topCategories,
+          topKeywords: intentData.slice(0, 20).map(r => ({ word: r.word, count: parseInt(r.count, 10) })),
+          knowledgeGaps: gaps,
+        },
+        knowledgeBase: {
+          totalChunks: parseInt(kbRaw?.total ?? "0", 10),
+          embeddedChunks: parseInt(kbRaw?.embedded ?? "0", 10),
+          coveragePct: kbRaw?.total
+            ? Math.round((parseInt(kbRaw.embedded, 10) / parseInt(kbRaw.total, 10)) * 100)
+            : 0,
+        },
+        giving: {
+          totalNGN: parseFloat(givingData?.total_ngn ?? "0"),
+          totalUSD: parseFloat(givingData?.total_usd ?? "0"),
+          donationsLast30d: parseInt(givingData?.count_30d ?? "0", 10),
+          donationsLast7d: parseInt(givingData?.count_7d ?? "0", 10),
+          topPurpose: givingData?.top_purpose ?? "General Offering",
+        },
+        sermons: {
+          top5: sermonData.map(s => ({
+            videoId: s.video_id,
+            title: s.title,
+            viewCount: s.view_count,
+            publishedAt: s.published_at,
+          })),
+        },
+        members: {
+          total: parseInt(memberData?.total ?? "0", 10),
+          newThisWeek: parseInt(memberData?.this_week ?? "0", 10),
+          newThisMonth: parseInt(memberData?.this_month ?? "0", 10),
+        },
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: ai-insights failed");
+      res.status(500).json({ error: "Failed to generate AI insights" });
+    }
+  },
+);
+
 export default router;

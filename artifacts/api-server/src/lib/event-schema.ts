@@ -127,3 +127,63 @@ export function invalidateEventSchemaCache(): void {
   cacheExpiresAt = 0;
   logger.debug("event-schema: cache invalidated");
 }
+
+// ── Plain-text event context (for TempleBots system prompt) ───────────────────
+let cachedEventContext: string | null = null;
+let contextExpiresAt = 0;
+
+/**
+ * Returns a plain-text description of the currently active event (if any)
+ * for injection into the TempleBots system prompt. Shares the same 60-second
+ * TTL cache as the JSON-LD schema. Returns an empty string when no event is live.
+ */
+export async function getActiveEventContext(): Promise<string> {
+  const now = Date.now();
+  if (cachedEventContext !== null && now < contextExpiresAt) {
+    return cachedEventContext;
+  }
+
+  try {
+    const { rows } = await pool.query<ActiveEvent>(`
+      SELECT id, slug, title, subtitle, artwork_url, location, cta_url, start_at, end_at
+      FROM   event_promotions
+      WHERE  status = 'active'
+        AND  end_at > NOW()
+      ORDER  BY start_at ASC
+      LIMIT  1
+    `);
+
+    if (rows.length === 0) {
+      cachedEventContext = "";
+      contextExpiresAt = now + CACHE_TTL_MS;
+      return "";
+    }
+
+    const ev = rows[0]!;
+    const startStr = new Date(ev.start_at).toLocaleDateString("en-GB", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos",
+    });
+    const endStr = new Date(ev.end_at).toLocaleDateString("en-GB", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos",
+    });
+    const url = String(ev.cta_url).startsWith("http")
+      ? ev.cta_url
+      : `https://jctm.org.ng${ev.cta_url}`;
+
+    const ctx = `CURRENT ACTIVE EVENT — ${ev.title}:
+- Title: ${ev.title}${ev.subtitle ? ` — ${ev.subtitle}` : ""}
+- Dates: ${startStr} through ${endStr}
+- Venue: ${ev.location ?? "JCTM Ebrumede Temple, Warri"}
+- Info / Register: ${url}
+- Organiser: Jesus Christ Temple Ministry (JCTM), Warri, Nigeria
+- Enquiries: +234(0)8081313111 | info@jctm.org.ng
+When users ask about this event, provide these exact details. Do NOT fabricate additional details not listed here.`;
+
+    cachedEventContext = ctx;
+    contextExpiresAt = now + CACHE_TTL_MS;
+    return ctx;
+  } catch (err) {
+    logger.warn({ err }, "event-schema: getActiveEventContext DB query failed");
+    return "";
+  }
+}

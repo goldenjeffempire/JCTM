@@ -5855,6 +5855,22 @@ function AdSenseDiagnosticsSection({ auth }: { auth: AdminAuth }) {
   );
 }
 
+interface AIInsightsData {
+  templebots: {
+    totalConversations: number;
+    conversationsToday: number;
+    conversationsThisWeek: number;
+    topQueryCategories: { category: string; count: number }[];
+    topKeywords: { word: string; count: number }[];
+    knowledgeGaps: string[];
+  };
+  knowledgeBase: { totalChunks: number; embeddedChunks: number; coveragePct: number };
+  giving: { totalNGN: number; totalUSD: number; donationsLast30d: number; donationsLast7d: number; topPurpose: string };
+  sermons: { top5: { videoId: string; title: string; viewCount: number; publishedAt: string }[] };
+  members: { total: number; newThisWeek: number; newThisMonth: number };
+  generatedAt: string;
+}
+
 function AIDashboardSection({ auth }: { auth: AdminAuth }) {
   const { data, isLoading, refetch, isRefetching } = useQuery<AIDashboardData>({
     queryKey: ["admin-ai-dashboard"],
@@ -5865,6 +5881,18 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
     },
     refetchInterval: 30_000,
     staleTime: 20_000,
+  });
+
+  const { data: insights } = useQuery<AIInsightsData>({
+    queryKey: ["admin-ai-insights"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/ai-insights`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load AI insights");
+      return r.json();
+    },
+    refetchInterval: 60_000,
+    staleTime: 50_000,
+    enabled: !!auth.isAdmin,
   });
 
   const tierLabels: Record<string, { label: string; desc: string; icon: React.ReactNode; color: string }> = {
@@ -6118,6 +6146,118 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
                 </div>
               )}
             </Card>
+
+            {/* ── AI Intelligence Insights ── */}
+            {insights && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+                  <Sparkles className="w-4 h-4" /> AI Intelligence Insights
+                </h3>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <MetricCard label="Total Conversations" value={insights.templebots.totalConversations.toLocaleString()} icon={<MessageSquare className="w-4 h-4" />} />
+                  <MetricCard label="This Week" value={insights.templebots.conversationsThisWeek.toLocaleString()} icon={<TrendingUp className="w-4 h-4" />} />
+                  <MetricCard label="Members" value={insights.members.total.toLocaleString()} icon={<Users className="w-4 h-4" />} />
+                  <MetricCard label="New Members (7d)" value={`+${insights.members.newThisWeek}`} icon={<Users className="w-4 h-4" />} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Top Query Categories */}
+                  <Card>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Top TempleBots Query Topics (30d)</h4>
+                    {insights.templebots.topQueryCategories.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-4 text-center">No conversation data yet — data appears as users chat with TempleBots.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {insights.templebots.topQueryCategories.map((cat, i) => {
+                          const max = insights.templebots.topQueryCategories[0]?.count ?? 1;
+                          const pct = Math.round((cat.count / max) * 100);
+                          const colors = ["bg-violet-500","bg-blue-500","bg-emerald-500","bg-amber-500","bg-red-400","bg-pink-400"];
+                          return (
+                            <div key={cat.category} className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="capitalize font-medium">{cat.category}</span>
+                                <span className="text-muted-foreground font-mono">{cat.count}</span>
+                              </div>
+                              <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Ministry Intelligence */}
+                  <div className="space-y-3">
+                    {/* Giving (30d) */}
+                    <Card>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Giving — Last 30 Days</h4>
+                      <div className="space-y-1.5">
+                        <ConfigRow label="Donations received" value={`${insights.giving.donationsLast30d}`} />
+                        <ConfigRow label="Last 7 days" value={`${insights.giving.donationsLast7d}`} />
+                        {insights.giving.totalNGN > 0 && <ConfigRow label="Total (NGN)" value={`₦${insights.giving.totalNGN.toLocaleString()}`} />}
+                        {insights.giving.totalUSD > 0 && <ConfigRow label="Total (USD)" value={`$${insights.giving.totalUSD.toLocaleString()}`} />}
+                        {insights.giving.topPurpose && <ConfigRow label="Top purpose" value={insights.giving.topPurpose} />}
+                      </div>
+                    </Card>
+
+                    {/* Knowledge Base Coverage */}
+                    <Card>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Knowledge Coverage</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Embedding coverage</span>
+                          <span className={`font-semibold ${insights.knowledgeBase.coveragePct >= 90 ? "text-emerald-400" : insights.knowledgeBase.coveragePct >= 70 ? "text-amber-400" : "text-red-400"}`}>
+                            {insights.knowledgeBase.coveragePct}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${insights.knowledgeBase.coveragePct >= 90 ? "bg-emerald-500" : insights.knowledgeBase.coveragePct >= 70 ? "bg-amber-500" : "bg-red-500"}`}
+                            style={{ width: `${insights.knowledgeBase.coveragePct}%` }}
+                          />
+                        </div>
+                        <ConfigRow label="Total chunks" value={`${insights.knowledgeBase.totalChunks}`} />
+                        <ConfigRow label="Embedded" value={`${insights.knowledgeBase.embeddedChunks}`} />
+                      </div>
+                      {insights.templebots.knowledgeGaps.length > 0 && (
+                        <div className="mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <p className="text-[11px] text-amber-400 font-semibold mb-1">Topics with low coverage:</p>
+                          <p className="text-[11px] text-muted-foreground capitalize">{insights.templebots.knowledgeGaps.join(", ")}</p>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Top Sermons */}
+                {insights.sermons.top5.length > 0 && (
+                  <Card>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Top Sermons by Views</h4>
+                    <div className="space-y-2">
+                      {insights.sermons.top5.map((s, i) => (
+                        <div key={s.videoId} className="flex items-center gap-3 text-xs">
+                          <span className="w-5 text-center font-bold text-muted-foreground shrink-0">#{i + 1}</span>
+                          <span className="flex-1 truncate font-medium">{s.title}</span>
+                          <span className="font-mono text-muted-foreground shrink-0">{s.viewCount?.toLocaleString() ?? "—"} views</span>
+                          <a
+                            href={`https://youtube.com/watch?v=${s.videoId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground shrink-0"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+              </div>
+            )}
 
             <p className="text-[11px] text-muted-foreground text-right">Last refreshed: {new Date(data.generatedAt).toLocaleTimeString("en-NG")}</p>
           </>

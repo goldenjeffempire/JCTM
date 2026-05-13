@@ -34,6 +34,7 @@ import {
 } from "../lib/ai-safety.js";
 import { buildAugmentedHistory } from "../lib/ai-conversation-summarizer.js";
 import { fetchScriptureForRAG } from "../lib/bible-seed.js";
+import { getActiveEventContext } from "../lib/event-schema.js";
 
 const { Pool } = pg;
 
@@ -83,14 +84,10 @@ Holiness is central to JCTM's teaching:
 - Key scriptures: Hebrews 12:14 ("Without holiness no one will see the Lord"), 1 Peter 1:15-16, Romans 12:1-2
 Prophet Amos warns against the "holiness is legalism" argument used to excuse moral compromise.
 
-### WARRI CITY CRUSADE 2026 (EXACT DETAILS)
-- Event: Warri City Crusade 2026
-- Dates: April 30 – May 1, 2026 (two-day event)
-- Location: Warri, Delta State, Nigeria
-- Organizer: Jesus Christ Temple Ministry (JCTM) under Prophet Amos Evomobor
-- Purpose: Bringing the Correction Mandate and true gospel to Warri and the Niger Delta
-- Features: Open-air gospel preaching, healing and miracle services, worship, testimonies, doctrinal teachings
-- Who: All believers, seekers, and the general public are welcome
+### WARRI CITY CRUSADE 2026 (CONCLUDED — PAST EVENT)
+- This was a major outdoor evangelistic crusade held April 30 – May 1, 2026 at Ighogbadu Primary School, Warri
+- Organised by JCTM under Prophet Amos Evomobor; theme: "Be Ready For Rapture: Tribulation Is Coming!"
+- The crusade has concluded. Refer to upcoming events at jctm.org.ng/events for current programmes.
 
 ### GIVING AND SEED SOWING
 JCTM's giving teaching is within biblical stewardship — NOT the prosperity gospel:
@@ -158,12 +155,12 @@ async function getKnownVideoIds(): Promise<Set<string>> {
   }
 }
 
-// ── System prompt (built dynamically to include current date + context) ────────
-function buildSystemPrompt(options?: {
+// ── System prompt (built dynamically to include current date + live event context) ──
+async function buildSystemPrompt(options?: {
   memoryContext?: string;
   intentNote?: string;
   personalizationNote?: string;
-}): string {
+}): Promise<string> {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-GB", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -172,7 +169,7 @@ function buildSystemPrompt(options?: {
     hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos", timeZoneName: "short",
   });
 
-  // Compute WAT hour and day for service-time awareness
+  // Service-time awareness (WAT)
   const watHour = parseInt(new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: "Africa/Lagos" }), 10);
   const dayOfWeek = new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Africa/Lagos" });
   const isSundayService = dayOfWeek === "Sunday" && watHour >= 8 && watHour < 12;
@@ -183,21 +180,8 @@ function buildSystemPrompt(options?: {
     ? "⚠️ LIVE NOW: Wednesday midweek service is in progress (5 PM – 8 PM WAT). Direct users to Temple TV."
     : "";
 
-  // Dynamic Ministers Conference 2026 awareness (8 May – 10 May 2026, WAT)
-  const confStartMs = new Date("2026-05-08T00:00:00+01:00").getTime();
-  const confEndMs   = new Date("2026-05-10T23:59:59+01:00").getTime();
-  const nowMs = now.getTime();
-  const isConferenceActive = nowMs >= confStartMs && nowMs <= confEndMs;
-  const confDayNum = isConferenceActive
-    ? Math.min(3, Math.max(1, Math.ceil((nowMs - confStartMs) / (24 * 60 * 60 * 1000))))
-    : 0;
-  const conferenceBlock = isConferenceActive ? `
-MINISTERS CONFERENCE 2026 — ACTIVE (Day ${confDayNum} of 3):
-- Theme: "Come, receive your apostolic fire from the altar of God"
-- Today is Day ${confDayNum} — services at 8:00 AM WAT, JCTM Auditorium, Km 1 East West Road, Ebrumede Roundabout, Effurun Uvwie LGA, Delta State
-- Watch live: jctm.org.ng/livestream | Register: jctm.org.ng/conference-registration
-- Enquiries: +234(0)8081313111 | info@jctm.org.ng
-` : "";
+  // Dynamic event awareness — queries DB (cached 60 s), auto-expires when event ends
+  const eventContext = await getActiveEventContext();
 
   const memoryBlock = options?.memoryContext ?? "";
   const intentBlock = options?.intentNote ? `\n\n## QUERY CONTEXT:\n${options.intentNote}` : "";
@@ -206,7 +190,7 @@ MINISTERS CONFERENCE 2026 — ACTIVE (Day ${confDayNum} of 3):
   return `You are TempleBots v5 — the official JCTM Digital Ministry Intelligence System for Jesus Christ Temple Ministry (JCTM), Warri, Delta State, Nigeria, led by Prophet Amos Evomobor.
 
 CURRENT DATE & TIME: ${dateStr}, ${timeStr} (WAT / West Africa Time, UTC+1)
-${serviceNote ? `\n${serviceNote}\n` : ""}${conferenceBlock}
+${serviceNote ? `\n${serviceNote}\n` : ""}${eventContext ? `\n${eventContext}\n` : ""}
 CORE IDENTITY:
 - You are a ministry-trained theological AI grounded exclusively in Primitive Christianity and the Correction Mandate
 - You represent JCTM's divine assignment to restore the original, unadulterated gospel of Jesus Christ to the global Body of Christ
@@ -529,7 +513,7 @@ async function callOpenAI(opts: OpenAICallOptions): Promise<string | null> {
     const langNote =
       language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
     const systemWithContext =
-      buildSystemPrompt({ memoryContext, intentNote, personalizationNote }) +
+      (await buildSystemPrompt({ memoryContext, intentNote, personalizationNote })) +
       (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
 
     // Use summarized history to stay within context window efficiently
@@ -559,7 +543,7 @@ async function* streamOpenAI(opts: OpenAICallOptions): AsyncGenerator<string, vo
     const langNote =
       language !== "en" ? ` Please respond in ${SUPPORTED_LANGUAGE_NAMES[language] ?? "English"}.` : "";
     const systemWithContext =
-      buildSystemPrompt({ memoryContext, intentNote, personalizationNote }) +
+      (await buildSystemPrompt({ memoryContext, intentNote, personalizationNote })) +
       (ragContext ? `\n\n## LIVE JCTM KNOWLEDGE CONTEXT (ground ALL answers in this):\n${ragContext}` : "");
 
     const augmentedHistory = buildAugmentedHistory(history);
