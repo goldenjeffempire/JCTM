@@ -1479,5 +1479,23 @@ export async function runMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_gallery_featured ON gallery_images (is_featured, is_published)
   `);
 
+  // ── conversations: admin review columns ────────────────────────────────────
+  await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS flagged boolean NOT NULL DEFAULT false`);
+  await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS flag_reason text`);
+  await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS ai_tier text`);
+  await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_count integer NOT NULL DEFAULT 0`);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations (created_at DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_conversations_flagged ON conversations (flagged, created_at DESC) WHERE flagged = true
+  `);
+  // Backfill message_count for existing rows (idempotent — SET to actual count each run on first deploy)
+  await pool.query(`
+    UPDATE conversations c
+    SET message_count = (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id)
+    WHERE message_count = 0
+  `);
+
   logger.info("All migrations complete");
 }

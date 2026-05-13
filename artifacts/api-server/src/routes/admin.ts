@@ -1901,6 +1901,120 @@ router.delete(
   },
 );
 
+// ── Conversation Replay — list ────────────────────────────────────────────────
+router.get(
+  "/admin/conversations",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
+    const limit = Math.min(50, Math.max(5, parseInt(String(req.query.limit ?? "20"), 10)));
+    const flaggedOnly = req.query.flagged === "true";
+    const offset = (page - 1) * limit;
+
+    try {
+      const whereClause = flaggedOnly ? "WHERE c.flagged = true" : "";
+      const { rows } = await pool.query<{
+        id: number; title: string; created_at: string; message_count: number;
+        flagged: boolean; flag_reason: string | null; ai_tier: string | null;
+        last_message_at: string | null; avg_rating: number | null;
+      }>(`
+        SELECT
+          c.id,
+          c.title,
+          c.created_at,
+          c.message_count,
+          c.flagged,
+          c.flag_reason,
+          c.ai_tier,
+          MAX(m.created_at)::text        AS last_message_at,
+          ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
+        FROM conversations c
+        LEFT JOIN messages m ON m.conversation_id = c.id
+        LEFT JOIN ai_feedback f ON f.session_id = c.id::text
+        ${whereClause}
+        GROUP BY c.id
+        ORDER BY c.created_at DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
+
+      const totalRow = await pool.query<{ count: string }>(
+        flaggedOnly
+          ? "SELECT COUNT(*)::text AS count FROM conversations WHERE flagged = true"
+          : "SELECT COUNT(*)::text AS count FROM conversations",
+      );
+
+      res.json({
+        conversations: rows,
+        total: parseInt(totalRow.rows[0]?.count ?? "0", 10),
+        page,
+        limit,
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: list conversations failed");
+      res.status(500).json({ error: "Failed to list conversations" });
+    }
+  },
+);
+
+// ── Conversation Replay — single thread ───────────────────────────────────────
+router.get(
+  "/admin/conversations/:id",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id!, 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid conversation id" }); return; }
+
+    try {
+      const [convRow, msgRows, feedbackRows] = await Promise.all([
+        pool.query<{ id: number; title: string; created_at: string; flagged: boolean; flag_reason: string | null; ai_tier: string | null }>(
+          "SELECT id, title, created_at, flagged, flag_reason, ai_tier FROM conversations WHERE id = $1", [id],
+        ),
+        pool.query<{ id: number; role: string; content: string; created_at: string }>(
+          "SELECT id, role, content, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC", [id],
+        ),
+        pool.query<{ model_tier: string; latency_ms: number | null; confidence_score: number | null; rating: number | null; was_helpful: number | null; feedback_text: string | null; created_at: string }>(
+          "SELECT model_tier, latency_ms, confidence_score, rating, was_helpful, feedback_text, created_at FROM ai_feedback WHERE session_id = $1 ORDER BY created_at ASC", [id.toString()],
+        ),
+      ]);
+
+      if (!convRow.rows[0]) { res.status(404).json({ error: "Conversation not found" }); return; }
+
+      res.json({
+        conversation: convRow.rows[0],
+        messages: msgRows.rows,
+        feedback: feedbackRows.rows,
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: get conversation failed");
+      res.status(500).json({ error: "Failed to get conversation" });
+    }
+  },
+);
+
+// ── Conversation Replay — flag / unflag ───────────────────────────────────────
+router.patch(
+  "/admin/conversations/:id/flag",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id!, 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid conversation id" }); return; }
+    const { flagged, reason } = req.body as { flagged: boolean; reason?: string };
+
+    try {
+      const { rowCount } = await pool.query(
+        `UPDATE conversations SET flagged = $1, flag_reason = $2 WHERE id = $3`,
+        [Boolean(flagged), reason ?? null, id],
+      );
+      if (!rowCount || rowCount === 0) { res.status(404).json({ error: "Conversation not found" }); return; }
+      logger.info({ id, flagged }, "Admin: conversation flag toggled");
+      res.json({ ok: true, id, flagged });
+    } catch (err) {
+      logger.error({ err }, "Admin: flag conversation failed");
+      res.status(500).json({ error: "Failed to update flag" });
+    }
+  },
+);
+
 // ── AI Intelligence Insights ──────────────────────────────────────────────────
 // Aggregates TempleBots performance, knowledge health, giving trends, and
 // sermon engagement into a single admin intelligence dashboard endpoint.

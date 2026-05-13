@@ -5855,6 +5855,245 @@ function AdSenseDiagnosticsSection({ auth }: { auth: AdminAuth }) {
   );
 }
 
+interface ConvListItem {
+  id: number; title: string; created_at: string; message_count: number;
+  flagged: boolean; flag_reason: string | null; ai_tier: string | null;
+  last_message_at: string | null; avg_rating: number | null;
+}
+interface ConvListResponse { conversations: ConvListItem[]; total: number; page: number; limit: number }
+interface ConvMessage { id: number; role: string; content: string; created_at: string }
+interface ConvFeedback { model_tier: string; latency_ms: number | null; rating: number | null; was_helpful: number | null; feedback_text: string | null }
+interface ConvThread { conversation: ConvListItem; messages: ConvMessage[]; feedback: ConvFeedback[] }
+
+function ConversationReplayPanel({ auth }: { auth: AdminAuth }) {
+  const qc = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const { data: listData, isLoading } = useQuery<ConvListResponse>({
+    queryKey: ["admin-conversations", page, flaggedOnly],
+    queryFn: async () => {
+      const url = `${BASE}/api/admin/conversations?page=${page}&limit=20${flaggedOnly ? "&flagged=true" : ""}`;
+      const r = await fetch(url, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load conversations");
+      return r.json();
+    },
+    staleTime: 30_000,
+    enabled: auth.isAdmin,
+  });
+
+  const { data: thread, isLoading: threadLoading } = useQuery<ConvThread>({
+    queryKey: ["admin-conversation", expandedId],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/conversations/${expandedId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load thread");
+      return r.json();
+    },
+    enabled: expandedId !== null && auth.isAdmin,
+    staleTime: 60_000,
+  });
+
+  const flagMutation = useMutation({
+    mutationFn: async ({ id, flagged, reason }: { id: number; flagged: boolean; reason?: string }) => {
+      const r = await fetch(`${BASE}/api/admin/conversations/${id}/flag`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flagged, reason }),
+      });
+      if (!r.ok) throw new Error("Failed to update flag");
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-conversations"] });
+      qc.invalidateQueries({ queryKey: ["admin-conversation", expandedId] });
+      toast.success("Conversation updated");
+    },
+    onError: () => toast.error("Failed to update flag"),
+  });
+
+  const tierColor: Record<string, string> = {
+    local: "text-violet-400 border-violet-500/30 bg-violet-500/10",
+    rag: "text-blue-400 border-blue-500/30 bg-blue-500/10",
+    "local-enhanced": "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  };
+  const tierLabel: Record<string, string> = {
+    local: "Local", rag: "RAG", "local-enhanced": "Enhanced",
+  };
+
+  const totalPages = listData ? Math.ceil(listData.total / listData.limit) : 1;
+
+  if (!auth.isAdmin) return null;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-primary" /> Conversation Replay
+          {listData && <span className="text-xs text-muted-foreground font-normal">({listData.total.toLocaleString()} total)</span>}
+        </h3>
+        <button
+          onClick={() => setFlaggedOnly(v => !v)}
+          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${flaggedOnly ? "bg-red-500/15 border-red-500/30 text-red-400" : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"}`}
+        >
+          {flaggedOnly ? "Flagged only" : "All sessions"}
+        </button>
+      </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-muted-foreground text-xs py-6 justify-center">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading conversations…
+        </div>
+      )}
+
+      {listData && listData.conversations.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-6">
+          {flaggedOnly ? "No flagged conversations." : "No conversation sessions yet — data appears as users chat with TempleBots."}
+        </p>
+      )}
+
+      {listData && listData.conversations.length > 0 && (
+        <div className="space-y-1">
+          {listData.conversations.map(conv => {
+            const isOpen = expandedId === conv.id;
+            const relDate = new Date(conv.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+            return (
+              <div key={conv.id} className={`rounded-lg border transition-colors ${isOpen ? "border-primary/30 bg-primary/5" : "border-border/50 hover:border-border"}`}>
+                {/* Row header */}
+                <button
+                  onClick={() => setExpandedId(isOpen ? null : conv.id)}
+                  className="w-full flex items-center gap-3 p-3 text-left"
+                >
+                  <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                  <span className="flex-1 text-xs font-medium truncate">{conv.title || "Untitled session"}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {conv.ai_tier && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${tierColor[conv.ai_tier] ?? "text-zinc-400 border-zinc-500/30 bg-zinc-500/10"}`}>
+                        {tierLabel[conv.ai_tier] ?? conv.ai_tier}
+                      </span>
+                    )}
+                    {conv.flagged && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border bg-red-500/10 border-red-500/30 text-red-400 font-medium">Flagged</span>
+                    )}
+                    {conv.avg_rating != null && (
+                      <span className={`text-[10px] font-mono font-semibold ${conv.avg_rating >= 4 ? "text-emerald-400" : conv.avg_rating >= 3 ? "text-amber-400" : "text-red-400"}`}>
+                        ★{conv.avg_rating}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground font-mono">{conv.message_count}msg</span>
+                    <span className="text-[10px] text-muted-foreground">{relDate}</span>
+                  </div>
+                </button>
+
+                {/* Expanded thread */}
+                {isOpen && (
+                  <div className="px-3 pb-3 space-y-3 border-t border-border/50 pt-3">
+                    {threadLoading && (
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs py-4 justify-center">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Loading thread…
+                      </div>
+                    )}
+
+                    {thread && thread.conversation.id === conv.id && (
+                      <>
+                        {/* Meta bar */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {thread.feedback[0] && (
+                            <>
+                              <span className="text-[10px] text-muted-foreground">
+                                Tier: <span className="font-semibold text-foreground">{thread.feedback[0].model_tier}</span>
+                              </span>
+                              {thread.feedback[0].latency_ms != null && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  Latency: <span className="font-mono font-semibold text-foreground">{thread.feedback[0].latency_ms}ms</span>
+                                </span>
+                              )}
+                              {thread.feedback[0].rating != null && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  Rating: <span className={`font-semibold ${thread.feedback[0].rating >= 4 ? "text-emerald-400" : thread.feedback[0].rating >= 3 ? "text-amber-400" : "text-red-400"}`}>
+                                    {thread.feedback[0].rating}/5
+                                  </span>
+                                </span>
+                              )}
+                              {thread.feedback[0].feedback_text && (
+                                <span className="text-[10px] text-amber-400 italic">"{thread.feedback[0].feedback_text}"</span>
+                              )}
+                            </>
+                          )}
+                          <div className="ml-auto flex items-center gap-2">
+                            <button
+                              onClick={() => flagMutation.mutate({ id: conv.id, flagged: !conv.flagged, reason: conv.flagged ? undefined : "Flagged for review" })}
+                              disabled={flagMutation.isPending}
+                              className={`text-[10px] px-2 py-1 rounded border transition-colors disabled:opacity-50 ${conv.flagged
+                                ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                                : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"}`}
+                            >
+                              {conv.flagged ? "Unflag" : "Flag for review"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Chat bubbles */}
+                        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                          {thread.messages.map(msg => (
+                            <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                              {msg.role !== "user" && (
+                                <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                                  <Bot className="w-2.5 h-2.5 text-violet-400" />
+                                </div>
+                              )}
+                              <div className={`max-w-[80%] rounded-xl px-3 py-2 text-[11px] leading-relaxed ${msg.role === "user"
+                                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                : "bg-muted/60 border border-border/50 text-foreground rounded-tl-sm"}`}
+                              >
+                                {msg.content}
+                              </div>
+                              {msg.role === "user" && (
+                                <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center shrink-0 mt-0.5">
+                                  <Users className="w-2.5 h-2.5 text-zinc-300" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {thread.messages.length === 0 && (
+                            <p className="text-xs text-muted-foreground text-center py-2">No messages stored for this session.</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 interface AIInsightsData {
   templebots: {
     totalConversations: number;
@@ -6258,6 +6497,9 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
                 )}
               </div>
             )}
+
+            {/* ── Conversation Replay ── */}
+            <ConversationReplayPanel auth={auth} />
 
             <p className="text-[11px] text-muted-foreground text-right">Last refreshed: {new Date(data.generatedAt).toLocaleTimeString("en-NG")}</p>
           </>
