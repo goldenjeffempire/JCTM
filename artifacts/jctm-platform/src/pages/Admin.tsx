@@ -6446,6 +6446,312 @@ function TempleBotsTestPanel({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── Feedback Drill-Down Panel ────────────────────────────────────────────────
+
+interface FeedbackRecord {
+  id: number; rating: number | null; helpful: boolean | null;
+  user_query: string | null; ai_response: string | null;
+  feedback_text: string | null; comment: string | null;
+  model_tier: string | null; latency_ms: number | null;
+  confidence_score: number | null; category: string | null;
+  session_id: string | null; conv_title: string | null;
+  created_at: string;
+}
+interface CategoryRow { category: string; count: string; avg_rating: string }
+interface TierRow { tier: string; count: string; avg_rating: string }
+interface LowRatedResponse {
+  total: number; page: number; limit: number; ratingCutoff: number;
+  categoryBreakdown: CategoryRow[];
+  tierBreakdown: TierRow[];
+  records: FeedbackRecord[];
+  generatedAt: string;
+}
+
+const TIER_COLORS: Record<string, string> = {
+  openai: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  local:  "text-blue-400  bg-blue-500/10  border-blue-500/20",
+  rag:    "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  unknown:"text-muted-foreground bg-muted/40 border-border",
+};
+
+function StarRating({ rating }: { rating: number | null }) {
+  if (rating === null) return <span className="text-[10px] text-muted-foreground">no rating</span>;
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(s => (
+        <span key={s} className={`text-[11px] ${s <= rating ? "text-amber-400" : "text-muted-foreground/30"}`}>★</span>
+      ))}
+    </span>
+  );
+}
+
+function FeedbackDrilldownPanel({ auth }: { auth: AdminAuth }) {
+  const [page, setPage] = useState(1);
+  const [cutoff, setCutoff] = useState(2);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const toggle = (id: number) =>
+    setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const { data, isLoading, refetch } = useQuery<LowRatedResponse>({
+    queryKey: ["admin-low-rated", page, cutoff],
+    queryFn: async () => {
+      const r = await fetch(
+        `${BASE}/api/admin/templebots/low-rated?page=${page}&limit=15&rating=${cutoff}`,
+        { credentials: "include" },
+      );
+      if (!r.ok) throw new Error("Failed to load feedback");
+      return r.json();
+    },
+    staleTime: 60_000,
+    enabled: auth.isAdmin,
+  });
+
+  if (!auth.isAdmin) return null;
+
+  const totalPages = data ? Math.ceil(data.total / data.limit) : 1;
+  const hasData = (data?.total ?? 0) > 0;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+        <TrendingUp className="w-4 h-4" /> Low-Rated Response Drill-Down
+      </h3>
+
+      {/* Controls */}
+      <Card>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <label className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">Show ratings ≤</label>
+            <select
+              value={cutoff}
+              onChange={e => { setCutoff(Number(e.target.value)); setPage(1); }}
+              className="text-xs bg-muted/30 border border-border rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:border-primary/50"
+            >
+              {[1,2,3].map(n => <option key={n} value={n}>{n} star{n !== 1 ? "s" : ""}</option>)}
+            </select>
+            {data && (
+              <span className="text-[11px] text-muted-foreground">
+                <strong className={hasData ? "text-red-400" : "text-emerald-400"}>{data.total}</strong> record{data.total !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <button onClick={() => refetch()} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
+      </Card>
+
+      {/* Empty / healthy state */}
+      {!isLoading && data && !hasData && (
+        <Card className="border-emerald-500/20 bg-emerald-500/5">
+          <div className="flex items-center gap-3 py-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">No low-rated responses found</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                All TempleBots feedback with a rating ≤ {cutoff} star{cutoff !== 1 ? "s" : ""} will appear here. Keep monitoring as usage grows.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {isLoading && (
+        <Card>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-6 justify-center">
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading feedback…
+          </div>
+        </Card>
+      )}
+
+      {/* Breakdown charts */}
+      {hasData && data && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Category breakdown */}
+          <Card>
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">By topic category</h4>
+            {data.categoryBreakdown.length === 0
+              ? <p className="text-[11px] text-muted-foreground">No category data</p>
+              : (
+                <div className="space-y-2">
+                  {data.categoryBreakdown.map(row => {
+                    const pct = Math.round((parseInt(row.count) / data.total) * 100);
+                    return (
+                      <div key={row.category}>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[11px] font-mono text-foreground truncate">{row.category}</span>
+                          <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
+                            {row.count} · avg {parseFloat(row.avg_rating).toFixed(1)}★
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                          <div className="h-full rounded-full bg-red-400/70 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            }
+          </Card>
+
+          {/* Tier breakdown */}
+          <Card>
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">By AI tier</h4>
+            {data.tierBreakdown.length === 0
+              ? <p className="text-[11px] text-muted-foreground">No tier data</p>
+              : (
+                <div className="space-y-2">
+                  {data.tierBreakdown.map(row => {
+                    const tierKey = (row.tier ?? "unknown").toLowerCase();
+                    const color = TIER_COLORS[tierKey] ?? TIER_COLORS.unknown;
+                    return (
+                      <div key={row.tier} className="flex items-center gap-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded border font-medium shrink-0 ${color}`}>
+                          {row.tier ?? "unknown"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[11px] text-foreground">{row.count} low-rated</span>
+                            <span className="text-[10px] text-muted-foreground">avg {parseFloat(row.avg_rating).toFixed(1)}★</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-red-400/70 transition-all"
+                              style={{ width: `${Math.round((parseInt(row.count) / data.total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            }
+          </Card>
+        </div>
+      )}
+
+      {/* Individual records */}
+      {hasData && data && (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Individual records</h4>
+            <span className="text-[11px] text-muted-foreground">Page {page} of {totalPages}</span>
+          </div>
+
+          <div className="space-y-2">
+            {data.records.map(rec => {
+              const isExpanded = expandedIds.has(rec.id);
+              const tierKey = (rec.model_tier ?? "unknown").toLowerCase();
+              const tierColor = TIER_COLORS[tierKey] ?? TIER_COLORS.unknown;
+
+              return (
+                <div key={rec.id} className="rounded-lg border border-border/60 hover:border-border transition-colors">
+                  <button
+                    onClick={() => toggle(rec.id)}
+                    className="w-full text-left p-3 flex items-start gap-3"
+                  >
+                    {/* Rating */}
+                    <div className="shrink-0 pt-0.5">
+                      <StarRating rating={rec.rating} />
+                      {rec.helpful === false && rec.rating === null && (
+                        <span className="text-[10px] text-red-400 mt-0.5 block">👎 not helpful</span>
+                      )}
+                    </div>
+
+                    {/* Main info */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${tierColor}`}>
+                          {rec.model_tier ?? "unknown"}
+                        </span>
+                        {rec.category && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 border border-border text-muted-foreground shrink-0">
+                            {rec.category}
+                          </span>
+                        )}
+                        {rec.latency_ms && (
+                          <span className="text-[10px] text-muted-foreground font-mono shrink-0">{rec.latency_ms}ms</span>
+                        )}
+                        {rec.confidence_score !== null && (
+                          <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                            conf {(rec.confidence_score * 100).toFixed(0)}%
+                          </span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                          {new Date(rec.created_at).toLocaleDateString("en-NG", { day:"numeric", month:"short", year:"numeric" })}
+                        </span>
+                      </div>
+
+                      {rec.user_query && (
+                        <p className="text-[11px] text-foreground font-medium line-clamp-1">"{rec.user_query}"</p>
+                      )}
+                      {rec.feedback_text || rec.comment ? (
+                        <p className="text-[11px] text-amber-400/80 italic line-clamp-1">
+                          User note: "{rec.feedback_text ?? rec.comment}"
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-3 pb-3 border-t border-border/30 space-y-3 pt-3">
+                      {rec.user_query && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">User asked</p>
+                          <p className="text-[11px] text-foreground leading-relaxed bg-muted/20 rounded-lg p-2">{rec.user_query}</p>
+                        </div>
+                      )}
+                      {rec.ai_response && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">TempleBots responded</p>
+                          <p className="text-[11px] text-foreground leading-relaxed bg-muted/20 rounded-lg p-2 line-clamp-6 whitespace-pre-wrap">{rec.ai_response}</p>
+                        </div>
+                      )}
+                      {(rec.feedback_text || rec.comment) && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">User feedback</p>
+                          <p className="text-[11px] text-amber-400 leading-relaxed italic">{rec.feedback_text ?? rec.comment}</p>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 pt-1 flex-wrap">
+                        {rec.session_id && (
+                          <span className="text-[10px] font-mono text-muted-foreground">Session: {rec.session_id}</span>
+                        )}
+                        {rec.conv_title && (
+                          <span className="text-[10px] text-muted-foreground truncate">Convo: {rec.conv_title}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/50">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-40">
+                Previous
+              </button>
+              <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-40">
+                Next
+              </button>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
 interface ConvListItem {
   id: number; title: string; created_at: string; message_count: number;
   flagged: boolean; flag_reason: string | null; ai_tier: string | null;
@@ -7094,6 +7400,9 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
 
             {/* ── TempleBots Retrieval Inspector ── */}
             <TempleBotsTestPanel auth={auth} />
+
+            {/* ── Low-Rated Feedback Drill-Down ── */}
+            <FeedbackDrilldownPanel auth={auth} />
 
             {/* ── Conversation Replay ── */}
             <ConversationReplayPanel auth={auth} />

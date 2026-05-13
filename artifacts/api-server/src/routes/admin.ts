@@ -2307,6 +2307,112 @@ router.post(
   },
 );
 
+// ── TempleBots: Low-Rated Feedback Drill-Down ─────────────────────────────────
+// Returns all feedback records rated ≤ 2 stars or marked not-helpful, joined
+// with conversation metadata. Also returns category and tier breakdowns so the
+// admin can see which topic clusters are producing poor answers.
+router.get(
+  "/admin/templebots/low-rated",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const page  = Math.max(1, parseInt(String(req.query.page  ?? "1"),  10));
+    const limit = Math.min(50, Math.max(5, parseInt(String(req.query.limit ?? "20"), 10)));
+    const offset = (page - 1) * limit;
+    const ratingCutoff = parseInt(String(req.query.rating ?? "2"), 10);
+
+    try {
+      // ── Category / tier breakdown (all time, no pagination) ───────────────
+      const [categoryBreakdown, tierBreakdown, totalRow, records] = await Promise.all([
+        pool.query<{ category: string | null; count: string; avg_rating: string }>(`
+          SELECT
+            COALESCE(category, 'uncategorised') AS category,
+            COUNT(*)::text AS count,
+            ROUND(AVG(rating)::numeric, 2)::text AS avg_rating
+          FROM ai_feedback
+          WHERE rating IS NOT NULL AND rating <= $1
+          GROUP BY category
+          ORDER BY COUNT(*) DESC
+          LIMIT 15
+        `, [ratingCutoff]),
+
+        pool.query<{ tier: string | null; count: string; avg_rating: string }>(`
+          SELECT
+            COALESCE(model_tier, tier, 'unknown') AS tier,
+            COUNT(*)::text AS count,
+            ROUND(AVG(rating)::numeric, 2)::text AS avg_rating
+          FROM ai_feedback
+          WHERE rating IS NOT NULL AND rating <= $1
+          GROUP BY COALESCE(model_tier, tier, 'unknown')
+          ORDER BY COUNT(*) DESC
+        `, [ratingCutoff]),
+
+        pool.query<{ count: string }>(`
+          SELECT COUNT(*)::text AS count
+          FROM ai_feedback
+          WHERE (rating IS NOT NULL AND rating <= $1) OR helpful = false
+        `, [ratingCutoff]),
+
+        pool.query<{
+          id: number;
+          rating: number | null;
+          helpful: boolean | null;
+          user_query: string | null;
+          ai_response: string | null;
+          feedback_text: string | null;
+          comment: string | null;
+          model_tier: string | null;
+          tier: string | null;
+          latency_ms: number | null;
+          confidence_score: number | null;
+          category: string | null;
+          session_id: string | null;
+          conversation_id: string | null;
+          message_id: number | null;
+          conv_title: string | null;
+          created_at: string;
+        }>(`
+          SELECT
+            f.id,
+            f.rating,
+            f.helpful,
+            COALESCE(f.user_query, f.query)                AS user_query,
+            COALESCE(f.ai_response, f.response_snippet)    AS ai_response,
+            f.feedback_text,
+            f.comment,
+            COALESCE(f.model_tier, f.tier)                 AS model_tier,
+            f.tier,
+            f.latency_ms,
+            f.confidence_score,
+            f.category,
+            f.session_id,
+            f.conversation_id,
+            f.message_id,
+            c.title                                        AS conv_title,
+            f.created_at
+          FROM ai_feedback f
+          LEFT JOIN conversations c ON c.id::text = f.session_id
+          WHERE (f.rating IS NOT NULL AND f.rating <= $1) OR f.helpful = false
+          ORDER BY f.created_at DESC
+          LIMIT $2 OFFSET $3
+        `, [ratingCutoff, limit, offset]),
+      ]);
+
+      res.json({
+        total:             parseInt(totalRow.rows[0]?.count ?? "0", 10),
+        page, limit,
+        ratingCutoff,
+        categoryBreakdown: categoryBreakdown.rows,
+        tierBreakdown:     tierBreakdown.rows,
+        records:           records.rows,
+        generatedAt:       new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: low-rated feedback query failed");
+      res.status(500).json({ error: "Failed to load low-rated feedback" });
+    }
+  },
+);
+
 // ── Conversation Replay — list ────────────────────────────────────────────────
 router.get(
   "/admin/conversations",
