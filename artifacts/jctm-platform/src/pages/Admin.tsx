@@ -5855,6 +5855,274 @@ function AdSenseDiagnosticsSection({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── Knowledge Gap-Fill Panel ─────────────────────────────────────────────────
+
+interface GapItem { topic: string; starter: string; matchScore: number; alreadyCovered: boolean }
+interface GapAnalysis {
+  gaps: GapItem[];
+  existingChunkCount: number;
+  typeBreakdown: Record<string, number>;
+  generatedAt: string;
+}
+interface ChunkItem {
+  id: number; source: string; chunk_type: string; content: string;
+  has_embedding: boolean; created_at: string;
+}
+interface ChunkListResponse { chunks: ChunkItem[]; total: number; page: number; limit: number }
+
+const CHUNK_TYPES = ["general","doctrine","faq","event","testimony","teaching"] as const;
+
+function KnowledgeGapFillPanel({ auth }: { auth: AdminAuth }) {
+  const qc = useQueryClient();
+  const [source, setSource] = useState("");
+  const [content, setContent] = useState("");
+  const [chunkType, setChunkType] = useState<string>("general");
+  const [chunkPage, setChunkPage] = useState(1);
+  const [showChunks, setShowChunks] = useState(false);
+
+  const { data: gaps, isLoading: gapsLoading, refetch: refetchGaps } = useQuery<GapAnalysis>({
+    queryKey: ["admin-knowledge-gaps"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/knowledge-gaps`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load gaps");
+      return r.json();
+    },
+    staleTime: 120_000,
+    enabled: auth.isAdmin,
+  });
+
+  const { data: chunks, isLoading: chunksLoading } = useQuery<ChunkListResponse>({
+    queryKey: ["admin-knowledge-chunks", chunkPage],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/knowledge-chunks?page=${chunkPage}&limit=15`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load chunks");
+      return r.json();
+    },
+    staleTime: 30_000,
+    enabled: auth.isAdmin && showChunks,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (body: { source: string; content: string; chunk_type: string }) => {
+      const r = await fetch(`${BASE}/api/admin/knowledge-chunks`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Failed to publish"); }
+      return r.json();
+    },
+    onSuccess: (data) => {
+      toast.success(`Chunk "${data.chunk?.source}" published${data.embeddingGenerated ? " with embedding" : " (no embedding)"}`);
+      setSource(""); setContent(""); setChunkType("general");
+      qc.invalidateQueries({ queryKey: ["admin-knowledge-chunks"] });
+      qc.invalidateQueries({ queryKey: ["admin-knowledge-gaps"] });
+      refetchGaps();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`${BASE}/api/admin/knowledge-chunks/${id}`, { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error("Failed to delete");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast.success("Chunk deleted");
+      qc.invalidateQueries({ queryKey: ["admin-knowledge-chunks"] });
+    },
+    onError: () => toast.error("Failed to delete chunk"),
+  });
+
+  const fillFromGap = (gap: GapItem) => {
+    setSource(gap.topic);
+    setContent(gap.starter);
+    setChunkType("doctrine");
+  };
+
+  if (!auth.isAdmin) return null;
+
+  const totalChunkPages = chunks ? Math.ceil(chunks.total / chunks.limit) : 1;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+        <BookOpen className="w-4 h-4" /> Knowledge Gap-Fill
+      </h3>
+
+      {/* Gap Analysis */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Detected Knowledge Gaps (30-day user queries)
+          </h4>
+          <button onClick={() => refetchGaps()} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+        </div>
+
+        {gapsLoading && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+            <Loader2 className="w-3 h-3 animate-spin" /> Analysing gaps…
+          </div>
+        )}
+
+        {gaps && (
+          <div className="space-y-2">
+            {gaps.gaps.map(gap => (
+              <div key={gap.topic} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${gap.alreadyCovered ? "border-emerald-500/20 bg-emerald-500/5 opacity-60" : "border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40"}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono font-medium">{gap.topic}</span>
+                    {gap.alreadyCovered
+                      ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Covered</span>
+                      : <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">Gap</span>
+                    }
+                    {gap.matchScore > 0 && (
+                      <span className="text-[10px] text-muted-foreground font-mono">{gap.matchScore} user queries</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{gap.starter.slice(0, 100)}…</p>
+                </div>
+                {!gap.alreadyCovered && (
+                  <button
+                    onClick={() => fillFromGap(gap)}
+                    className="shrink-0 text-[11px] px-2.5 py-1.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors font-medium"
+                  >
+                    Fill gap
+                  </button>
+                )}
+              </div>
+            ))}
+            {gaps.gaps.every(g => g.alreadyCovered) && (
+              <p className="text-xs text-emerald-400 text-center py-2">All detected topics are covered — great knowledge base health!</p>
+            )}
+            <div className="pt-2 flex items-center gap-3 text-[11px] text-muted-foreground border-t border-border/50">
+              <span>Total chunks: <strong className="text-foreground">{gaps.existingChunkCount}</strong></span>
+              {Object.entries(gaps.typeBreakdown).map(([type, cnt]) => (
+                <span key={type}>{type}: <strong className="text-foreground">{cnt}</strong></span>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Publish Form */}
+      <Card>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Publish New Knowledge Chunk</h4>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground font-medium">Source slug</label>
+              <input
+                value={source}
+                onChange={e => setSource(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                placeholder="e.g. prayer-fasting-guide"
+                className="w-full text-xs bg-muted/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground font-medium">Type</label>
+              <select
+                value={chunkType}
+                onChange={e => setChunkType(e.target.value)}
+                className="w-full text-xs bg-muted/30 border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
+              >
+                {CHUNK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between">
+              <label className="text-[11px] text-muted-foreground font-medium">Content</label>
+              <span className={`text-[11px] font-mono ${content.length > 7000 ? "text-red-400" : content.length > 5000 ? "text-amber-400" : "text-muted-foreground"}`}>
+                {content.length}/8000
+              </span>
+            </div>
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              rows={6}
+              placeholder="Write the knowledge content here. Be specific — include scripture references, practical details, and JCTM-specific information. The AI will use this verbatim when answering questions."
+              className="w-full text-xs bg-muted/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-y leading-relaxed"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">
+              Content will be embedded locally and made immediately available to TempleBots.
+            </p>
+            <button
+              onClick={() => createMutation.mutate({ source, content, chunk_type: chunkType })}
+              disabled={createMutation.isPending || source.length < 2 || content.length < 20}
+              className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors font-medium"
+            >
+              {createMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              {createMutation.isPending ? "Publishing…" : "Publish chunk"}
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Existing Chunks Browser */}
+      <Card>
+        <button
+          onClick={() => setShowChunks(v => !v)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Database className="w-3.5 h-3.5" /> All Knowledge Chunks
+            {chunks && <span className="font-normal normal-case">({chunks.total.toLocaleString()} total)</span>}
+          </h4>
+          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showChunks ? "rotate-90" : ""}`} />
+        </button>
+
+        {showChunks && (
+          <div className="mt-4 space-y-2">
+            {chunksLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+                <Loader2 className="w-3 h-3 animate-spin" /> Loading chunks…
+              </div>
+            )}
+            {chunks?.chunks.map(chunk => (
+              <div key={chunk.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-border group">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-[11px] font-mono font-medium text-foreground">{chunk.source}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 border border-border text-muted-foreground">{chunk.chunk_type}</span>
+                    {chunk.has_embedding
+                      ? <span className="text-[10px] text-emerald-400">✓ embedded</span>
+                      : <span className="text-[10px] text-amber-400">no vector</span>
+                    }
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{chunk.content}</p>
+                </div>
+                <button
+                  onClick={() => { if (confirm(`Delete chunk "${chunk.source}"?`)) deleteMutation.mutate(chunk.id); }}
+                  disabled={deleteMutation.isPending}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 transition-all disabled:opacity-30"
+                  title="Delete chunk"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            {totalChunkPages > 1 && (
+              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <button onClick={() => setChunkPage(p => Math.max(1, p - 1))} disabled={chunkPage <= 1} className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-40">Previous</button>
+                <span className="text-xs text-muted-foreground">Page {chunkPage} of {totalChunkPages}</span>
+                <button onClick={() => setChunkPage(p => Math.min(totalChunkPages, p + 1))} disabled={chunkPage >= totalChunkPages} className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-40">Next</button>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 interface ConvListItem {
   id: number; title: string; created_at: string; message_count: number;
   flagged: boolean; flag_reason: string | null; ai_tier: string | null;
@@ -6497,6 +6765,9 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
                 )}
               </div>
             )}
+
+            {/* ── Knowledge Gap-Fill ── */}
+            <KnowledgeGapFillPanel auth={auth} />
 
             {/* ── Conversation Replay ── */}
             <ConversationReplayPanel auth={auth} />

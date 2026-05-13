@@ -29,6 +29,7 @@ import {
   type NotificationPayload,
 } from "../lib/push-manager.js";
 import webpush from "web-push";
+import { embed } from "../lib/local-embeddings.js";
 
 // Statuses that mean the subscription itself is permanently dead. Mirrors
 // PERMANENT_FAILURE_STATUSES inside push-manager so the admin test endpoint
@@ -1897,6 +1898,233 @@ router.delete(
     } catch (err) {
       logger.error({ err }, "Admin: failed to unblock IP");
       res.status(500).json({ error: "Failed to unblock IP address." });
+    }
+  },
+);
+
+// ── Knowledge Gap-Fill: Gap Analysis ─────────────────────────────────────────
+// Compares recent user message topics to existing chunk coverage and surfaces
+// topics that are frequently asked but have thin or missing knowledge chunks.
+router.get(
+  "/admin/knowledge-gaps",
+  requireAdminRole("sermon"),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const [messageWords, chunkSources, chunkTypeCounts] = await Promise.all([
+        pool.query<{ word: string; count: string }>(`
+          SELECT word, COUNT(*) as count
+          FROM (
+            SELECT regexp_split_to_table(lower(content), '\\s+') as word
+            FROM messages
+            WHERE role = 'user'
+              AND created_at > NOW() - INTERVAL '30 days'
+              AND length(content) > 3
+          ) words
+          WHERE length(word) > 4
+            AND word NOT IN ('what','when','where','which','while','would','could','should','there','their','about','after','before','being','every','those','these','through','within','without','because','between','though','under','still','since','other','first','some','have','that','with','this','from','they','will','your','more','into','just','also','than','then','been','only','such','each','like','very','over','make','most','both','even','much','same','back','does','help','know','need','want','please','tell','give','jesus','christ','bible','church','faith','lord','gospel')
+          GROUP BY word
+          ORDER BY count DESC
+          LIMIT 40
+        `),
+        pool.query<{ source: string; chunk_type: string }>(`
+          SELECT DISTINCT source, chunk_type FROM knowledge_chunks ORDER BY source
+        `),
+        pool.query<{ chunk_type: string; cnt: string }>(`
+          SELECT chunk_type, COUNT(*) as cnt FROM knowledge_chunks GROUP BY chunk_type
+        `),
+      ]);
+
+      // Topic → keyword mapping for gap detection
+      const topicMap: Record<string, { keywords: string[]; starter: string }> = {
+        "salvation-steps": {
+          keywords: ["saved","salvation","accept","sinner","born","repent","prayer"],
+          starter: "How to receive salvation at JCTM: Step 1 — Acknowledge you are a sinner (Romans 3:23). Step 2 — Believe Jesus died for your sins and rose from the dead (Romans 10:9). Step 3 — Confess with your mouth: 'Lord Jesus, I accept You as my Lord and Saviour. Forgive my sins and give me eternal life.' Step 4 — Be baptised in water (Acts 2:38). Step 5 — Join a sound, doctrinally correct church fellowship such as JCTM (Hebrews 10:25). Contact JCTM: info@jctm.org.ng | +234(0)8081313111 | jctm.org.ng.",
+        },
+        "prayer-fasting-guide": {
+          keywords: ["fast","fasting","prayer","intercession","break","daniel"],
+          starter: "JCTM's practical guide to fasting: Fasting is a spiritual discipline of abstaining from food (and sometimes drink) for a set period to intensify prayer and seek God. Types taught at JCTM: 1. Normal fast (no food, only water). 2. Daniel fast (no meat, sweets, or pleasant food — Daniel 10:3). 3. Absolute fast (no food or water — only for very short periods, as Esther 4:16). How to fast: Set a clear purpose — what are you seeking God for? Set a time period (1 meal, 1 day, 3 days, 7 days, 21 days). Spend the meal times in prayer and scripture study instead. Break the fast gently with light food. Key scriptures: Isaiah 58:6, Matthew 6:16-18, Joel 2:12.",
+        },
+        "marriage-relationships": {
+          keywords: ["marri","wife","husband","divorce","spouse","dating","court","weddi"],
+          starter: "JCTM's biblical teaching on marriage and relationships: Marriage is a covenant between one man and one woman before God (Genesis 2:24, Matthew 19:4-6). Key principles: 1. Only marry a born-again believer (2 Corinthians 6:14 — 'Do not be unequally yoked'). 2. Courtship must be sexually pure — no fornication (1 Thessalonians 4:3-4). 3. The husband is the head of the home (Ephesians 5:23-25) — but headship is servant leadership, not domination. 4. The wife is to submit to and respect her husband (Ephesians 5:22-24, Titus 2:4-5). 5. Divorce is permitted by Jesus only for sexual immorality (Matthew 19:9). JCTM does not perform or bless same-sex unions. Contact JCTM for pre-marital counselling: info@jctm.org.ng.",
+        },
+        "anxiety-depression-hope": {
+          keywords: ["anxious","anxiet","depress","worry","fear","peace","hope","mental","stress","suicid"],
+          starter: "JCTM's pastoral response to anxiety, depression, and mental distress: God cares deeply about your emotional and mental wellbeing. Psalm 34:18: 'The LORD is near to those who have a broken heart, and saves such as have a contrite spirit.' Practical steps from JCTM's pastoral teaching: 1. Cast your cares on God — 1 Peter 5:7: 'Cast all your anxiety on Him because He cares for you.' 2. Renew your mind daily with scripture — Romans 12:2; Philippians 4:8. 3. Do not isolate — Hebrews 10:25 — stay in fellowship. 4. Pray continually — Philippians 4:6-7 promises the peace of God surpasses understanding. 5. Seek professional help if needed — God has given wisdom to doctors and counsellors. 6. Submit a prayer request at jctm.org.ng/prayer — the JCTM intercession team will pray with you.",
+        },
+        "deliverance-spiritual-warfare": {
+          keywords: ["deliver","demonic","witch","curse","bondage","warfare","attack","evil","spirit","occult"],
+          starter: "JCTM's teaching on deliverance and spiritual warfare: Every born-again believer has authority over demonic forces through the name of Jesus Christ (Luke 10:19, Mark 16:17). Steps to walk in deliverance: 1. Ensure genuine salvation — demons cannot be cast out of someone who is not born again without risk of a worse condition (Matthew 12:45). 2. Renounce all occult involvement — confess and renounce any participation in witchcraft, secret societies, divination, or ancestral covenants. 3. Pray the prayer of renunciation — '(Name the specific involvement), I renounce you in the name of Jesus Christ. I break every covenant and sever every soul-tie formed through this.' 4. Claim the blood of Jesus — Revelation 12:11. 5. Fill the empty space — Luke 11:24-26: after deliverance, immerse yourself in the Word, prayer, fellowship, and worship. JCTM conducts deliverance ministry — contact info@jctm.org.ng.",
+        },
+        "water-baptism": {
+          keywords: ["baptis","water","immerse","christened","infant","baby","sprinkl"],
+          starter: "JCTM's teaching on water baptism: Water baptism is a public declaration of faith — an outward sign of an inward transformation. JCTM practises baptism by full immersion (not sprinkling) following the New Testament pattern. Biblical basis: Matthew 28:19, Acts 2:38, Romans 6:3-4. Who should be baptised: Any person who has genuinely confessed faith in Jesus Christ as Lord and Saviour. JCTM does not baptise infants (infant baptism is not taught in scripture — babies cannot repent or believe). How to get baptised at JCTM: Contact info@jctm.org.ng or attend a service at Ebrumede Temple, Warri — baptism is performed regularly. For online community members, contact the ministry to arrange baptism through a local JCTM-approved fellowship or viewing centre.",
+        },
+        "tithe-offering": {
+          keywords: ["tithe","tithing","tenth","percent","offering","firstfruit","oblat"],
+          starter: "JCTM's teaching on tithing and offerings: The tithe is 10% of your income given to God through the local church. Malachi 3:10: 'Bring all the tithes into the storehouse, that there may be food in My house, and try Me now in this, says the LORD of hosts, if I will not open for you the windows of heaven.' New Testament tithe principle: Tithing predates the Mosaic Law (Abraham tithed to Melchizedek — Genesis 14:20; Hebrews 7:4-6). Under the New Covenant, tithing is an act of covenant obedience, not legalism. Common questions: Q: Do I tithe on gross or net income? A: Tithe on whatever you consider your true income — this is between you and God. Q: Who do I tithe to? A: To your local church where you receive spiritual nourishment (Galatians 6:6). To give to JCTM: visit jctm.org.ng/give (Paystack for NGN, Stripe for international).",
+        },
+        "holy-spirit-gifts": {
+          keywords: ["tongues","spirit","gifts","prophecy","healing","speaking","glossolalia","charismat"],
+          starter: "JCTM's teaching on the gifts of the Holy Spirit: The gifts of the Spirit listed in 1 Corinthians 12:8-10 are available to all Spirit-filled believers today. JCTM affirms that spiritual gifts did not cease with the apostles (cessationism is rejected). The nine gifts: Word of wisdom, Word of knowledge, Faith, Gifts of healings, Working of miracles, Prophecy, Discerning of spirits, Different kinds of tongues, Interpretation of tongues. JCTM's balanced position: All gifts must operate within biblical order (1 Corinthians 14:40 — 'Let all things be done decently and in order'). Tongues edify the individual (1 Corinthians 14:4); prophecy edifies the church. All prophecy and tongues-plus-interpretation must be tested against scripture (1 Thessalonians 5:21). JCTM warns against charismatic excesses — falling, gold dust, holy laughter performed for entertainment — these have no clear biblical basis.",
+        },
+      };
+
+      // Score each topic by matching user message keywords
+      const words = messageWords.rows;
+      const existingSources = new Set(chunkSources.rows.map(r => r.source));
+
+      const scoredGaps = Object.entries(topicMap).map(([topic, { keywords, starter }]) => {
+        const matchScore = words.reduce((sum, row) => {
+          const matches = keywords.some(kw => row.word.includes(kw) || kw.includes(row.word.slice(0, 5)));
+          return sum + (matches ? parseInt(row.count, 10) : 0);
+        }, 0);
+
+        // Penalise topics that already have a chunk
+        const alreadyCovered = existingSources.has(topic);
+
+        return { topic, starter, matchScore, alreadyCovered };
+      });
+
+      // Sort by score descending; surface uncovered topics first
+      scoredGaps.sort((a, b) => {
+        if (a.alreadyCovered !== b.alreadyCovered) return a.alreadyCovered ? 1 : -1;
+        return b.matchScore - a.matchScore;
+      });
+
+      const typeBreakdown = Object.fromEntries(
+        chunkTypeCounts.rows.map(r => [r.chunk_type, parseInt(r.cnt, 10)]),
+      );
+
+      res.json({
+        gaps: scoredGaps,
+        existingChunkCount: chunkSources.rows.length,
+        typeBreakdown,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: knowledge-gaps analysis failed");
+      res.status(500).json({ error: "Failed to analyse knowledge gaps" });
+    }
+  },
+);
+
+// ── Knowledge Chunks: List Custom ─────────────────────────────────────────────
+router.get(
+  "/admin/knowledge-chunks",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
+    const limit = Math.min(50, Math.max(5, parseInt(String(req.query.limit ?? "20"), 10)));
+    const chunkType = req.query.type ? String(req.query.type) : null;
+    const offset = (page - 1) * limit;
+
+    try {
+      const whereClause = chunkType ? `WHERE chunk_type = $3` : "";
+      const params: (string | number)[] = chunkType ? [limit, offset, chunkType] : [limit, offset];
+
+      const { rows } = await pool.query<{
+        id: number; source: string; chunk_type: string; content: string;
+        has_embedding: boolean; created_at: string; updated_at: string | null;
+      }>(`
+        SELECT id, source, chunk_type,
+               LEFT(content, 200) AS content,
+               (embedding IS NOT NULL) AS has_embedding,
+               created_at, updated_at
+        FROM knowledge_chunks
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
+      `, params);
+
+      const totalRow = await pool.query<{ count: string }>(
+        chunkType
+          ? "SELECT COUNT(*)::text AS count FROM knowledge_chunks WHERE chunk_type = $1"
+          : "SELECT COUNT(*)::text AS count FROM knowledge_chunks",
+        chunkType ? [chunkType] : [],
+      );
+
+      res.json({
+        chunks: rows,
+        total: parseInt(totalRow.rows[0]?.count ?? "0", 10),
+        page, limit,
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: list knowledge chunks failed");
+      res.status(500).json({ error: "Failed to list knowledge chunks" });
+    }
+  },
+);
+
+// ── Knowledge Chunks: Create (with auto-embedding) ────────────────────────────
+router.post(
+  "/admin/knowledge-chunks",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const { source, content, chunk_type } = req.body as {
+      source: string; content: string; chunk_type?: string;
+    };
+
+    if (!source || typeof source !== "string" || source.length < 2 || source.length > 120) {
+      res.status(400).json({ error: "source must be 2–120 characters" }); return;
+    }
+    if (!content || typeof content !== "string" || content.length < 20 || content.length > 8000) {
+      res.status(400).json({ error: "content must be 20–8000 characters" }); return;
+    }
+
+    const safeSource = source.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+    const safeType = ["general","doctrine","faq","event","testimony","teaching"].includes(chunk_type ?? "")
+      ? (chunk_type ?? "general")
+      : "general";
+
+    try {
+      // Generate local embedding
+      let vectorStr: string | null = null;
+      try {
+        const result = await embed(content.slice(0, 512));
+        vectorStr = `[${result.embedding.join(",")}]`;
+      } catch (embErr) {
+        logger.warn({ embErr }, "Embedding failed for admin chunk — storing without vector");
+      }
+
+      const { rows } = await pool.query<{ id: number; source: string; created_at: string }>(`
+        INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
+        VALUES ($1, $2, 0, $3, $4::vector)
+        ON CONFLICT (source, chunk_index) DO UPDATE
+          SET content = EXCLUDED.content,
+              chunk_type = EXCLUDED.chunk_type,
+              embedding = EXCLUDED.embedding,
+              updated_at = now()
+        RETURNING id, source, created_at
+      `, [content.trim(), safeSource, safeType, vectorStr]);
+
+      logger.info({ source: safeSource, type: safeType, hasEmbedding: !!vectorStr }, "Admin: knowledge chunk published");
+      res.status(201).json({ ok: true, chunk: rows[0], embeddingGenerated: !!vectorStr });
+    } catch (err) {
+      logger.error({ err }, "Admin: create knowledge chunk failed");
+      res.status(500).json({ error: "Failed to create knowledge chunk" });
+    }
+  },
+);
+
+// ── Knowledge Chunks: Delete ──────────────────────────────────────────────────
+router.delete(
+  "/admin/knowledge-chunks/:id",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id!, 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid chunk id" }); return; }
+
+    try {
+      const { rowCount } = await pool.query("DELETE FROM knowledge_chunks WHERE id = $1", [id]);
+      if (!rowCount || rowCount === 0) {
+        res.status(404).json({ error: "Chunk not found" }); return;
+      }
+      logger.info({ id }, "Admin: knowledge chunk deleted");
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, "Admin: delete knowledge chunk failed");
+      res.status(500).json({ error: "Failed to delete chunk" });
     }
   },
 );
