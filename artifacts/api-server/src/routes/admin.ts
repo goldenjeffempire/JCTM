@@ -2129,6 +2129,102 @@ router.delete(
   },
 );
 
+// ── TempleBots: Test Query (admin retrieval inspector) ────────────────────────
+// Runs the same embedding + pgvector similarity search that the live chat route
+// uses, and returns full chunk results with similarity scores so admins can
+// validate new chunks immediately after publishing them.
+router.post(
+  "/admin/templebots/test-query",
+  requireAdminRole("sermon"),
+  async (req: Request, res: Response): Promise<void> => {
+    const { query, topK = 10, threshold = 0.08 } = req.body as {
+      query: string; topK?: number; threshold?: number;
+    };
+
+    if (!query || typeof query !== "string" || query.trim().length < 2) {
+      res.status(400).json({ error: "query must be at least 2 characters" }); return;
+    }
+    if (query.length > 500) {
+      res.status(400).json({ error: "query must be under 500 characters" }); return;
+    }
+
+    const safeTopK   = Math.min(30, Math.max(1, Number(topK) || 10));
+    const safeThresh = Math.min(1, Math.max(0, Number(threshold) || 0.08));
+
+    try {
+      // ── Vector search ──────────────────────────────────────────────────────
+      const embResult = await embed(query.trim().slice(0, 512));
+      const vectorStr = `[${embResult.embedding.join(",")}]`;
+
+      const { rows: vectorRows } = await pool.query<{
+        id: number; content: string; source: string; chunk_type: string;
+        similarity: number; updated_at: string | null;
+      }>(
+        `SELECT id, content, source, chunk_type,
+                1 - (embedding <=> $1::vector) AS similarity,
+                updated_at
+         FROM knowledge_chunks
+         WHERE embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector
+         LIMIT $2`,
+        [vectorStr, safeTopK * 2],
+      );
+
+      // ── Keyword / FTS search ───────────────────────────────────────────────
+      const terms = query.trim().split(/\s+/).filter(w => w.length > 2).slice(0, 8);
+      let ftsRows: Array<{ id: number; source: string; rank: number }> = [];
+      if (terms.length > 0) {
+        const tsQuery = terms.map((_, i) => `$${i + 1}`).join(" | ");
+        const { rows } = await pool.query<{ id: number; source: string; rank: number }>(
+          `SELECT id, source,
+                  ts_rank(to_tsvector('english', content), to_tsquery('english', ${tsQuery})) AS rank
+           FROM knowledge_chunks
+           WHERE to_tsvector('english', content) @@ to_tsquery('english', ${tsQuery})
+           ORDER BY rank DESC
+           LIMIT ${safeTopK}`,
+          terms,
+        );
+        ftsRows = rows;
+      }
+
+      const ftsSourceMap = new Map(ftsRows.map(r => [r.source, r.rank]));
+
+      // ── Merge and score ───────────────────────────────────────────────────
+      const results = vectorRows.map(r => ({
+        id:           r.id,
+        source:       r.source,
+        chunk_type:   r.chunk_type,
+        content:      r.content,
+        similarity:   Math.round((r.similarity ?? 0) * 10000) / 10000,
+        ftsRank:      ftsSourceMap.get(r.source) ?? null,
+        passesThreshold: (r.similarity ?? 0) >= safeThresh,
+        updatedAt:    r.updated_at,
+      }));
+
+      // Sort: above-threshold first, then by similarity descending
+      results.sort((a, b) => {
+        if (a.passesThreshold !== b.passesThreshold) return a.passesThreshold ? -1 : 1;
+        return b.similarity - a.similarity;
+      });
+
+      res.json({
+        query:           query.trim(),
+        topK:            safeTopK,
+        threshold:       safeThresh,
+        embeddingMethod: embResult.method,
+        embeddingDims:   embResult.dims,
+        totalSearched:   vectorRows.length,
+        results:         results.slice(0, safeTopK),
+        ftsMatches:      ftsRows.length,
+        generatedAt:     new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: test-query failed");
+      res.status(500).json({ error: "Test query failed" });
+    }
+  },
+);
+
 // ── Knowledge Chunks: Embedding Status ────────────────────────────────────────
 router.get(
   "/admin/knowledge-chunks/embedding-status",

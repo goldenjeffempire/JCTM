@@ -13,7 +13,7 @@ import {
   Megaphone, MapPin, Save, Plus, Edit3, Mail,
   Bot, Database, Cpu, Server, Layers,
   DollarSign, ExternalLink, Info, Hash, CircleDot,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, Search,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -6231,6 +6231,221 @@ function KnowledgeGapFillPanel({ auth }: { auth: AdminAuth }) {
   );
 }
 
+// ─── TempleBots Test Query Panel ──────────────────────────────────────────────
+
+interface TestQueryResult {
+  id: number; source: string; chunk_type: string; content: string;
+  similarity: number; ftsRank: number | null; passesThreshold: boolean; updatedAt: string | null;
+}
+interface TestQueryResponse {
+  query: string; topK: number; threshold: number;
+  embeddingMethod: string; embeddingDims: number;
+  totalSearched: number; ftsMatches: number;
+  results: TestQueryResult[];
+  generatedAt: string;
+}
+
+const TOP_K_OPTIONS = [5, 10, 20] as const;
+
+function TempleBotsTestPanel({ auth }: { auth: AdminAuth }) {
+  const [query, setQuery] = useState("");
+  const [topK, setTopK] = useState<number>(10);
+  const [threshold, setThreshold] = useState<number>(0.08);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (id: number) =>
+    setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const mutation = useMutation<TestQueryResponse, Error, { query: string; topK: number; threshold: number }>({
+    mutationFn: async (body) => {
+      const r = await fetch(`${BASE}/api/admin/templebots/test-query`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Query failed"); }
+      return r.json();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const run = () => {
+    if (query.trim().length < 2) { toast.error("Enter at least 2 characters"); return; }
+    setExpandedIds(new Set());
+    mutation.mutate({ query: query.trim(), topK, threshold });
+  };
+
+  const data = mutation.data;
+  const above = data?.results.filter(r => r.passesThreshold) ?? [];
+  const below = data?.results.filter(r => !r.passesThreshold) ?? [];
+
+  if (!auth.isAdmin) return null;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold flex items-center gap-2 text-primary">
+        <Bot className="w-4 h-4" /> TempleBots Retrieval Inspector
+      </h3>
+
+      {/* Query form */}
+      <Card>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+          Test a query against the live knowledge base
+        </h4>
+        <div className="space-y-3">
+          <textarea
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); }}
+            rows={3}
+            placeholder='e.g. "How do I get baptised?" or "What does JCTM teach about tithing?"'
+            className="w-full text-xs bg-muted/30 border border-border rounded-lg px-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none leading-relaxed"
+          />
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">Top K</label>
+              <select
+                value={topK}
+                onChange={e => setTopK(Number(e.target.value))}
+                className="text-xs bg-muted/30 border border-border rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:border-primary/50"
+              >
+                {TOP_K_OPTIONS.map(k => <option key={k} value={k}>{k} results</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">
+                Threshold <span className="font-mono">{threshold.toFixed(2)}</span>
+              </label>
+              <input
+                type="range" min={0} max={0.5} step={0.01} value={threshold}
+                onChange={e => setThreshold(Number(e.target.value))}
+                className="w-24 accent-primary"
+              />
+            </div>
+            <button
+              onClick={run}
+              disabled={mutation.isPending || query.trim().length < 2}
+              className="ml-auto flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors font-medium"
+            >
+              {mutation.isPending
+                ? <><Loader2 className="w-3 h-3 animate-spin" /> Searching…</>
+                : <><Search className="w-3 h-3" /> Run query</>
+              }
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Tip: use Ctrl/Cmd+Enter to run. The threshold (default 0.08) matches the live TempleBots cutoff — chunks scoring below it are filtered out of real responses.
+          </p>
+        </div>
+      </Card>
+
+      {/* Results */}
+      {data && (
+        <Card>
+          {/* Summary bar */}
+          <div className="flex items-center gap-3 flex-wrap mb-4 pb-3 border-b border-border/50">
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="font-mono bg-muted/40 px-1.5 py-0.5 rounded text-foreground">{data.query}</span>
+            </div>
+            <div className="flex items-center gap-3 ml-auto flex-wrap text-[11px] text-muted-foreground">
+              <span>
+                <strong className={above.length > 0 ? "text-emerald-400" : "text-amber-400"}>{above.length}</strong> above threshold
+              </span>
+              <span><strong className="text-foreground">{below.length}</strong> below</span>
+              <span className="font-mono px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground">{data.embeddingMethod}</span>
+              <span>{data.embeddingDims}d</span>
+              {data.ftsMatches > 0 && <span>{data.ftsMatches} FTS hits</span>}
+            </div>
+          </div>
+
+          {data.results.length === 0 && (
+            <div className="py-8 text-center">
+              <p className="text-xs text-amber-400 font-medium">No chunks found</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                All knowledge chunks scored below {threshold.toFixed(2)} — consider publishing a chunk on this topic.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {data.results.map((result, idx) => {
+              const isExpanded = expandedIds.has(result.id);
+              const pct = Math.round(result.similarity * 100);
+              const barColor = result.similarity >= 0.3
+                ? "bg-emerald-500"
+                : result.similarity >= threshold
+                ? "bg-blue-500"
+                : "bg-red-400/60";
+
+              return (
+                <div
+                  key={result.id}
+                  className={`rounded-lg border transition-colors ${result.passesThreshold ? "border-border/70 hover:border-border" : "border-border/30 opacity-60"}`}
+                >
+                  <button
+                    onClick={() => toggleExpand(result.id)}
+                    className="w-full text-left p-3 flex items-center gap-3"
+                  >
+                    {/* Rank */}
+                    <span className="shrink-0 w-5 text-center text-[10px] font-mono text-muted-foreground">#{idx + 1}</span>
+
+                    {/* Score bar */}
+                    <div className="shrink-0 w-20">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className={`text-[11px] font-mono font-semibold ${result.similarity >= 0.3 ? "text-emerald-400" : result.passesThreshold ? "text-blue-400" : "text-red-400"}`}>
+                          {result.similarity.toFixed(4)}
+                        </span>
+                      </div>
+                      <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(100, pct * 2)}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Labels */}
+                    <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-mono font-medium text-foreground truncate">{result.source}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 border border-border text-muted-foreground shrink-0">{result.chunk_type}</span>
+                      {result.ftsRank !== null && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">FTS</span>
+                      )}
+                      {!result.passesThreshold && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 shrink-0">below threshold</span>
+                      )}
+                    </div>
+
+                    <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                  </button>
+
+                  {/* Expanded content */}
+                  {isExpanded && (
+                    <div className="px-3 pb-3 border-t border-border/30">
+                      <p className="text-[11px] text-foreground leading-relaxed pt-3 whitespace-pre-wrap">{result.content}</p>
+                      {result.updatedAt && (
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          Updated: {new Date(result.updatedAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {above.length === 0 && data.results.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border/50 text-center">
+              <p className="text-xs text-amber-400 font-medium">No chunks pass the {threshold.toFixed(2)} threshold</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                TempleBots would not retrieve any chunks for this query. Publish a relevant knowledge chunk to improve coverage.
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
 interface ConvListItem {
   id: number; title: string; created_at: string; message_count: number;
   flagged: boolean; flag_reason: string | null; ai_tier: string | null;
@@ -6876,6 +7091,9 @@ function AIDashboardSection({ auth }: { auth: AdminAuth }) {
 
             {/* ── Knowledge Gap-Fill ── */}
             <KnowledgeGapFillPanel auth={auth} />
+
+            {/* ── TempleBots Retrieval Inspector ── */}
+            <TempleBotsTestPanel auth={auth} />
 
             {/* ── Conversation Replay ── */}
             <ConversationReplayPanel auth={auth} />
