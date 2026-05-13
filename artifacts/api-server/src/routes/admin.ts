@@ -2129,6 +2129,88 @@ router.delete(
   },
 );
 
+// ── Knowledge Chunks: Embedding Status ────────────────────────────────────────
+router.get(
+  "/admin/knowledge-chunks/embedding-status",
+  requireAdminRole("sermon"),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { rows } = await pool.query<{
+        total: string; embedded: string; missing: string;
+      }>(`
+        SELECT
+          COUNT(*)::text AS total,
+          COUNT(embedding)::text AS embedded,
+          (COUNT(*) - COUNT(embedding))::text AS missing
+        FROM knowledge_chunks
+      `);
+      const missingChunks = await pool.query<{ id: number; source: string; chunk_type: string }>(`
+        SELECT id, source, chunk_type
+        FROM knowledge_chunks
+        WHERE embedding IS NULL
+        ORDER BY id
+        LIMIT 200
+      `);
+      const r = rows[0]!;
+      res.json({
+        total: parseInt(r.total, 10),
+        embedded: parseInt(r.embedded, 10),
+        missing: parseInt(r.missing, 10),
+        missingChunks: missingChunks.rows,
+      });
+    } catch (err) {
+      logger.error({ err }, "Admin: embedding-status failed");
+      res.status(500).json({ error: "Failed to fetch embedding status" });
+    }
+  },
+);
+
+// ── Knowledge Chunks: Batch Re-Embed ─────────────────────────────────────────
+router.post(
+  "/admin/knowledge-chunks/re-embed",
+  requireAdminRole("sermon"),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const { rows: missing } = await pool.query<{ id: number; content: string; source: string }>(`
+        SELECT id, content, source FROM knowledge_chunks WHERE embedding IS NULL ORDER BY id LIMIT 500
+      `);
+
+      if (missing.length === 0) {
+        res.json({ processed: 0, succeeded: 0, failed: 0, message: "All chunks already have embeddings" });
+        return;
+      }
+
+      let succeeded = 0;
+      let failed = 0;
+      const details: Array<{ id: number; source: string; ok: boolean; error?: string }> = [];
+
+      for (const chunk of missing) {
+        try {
+          const result = await embed(chunk.content.slice(0, 512));
+          const vectorStr = `[${result.embedding.join(",")}]`;
+          await pool.query(
+            `UPDATE knowledge_chunks SET embedding = $1::vector, updated_at = now() WHERE id = $2`,
+            [vectorStr, chunk.id],
+          );
+          succeeded++;
+          details.push({ id: chunk.id, source: chunk.source, ok: true });
+          logger.info({ id: chunk.id, source: chunk.source, method: result.method }, "Admin: re-embedded chunk");
+        } catch (embErr) {
+          failed++;
+          details.push({ id: chunk.id, source: chunk.source, ok: false, error: String(embErr) });
+          logger.warn({ err: embErr, id: chunk.id }, "Admin: re-embed failed for chunk");
+        }
+      }
+
+      logger.info({ processed: missing.length, succeeded, failed }, "Admin: batch re-embed complete");
+      res.json({ processed: missing.length, succeeded, failed, details });
+    } catch (err) {
+      logger.error({ err }, "Admin: batch re-embed failed");
+      res.status(500).json({ error: "Batch re-embed failed" });
+    }
+  },
+);
+
 // ── Conversation Replay — list ────────────────────────────────────────────────
 router.get(
   "/admin/conversations",

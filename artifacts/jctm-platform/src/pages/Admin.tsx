@@ -13,6 +13,7 @@ import {
   Megaphone, MapPin, Save, Plus, Edit3, Mail,
   Bot, Database, Cpu, Server, Layers,
   DollarSign, ExternalLink, Info, Hash, CircleDot,
+  AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -5872,6 +5873,12 @@ interface ChunkListResponse { chunks: ChunkItem[]; total: number; page: number; 
 
 const CHUNK_TYPES = ["general","doctrine","faq","event","testimony","teaching"] as const;
 
+interface EmbeddingStatus {
+  total: number; embedded: number; missing: number;
+  missingChunks: Array<{ id: number; source: string; chunk_type: string }>;
+}
+interface ReEmbedResult { processed: number; succeeded: number; failed: number; message?: string }
+
 function KnowledgeGapFillPanel({ auth }: { auth: AdminAuth }) {
   const qc = useQueryClient();
   const [source, setSource] = useState("");
@@ -5879,6 +5886,38 @@ function KnowledgeGapFillPanel({ auth }: { auth: AdminAuth }) {
   const [chunkType, setChunkType] = useState<string>("general");
   const [chunkPage, setChunkPage] = useState(1);
   const [showChunks, setShowChunks] = useState(false);
+  const [showMissingList, setShowMissingList] = useState(false);
+
+  const { data: embStatus, refetch: refetchEmbStatus } = useQuery<EmbeddingStatus>({
+    queryKey: ["admin-embedding-status"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/knowledge-chunks/embedding-status`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch embedding status");
+      return r.json();
+    },
+    staleTime: 30_000,
+    enabled: auth.isAdmin,
+  });
+
+  const reEmbedMutation = useMutation<ReEmbedResult>({
+    mutationFn: async () => {
+      const r = await fetch(`${BASE}/api/admin/knowledge-chunks/re-embed`, {
+        method: "POST", credentials: "include",
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Re-embed failed"); }
+      return r.json();
+    },
+    onSuccess: (result) => {
+      if (result.processed === 0) {
+        toast.success("All chunks already have embeddings — nothing to do.");
+      } else {
+        toast.success(`Re-embedded ${result.succeeded}/${result.processed} chunks${result.failed > 0 ? ` (${result.failed} failed)` : ""}`);
+      }
+      refetchEmbStatus();
+      qc.invalidateQueries({ queryKey: ["admin-knowledge-chunks"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: gaps, isLoading: gapsLoading, refetch: refetchGaps } = useQuery<GapAnalysis>({
     queryKey: ["admin-knowledge-gaps"],
@@ -6065,6 +6104,75 @@ function KnowledgeGapFillPanel({ auth }: { auth: AdminAuth }) {
           </div>
         </div>
       </Card>
+
+      {/* Embedding Health & Re-Embed */}
+      {embStatus && (
+        <Card className={embStatus.missing > 0 ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-500/20 bg-emerald-500/5"}>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${embStatus.missing > 0 ? "bg-amber-500/15" : "bg-emerald-500/15"}`}>
+                {embStatus.missing > 0
+                  ? <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  : <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                }
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  {embStatus.missing > 0
+                    ? `${embStatus.missing} chunk${embStatus.missing !== 1 ? "s" : ""} missing vector embeddings`
+                    : "All chunks embedded — vector search fully operational"
+                  }
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {embStatus.embedded.toLocaleString()} / {embStatus.total.toLocaleString()} chunks embedded
+                  {embStatus.missing > 0 && " · TempleBots cannot semantically match un-embedded chunks"}
+                </p>
+                {embStatus.missing > 0 && embStatus.missingChunks.length > 0 && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowMissingList(v => !v)}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      <ChevronRight className={`w-3 h-3 transition-transform ${showMissingList ? "rotate-90" : ""}`} />
+                      {showMissingList ? "Hide" : "Show"} affected chunks
+                    </button>
+                    {showMissingList && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {embStatus.missingChunks.map(c => (
+                          <span key={c.id} className="text-[10px] font-mono px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                            {c.source}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => refetchEmbStatus()}
+                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                disabled={reEmbedMutation.isPending}
+              >
+                <RefreshCw className="w-3 h-3" /> Refresh
+              </button>
+              {embStatus.missing > 0 && (
+                <button
+                  onClick={() => reEmbedMutation.mutate()}
+                  disabled={reEmbedMutation.isPending}
+                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 disabled:opacity-50 transition-colors font-medium"
+                >
+                  {reEmbedMutation.isPending
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Embedding…</>
+                    : <><Zap className="w-3 h-3" /> Re-embed {embStatus.missing}</>
+                  }
+                </button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Existing Chunks Browser */}
       <Card>
