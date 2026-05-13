@@ -930,44 +930,6 @@ export default function Events() {
               "name": "Jesus Christ Temple Ministry (JCTM)",
               "url": "https://jctm.org.ng"
             }
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "Event",
-            "name": "Ministers Conference 2026 — Apostolic Fire",
-            "description": "An anointed three-day apostolic conference bringing together ministers, church leaders, and kingdom builders from across Nigeria and beyond. Powerful expository teaching, prophetic impartation, and corporate worship over three transformative sessions. Free entry for all ministers and believers.",
-            "startDate": "2026-05-08T07:00:00+00:00",
-            "endDate": "2026-05-10T19:00:00+00:00",
-            "eventStatus": "https://schema.org/EventScheduled",
-            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-            "image": [
-              "https://jctm.org.ng/ministers-conference-2026-flyer.jpeg"
-            ],
-            "location": {
-              "@type": "Place",
-              "name": "Ebrumede Temple, JCTM Headquarters",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": "Km1 East West Rd., Ebrumede Roundabout",
-                "addressLocality": "Warri",
-                "addressRegion": "Delta State",
-                "addressCountry": "NG"
-              }
-            },
-            "organizer": {
-              "@type": "ReligiousOrganization",
-              "name": "Jesus Christ Temple Ministry (JCTM)",
-              "url": "https://jctm.org.ng"
-            },
-            "url": "https://jctm.org.ng/conference-registration",
-            "isAccessibleForFree": true,
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "NGN",
-              "availability": "https://schema.org/InStock",
-              "url": "https://jctm.org.ng/conference-registration"
-            }
           }
         ]}
       />

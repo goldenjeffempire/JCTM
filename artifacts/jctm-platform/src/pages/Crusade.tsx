@@ -51,54 +51,6 @@ export default function Crusade() {
           { name: "Events", url: "https://jctm.org.ng/events" },
           { name: "Warri City Crusade 2026", url: "https://jctm.org.ng/crusade" },
         ]}
-        jsonLd={[
-          {
-            "@context": "https://schema.org",
-            "@type": "Event",
-            "name": "Warri City Crusade 2026 — Prophet Amos Global Crusade",
-            "description": "A major evangelistic crusade and open-air meeting organised by Jesus Christ Temple Ministry (JCTM). Featuring prophetic ministry, healing, deliverance, and the Correction Mandate message from Prophet Amos Evomobor.",
-            "startDate": "2026-04-30T18:00:00+01:00",
-            "endDate": "2026-05-01T22:00:00+01:00",
-            "eventStatus": "https://schema.org/EventScheduled",
-            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-            "url": "https://jctm.org.ng/crusade",
-            "image": "https://jctm.org.ng/warri-crusade-flyer2.jpeg",
-            "location": {
-              "@type": "Place",
-              "name": "Ighogbadu Primary School",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": "Okumagba Avenue",
-                "addressLocality": "Warri",
-                "addressRegion": "Delta State",
-                "addressCountry": "NG"
-              },
-              "geo": {
-                "@type": "GeoCoordinates",
-                "latitude": "5.5167",
-                "longitude": "5.7500"
-              }
-            },
-            "organizer": {
-              "@type": "ReligiousOrganization",
-              "name": "Jesus Christ Temple Ministry (JCTM)",
-              "url": "https://jctm.org.ng"
-            },
-            "performer": {
-              "@type": "Person",
-              "name": "Prophet Amos Evomobor",
-              "url": "https://jctm.org.ng/leadership"
-            },
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "NGN",
-              "availability": "https://schema.org/InStock",
-              "url": "https://jctm.org.ng/crusade",
-              "validFrom": "2026-01-01"
-            }
-          }
-        ]}
       />
 
       <div

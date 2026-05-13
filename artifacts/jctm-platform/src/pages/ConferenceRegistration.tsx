@@ -1109,49 +1109,6 @@ export default function ConferenceRegistration() {
           { name: "Home", url: "https://jctm.org.ng/" },
           { name: "Ministers Conference 2026", url: "https://jctm.org.ng/conference-registration" },
         ]}
-        jsonLd={[
-          {
-            "@context": "https://schema.org",
-            "@type": "Event",
-            "name": "Ministers Conference 2026 — JCTM",
-            "description": "An apostolic gathering of ministers, leaders and kingdom builders hosted by Jesus Christ Temple Ministry (JCTM), featuring prophetic impartation, apostolic teaching, and corporate prayer.",
-            "startDate": "2026-05-08T08:00:00+01:00",
-            "endDate": "2026-05-10T21:00:00+01:00",
-            "eventStatus": "https://schema.org/EventScheduled",
-            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-            "url": "https://jctm.org.ng/conference-registration",
-            "image": "https://jctm.org.ng/opengraph.jpg",
-            "location": {
-              "@type": "Place",
-              "name": "JCTM Church Auditorium",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": "Km1 East West Rd., Ebrumede Roundabout",
-                "addressLocality": "Effurun Uvwie",
-                "addressRegion": "Delta State",
-                "addressCountry": "NG"
-              }
-            },
-            "organizer": {
-              "@type": "ReligiousOrganization",
-              "name": "Jesus Christ Temple Ministry (JCTM)",
-              "url": "https://jctm.org.ng"
-            },
-            "performer": {
-              "@type": "Person",
-              "name": "Prophet Amos Evomobor",
-              "url": "https://jctm.org.ng/leadership"
-            },
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "NGN",
-              "availability": "https://schema.org/InStock",
-              "url": "https://jctm.org.ng/conference-registration",
-              "validFrom": "2026-01-01"
-            }
-          }
-        ]}
       />
 
       {cropSrc && (
