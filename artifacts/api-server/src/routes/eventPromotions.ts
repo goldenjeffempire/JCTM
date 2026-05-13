@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, eventPromotionsTable } from "@workspace/db";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { requireAdminRole } from "../lib/adminAuth.js";
+import { invalidateEventSchemaCache } from "../lib/event-schema.js";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Lightweight validation (avoids adding zod as a direct dep of api-server)
@@ -305,6 +306,7 @@ router.post(
           broadcastImageUrl: data.broadcastImageUrl ?? null,
         })
         .returning();
+      invalidateEventSchemaCache();
       res.status(201).json(serialize(row));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -410,6 +412,7 @@ router.put(
         res.status(404).json({ error: "Promotion not found" });
         return;
       }
+      invalidateEventSchemaCache();
       res.json(serialize(row));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -435,6 +438,7 @@ router.delete(
       res.status(404).json({ error: "Promotion not found" });
       return;
     }
+    invalidateEventSchemaCache();
     res.json({ success: true });
   },
 );

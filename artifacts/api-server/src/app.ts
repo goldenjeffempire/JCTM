@@ -5,8 +5,10 @@ import compression from "compression";
 import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import path from "path";
+import fs from "node:fs";
 import { fileURLToPath } from "url";
 import { randomUUID } from "node:crypto";
+import { getActiveEventSchemaScripts } from "./lib/event-schema.js";
 import router from "./routes";
 import seoRouter from "./routes/seo";
 import { logger } from "./lib/logger";
@@ -342,6 +344,21 @@ app.use("/api", router);
 if (process.env.NODE_ENV === "production") {
   const staticDir = path.resolve(__dirname, "../../jctm-platform/dist/public");
 
+  // ── HTML template cache ─────────────────────────────────────────────────────
+  // We read index.html once and keep it in memory. On each SPA page request
+  // we inject the current active-event JSON-LD just before </head> so Google
+  // always sees schema-correct structured data — and past events are never
+  // shown because the query filters end_at > NOW(). The HTML itself is only
+  // re-read if the cached copy is cleared (e.g. if a hot-patch changes the
+  // file without a full restart, which never happens in normal deployments).
+  let htmlTemplate: string | null = null;
+  function getHtmlTemplate(): string {
+    if (!htmlTemplate) {
+      htmlTemplate = fs.readFileSync(path.join(staticDir, "index.html"), "utf-8");
+    }
+    return htmlTemplate;
+  }
+
   // ─── Edge-cache layering strategy ──────────────────────────────────────────
   // We set THREE families of cache headers on every static response:
   //   • Cache-Control               — what the user's browser does
@@ -431,15 +448,43 @@ if (process.env.NODE_ENV === "production") {
   // falls through.  Use "/{*splat}" (optional group) to also match the root.
   // SPA fallback also gets the layered cache strategy so the homepage benefits
   // from edge caching exactly like every other HTML response above.
-  app.get("/{*splat}", (_req, res) => {
+  //
+  // Dynamic event schema injection: we read the index.html template once,
+  // then on each request we fetch the current active-event JSON-LD (cached
+  // 60 s in-process) and inject it just before </head>.  Past events are
+  // automatically excluded because the DB query filters end_at > NOW().
+  // When there are no live events the response is identical to a plain
+  // sendFile — no overhead, no empty <script> tags.
+  app.get("/{*splat}", async (_req, res) => {
     res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
     res.setHeader("CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
     res.setHeader("Cloudflare-CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
     res.setHeader("Vary", "Accept-Encoding");
-    // Explicitly signal to Google bots that all SPA routes are indexable.
-    // This is critical for AdsBot-Google and Mediapartners-Google crawlers.
     res.setHeader("X-Robots-Tag", "index, follow");
-    res.sendFile(path.join(staticDir, "index.html"));
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+
+    try {
+      const [baseHtml, eventSchemas] = await Promise.all([
+        Promise.resolve(getHtmlTemplate()),
+        getActiveEventSchemaScripts(),
+      ]);
+
+      if (!eventSchemas) {
+        res.send(baseHtml);
+        return;
+      }
+
+      // Inject active event schemas immediately before </head> so they appear
+      // in the <head> section for all crawlers, including non-JS bots.
+      const html = baseHtml.replace(
+        "</head>",
+        `\n    <!-- Dynamic Event Schema (auto-expires at event end_at) -->\n${eventSchemas}\n  </head>`,
+      );
+      res.send(html);
+    } catch {
+      // Fallback to plain file on any error (DB down, FS error, etc.)
+      res.sendFile(path.join(staticDir, "index.html"));
+    }
   });
 }
 
