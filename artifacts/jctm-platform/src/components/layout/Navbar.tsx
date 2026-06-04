@@ -163,7 +163,7 @@ export function Navbar() {
     { href: "/sermons", label: t("Sermons") },
     { href: "/moments", label: t("Moments"), featurePill: true },
     { href: "/intro-videos", label: t("Intro"), featurePill: true },
-    { href: "/crusade", label: t("Crusade") },
+    { href: "/crusade", label: t("Viewing Center") },
     { href: "/prayer", label: t("Prayer"), featurePill: true },
   ];
 
@@ -175,6 +175,7 @@ export function Navbar() {
     { href: "/spiritual-insight", label: `✦ ${t("Spiritual Insight")}`, description: t("Personalized prophetic guidance"), aiHighlight: true },
     { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
     { href: "/events", label: t("Events"), description: t("Upcoming services & programmes") },
+    { href: "/crusade", label: t("Crusade"), description: t("Warri crusade & outreach events") },
     { href: "/give", label: t("Give"), description: t("Support the Correction Mandate") },
   ];
 
