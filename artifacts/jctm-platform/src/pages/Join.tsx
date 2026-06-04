@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,7 @@ const MATURITY_BG: Record<string, string> = {
 };
 
 export default function Join() {
+  const { t } = useLanguage();
   const [view, setView] = useState<View>("register");
   const [dashTab, setDashTab] = useState<DashTab>("overview");
   const [loading, setLoading] = useState(false);
@@ -307,7 +310,7 @@ export default function Join() {
           className="text-center mb-12"
         >
           <Church className="h-12 w-12 text-accent mx-auto mb-4" />
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Digital Sanctuary</h1>
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4"><T>Digital Sanctuary</T></h1>
           <p className="text-muted-foreground text-lg max-w-lg mx-auto">
             Join the JCTM family online. Access member resources, track your spiritual journey, and connect with the ministry.
           </p>

@@ -5,6 +5,8 @@ import {
   Volume2, VolumeX, Heart, MessageCircle, Eye,
   X, Send, Youtube, Download,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 import { emitTrackJob } from "@/components/MediaJobsPanel";
 import { Layout } from "@/components/layout/Layout";
@@ -613,6 +615,7 @@ function MomentCard({
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function Moments() {
+  const { t } = useLanguage();
   const [moments, setMoments] = useState<MomentItem[]>([]);
   const [current, setCurrent] = useState(0);
   const [muted, setMuted] = useState(false); // sound ON by default
@@ -789,7 +792,7 @@ export default function Moments() {
           <div className="flex items-center justify-between px-4 py-2 border-b border-border/20 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-bold text-primary">Temple Moments</span>
+              <span className="text-sm font-bold text-primary">{t("Ministry Moments")}</span>
             </div>
           </div>
 
@@ -800,19 +803,19 @@ export default function Moments() {
               className="flex-shrink-0 w-full bg-accent/90 text-white text-xs font-semibold py-2 px-4 flex items-center justify-center gap-2 hover:bg-accent transition-colors z-30"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              New video uploaded! Tap to refresh Moments
+              <T>New video uploaded! Tap to refresh Moments</T>
             </button>
           )}
 
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <Radio className="h-10 w-10 text-accent animate-spin" />
-              <p className="text-muted-foreground text-sm">Loading Temple Moments…</p>
+              <p className="text-muted-foreground text-sm"><T>Loading moments…</T></p>
             </div>
           ) : moments.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <BookOpen className="h-12 w-12 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm">No moments yet. Sync sermons first.</p>
+              <p className="text-muted-foreground text-sm"><T>No moments yet. Sync sermons first.</T></p>
             </div>
           ) : (
             <>

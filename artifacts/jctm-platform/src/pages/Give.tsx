@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ const GIVING_TYPES = [
 ];
 
 export default function Give() {
+  const { t } = useLanguage();
   const { geo, isNigeria, isLoading: geoLoading } = useGeo();
   const [currency, setCurrency] = useState<"NGN" | "USD">("NGN");
   const [geoDetected, setGeoDetected] = useState(false);
@@ -167,7 +170,7 @@ export default function Give() {
       <div className="container mx-auto px-4 py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
           <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Kingdom Giving</span>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Give to the Ministry</h1>
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4"><T>Give to the Ministry</T></h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">Your generosity fuels the Correction Mandate and takes the Gospel to the nations.</p>
         </motion.div>
 

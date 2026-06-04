@@ -6,6 +6,8 @@ import { Layout } from "@/components/layout/Layout";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { SEO } from "@/components/SEO";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, MapPin, Clock, Youtube, Phone,
@@ -890,6 +892,7 @@ function EventCard({ event, index }: { event: EventItem; index: number }) {
 export default function Events() {
   useAdPageTracker("/events", 1);
   const { data: events, isLoading } = useListEvents({ limit: 20, offset: 0 });
+  const { t } = useLanguage();
 
   useEffect(() => { document.title = "Events | JCTM Digital Sanctuary"; }, []);
 
@@ -937,9 +940,13 @@ export default function Events() {
 
         {/* Page header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-12">
-          <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry Calendar</span>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">Upcoming Events</h1>
-          <p className="text-muted-foreground text-lg max-w-xl">Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</p>
+          <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">
+            <T>Ministry Calendar</T>
+          </span>
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">{t("Upcoming Events")}</h1>
+          <p className="text-muted-foreground text-lg max-w-xl">
+            <T>Join us in person or online. Each event card includes a built-in ad kit — copy, share, and promote on every platform with one click.</T>
+          </p>
         </motion.div>
 
         <AdSlot slot={ADSENSE_SLOTS.eventsPage} minHeight={100} format="horizontal" className="mb-12" />
@@ -948,7 +955,7 @@ export default function Events() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-serif font-bold text-primary flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-            Upcoming Events
+            {t("Upcoming Events")}
           </h2>
           <span className="text-sm text-muted-foreground">
             {STATIC_UPCOMING_EVENTS.length + upcoming.length} event{STATIC_UPCOMING_EVENTS.length + upcoming.length !== 1 ? "s" : ""}
@@ -987,7 +994,7 @@ export default function Events() {
         {/* Past Events */}
         {(STATIC_PAST_EVENTS.length > 0 || past.length > 0) && (
           <>
-            <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">Past Events</h2>
+            <h2 className="text-2xl font-serif font-bold text-primary mb-6 text-muted-foreground/70">{t("Past Events")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {STATIC_PAST_EVENTS.map((event, i) => (
                 <StaticEventCard key={event.id} event={event} index={i} />

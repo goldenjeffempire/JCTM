@@ -4,6 +4,37 @@ import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSens
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { usePageStrings } from "@/hooks/usePageStrings";
+import { T } from "@/components/T";
+
+const ABOUT_STRINGS = {
+  whoWeAre: "Who We Are",
+  aboutJctm: "About JCTM",
+  subtitle: "A ministry established by divine mandate, rooted in holiness, and committed to preparing souls for the kingdom of God.",
+  ourStory: "Our Story",
+  overseer: "Overseer",
+  visionMission: "Vision & Mission",
+  mandateThisGen: "A Mandate for This Generation",
+  ourCoreBeliefs: "Our Core Beliefs",
+  contactLocation: "Contact & Location",
+  churchAddress: "Church Address",
+  emailUs: "Email Us",
+  phoneMedia: "Phone & Media",
+  enquiries: "Enquiries",
+  sundayService: "Sunday Service",
+  zoomMeetingId: "Zoom Meeting ID",
+  general: "General",
+  ministry: "Ministry",
+  newMembers: "New Members",
+  support: "Support",
+  prophetAmos: "Prophet Amos",
+  pastorBio1: "Prophet Amos Evomobor is a man raised by God specifically for this generation's doctrinal reformation. Operating under the grace of correction, he has consistently delivered uncompromising biblical teaching on Primitive Christianity, the Baptism of the Holy Spirit, Water Baptism, Holiness, and the End Times.",
+  pastorBio2: "His teachings on Temple TV have brought doctrinal clarity to thousands of ministers and believers, establishing him as a prophetic voice of correction in the Nigerian church landscape. The Ebrumede Temple — his base of operations in Warri — has become a centre of reformation, drawing seekers of truth from across the nation.",
+  pastorBio3: "The mandate entrusted to Prophet Amos is not merely institutional — it is eschatological. He carries a burden for the global Body of Christ to return to the simplicity, purity, and power of the apostolic church before the return of the Lord.",
+  startsIn: "Starts In",
+  livestreamed: "Live-streamed via Temple TV · 8:00 AM WAT",
+};
 
 const OVERSEER_IMAGES = [
   { key: "img1", src: "/founder/DSC3371.webp", fallback: "/founder/DSC3371.jpg", label: "Prophetic Word", tag: "Prophet" },
@@ -220,6 +251,7 @@ const fadeUp = {
 
 export default function About() {
   useAdPageTracker("/about", 1);
+  const s = usePageStrings(ABOUT_STRINGS);
   return (
     <Layout>
       <SEO
@@ -307,13 +339,13 @@ export default function About() {
           {/* Page header */}
           <div className="mb-12">
             <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">
-              Who We Are
+              {s.whoWeAre}
             </span>
             <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-4">
-              About JCTM
+              {s.aboutJctm}
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
-              A ministry established by divine mandate, rooted in holiness, and committed to preparing souls for the kingdom of God.
+              {s.subtitle}
             </p>
           </div>
 
@@ -321,11 +353,11 @@ export default function About() {
 
           {/* Our Story */}
           <div className="glass-panel rounded-2xl p-8 mb-10">
-            <h2 className="text-2xl font-serif font-bold text-primary mb-6">Our Story</h2>
+            <h2 className="text-2xl font-serif font-bold text-primary mb-6">{s.ourStory}</h2>
             <div className="space-y-5">
               {STORY_PARAGRAPHS.map((para, i) => (
                 <p key={i} className="text-muted-foreground leading-relaxed text-[15px]">
-                  {para}
+                  <T>{para}</T>
                 </p>
               ))}
             </div>
@@ -342,7 +374,7 @@ export default function About() {
               {/* Bio */}
               <div className="flex-1 p-8">
                 <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-3 border border-accent/30 rounded-full px-3 py-1">
-                  Overseer
+                  {s.overseer}
                 </span>
                 <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary mb-1">
                   Prophet Amos Evomobor
@@ -352,15 +384,9 @@ export default function About() {
                 </p>
 
                 <div className="space-y-4 text-[15px] text-muted-foreground leading-relaxed">
-                  <p>
-                    Prophet Amos Evomobor is a man raised by God specifically for this generation's doctrinal reformation. Operating under the grace of correction, he has consistently delivered uncompromising biblical teaching on Primitive Christianity, the Baptism of the Holy Spirit, Water Baptism, Holiness, and the End Times.
-                  </p>
-                  <p>
-                    His teachings on Temple TV have brought doctrinal clarity to thousands of ministers and believers, establishing him as a prophetic voice of correction in the Nigerian church landscape. The Ebrumede Temple — his base of operations in Warri — has become a centre of reformation, drawing seekers of truth from across the nation.
-                  </p>
-                  <p>
-                    The mandate entrusted to Prophet Amos is not merely institutional — it is eschatological. He carries a burden for the global Body of Christ to return to the simplicity, purity, and power of the apostolic church before the return of the Lord.
-                  </p>
+                  <p>{s.pastorBio1}</p>
+                  <p>{s.pastorBio2}</p>
+                  <p>{s.pastorBio3}</p>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-border/50 flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -381,10 +407,10 @@ export default function About() {
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
                 <Eye className="h-4 w-4 text-accent" />
               </div>
-              <span className="text-sm font-medium text-accent uppercase tracking-widest">Vision & Mission</span>
+              <span className="text-sm font-medium text-accent uppercase tracking-widest">{s.visionMission}</span>
             </div>
             <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-8">
-              A Mandate for This Generation
+              {s.mandateThisGen}
             </h2>
 
             <div className="glass-panel rounded-2xl p-8 mb-8 space-y-5">
@@ -430,7 +456,7 @@ export default function About() {
 
           {/* Core Beliefs */}
           <div className="mb-10">
-            <h2 className="text-2xl font-serif font-bold text-primary mb-6">Our Core Beliefs</h2>
+            <h2 className="text-2xl font-serif font-bold text-primary mb-6">{s.ourCoreBeliefs}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {DOCTRINES.map((doctrine, i) => (
                 <motion.div
@@ -454,12 +480,12 @@ export default function About() {
 
           {/* Contact & Location */}
           <div className="glass-panel rounded-2xl p-8">
-            <h2 className="text-2xl font-serif font-bold text-primary mb-6">Contact & Location</h2>
+            <h2 className="text-2xl font-serif font-bold text-primary mb-6">{s.contactLocation}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm text-muted-foreground">
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <MapPin className="h-4 w-4 text-accent shrink-0" />
-                  <p className="font-semibold text-primary">Church Address</p>
+                  <p className="font-semibold text-primary">{s.churchAddress}</p>
                 </div>
                 <ChurchAddressBlock showIcon />
               </div>
@@ -467,15 +493,15 @@ export default function About() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Mail className="h-4 w-4 text-accent shrink-0" />
-                  <p className="font-semibold text-primary">Email Us</p>
+                  <p className="font-semibold text-primary">{s.emailUs}</p>
                 </div>
                 <ul className="space-y-2">
                   {[
-                    { label: "General", address: "info@jctm.org.ng" },
-                    { label: "Ministry", address: "jesuschristtempleministry@jctm.org.ng" },
-                    { label: "New Members", address: "joinus@jctm.org.ng" },
-                    { label: "Support", address: "support@jctm.org.ng" },
-                    { label: "Prophet Amos", address: "prophetamos@jctm.org.ng" },
+                    { label: s.general, address: "info@jctm.org.ng" },
+                    { label: s.ministry, address: "jesuschristtempleministry@jctm.org.ng" },
+                    { label: s.newMembers, address: "joinus@jctm.org.ng" },
+                    { label: s.support, address: "support@jctm.org.ng" },
+                    { label: s.prophetAmos, address: "prophetamos@jctm.org.ng" },
                   ].map(({ label, address }) => (
                     <li key={address}>
                       <a href={`mailto:${address}`} className="hover:text-accent transition-colors flex flex-col">
@@ -490,11 +516,11 @@ export default function About() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Phone className="h-4 w-4 text-accent shrink-0" />
-                  <p className="font-semibold text-primary">Phone & Media</p>
+                  <p className="font-semibold text-primary">{s.phoneMedia}</p>
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Enquiries</p>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">{s.enquiries}</p>
                     <a href="tel:+2348081313111" className="hover:text-accent transition-colors block">+234 (0) 808 131 3111</a>
                     <a href="tel:07082009777" className="hover:text-accent transition-colors block">07082009777</a>
                   </div>
@@ -511,13 +537,13 @@ export default function About() {
                     </a>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">Sunday Service</p>
-                    <p>Live-streamed via Temple TV · 8:00 AM WAT</p>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-0.5">{s.sundayService}</p>
+                    <p>{s.livestreamed}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <Video className="h-3.5 w-3.5 text-accent shrink-0" />
-                      <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">Zoom Meeting ID</p>
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">{s.zoomMeetingId}</p>
                     </div>
                     <a
                       href="https://zoom.us/j/4092099631"

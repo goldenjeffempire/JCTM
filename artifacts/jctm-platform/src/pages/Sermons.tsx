@@ -1,4 +1,6 @@
 import { Fragment, useState, useEffect, useRef, useCallback } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetSermonStats, getGetSermonStatsQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
@@ -76,6 +78,7 @@ async function fetchSermonsPage(search: string, offset: number): Promise<SermonI
 }
 
 export default function Sermons() {
+  const { t } = useLanguage();
   useAdPageTracker("/sermons", 1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -356,13 +359,13 @@ export default function Sermons() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-1.5 h-8 bg-sky-400 rounded-full inline-block" />
-                <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">Temple TV Library</span>
+                <span className="text-sky-300 text-xs font-bold uppercase tracking-widest"><T>Temple TV Library</T></span>
               </div>
               <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-2">
-                Sermon Hub
+                {t("Sermon Hub")}
               </h1>
               <p className="text-white/60 text-sm max-w-xl">
-                Teachings of Prophet Amos Evomobor — Primitive Christianity, Holiness &amp; the Correction Mandate
+                <T>Teachings of Prophet Amos Evomobor — Primitive Christianity, Holiness & the Correction Mandate</T>
               </p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">

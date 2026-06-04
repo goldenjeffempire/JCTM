@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
@@ -193,6 +195,7 @@ function ReelCard({ testimony, index, likedIds, localLikes, onAmen }: {
 }
 
 export default function Testimonies() {
+  const { t } = useLanguage();
   useAdPageTracker("/testimonies", 1);
   const [showForm, setShowForm] = useState(false);
   const [step, setStep] = useState<Step>(1);
@@ -284,7 +287,7 @@ export default function Testimonies() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3">Testimony Vault</h1>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3">{t("Testimony Vault")}</h1>
             <p className="text-muted-foreground text-lg">What God is doing through the Correction Mandate — {(testimonies ?? []).length} miracles recorded.</p>
           </div>
           <div className="flex items-center gap-3">

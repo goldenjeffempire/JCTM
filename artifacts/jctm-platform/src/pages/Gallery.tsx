@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { useListGalleryImages, useDeleteGalleryImage, useUpdateGalleryImage } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
@@ -1260,6 +1262,7 @@ function useGallerySSE(onUpdate: (action: string, data: Record<string, unknown>)
 // ─── Main Gallery page ──────────────────────────────────────────────────────
 
 export default function Gallery() {
+  const { t } = useLanguage();
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
@@ -1458,7 +1461,7 @@ export default function Gallery() {
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="max-w-3xl">
               <span className="inline-block text-xs font-semibold text-accent uppercase tracking-widest mb-4 border border-accent/30 rounded-full px-4 py-1.5">Ministry in Pictures</span>
-              <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3">Photo Gallery</h1>
+              <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-3"><T>Photo Gallery</T></h1>
               <p className="gallery-seo-summary text-muted-foreground text-lg max-w-2xl">
                 Explore the official JCTM photo gallery: Sunday services, crusades, conferences, prayer nights, outreach, and special ministry moments from Jesus Christ Temple Ministry in Warri, Nigeria.
               </p>

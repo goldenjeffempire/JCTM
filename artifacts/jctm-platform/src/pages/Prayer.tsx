@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "@/components/T";
 import { motion, AnimatePresence } from "framer-motion";
 import { SEO } from "@/components/SEO";
 import {
@@ -66,6 +68,7 @@ interface PrayerRequest {
 }
 
 function PrayerWall() {
+  const { t } = useLanguage();
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [prayedFor, setPrayedFor] = useState<Set<number>>(() => {
@@ -138,7 +141,7 @@ function PrayerWall() {
       >
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-serif font-bold text-primary">Community Prayer Wall</h2>
+            <h2 className="text-2xl font-serif font-bold text-primary"><T>Community Prayer Wall</T></h2>
             <p className="text-sm text-muted-foreground mt-1">Pray for your brothers and sisters in Christ</p>
           </div>
           <Button

@@ -1,0 +1,1 @@
+- [Translation architecture](translation-architecture.md) — three-tier i18n: t() static (17 langs), T component async AI, usePageStrings batch; terms JCTM/Temple TV/TempleBots/Prophet Amos never translated.

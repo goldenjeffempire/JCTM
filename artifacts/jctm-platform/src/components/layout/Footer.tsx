@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Facebook, Youtube, Mail, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const SOCIAL = [
   {
@@ -63,6 +64,8 @@ function ColumnHeading({ children }: { children: React.ReactNode }) {
 }
 
 export function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="relative bg-gradient-to-b from-background to-secondary/40 border-t border-border/70 mt-auto">
       {/* Subtle top accent line */}
@@ -95,7 +98,7 @@ export function Footer() {
                   Jesus Christ Temple Ministry
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 italic">
-                  "The Land Of Good News"
+                  &ldquo;The Land Of Good News&rdquo;
                 </p>
                 <p className="text-[11px] text-accent font-semibold mt-1 tracking-wide">
                   The Bible Is Our Standard
@@ -109,21 +112,21 @@ export function Footer() {
 
             {/* Social chips */}
             <div className="mt-7">
-              <ColumnHeading>Connect</ColumnHeading>
+              <ColumnHeading>{t("Connect")}</ColumnHeading>
               <SocialChips />
             </div>
           </div>
 
           {/* Location + Contact */}
           <div className="md:col-span-4">
-            <ColumnHeading>Location</ColumnHeading>
+            <ColumnHeading>{t("Location")}</ColumnHeading>
             <ChurchAddressBlock
               className="text-muted-foreground text-sm leading-relaxed"
               showIcon
             />
 
             <div className="mt-7">
-              <ColumnHeading>Contact</ColumnHeading>
+              <ColumnHeading>{t("Contact")}</ColumnHeading>
               <ul className="space-y-2.5">
                 {EMAILS.map(({ label, address }) => (
                   <li key={address}>
@@ -161,25 +164,25 @@ export function Footer() {
 
           {/* Quick Links + Legal */}
           <div className="md:col-span-3">
-            <ColumnHeading>Explore</ColumnHeading>
+            <ColumnHeading>{t("Explore")}</ColumnHeading>
             <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
-              <Link href="/sermons" className="hover:text-primary transition-colors">Sermon Hub</Link>
-              <Link href="/testimonies" className="hover:text-primary transition-colors">Testimony Vault</Link>
-              <Link href="/events" className="hover:text-primary transition-colors">Events Calendar</Link>
-              <Link href="/correction-timeline" className="hover:text-primary transition-colors">Correction Timeline</Link>
-              <Link href="/give" className="hover:text-primary transition-colors">Give / Tithe</Link>
-              <Link href="/join" className="hover:text-primary transition-colors">Join Members</Link>
-              <Link href="/about" className="hover:text-primary transition-colors">About JCTM</Link>
+              <Link href="/sermons" className="hover:text-primary transition-colors">{t("Sermon Hub")}</Link>
+              <Link href="/testimonies" className="hover:text-primary transition-colors">{t("Testimony Vault")}</Link>
+              <Link href="/events" className="hover:text-primary transition-colors">{t("Events Calendar")}</Link>
+              <Link href="/correction-timeline" className="hover:text-primary transition-colors">{t("Correction Timeline")}</Link>
+              <Link href="/give" className="hover:text-primary transition-colors">{t("Give / Tithe")}</Link>
+              <Link href="/join" className="hover:text-primary transition-colors">{t("Join Members")}</Link>
+              <Link href="/about" className="hover:text-primary transition-colors">{t("About JCTM")}</Link>
             </div>
 
             <div className="mt-7">
-              <ColumnHeading>Legal</ColumnHeading>
+              <ColumnHeading>{t("Legal")}</ColumnHeading>
               <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-                <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
-                <Link href="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</Link>
-                <Link href="/cookies" className="hover:text-primary transition-colors">Cookie Policy</Link>
-                <Link href="/contact" className="hover:text-primary transition-colors">Contact Us</Link>
+                <Link href="/privacy" className="hover:text-primary transition-colors">{t("Privacy Policy")}</Link>
+                <Link href="/terms" className="hover:text-primary transition-colors">{t("Terms of Service")}</Link>
+                <Link href="/disclaimer" className="hover:text-primary transition-colors">{t("Disclaimer")}</Link>
+                <Link href="/cookies" className="hover:text-primary transition-colors">{t("Cookie Policy")}</Link>
+                <Link href="/contact" className="hover:text-primary transition-colors">{t("Contact Us")}</Link>
               </div>
             </div>
           </div>
@@ -188,7 +191,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-14 pt-6 border-t border-border/60 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <p className="text-center md:text-left">
-            &copy; {new Date().getFullYear()} Jesus Christ Temple Ministry. All rights reserved.
+            &copy; {new Date().getFullYear()} Jesus Christ Temple Ministry. {t("All rights reserved.")}
           </p>
           <div className="flex items-center gap-4 flex-wrap justify-center">
             <a

@@ -1,22 +1,21 @@
 /**
- * Translation Route — Local Graceful Fallback
+ * Translation Route — OpenAI-powered with graceful fallback
  *
- * Full machine translation requires an external service.
- * Since we are Zero External API, this route:
- *  - Returns the original text for English requests
- *  - Returns a ministry-safe fallback message for other languages
- *  - Notifies the client that translation is best-effort
- *
- * The TempleBots multilingual system handles language instructions
- * natively in the chat routes (language passed as param → local engine
- * generates response in context with language note).
+ * Uses gpt-4o-mini for cost-effective batch translation.
+ * Server-side in-memory cache avoids re-translating the same strings.
+ * Falls back to local phrase matching when OPENAI_API_KEY is not set.
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
+import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-const SUPPORTED_LANGUAGES: Record<string, string> = {
+const openaiClient = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+
+export const SUPPORTED_LANGUAGES: Record<string, string> = {
   en: "English", yo: "Yoruba", ig: "Igbo", ha: "Hausa", fr: "French",
   es: "Spanish", pt: "Portuguese", de: "German", ar: "Arabic", zh: "Chinese (Simplified)",
   hi: "Hindi", sw: "Swahili", ru: "Russian", it: "Italian", nl: "Dutch",
@@ -27,9 +26,19 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   am: "Amharic", so: "Somali", zu: "Zulu", xh: "Xhosa", sn: "Shona",
   rw: "Kinyarwanda", lg: "Luganda", ny: "Chichewa", st: "Sesotho", mg: "Malagasy",
   ms: "Malay", tl: "Filipino", km: "Khmer", lo: "Lao", my: "Burmese",
+  fa: "Persian", he: "Hebrew", ka: "Georgian", hy: "Armenian",
+  az: "Azerbaijani", kk: "Kazakh", uz: "Uzbek",
+  el: "Greek", bg: "Bulgarian", sr: "Serbian",
 };
 
-// Simple phrase translations for common ministry strings
+// Terms that should NEVER be translated
+const PRESERVE_TERMS = [
+  "JCTM", "Temple TV", "TempleBots", "Temple TV JCTM",
+  "Prophet Amos", "Prophet Amos Evomobor",
+  "Correction Mandate", "Global Altar",
+];
+
+// Simple local phrase map for when OpenAI is unavailable
 const MINISTRY_PHRASES: Record<string, Record<string, string>> = {
   yo: {
     "Watch on Temple TV": "Wo lori Temple TV",
@@ -66,23 +75,18 @@ const MINISTRY_PHRASES: Record<string, Record<string, string>> = {
     "Live Service": "Servicio en vivo",
     "Prayer Request": "Petición de oración",
   },
-  pt: {
-    "Watch on Temple TV": "Assistir na Temple TV",
-    "Jesus Christ Temple Ministry": "Ministério do Templo de Jesus Cristo",
-    "Subscribe": "Subscrever",
-    "Live Service": "Culto ao vivo",
-    "Prayer Request": "Pedido de oração",
-  },
-  sw: {
-    "Watch on Temple TV": "Tazama kwenye Temple TV",
-    "Jesus Christ Temple Ministry": "Wizara ya Hekalu la Yesu Kristo",
-    "Subscribe": "Jiandikishe",
-    "Live Service": "Huduma ya Moja kwa Moja",
-    "Prayer Request": "Ombi la Sala",
-  },
 };
 
+// Server-side translation cache (cleared on restart)
 const translationCache = new Map<string, string>();
+const MAX_CACHE_SIZE = 5000;
+
+function pruneCache() {
+  if (translationCache.size > MAX_CACHE_SIZE) {
+    const toDelete = [...translationCache.keys()].slice(0, 500);
+    toDelete.forEach(k => translationCache.delete(k));
+  }
+}
 
 router.get("/translate/languages", (_req: Request, res: Response): void => {
   res.json({ languages: SUPPORTED_LANGUAGES });
@@ -106,22 +110,89 @@ router.post("/translate", async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  if (targetLanguage === sourceLanguage || targetLanguage === "en") {
+  // Passthrough for English or same-language
+  if (targetLanguage === "en" || targetLanguage === sourceLanguage) {
     res.json({ translated: text, language: langName, method: "passthrough" });
     return;
   }
 
   const texts = Array.isArray(text) ? text : [text];
-  const cacheKey = `${targetLanguage}:${texts.join("|||")}`;
 
-  if (translationCache.has(cacheKey)) {
-    const cached = translationCache.get(cacheKey)!;
-    const result = Array.isArray(text) ? JSON.parse(cached) : cached;
-    res.json({ translated: result, language: langName, cached: true });
+  // Empty / whitespace-only — return as-is
+  if (texts.every(t => !t.trim())) {
+    res.json({ translated: text, language: langName, method: "passthrough" });
     return;
   }
 
-  // Local phrase matching for known ministry phrases
+  // Check server-side cache
+  const cacheKey = `${targetLanguage}:${JSON.stringify(texts)}`;
+  if (translationCache.has(cacheKey)) {
+    const cached = JSON.parse(translationCache.get(cacheKey)!);
+    res.json({ translated: Array.isArray(text) ? cached : cached[0], language: langName, method: "cache" });
+    return;
+  }
+
+  // ── OpenAI path ──────────────────────────────────────────────────────────
+  if (openaiClient) {
+    try {
+      const preserveList = PRESERVE_TERMS.join(", ");
+      const estimatedTokens = Math.max(500, texts.join(" ").length * 4);
+
+      const completion = await openaiClient.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional translator for a Christian ministry website. Translate the given JSON array of strings to ${langName}.
+
+Rules:
+- Return ONLY a valid JSON array with exactly ${texts.length} translated string(s), in the same order.
+- Do NOT add explanations or extra text — only the JSON array.
+- Preserve HTML entities, emojis, and markdown formatting exactly.
+- Do NOT translate these proper nouns: ${preserveList}
+- Keep scripture references (e.g. John 17:17, Jeremiah 6:16) unchanged.
+- Use reverent, natural language appropriate for a Christian ministry context.`,
+          },
+          {
+            role: "user",
+            content: JSON.stringify(texts),
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: Math.min(4096, estimatedTokens),
+      });
+
+      const raw = (completion.choices[0]?.message?.content ?? "[]").trim();
+
+      let translated: string[];
+      try {
+        // Strip markdown code fences if model wrapped the JSON
+        const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        translated = JSON.parse(cleaned);
+        if (!Array.isArray(translated) || translated.length !== texts.length) {
+          throw new Error("Length mismatch");
+        }
+        // Ensure all elements are strings
+        translated = translated.map((t, i) => (typeof t === "string" ? t : texts[i]));
+      } catch {
+        // Parse failure → return originals
+        translated = texts;
+      }
+
+      pruneCache();
+      translationCache.set(cacheKey, JSON.stringify(translated));
+      res.json({
+        translated: Array.isArray(text) ? translated : translated[0],
+        language: langName,
+        method: "openai",
+      });
+      return;
+    } catch (err) {
+      // OpenAI error → fall through to local phrase matching
+    }
+  }
+
+  // ── Local phrase matching fallback ───────────────────────────────────────
   const phrasesForLang = MINISTRY_PHRASES[targetLanguage] ?? {};
   const translated = texts.map(t => {
     let result = t;
@@ -131,23 +202,11 @@ router.post("/translate", async (req: Request, res: Response): Promise<void> => 
     return result;
   });
 
-  const isSame = translated.every((t, i) => t === texts[i]);
-
-  if (isSame) {
-    // No phrase matches — return original with advisory note
-    const result = Array.isArray(text) ? texts : texts[0];
-    res.json({
-      translated: result,
-      language: langName,
-      method: "passthrough",
-      note: "Full translation requires an external translation service. TempleBots answers in your language when you chat directly.",
-    });
-    return;
-  }
-
-  const result = Array.isArray(text) ? translated : translated[0];
-  translationCache.set(cacheKey, Array.isArray(text) ? JSON.stringify(result) : (result as string));
-  res.json({ translated: result, language: langName, method: "local-phrases" });
+  res.json({
+    translated: Array.isArray(text) ? translated : translated[0],
+    language: langName,
+    method: openaiClient ? "openai-error-fallback" : "local-phrases",
+  });
 });
 
 export default router;
