@@ -165,8 +165,9 @@ function PrayerWall() {
               <h3 className="font-semibold text-primary text-sm">Share Your Prayer Need</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Your Name (optional)</label>
+                  <label htmlFor="prayer-name" className="text-xs font-medium text-muted-foreground block mb-1">Your Name (optional)</label>
                   <input
+                    id="prayer-name"
                     type="text"
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -176,8 +177,9 @@ function PrayerWall() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Category</label>
+                  <label htmlFor="prayer-category" className="text-xs font-medium text-muted-foreground block mb-1">Category</label>
                   <select
+                    id="prayer-category"
                     value={form.category}
                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
@@ -190,12 +192,14 @@ function PrayerWall() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">Your Prayer Need *</label>
+                <label htmlFor="prayer-request" className="text-xs font-medium text-muted-foreground block mb-1">Your Prayer Need *</label>
                 <textarea
+                  id="prayer-request"
                   value={form.request}
                   onChange={e => setForm(f => ({ ...f, request: e.target.value.slice(0, 500) }))}
                   placeholder="Share what is on your heart…"
                   rows={3}
+                  aria-required="true"
                   className="w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
                   style={{ borderColor: "rgba(0,51,102,0.15)" }}
                 />

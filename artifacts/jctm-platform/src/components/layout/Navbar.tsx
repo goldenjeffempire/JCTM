@@ -133,6 +133,15 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
   const navHeight = scrolled ? "h-12" : "h-16";
   const bgOpacity = Math.min(scrollY / 100, 1);
 
@@ -148,7 +157,7 @@ export function Navbar() {
   };
 
   // Derived: does current path belong to a dropdown?
-  const resourcesHrefs = ["/testimonies", "/events", "/give", "/scripture-study", "/spiritual-insight", "/gallery"];
+  const resourcesHrefs = ["/testimonies", "/events", "/give", "/scripture-study", "/spiritual-insight", "/gallery", "/crusade", "/topics", "/blog"];
   const aboutHrefs = ["/about", "/leadership", "/sermon-assistant"];
   const resourcesActive = resourcesHrefs.includes(location);
   const aboutActive = aboutHrefs.includes(location);
@@ -280,6 +289,8 @@ export function Navbar() {
           <div className="relative">
             <button
               onClick={() => toggle_dropdown("resources")}
+              aria-haspopup="true"
+              aria-expanded={openDropdown === "resources"}
               className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 relative ${resourcesActive || openDropdown === "resources" ? "text-accent" : "text-primary/80"}`}
             >
               {t("Resources")}
@@ -295,6 +306,8 @@ export function Navbar() {
           <div className="relative">
             <button
               onClick={() => toggle_dropdown("about")}
+              aria-haspopup="true"
+              aria-expanded={openDropdown === "about"}
               className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent cursor-pointer py-1 relative ${aboutActive || openDropdown === "about" ? "text-accent" : "text-primary/80"}`}
             >
               {t("About")}
@@ -386,7 +399,15 @@ export function Navbar() {
             </AnimatePresence>
           </motion.button>
 
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="text-primary">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsOpen(!isOpen)}
+            className="text-primary w-11 h-11"
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isOpen}
+            aria-controls="mobile-nav-menu"
+          >
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={isOpen ? "close" : "open"}
@@ -406,6 +427,9 @@ export function Navbar() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            id="mobile-nav-menu"
+            role="navigation"
+            aria-label="Mobile navigation"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}

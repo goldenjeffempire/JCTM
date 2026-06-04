@@ -399,6 +399,98 @@ export const UI: UIStrings = {
     ja: "説教AIとチャットする",
     id: "Obrol dengan AI khotbah kami",
   },
+
+  // ── Navigation items added for completeness ───────────────────────────────
+  "Intro": {
+    en: "Intro", yo: "Ìfilọlẹ̀", ig: "Mmalite", ha: "Gabatarwa", fr: "Intro",
+    es: "Intro", pt: "Intro", de: "Intro", ar: "مقدمة",
+    zh: "简介", hi: "परिचय", sw: "Utangulizi", ru: "Введение", it: "Intro",
+    ko: "소개", ja: "イントロ", id: "Intro",
+  },
+  "Viewing Center": {
+    en: "Viewing Center", yo: "Ibi Wiwo", ig: "Ebe nlele", ha: "Cibiyar Kallo", fr: "Centre de diffusion",
+    es: "Centro de visualización", pt: "Centro de transmissão", de: "Sendezentrum", ar: "مركز المشاهدة",
+    zh: "观看中心", hi: "देखने का केंद्र", sw: "Kituo cha Kutazama", ru: "Центр просмотра", it: "Centro di visione",
+    ko: "시청 센터", ja: "視聴センター", id: "Pusat Penayangan",
+  },
+  "Bible Topics": {
+    en: "Bible Topics", yo: "Àwọn Kókó Bíbélì", ig: "Isiokwu Baibul", ha: "Batutuwan Littafi Mai Tsarki", fr: "Thèmes Bibliques",
+    es: "Temas Bíblicos", pt: "Temas Bíblicos", de: "Bibelthemen", ar: "مواضيع الكتاب المقدس",
+    zh: "圣经主题", hi: "बाइबल विषय", sw: "Mada za Biblia", ru: "Темы Библии", it: "Argomenti Biblici",
+    ko: "성경 주제", ja: "聖書のテーマ", id: "Topik Alkitab",
+  },
+  "Ministry Blog": {
+    en: "Ministry Blog", yo: "Àpéjúwe Iṣẹ́ Ọlọ́run", ig: "Blọọgụ ọrụ", ha: "Blog na Hidima", fr: "Blog du Ministère",
+    es: "Blog del Ministerio", pt: "Blog do Ministério", de: "Ministeriums-Blog", ar: "مدونة الخدمة",
+    zh: "事工博客", hi: "मंत्रालय ब्लॉग", sw: "Blogu ya Huduma", ru: "Блог служения", it: "Blog del Ministero",
+    ko: "사역 블로그", ja: "ミニストリーブログ", id: "Blog Pelayanan",
+  },
+  "Gallery": {
+    en: "Gallery", yo: "Àwòrán", ig: "Ihe ngosi", ha: "Gidan Zane", fr: "Galerie",
+    es: "Galería", pt: "Galeria", de: "Galerie", ar: "معرض",
+    zh: "相册", hi: "गैलरी", sw: "Matunzio", ru: "Галерея", it: "Galleria",
+    ko: "갤러리", ja: "ギャラリー", id: "Galeri",
+  },
+  "Scripture Study": {
+    en: "Scripture Study", yo: "Ẹ̀kọ́ Ìwé Mímọ́", ig: "Ọmụmụ Akwụkwọ Nsọ", ha: "Nazarin Littafi Mai Tsarki", fr: "Étude des Écritures",
+    es: "Estudio de las Escrituras", pt: "Estudo das Escrituras", de: "Bibelstudium", ar: "دراسة الكتاب المقدس",
+    zh: "经文学习", hi: "धर्मग्रंथ अध्ययन", sw: "Masomo ya Maandiko", ru: "Изучение Писания", it: "Studio delle Scritture",
+    ko: "성경 공부", ja: "聖書研究", id: "Studi Kitab Suci",
+  },
+  "Spiritual Insight": {
+    en: "Spiritual Insight", yo: "Ìmọ̀ Tẹ̀mí", ig: "Nghọta ime mmụọ", ha: "Fahimtar Ruhaniya", fr: "Perspicacité Spirituelle",
+    es: "Perspicacia Espiritual", pt: "Perspicácia Espiritual", de: "Geistliche Einsicht", ar: "البصيرة الروحية",
+    zh: "灵性洞见", hi: "आध्यात्मिक अंतर्दृष्टि", sw: "Ufahamu wa Kiroho", ru: "Духовное прозрение", it: "Intuizione Spirituale",
+    ko: "영적 통찰", ja: "霊的洞察", id: "Wawasan Rohani",
+  },
+  "WhatsApp Channel": {
+    en: "WhatsApp Channel", yo: "Ìkànnì WhatsApp", ig: "Ọwa WhatsApp", ha: "Tashar WhatsApp", fr: "Chaîne WhatsApp",
+    es: "Canal de WhatsApp", pt: "Canal do WhatsApp", de: "WhatsApp-Kanal", ar: "قناة واتساب",
+    zh: "WhatsApp频道", hi: "WhatsApp चैनल", sw: "Chaneli ya WhatsApp", ru: "Канал WhatsApp", it: "Canale WhatsApp",
+    ko: "왓츠앱 채널", ja: "WhatsAppチャンネル", id: "Saluran WhatsApp",
+  },
+  "Follow us on WhatsApp": {
+    en: "Follow us on WhatsApp", yo: "Tẹle wa lori WhatsApp", ig: "Soro anyị na WhatsApp", ha: "Bi mu a kan WhatsApp", fr: "Suivez-nous sur WhatsApp",
+    es: "Síguenos en WhatsApp", pt: "Siga-nos no WhatsApp", de: "Folge uns auf WhatsApp", ar: "تابعنا على واتساب",
+    zh: "在WhatsApp上关注我们", hi: "WhatsApp पर हमें फॉलो करें", sw: "Tufuate kwenye WhatsApp", ru: "Следите за нами в WhatsApp", it: "Seguici su WhatsApp",
+    ko: "왓츠앱에서 팔로우하기", ja: "WhatsAppでフォロー", id: "Ikuti kami di WhatsApp",
+  },
+  "8 in-depth teaching topic clusters": {
+    en: "8 in-depth teaching topic clusters", yo: "Àwọn ẹgbẹ 8 ti ẹ̀kọ́ alágbára", ig: "Ọgwụgwọ 8 nke nkuzi omimi", ha: "Gungu 8 na zurfin koyarwa", fr: "8 groupes de sujets d'enseignement approfondis",
+    es: "8 grupos de temas de enseñanza profunda", pt: "8 clusters de tópicos de ensino profundo", de: "8 tiefgehende Lehrthemencluster", ar: "8 مجموعات موضوعية تعليمية متعمقة",
+    zh: "8个深度教导主题群", hi: "8 गहन शिक्षण विषय समूह", sw: "Makundi 8 ya mada za kufundisha kwa kina", ru: "8 углублённых тематических кластеров", it: "8 cluster di argomenti di insegnamento approfonditi",
+    ko: "8개의 심층 교육 주제 클러스터", ja: "8つの深い教えのトピッククラスター", id: "8 kluster topik pengajaran mendalam",
+  },
+  "Theological insights & reflections": {
+    en: "Theological insights & reflections", yo: "Àwọn Ìmọ̀ & Èrò Ìsìn", ig: "Nghọta & ihe atụ nke ozizi", ha: "Fahimtar tauhidi & tunani", fr: "Perspectives et réflexions théologiques",
+    es: "Perspectivas y reflexiones teológicas", pt: "Perspectivas e reflexões teológicas", de: "Theologische Einblicke und Reflexionen", ar: "رؤى وتأملات لاهوتية",
+    zh: "神学见解与反思", hi: "धर्मशास्त्रीय अंतर्दृष्टि और विचार", sw: "Maarifa na tafakari za theolojia", ru: "Богословские взгляды и размышления", it: "Approfondimenti e riflessioni teologiche",
+    ko: "신학적 통찰과 성찰", ja: "神学的洞察と省察", id: "Wawasan dan refleksi teologis",
+  },
+  "Ministry photos & service memories": {
+    en: "Ministry photos & service memories", yo: "Àwọn fọ́tò & ìrántí iṣẹ́", ig: "Foto & ebe obibi ọrụ", ha: "Hotuna & tunawa da hidima", fr: "Photos du ministère et souvenirs de services",
+    es: "Fotos del ministerio y recuerdos de servicios", pt: "Fotos do ministério e memórias dos cultos", de: "Ministeriumsfotos und Gottesdienstfotos", ar: "صور الخدمة وذكريات العبادة",
+    zh: "事工照片与崇拜记忆", hi: "सेवकाई तस्वीरें और सेवा यादें", sw: "Picha za huduma na kumbukumbu za ibada", ru: "Фото служения и воспоминания о богослужениях", it: "Foto del ministero e ricordi dei servizi",
+    ko: "사역 사진 및 예배 추억", ja: "ミニストリーの写真と礼拝の思い出", id: "Foto pelayanan & kenangan ibadah",
+  },
+  "Deep AI exegetical Bible analysis": {
+    en: "Deep AI exegetical Bible analysis", yo: "Ìtúpalẹ̀ Bíbélì gíga AI", ig: "Nyocha Bible nke AI dị omimi", ha: "Zurfin nazarin Littafi Mai Tsarki na AI", fr: "Analyse exégétique approfondie de la Bible par IA",
+    es: "Análisis exegético bíblico profundo con IA", pt: "Análise exegética bíblica profunda por IA", de: "Tiefe KI-exegetische Bibelanalyse", ar: "تحليل تفسيري عميق للكتاب المقدس بالذكاء الاصطناعي",
+    zh: "深度AI圣经释经分析", hi: "गहन AI व्याख्यात्मक बाइबल विश्लेषण", sw: "Uchambuzi wa kina wa Biblia wa AI", ru: "Глубокий ИИ-экзегетический анализ Библии", it: "Analisi esegetica profonda della Bibbia con IA",
+    ko: "심층 AI 성경 주석 분석", ja: "深いAI聖書釈義分析", id: "Analisis Alkitab eksegesis AI mendalam",
+  },
+  "Personalized prophetic guidance": {
+    en: "Personalized prophetic guidance", yo: "Ìdarí Àsọtẹlẹ Tí a Ṣe Dáadáa", ig: "Nduzi amụma nke onwe ya", ha: "Jagorar annabci na musamman", fr: "Guidance prophétique personnalisée",
+    es: "Orientación profética personalizada", pt: "Orientação profética personalizada", de: "Personalisierte prophetische Führung", ar: "إرشاد نبوي شخصي",
+    zh: "个性化先知引导", hi: "व्यक्तिगत भविष्यवाणी मार्गदर्शन", sw: "Mwongozo wa unabii uliobuniwa", ru: "Персонализированное пророческое руководство", it: "Guida profetica personalizzata",
+    ko: "개인화된 예언적 지도", ja: "個別化された預言的ガイダンス", id: "Bimbingan profetis yang dipersonalisasi",
+  },
+  "Warri crusade & outreach events": {
+    en: "Warri crusade & outreach events", yo: "Ìgbésẹ̀ Crusade & Ìsọ̀rọ̀ Warri", ig: "Crusade & mmemme ọrụ Warri", ha: "Crusade da ayyukan Warri", fr: "Croisade et événements d'évangélisation de Warri",
+    es: "Cruzada y eventos de alcance en Warri", pt: "Cruzada e eventos de alcance em Warri", de: "Warri Kreuzzug & Outreach-Veranstaltungen", ar: "حملة وري وفعاليات التوعية",
+    zh: "瓦里布道会及外展活动", hi: "वारी धर्मयुद्ध और आउटरीच कार्यक्रम", sw: "Crusade na matukio ya uinjilisti Warri", ru: "Крестовый поход в Варри и евангелизационные события", it: "Crociata Warri ed eventi di outreach",
+    ko: "와리 전도대회 및 전도 행사", ja: "ワリ伝道集会とアウトリーチイベント", id: "Crusade Warri & acara penjangkauan",
+  },
 };
 
 /**

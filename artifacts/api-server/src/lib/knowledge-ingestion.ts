@@ -863,7 +863,7 @@ export async function ingestDailyDevotionals(log?: Logger): Promise<void> {
       ].filter(Boolean).join("\n");
 
       const vector = await generateEmbeddingVector(content);
-      const dateKey = devo.date.slice(0, 10).replace(/-/g, "");
+      const dateKey = new Date(devo.date).toISOString().slice(0, 10).replace(/-/g, "");
       await client.query(
         `INSERT INTO knowledge_chunks (content, source, chunk_index, chunk_type, embedding)
          VALUES ($1, $2, 0, 'devotion', $3)

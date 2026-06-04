@@ -712,30 +712,31 @@ export default function Join() {
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-medium text-primary mb-1 block">First Name *</label>
-                        <Input value={regForm.firstName} onChange={e => setRegForm(p => ({ ...p, firstName: e.target.value }))} placeholder="First" required className="bg-white" />
+                        <label htmlFor="reg-firstname" className="text-xs font-medium text-primary mb-1 block">First Name *</label>
+                        <Input id="reg-firstname" value={regForm.firstName} onChange={e => setRegForm(p => ({ ...p, firstName: e.target.value }))} placeholder="First" required className="bg-white" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-primary mb-1 block">Last Name *</label>
-                        <Input value={regForm.lastName} onChange={e => setRegForm(p => ({ ...p, lastName: e.target.value }))} placeholder="Last" required className="bg-white" />
+                        <label htmlFor="reg-lastname" className="text-xs font-medium text-primary mb-1 block">Last Name *</label>
+                        <Input id="reg-lastname" value={regForm.lastName} onChange={e => setRegForm(p => ({ ...p, lastName: e.target.value }))} placeholder="Last" required className="bg-white" />
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
-                      <Input type="email" value={regForm.email} onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="email" />
+                      <label htmlFor="reg-email" className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
+                      <Input id="reg-email" type="email" value={regForm.email} onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="email" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block">Password *</label>
+                      <label htmlFor="reg-password" className="text-xs font-medium text-primary mb-1 block">Password *</label>
                       <div className="relative">
-                        <Input type={showPass ? "text" : "password"} value={regForm.password} onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))} placeholder="Min. 8 characters" required className="bg-white pr-10" autoComplete="new-password" />
-                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                        <Input id="reg-password" type={showPass ? "text" : "password"} value={regForm.password} onChange={e => setRegForm(p => ({ ...p, password: e.target.value }))} placeholder="Min. 8 characters" required className="bg-white pr-10" autoComplete="new-password" aria-describedby="reg-password-hint" />
+                        <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
+                      <p id="reg-password-hint" className="text-[11px] text-muted-foreground mt-1">Minimum 8 characters</p>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block">Phone (optional)</label>
-                      <Input type="tel" value={regForm.phone} onChange={e => setRegForm(p => ({ ...p, phone: e.target.value }))} placeholder="+234..." className="bg-white" />
+                      <label htmlFor="reg-phone" className="text-xs font-medium text-primary mb-1 block">Phone (optional)</label>
+                      <Input id="reg-phone" type="tel" value={regForm.phone} onChange={e => setRegForm(p => ({ ...p, phone: e.target.value }))} placeholder="+234..." className="bg-white" />
                     </div>
                     {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg p-3">{error}</div>}
                     <Button type="submit" disabled={loading} className="w-full bg-accent text-white hover:bg-accent/90 rounded-full h-11 font-semibold shadow-lg shadow-accent/20">
@@ -761,8 +762,9 @@ export default function Join() {
                   </p>
                   <form onSubmit={handleForgotPassword} className="space-y-4">
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
+                      <label htmlFor="forgot-email" className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
                       <Input
+                        id="forgot-email"
                         type="email"
                         value={forgotEmail}
                         onChange={e => setForgotEmail(e.target.value)}
@@ -828,23 +830,23 @@ export default function Join() {
                   </div>
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
-                      <Input type="email" value={loginForm.email} onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="username" />
+                      <label htmlFor="login-email" className="text-xs font-medium text-primary mb-1 block">Email Address *</label>
+                      <Input id="login-email" type="email" value={loginForm.email} onChange={e => setLoginForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" required className="bg-white" autoComplete="username" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-primary mb-1 block flex items-center justify-between">
-                        <span>Password *</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <label htmlFor="login-password" className="text-xs font-medium text-primary">Password *</label>
                         <button
                           type="button"
                           onClick={() => { setView("forgot"); setError(""); setForgotEmail(loginForm.email); }}
-                          className="text-accent hover:underline font-medium normal-case tracking-normal"
+                          className="text-xs text-accent hover:underline font-medium"
                         >
                           Forgot password?
                         </button>
-                      </label>
+                      </div>
                       <div className="relative">
-                        <Input type={showPass ? "text" : "password"} value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))} placeholder="Your password" required className="bg-white pr-10" autoComplete="current-password" />
-                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                        <Input id="login-password" type={showPass ? "text" : "password"} value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))} placeholder="Your password" required className="bg-white pr-10" autoComplete="current-password" />
+                        <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>

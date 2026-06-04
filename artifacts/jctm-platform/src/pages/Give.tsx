@@ -206,7 +206,7 @@ export default function Give() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-semibold text-primary mb-2 block">Amount ({currency})</label>
+                  <label htmlFor="give-amount" className="text-sm font-semibold text-primary mb-2 block">Amount ({currency})</label>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {presets.map(p => (
                       <button key={p} type="button" onClick={() => setAmount(String(p))}
@@ -218,6 +218,7 @@ export default function Give() {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">{symbol}</span>
                     <Input
+                      id="give-amount"
                       type="number"
                       min="1"
                       step="1"
@@ -231,12 +232,12 @@ export default function Give() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-semibold text-primary mb-1.5 block">Full Name (optional)</label>
-                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="bg-white" />
+                    <label htmlFor="give-name" className="text-sm font-semibold text-primary mb-1.5 block">Full Name (optional)</label>
+                    <Input id="give-name" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="bg-white" />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold text-primary mb-1.5 block">Email *</label>
-                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="For confirmation" required className="bg-white" />
+                    <label htmlFor="give-email" className="text-sm font-semibold text-primary mb-1.5 block">Email *</label>
+                    <Input id="give-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="For confirmation" required aria-required="true" className="bg-white" />
                   </div>
                 </div>
 
