@@ -163,7 +163,7 @@ export function Navbar() {
     { href: "/sermons", label: t("Sermons") },
     { href: "/moments", label: t("Moments"), featurePill: true },
     { href: "/intro-videos", label: t("Intro"), featurePill: true },
-    { href: "/crusade", label: t("Viewing Center") },
+    { href: "/viewing-centres", label: t("Viewing Center") },
     { href: "/prayer", label: t("Prayer"), featurePill: true },
   ];
 
