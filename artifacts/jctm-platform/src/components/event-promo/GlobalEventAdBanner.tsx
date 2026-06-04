@@ -45,7 +45,7 @@ import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.5
 const SESSION_HIDE_KEY = "ministers_conf_banner_hidden";
 
 const FALLBACK_EVENT = {
-  enabled: true,
+  enabled: false, // Ministers Conference 2026 (May 8–10) has ended — disabled
   slug: "ministers-conference-2026",
   artworkImport: ministerConferenceFlyer,
   title: "Ministers Conference Day 2 — Apostolic Fire",

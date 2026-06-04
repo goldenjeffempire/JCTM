@@ -13,7 +13,7 @@ import {
   Megaphone, MapPin, Save, Plus, Edit3, Mail,
   Bot, Database, Cpu, Server, Layers,
   DollarSign, ExternalLink, Info, Hash, CircleDot,
-  AlertTriangle, CheckCircle2, Search,
+  AlertTriangle, CheckCircle2, Search, Archive,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -2667,6 +2667,7 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
   const authHeader = { Authorization: `Bearer ${auth.adminToken}` };
   const [form, setForm] = useState<PromotionFormState>(EMPTY_PROMOTION_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [showPastEvents, setShowPastEvents] = useState(false);
 
   const { data, isLoading, refetch } = useQuery<AdminEventPromotion[]>({
     queryKey: ["admin-event-promotions"],
@@ -2765,26 +2766,6 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
     onError: (error) => toast.error(formatAdminError(error, "Delete failed")),
   });
 
-  const seedMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`${BASE}/api/admin/event-promotions/seed-ministers-conference`, {
-        method: "POST",
-        headers: authHeader,
-      });
-      if (res.status === 401) auth.logout();
-      return readApiJson<{ promotion: AdminEventPromotion; alreadyExists: boolean }>(res, "Failed to import Ministers Conference");
-    },
-    onSuccess: (result) => {
-      if (result.alreadyExists) {
-        toast.info("Ministers Conference is already in the database");
-      } else {
-        toast.success("Ministers Conference imported — edit artwork, dates, and CTA below");
-      }
-      qc.invalidateQueries({ queryKey: ["admin-event-promotions"] });
-      qc.invalidateQueries({ queryKey: ["event-promotions", "active"] });
-    },
-    onError: (error) => toast.error(formatAdminError(error, "Import failed")),
-  });
 
   const handleEdit = (p: AdminEventPromotion) => {
     setForm({
@@ -2827,10 +2808,13 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
   };
 
   const promotions = data ?? [];
+  const _now = Date.now();
+  // Current = still in the future or a draft; Past = endAt has passed (and not a draft)
+  const currentPromotions = promotions.filter(p => new Date(p.endAt).getTime() > _now || p.status === "draft");
+  const pastPromotions = promotions.filter(p => new Date(p.endAt).getTime() <= _now && p.status !== "draft");
   const counts = {
-    live: promotions.filter(p => p.phase === "live" && p.status === "active").length,
-    upcoming: promotions.filter(p => p.phase === "upcoming" && p.status === "active").length,
-    ended: promotions.filter(p => p.phase === "ended").length,
+    live: currentPromotions.filter(p => p.phase === "live" && p.status === "active").length,
+    upcoming: currentPromotions.filter(p => p.phase === "upcoming" && p.status === "active").length,
   };
 
   return (
@@ -2843,7 +2827,7 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
             description={
               isLoading
                 ? "Loading…"
-                : `${counts.live} live · ${counts.upcoming} upcoming · ${counts.ended} ended`
+                : `${counts.live} live · ${counts.upcoming} upcoming · ${pastPromotions.length} past`
             }
           />
           <div className="flex items-center gap-2">
@@ -2867,32 +2851,6 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
           </div>
         </div>
 
-        {/* ── Ministers Conference callout — visible when not yet in DB ─────── */}
-        {!isLoading && data !== undefined && !promotions.some(p => p.slug === "ministers-conference-2026") && (
-          <div className="rounded-2xl border border-amber-400/40 bg-amber-400/5 p-4">
-            <div className="flex items-start gap-4 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  Ministers Conference 2026 — running from built-in fallback
-                </h4>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  The conference banner is currently driven by hardcoded data. Import it into the database to manage the artwork, event dates, and CTA button from this dashboard — no code changes required. After importing you can edit it like any other promotion.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => seedMutation.mutate()}
-                disabled={seedMutation.isPending}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-amber-500 text-white hover:bg-amber-600 font-semibold transition-colors disabled:opacity-60"
-              >
-                {seedMutation.isPending
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Importing…</>
-                  : <><Download className="w-3.5 h-3.5" /> Import to database</>}
-              </button>
-            </div>
-          </div>
-        )}
 
         {showForm && (
           <Card>
@@ -3082,28 +3040,77 @@ function EventPromotionsSection({ auth }: { auth: AdminAuth }) {
               <div key={i} className="h-32 rounded-2xl bg-card border border-border animate-pulse" />
             )}
           </div>
-        ) : promotions.length === 0 ? (
-          <Card>
-            <div className="text-center py-10 text-muted-foreground">
-              <Megaphone className="w-8 h-8 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No promotions yet — create one to start surfacing event banners and popups across the site.</p>
-            </div>
-          </Card>
         ) : (
-          <div className="space-y-3">
-            {promotions.map(p => (
-              <PromotionRow
-                key={p.id}
-                promotion={p}
-                onEdit={() => handleEdit(p)}
-                onDelete={() => {
-                  if (typeof window !== "undefined" && !window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
-                  deleteMutation.mutate(p.id);
-                }}
-                onPatch={(patch) => togglePatchMutation.mutate({ id: p.id, patch })}
-                isPending={togglePatchMutation.isPending || deleteMutation.isPending}
-              />
-            ))}
+          <div className="space-y-6">
+            {/* ── Active & Upcoming Promotions ───────────────────────────────── */}
+            {currentPromotions.length === 0 ? (
+              <Card>
+                <div className="text-center py-10 text-muted-foreground">
+                  <Megaphone className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No active promotions — create one to start surfacing event banners and popups across the site.</p>
+                </div>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {currentPromotions.map(p => (
+                  <PromotionRow
+                    key={p.id}
+                    promotion={p}
+                    onEdit={() => handleEdit(p)}
+                    onDelete={() => {
+                      if (typeof window !== "undefined" && !window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
+                      deleteMutation.mutate(p.id);
+                    }}
+                    onPatch={(patch) => togglePatchMutation.mutate({ id: p.id, patch })}
+                    onArchive={p.phase === "ended" && p.status === "active"
+                      ? () => togglePatchMutation.mutate({ id: p.id, patch: { status: "archived" } })
+                      : undefined}
+                    isPending={togglePatchMutation.isPending || deleteMutation.isPending}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* ── Past Events Archive ─────────────────────────────────────────── */}
+            {pastPromotions.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowPastEvents(s => !s)}
+                  className="flex items-center gap-2 w-full text-left px-4 py-2.5 rounded-xl bg-muted/50 border border-border hover:bg-muted/80 transition-colors text-sm font-semibold"
+                >
+                  <Archive className="w-4 h-4 text-muted-foreground" />
+                  <span>Past Events Archive</span>
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    ({pastPromotions.length} event{pastPromotions.length !== 1 ? "s" : ""})
+                  </span>
+                  <ChevronRight className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${showPastEvents ? "rotate-90" : ""}`} />
+                </button>
+                {showPastEvents && (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-xs text-muted-foreground px-1">
+                      Past events are no longer shown in active ad placements. They are preserved here for reference and can be edited or deleted.
+                    </p>
+                    {pastPromotions.map(p => (
+                      <PromotionRow
+                        key={p.id}
+                        promotion={p}
+                        onEdit={() => handleEdit(p)}
+                        onDelete={() => {
+                          if (typeof window !== "undefined" && !window.confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
+                          deleteMutation.mutate(p.id);
+                        }}
+                        onPatch={(patch) => togglePatchMutation.mutate({ id: p.id, patch })}
+                        onArchive={p.status === "active"
+                          ? () => togglePatchMutation.mutate({ id: p.id, patch: { status: "archived" } })
+                          : undefined}
+                        isPending={togglePatchMutation.isPending || deleteMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </AdminLoginGate>
@@ -4333,12 +4340,14 @@ function PromotionRow({
   onEdit,
   onDelete,
   onPatch,
+  onArchive,
   isPending,
 }: {
   promotion: AdminEventPromotion;
   onEdit: () => void;
   onDelete: () => void;
   onPatch: (patch: Partial<AdminEventPromotion>) => void;
+  onArchive?: () => void;
   isPending: boolean;
 }) {
   const phaseStyles =
@@ -4434,6 +4443,17 @@ function PromotionRow({
           >
             <Edit3 className="w-3 h-3" /> Edit
           </button>
+          {onArchive && (
+            <button
+              onClick={onArchive}
+              disabled={isPending}
+              className="inline-flex items-center gap-1 rounded-lg bg-zinc-500/10 border border-zinc-500/30 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-500/20 px-2.5 py-1 text-xs disabled:opacity-60"
+              data-testid={`event-promo-archive-${p.id}`}
+              title="Mark as archived"
+            >
+              <Archive className="w-3 h-3" /> Archive
+            </button>
+          )}
           <button
             onClick={onDelete}
             disabled={isPending}
