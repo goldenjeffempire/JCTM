@@ -341,7 +341,8 @@ export async function runMigrations(): Promise<void> {
       JOIN pg_class c ON c.oid = a.attrelid
       WHERE c.relname = 'knowledge_chunks' AND a.attname = 'embedding'
     `);
-    const currentDim = dimCheck.rows[0] ? dimCheck.rows[0].atttypmod - 4 : null;
+    // pgvector stores the dimension directly in atttypmod (unlike pg text types which add 4).
+    const currentDim = dimCheck.rows[0] ? dimCheck.rows[0].atttypmod : null;
     if (currentDim !== null && currentDim !== 384) {
       logger.info({ currentDim }, "Migrating knowledge_chunks.embedding from vector(1536) to vector(384)");
       await pool.query(`DROP INDEX IF EXISTS knowledge_chunks_embedding_idx`);

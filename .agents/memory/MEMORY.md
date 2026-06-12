@@ -1,1 +1,5 @@
 - [Translation architecture](translation-architecture.md) — three-tier i18n: t() static (17 langs), T component async AI, usePageStrings batch; terms JCTM/Temple TV/TempleBots/Prophet Amos never translated.
+- [yt-dlp production setup](ytdlp-production-setup.md) — standalone v2026.06.09 at workspace/bin/yt-dlp; resolver checks workspace binary first; default android_vr client (no --extractor-args).
+- [Embedding migration guard](embedding-migration-guard.md) — pgvector atttypmod stores (dim+4); use atttypmod directly (not -4) when comparing stored vs expected dimension.
+- [Media job NaN guard](media-job-nan-guard.md) — all integer fields (progress, duration, fileSize) must pass through safeInt() before PostgreSQL INSERT/UPDATE to prevent NaN cast errors.
+- [pg SSL ESM warning](pg-ssl-esm-warning.md) — pg-connection-string SSL deprecation fires during module resolution before index.ts body runs; cosmetic only, db normalizes to verify-full correctly.

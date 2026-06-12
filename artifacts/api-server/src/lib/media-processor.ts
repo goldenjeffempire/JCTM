@@ -55,24 +55,27 @@ fs.mkdirSync(MEDIA_DIR, { recursive: true });
 
 // ── yt-dlp binary resolution ──────────────────────────────────────────────────
 
+// Workspace-vendored standalone binary — always preferred over Nix/env path.
+// Updated by downloading the latest yt-dlp release binary; bypasses the
+// Nix-managed version which may be stale and broken with current YouTube.
+const WORKSPACE_YT_DLP = "/home/runner/workspace/bin/yt-dlp";
+
 function resolveYtDlpBin(): { bin: string; found: boolean } {
+  // Workspace-vendored binary wins unconditionally — ensures latest version.
+  try { if (fs.existsSync(WORKSPACE_YT_DLP)) return { bin: WORKSPACE_YT_DLP, found: true }; } catch { /* skip */ }
+
   const fromEnv = process.env.YT_DLP_PATH;
   if (fromEnv) {
     try { if (fs.existsSync(fromEnv)) return { bin: fromEnv, found: true }; } catch { /* skip */ }
   }
 
-  try {
-    const found = execSync("which yt-dlp", { encoding: "utf8", timeout: 5000 }).trim();
-    if (found) return { bin: found, found: true };
-  } catch { /* not on PATH */ }
-
   for (const p of [
+    path.join(os.homedir(), ".local", "bin", "yt-dlp"),
     "/nix/store/am2x1y1qyja0hbyjpffj7rcvycp9d644-yt-dlp-2025.6.30/bin/yt-dlp",
     "/nix/var/nix/profiles/default/bin/yt-dlp",
     "/run/current-system/sw/bin/yt-dlp",
     "/usr/local/bin/yt-dlp",
     "/usr/bin/yt-dlp",
-    path.join(os.homedir(), ".local", "bin", "yt-dlp"),
     path.join(os.homedir(), ".pythonlibs", "bin", "yt-dlp"),
     "/home/runner/workspace/.pythonlibs/bin/yt-dlp",
   ]) {
@@ -354,6 +357,12 @@ function mapRow(r: JobRow): MediaJob {
   };
 }
 
+/** Sanitize a numeric value — returns null instead of NaN/Infinity to avoid DB errors. */
+function safeInt(v: number | null | undefined): number | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  return Math.round(v);
+}
+
 async function dbUpsert(job: MediaJob): Promise<void> {
   try {
     await pool.query(
@@ -376,8 +385,8 @@ async function dbUpsert(job: MediaJob): Promise<void> {
          updated_at           = EXCLUDED.updated_at`,
       [
         job.id, job.type, job.sourceId, job.format, job.quality,
-        job.status, job.progress, job.error, job.outputPath,
-        job.title, job.duration, job.fileSize, job.thumbnailUrl,
+        job.status, safeInt(job.progress), job.error, job.outputPath,
+        job.title, safeInt(job.duration), safeInt(job.fileSize), job.thumbnailUrl,
         job.retryCount ?? 0,
         job.nextRetryAt ?? null, job.isPermanentFailure ?? false,
         job.createdAt, job.updatedAt, job.expiresAt,
@@ -389,7 +398,7 @@ async function dbUpsert(job: MediaJob): Promise<void> {
     // preprocess scheduler and the retry scheduler creating jobs concurrently.
     const pgErr = err as { code?: string };
     if (pgErr?.code === "23505") {
-      logger.warn({ jobId: job.id, sourceId: job.sourceId }, "dbUpsert: unique constraint conflict — duplicate active job ignored");
+      logger.debug({ jobId: job.id, sourceId: job.sourceId }, "dbUpsert: duplicate active job ignored (constraint)");
       return;
     }
     throw err;
@@ -522,9 +531,9 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const proc = spawn(YT_DLP_BIN, [
       "--no-playlist", "--no-warnings", "--progress", "--newline",
-      // Use the iOS player client — different CDN routing, bypasses server-IP throttle
-      "--extractor-args", "youtube:player_client=ios",
-      "-f", "bestaudio[ext=m4a]/bestaudio/best",
+      // Use default android_vr client (yt-dlp 2026+) — no PO token or JS runtime needed.
+      // Broad fallback chain: m4a → webm → any bestaudio → best
+      "-f", "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
       "-x",
       "-o", tmpFile,
       "--no-part", "--socket-timeout", "30",
@@ -687,12 +696,12 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
   });
 
   await new Promise<void>((resolve, reject) => {
-    const fmtSel = `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}]`;
+    // Broad fallback chain: prefer mp4+m4a, fall back to any mergeable pair, then best single
+    const fmtSel = `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}][ext=mp4]+bestaudio/bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`;
 
     const proc = spawn(YT_DLP_BIN, [
       "--no-playlist", "--no-warnings", "--progress", "--newline",
-      // Use the iOS player client — different CDN routing, bypasses server-IP throttle
-      "--extractor-args", "youtube:player_client=ios",
+      // Use default android_vr client (yt-dlp 2026+) — no PO token or JS runtime needed.
       "-f", fmtSel,
       "--merge-output-format", "mp4",
       "-o", outFile,

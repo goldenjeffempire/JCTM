@@ -1,3 +1,12 @@
+// Suppress the pg-connection-string SSL deprecation warning — our db client
+// already normalises 'prefer/require/verify-ca' to 'verify-full' before
+// connecting, so the behaviour is already correct.
+process.on("warning", (w) => {
+  if (w.name === "Warning" && w.message.includes("SSL modes")) return;
+  // Re-emit all other warnings normally.
+  process.stderr.write(`${w.stack ?? w.message}\n`);
+});
+
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startCron, setWebSubCallbackUrl, stopCron } from "./lib/cron.js";
