@@ -1165,7 +1165,7 @@ function HeroSection() {
 
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.0 }} className="mb-4 h-9 flex items-center justify-center">
               <span className="text-lg md:text-xl font-light text-primary/65">Restoring </span>
-              <span className="text-lg md:text-xl font-semibold text-accent ml-2 min-w-[210px] text-left">
+              <span className="text-lg md:text-xl font-semibold text-accent ml-2 min-w-[120px] sm:min-w-[210px] text-left">
                 {typeword}<span className="animate-[blink_1s_step-end_infinite] text-accent">|</span>
               </span>
             </motion.div>

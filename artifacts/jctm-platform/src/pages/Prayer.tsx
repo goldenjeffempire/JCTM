@@ -166,7 +166,7 @@ function PrayerWall() {
               className="glass-panel rounded-2xl p-5 mb-6 space-y-4 overflow-hidden"
             >
               <h3 className="font-semibold text-primary text-sm">Share Your Prayer Need</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="prayer-name" className="text-xs font-medium text-muted-foreground block mb-1">Your Name (optional)</label>
                   <input

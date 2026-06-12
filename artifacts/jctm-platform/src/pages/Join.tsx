@@ -593,7 +593,7 @@ export default function Join() {
                   </div>
 
                   <form onSubmit={handleSaveProfile} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs font-medium text-primary mb-1 block">First Name *</label>
                         <Input
@@ -713,7 +713,7 @@ export default function Join() {
                     </button>
                   </div>
                   <form onSubmit={handleRegister} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                       <div>
                         <label htmlFor="reg-firstname" className="text-xs font-medium text-primary mb-1 block">First Name *</label>
                         <Input id="reg-firstname" value={regForm.firstName} onChange={e => setRegForm(p => ({ ...p, firstName: e.target.value }))} placeholder="First" required className="bg-white" />
