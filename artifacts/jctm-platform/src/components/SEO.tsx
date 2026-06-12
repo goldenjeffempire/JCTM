@@ -425,16 +425,19 @@ export function SEO({
     : null;
 
   /* ── VideoObject schema (for sermon detail pages) ────────────────────────── */
+  const _embedVideoId = videoUrl ? videoUrl.split("/embed/")[1]?.split("?")[0] ?? null : null;
+  const _watchUrl     = _embedVideoId ? `https://www.youtube.com/watch?v=${_embedVideoId}` : videoUrl;
+  const _ytThumb      = _embedVideoId ? `https://i.ytimg.com/vi/${_embedVideoId}/hqdefault.jpg` : null;
   const videoSchema = isVideo && videoUrl
     ? {
         "@context":      "https://schema.org",
         "@type":         "VideoObject",
         "name":          title,
         "description":   description,
-        "thumbnailUrl":  videoThumbnail ?? image,
-        "contentUrl":    videoUrl,
+        "thumbnailUrl":  videoThumbnail ?? image ?? _ytThumb,
         "embedUrl":      videoUrl,
-        "uploadDate":    publishedTime ?? new Date().toISOString(),
+        "contentUrl":    _watchUrl,
+        "uploadDate":    (publishedTime || null) ?? new Date().toISOString(),
         "duration":      videoDuration ? `PT${Math.floor(videoDuration / 60)}M${videoDuration % 60}S` : undefined,
         "publisher": {
           "@type": "Organization",

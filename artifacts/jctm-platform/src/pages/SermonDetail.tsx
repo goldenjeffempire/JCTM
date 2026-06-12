@@ -313,7 +313,7 @@ export default function SermonDetail() {
             sermon.thumbnailUrl ?? `https://i.ytimg.com/vi/${sermon.videoId}/maxresdefault.jpg`,
             `https://i.ytimg.com/vi/${sermon.videoId}/hqdefault.jpg`,
           ],
-          "uploadDate": sermon.publishedAt,
+          "uploadDate": sermon.publishedAt || new Date().toISOString(),
           "url": `https://www.youtube.com/watch?v=${sermon.videoId}`,
           "embedUrl": `https://www.youtube.com/embed/${sermon.videoId}`,
           "contentUrl": `https://www.youtube.com/watch?v=${sermon.videoId}`,

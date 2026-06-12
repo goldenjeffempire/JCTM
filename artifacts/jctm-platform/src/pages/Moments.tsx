@@ -767,7 +767,7 @@ export default function Moments() {
               "name": m.title,
               "description": `Short video moment from Jesus Christ Temple Ministry — ${m.title}`,
               "thumbnailUrl": m.thumbnailUrl || `https://img.youtube.com/vi/${m.videoId}/hqdefault.jpg`,
-              "uploadDate": m.publishedAt,
+              "uploadDate": m.publishedAt || new Date().toISOString(),
               "url": `https://jctm.org.ng/moments`,
               "embedUrl": `https://www.youtube.com/embed/${m.videoId}`,
               "contentUrl": `https://www.youtube.com/watch?v=${m.videoId}`,
