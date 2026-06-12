@@ -17,6 +17,7 @@ import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { startAISyncScheduler, stopAISyncScheduler } from "./lib/ai-sync-scheduler.js";
 import { startPreprocessScheduler, stopPreprocessScheduler } from "./lib/media-preprocess.js";
 import { recoverOrphanedJobs, cleanupOrphanedTempFiles } from "./lib/media-processor.js";
+import { startKeepalive, stopKeepalive } from "./lib/keepalive.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
@@ -122,6 +123,9 @@ const server = app.listen(port, async (err) => {
   // Start uptime heartbeat writer (every 60 s)
   startHeartbeat(logger);
 
+  // Start dual-ping keepalive (local + public URL, every 90 s)
+  startKeepalive(logger);
+
   // Start the 30-minute YouTube sync cron
   startCron(logger);
 
@@ -168,6 +172,7 @@ function shutdown(signal: string) {
   isShuttingDown = true;
   logger.info({ signal }, "Graceful shutdown initiated");
   stopHeartbeat();
+  stopKeepalive();
   stopCron();
   stopAISyncScheduler();
   stopPreprocessScheduler();
