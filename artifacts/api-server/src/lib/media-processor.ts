@@ -363,6 +363,12 @@ function safeInt(v: number | null | undefined): number | null {
   return Math.round(v);
 }
 
+/** Like safeInt but falls back to 0 instead of null — for NOT NULL columns like `progress`. */
+function safeIntNonNull(v: number | null | undefined): number {
+  const n = safeInt(v);
+  return n ?? 0;
+}
+
 async function dbUpsert(job: MediaJob): Promise<void> {
   try {
     await pool.query(
@@ -385,7 +391,7 @@ async function dbUpsert(job: MediaJob): Promise<void> {
          updated_at           = EXCLUDED.updated_at`,
       [
         job.id, job.type, job.sourceId, job.format, job.quality,
-        job.status, safeInt(job.progress), job.error, job.outputPath,
+        job.status, safeIntNonNull(job.progress), job.error, job.outputPath,
         job.title, safeInt(job.duration), safeInt(job.fileSize), job.thumbnailUrl,
         job.retryCount ?? 0,
         job.nextRetryAt ?? null, job.isPermanentFailure ?? false,

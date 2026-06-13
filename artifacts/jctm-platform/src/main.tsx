@@ -9,6 +9,19 @@ import { initGA4 } from "./lib/analytics";
 
 initGA4();
 
+// ─── Suppress known library deprecation warnings ──────────────────────────────
+// @react-three/fiber v9 still uses THREE.Clock internally; suppress the noisy
+// "THREE.Clock has been deprecated, use THREE.Timer" console warning until
+// the upstream library migrates. Real warnings continue unaffected.
+(function suppressKnownWarnings() {
+  const _warn = console.warn.bind(console);
+  console.warn = (...args: unknown[]) => {
+    const msg = typeof args[0] === "string" ? args[0] : "";
+    if (msg.includes("THREE") && msg.includes("Clock") && msg.includes("deprecated")) return;
+    _warn(...args);
+  };
+})();
+
 class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);

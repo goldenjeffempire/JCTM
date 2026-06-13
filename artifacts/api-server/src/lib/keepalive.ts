@@ -50,8 +50,12 @@ let totalFails        = 0;
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
 function resolvePublicUrl(): string | null {
+  // NOTE: REPLIT_DEV_DOMAIN is intentionally excluded here.
+  // It is the sandboxed preview proxy URL and is NOT reachable via outbound
+  // HTTP from within the same Replit container — pinging it causes nothing but
+  // false-alarm FATAL log spam. When deployed (suggest_deploy), the production
+  // domain will be present in REPLIT_DOMAINS or PUBLIC_URL instead.
   const domain =
-    process.env.REPLIT_DEV_DOMAIN  ||
     process.env.RENDER_EXTERNAL_URL ||
     process.env.PUBLIC_URL          ||
     process.env.APP_URL;
