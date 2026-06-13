@@ -1,0 +1,19 @@
+Perform a complete enterprise-grade review and remediation of the Server-Sent Events (SSE), push notification infrastructure, startup sequence, background services, and production configuration across the entire platform. Identify and resolve all root causes preventing stable long-lived connections, reliable push notifications, and optimal production performance.
+
+Implement the following production-ready improvements:
+
+* Replace auto-generated VAPID keys with persistent production environment variables (`VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`). Remove automatic key generation in production and fail fast if the required keys are missing.
+* Fix `/api/gallery/stream`, `/api/visitors/stream`, and all other SSE endpoints to maintain stable long-lived connections without disconnecting or reconnecting every few seconds.
+* Configure proper SSE headers (`Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`) and flush headers immediately.
+* Implement heartbeat/keep-alive events every 15–30 seconds to prevent idle timeouts from browsers, proxies, load balancers, and hosting infrastructure.
+* Disable request, response, compression, and proxy timeouts for SSE endpoints where appropriate, ensuring compatibility with the hosting platform.
+* Properly detect client disconnects, clean up listeners, timers, and resources, and prevent memory leaks or orphaned connections.
+* Prevent duplicate EventSource connections from the frontend by ensuring only one active connection exists per stream and implementing automatic exponential backoff reconnect logic only after genuine failures.
+* Optimize SSE broadcasting using connection pooling, efficient event dispatching, and minimal CPU and memory usage to support thousands of concurrent clients.
+* Review and optimize all scheduled jobs, background workers, cron tasks, retry mechanisms, media processors, AI services, YouTube synchronization, monitoring services, and notification services to prevent startup bottlenecks and resource contention.
+* Ensure the HTTP server becomes fully operational before starting non-critical background services, using dependency-aware initialization and graceful startup sequencing.
+* Add comprehensive logging, monitoring, metrics, health checks, retry policies, timeout handling, circuit breakers, and error recovery for all background services.
+* Validate all environment variables at startup and fail with clear diagnostic messages if required production configuration is missing.
+* Remove unnecessary reconnect loops, eliminate request aborts caused by idle timeouts, and ensure all streaming endpoints remain continuously connected during normal operation.
+* Optimize performance, scalability, fault tolerance, and resource utilization across the entire backend for production deployment.
+* Review every related file, service, middleware, controller, route, scheduler, worker, configuration, infrastructure component, frontend integration, and API to ensure the entire platform is fully operational, highly available, secure, scalable, resilient, and production-ready with zero critical, high, medium, or low severity issues remaining.
