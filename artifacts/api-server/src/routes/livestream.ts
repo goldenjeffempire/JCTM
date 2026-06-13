@@ -927,6 +927,24 @@ const sundayPollInterval = setInterval(() => {
 }, 5_000);
 sundayPollInterval.unref();
 
+// Stale-session reaper — runs every 5 minutes to evict any SSE connection whose
+// underlying socket was destroyed without firing the 'close' event (e.g. abrupt
+// TCP disconnects, proxy timeouts). Prevents the Maps from growing unboundedly.
+setInterval(() => {
+  for (const [sid, res] of statusSessions) {
+    if (res.destroyed || (res.socket?.destroyed ?? false)) {
+      statusSessions.delete(sid);
+    }
+  }
+  for (const [sid, session] of viewerSessions) {
+    if (session.res.destroyed || (session.res.socket?.destroyed ?? false)) {
+      viewerSessions.delete(sid);
+      countedViewerSessions.live.delete(sid);
+      countedViewerSessions.rebroadcast.delete(sid);
+    }
+  }
+}, 5 * 60_000).unref();
+
 // ─── GET /api/livestream/stream — real-time SSE status subscription ───────────
 
 router.get("/livestream/stream", (req: Request, res: Response): void => {

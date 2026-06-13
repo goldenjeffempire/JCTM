@@ -626,7 +626,6 @@ async function dispatchExpoPush(
 const RECEIPT_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const RECEIPT_MIN_AGE_MS        = 15 * 60 * 1000; // only check receipts > 15 min old
 let receiptCheckerHandle: ReturnType<typeof setInterval> | null = null;
-let selfWarmHandle: ReturnType<typeof setInterval> | null = null;
 
 async function checkExpoPushReceipts(log: Logger): Promise<void> {
   try {
@@ -2315,7 +2314,7 @@ export function stopCron(): void {
   stopMediaRetryScheduler();
   stopEventNotificationWorker();
   stopContentSyncScheduler();
-  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, selfWarmHandle, aiKnowledgeRefreshHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, aiKnowledgeRefreshHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]
     .forEach(h => h && clearTimeout(h));

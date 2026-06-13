@@ -1,5 +1,5 @@
 import { db, sermonsTable, settingsTable, pool } from "@workspace/db";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, inArray } from "drizzle-orm";
 import type { Logger } from "pino";
 
 export const CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
@@ -501,9 +501,7 @@ export async function enrichVideoIds(
   const existing = await db
     .select({ videoId: sermonsTable.videoId, duration: sermonsTable.duration })
     .from(sermonsTable)
-    .where(
-      sql`${sermonsTable.videoId} = ANY(ARRAY[${sql.raw(videoIds.map(id => `'${id.replace(/'/g, "''")}'`).join(","))}]::text[])`,
-    );
+    .where(inArray(sermonsTable.videoId, videoIds));
 
   const needEnrichment = existing
     .filter(r => !r.duration)

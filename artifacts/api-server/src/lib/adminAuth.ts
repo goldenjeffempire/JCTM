@@ -170,12 +170,25 @@ export async function verifyRolePassphrase(role: AdminRole, passphrase: string):
 
 // ─── Token lifecycle ───────────────────────────────────────────────────────────
 
+let _tokenSecretWarned = false;
 function getTokenSecret(): string {
-  return (
+  const secret =
     process.env.ADMIN_TOKEN_SECRET?.trim() ||
     process.env.SESSION_SECRET?.trim() ||
-    "jctm-admin-dev-token-secret-change-in-production"
-  );
+    null;
+  if (!secret) {
+    if (!_tokenSecretWarned && process.env.NODE_ENV === "production") {
+      _tokenSecretWarned = true;
+      // eslint-disable-next-line no-console
+      console.error(
+        "[adminAuth] CRITICAL: Neither ADMIN_TOKEN_SECRET nor SESSION_SECRET is set. " +
+        "Admin tokens are being signed with a hardcoded insecure fallback. " +
+        "Set ADMIN_TOKEN_SECRET in your environment immediately.",
+      );
+    }
+    return "jctm-admin-dev-token-secret-change-in-production";
+  }
+  return secret;
 }
 
 function sign(encoded: string): string {

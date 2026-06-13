@@ -101,56 +101,54 @@ router.post("/video-events", ingestLimiter, async (req: Request, res: Response):
   const now = new Date();
   const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 
+  // Build two bulk UPSERTs — one for all-time aggregates, one for monthly.
+  // This replaces the previous N×2 loop (2 round-trips per bucket) with exactly
+  // 2 round-trips for the whole batch, regardless of bucket count.
+  const rows = [...buckets.values()];
+
+  const aggFragments = rows.map(b =>
+    sql`(${b.videoId}, ${b.page}, ${b.impressions}, ${b.plays}, ${b.pauses}, ${b.q25}, ${b.q50}, ${b.q75}, ${b.completes}, NOW())`
+  );
+  const mthFragments = rows.map(b =>
+    sql`(${month}, ${b.videoId}, ${b.page}, ${b.impressions}, ${b.plays}, ${b.pauses}, ${b.q25}, ${b.q50}, ${b.q75}, ${b.completes}, NOW())`
+  );
+
   let stored = 0;
-  for (const b of buckets.values()) {
-    try {
-      await db.execute(sql`
-        INSERT INTO video_event_counts (
-          video_id, page, impressions, plays, pauses, q25, q50, q75, completes, updated_at
-        )
-        VALUES (
-          ${b.videoId}, ${b.page},
-          ${b.impressions}, ${b.plays}, ${b.pauses},
-          ${b.q25}, ${b.q50}, ${b.q75},
-          ${b.completes},
-          NOW()
-        )
-        ON CONFLICT (video_id, page) DO UPDATE SET
-          impressions = video_event_counts.impressions + EXCLUDED.impressions,
-          plays       = video_event_counts.plays       + EXCLUDED.plays,
-          pauses      = video_event_counts.pauses      + EXCLUDED.pauses,
-          q25         = video_event_counts.q25         + EXCLUDED.q25,
-          q50         = video_event_counts.q50         + EXCLUDED.q50,
-          q75         = video_event_counts.q75         + EXCLUDED.q75,
-          completes   = video_event_counts.completes   + EXCLUDED.completes,
-          updated_at  = NOW();
-      `);
-      // Mirror into the monthly bucket so /export.csv?month=YYYY-MM works.
-      await db.execute(sql`
-        INSERT INTO video_event_counts_monthly (
-          month, video_id, page, impressions, plays, pauses, q25, q50, q75, completes, updated_at
-        )
-        VALUES (
-          ${month}, ${b.videoId}, ${b.page},
-          ${b.impressions}, ${b.plays}, ${b.pauses},
-          ${b.q25}, ${b.q50}, ${b.q75},
-          ${b.completes},
-          NOW()
-        )
-        ON CONFLICT (month, video_id, page) DO UPDATE SET
-          impressions = video_event_counts_monthly.impressions + EXCLUDED.impressions,
-          plays       = video_event_counts_monthly.plays       + EXCLUDED.plays,
-          pauses      = video_event_counts_monthly.pauses      + EXCLUDED.pauses,
-          q25         = video_event_counts_monthly.q25         + EXCLUDED.q25,
-          q50         = video_event_counts_monthly.q50         + EXCLUDED.q50,
-          q75         = video_event_counts_monthly.q75         + EXCLUDED.q75,
-          completes   = video_event_counts_monthly.completes   + EXCLUDED.completes,
-          updated_at  = NOW();
-      `);
-      stored++;
-    } catch (err) {
-      req.log.warn({ err, videoId: b.videoId }, "Failed to persist video event batch");
-    }
+  try {
+    await db.execute(sql`
+      INSERT INTO video_event_counts (
+        video_id, page, impressions, plays, pauses, q25, q50, q75, completes, updated_at
+      )
+      VALUES ${sql.join(aggFragments, sql`, `)}
+      ON CONFLICT (video_id, page) DO UPDATE SET
+        impressions = video_event_counts.impressions + EXCLUDED.impressions,
+        plays       = video_event_counts.plays       + EXCLUDED.plays,
+        pauses      = video_event_counts.pauses      + EXCLUDED.pauses,
+        q25         = video_event_counts.q25         + EXCLUDED.q25,
+        q50         = video_event_counts.q50         + EXCLUDED.q50,
+        q75         = video_event_counts.q75         + EXCLUDED.q75,
+        completes   = video_event_counts.completes   + EXCLUDED.completes,
+        updated_at  = NOW()
+    `);
+    // Mirror into the monthly bucket so /export.csv?month=YYYY-MM works.
+    await db.execute(sql`
+      INSERT INTO video_event_counts_monthly (
+        month, video_id, page, impressions, plays, pauses, q25, q50, q75, completes, updated_at
+      )
+      VALUES ${sql.join(mthFragments, sql`, `)}
+      ON CONFLICT (month, video_id, page) DO UPDATE SET
+        impressions = video_event_counts_monthly.impressions + EXCLUDED.impressions,
+        plays       = video_event_counts_monthly.plays       + EXCLUDED.plays,
+        pauses      = video_event_counts_monthly.pauses      + EXCLUDED.pauses,
+        q25         = video_event_counts_monthly.q25         + EXCLUDED.q25,
+        q50         = video_event_counts_monthly.q50         + EXCLUDED.q50,
+        q75         = video_event_counts_monthly.q75         + EXCLUDED.q75,
+        completes   = video_event_counts_monthly.completes   + EXCLUDED.completes,
+        updated_at  = NOW()
+    `);
+    stored = rows.length;
+  } catch (err) {
+    req.log.warn({ err }, "Failed to persist video event batch");
   }
 
   res.status(202).json({ ok: true, accepted: stored });
