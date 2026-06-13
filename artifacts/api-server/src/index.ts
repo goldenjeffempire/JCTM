@@ -36,6 +36,46 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+// ── Startup env-var validation ─────────────────────────────────────────────
+// Logs a warning for each missing variable so the first log flush tells the
+// operator exactly what is unconfigured.  Never throws — the server starts
+// regardless; individual features will degrade gracefully.
+function validateEnv(): void {
+  const required: Array<{ key: string; feature: string }> = [
+    { key: "DATABASE_URL",        feature: "PostgreSQL database" },
+    { key: "OPENAI_API_KEY",      feature: "TempleBots AI assistant" },
+    { key: "YOUTUBE_API_KEY",     feature: "YouTube sermon sync" },
+  ];
+  const optional: Array<{ key: string; feature: string }> = [
+    { key: "PAYSTACK_SECRET_KEY",  feature: "Paystack donations" },
+    { key: "STRIPE_SECRET_KEY",    feature: "Stripe donations" },
+    { key: "VAPID_PUBLIC_KEY",     feature: "Web push notifications (will auto-generate)" },
+    { key: "VAPID_PRIVATE_KEY",    feature: "Web push notifications (will auto-generate)" },
+    { key: "SMTP_HOST",            feature: "Email delivery" },
+  ];
+
+  const missing = required.filter((v) => !process.env[v.key]);
+  const missingOptional = optional.filter((v) => !process.env[v.key]);
+
+  if (missing.length > 0) {
+    logger.error(
+      { missing: missing.map((v) => v.key) },
+      `Critical env vars missing — ${missing.map((v) => `${v.key} (${v.feature})`).join(", ")}`
+    );
+  }
+  if (missingOptional.length > 0) {
+    logger.warn(
+      { missing: missingOptional.map((v) => v.key) },
+      `Optional env vars not set — ${missingOptional.map((v) => `${v.key} (${v.feature})`).join(", ")}`
+    );
+  }
+  if (missing.length === 0 && missingOptional.length === 0) {
+    logger.info("All env vars configured");
+  }
+}
+
+validateEnv();
+
 // ── Listen immediately so we claim the port before any other process ──────────
 // All heavy initialization (migrations, seeding, crons) runs in the callback
 // after the port is claimed. This prevents race conditions in dev where the
@@ -112,8 +152,10 @@ const server = app.listen(port, async (err) => {
     logger.info({ configured }, "All admin roles configured");
   }
 
-  // Initialize VAPID keys for push notifications
-  initVapidKeys(logger);
+  // Initialize VAPID keys for push notifications (async — checks DB fallback)
+  await initVapidKeys(logger).catch((err) =>
+    logger.warn({ err }, "VAPID key initialization failed — push notifications disabled")
+  );
 
   // One-shot cleanup of stale push endpoints.
   void cleanupStalePushSubscriptions(60, logger).catch((err) =>

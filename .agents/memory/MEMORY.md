@@ -3,4 +3,5 @@
 - [Embedding migration guard](embedding-migration-guard.md) — pgvector atttypmod stores (dim+4); use atttypmod directly (not -4) when comparing stored vs expected dimension.
 - [Media job NaN guard](media-job-nan-guard.md) — all integer fields (progress, duration, fileSize) must pass through safeInt() before PostgreSQL INSERT/UPDATE to prevent NaN cast errors.
 - [pg SSL ESM warning](pg-ssl-esm-warning.md) — pg-connection-string SSL deprecation fires during module resolution before index.ts body runs; cosmetic only, db normalizes to verify-full correctly.
+- [VAPID key persistence](vapid-key-persistence.md) — initVapidKeys is async; reads env vars first, then DB vapid_keys table (id=1 singleton), then generates + persists; call with await in index.ts after migrations.
 - [pnpm firewall overrides](pnpm-firewall-overrides.md) — protobufjs@6 and shell-quote@1.8.x blocked by Replit firewall; overrides in pnpm-workspace.yaml; mobile app excluded from workspace packages.

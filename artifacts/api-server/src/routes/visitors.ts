@@ -1,19 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import pg from "pg";
+import { pool } from "@workspace/db";
 
-const { Pool } = pg;
 const router: IRouter = Router();
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-// Bootstrap the stats table on startup (non-blocking)
-pool.query(`
-  CREATE TABLE IF NOT EXISTS site_stats (
-    key   TEXT PRIMARY KEY,
-    value BIGINT NOT NULL DEFAULT 0
-  );
-  INSERT INTO site_stats (key, value) VALUES ('total_visitors', 0) ON CONFLICT DO NOTHING;
-`).catch(() => null);
 
 // ─── Total visitor tracking ───────────────────────────────────────────────────
 

@@ -1498,5 +1498,30 @@ export async function runMigrations(): Promise<void> {
     WHERE message_count = 0
   `);
 
+  // ── site_stats (visitor counter — used by visitors.ts) ──────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS site_stats (
+      key   TEXT PRIMARY KEY,
+      value BIGINT NOT NULL DEFAULT 0
+    )
+  `);
+  await pool.query(`
+    INSERT INTO site_stats (key, value) VALUES ('total_visitors', 0) ON CONFLICT DO NOTHING
+  `);
+
+  // ── vapid_keys (persisted VAPID key pair — survives server restarts) ─────────
+  // Singleton row (id = 1) stores the key pair so auto-generated keys are not
+  // lost across deploys when VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY env vars are
+  // not explicitly set.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS vapid_keys (
+      id          integer PRIMARY KEY DEFAULT 1,
+      public_key  text NOT NULL,
+      private_key text NOT NULL,
+      created_at  timestamptz NOT NULL DEFAULT now(),
+      CONSTRAINT vapid_keys_singleton CHECK (id = 1)
+    )
+  `);
+
   logger.info("All migrations complete");
 }

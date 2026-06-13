@@ -23,27 +23,59 @@ export function getVapidPublicKey(): string {
   return key;
 }
 
-export function initVapidKeys(log?: Logger): boolean {
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
+export async function initVapidKeys(log?: Logger): Promise<boolean> {
+  let publicKey = process.env.VAPID_PUBLIC_KEY;
+  let privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  // Fast path — env vars already set (normal production case).
+  if (!publicKey || !privateKey) {
+    // Fallback 1: try DB-persisted keys (survives restarts without env vars).
+    try {
+      const row = await pool.query<{ public_key: string; private_key: string }>(
+        `SELECT public_key, private_key FROM vapid_keys WHERE id = 1 LIMIT 1`
+      );
+      if (row.rows[0]) {
+        publicKey = row.rows[0].public_key;
+        privateKey = row.rows[0].private_key;
+        process.env.VAPID_PUBLIC_KEY = publicKey;
+        process.env.VAPID_PRIVATE_KEY = privateKey;
+        log?.info("VAPID keys loaded from database");
+      }
+    } catch {
+      // vapid_keys table may not exist yet (pre-migration boot) — fall through.
+    }
+  }
 
   if (!publicKey || !privateKey) {
+    // Fallback 2: generate a fresh pair and persist it so future restarts reuse it.
     const keys = webpush.generateVAPIDKeys();
-    log?.warn(
-      {
-        VAPID_PUBLIC_KEY: keys.publicKey,
-        VAPID_PRIVATE_KEY: keys.privateKey,
-      },
-      "VAPID keys not set — auto-generated (set these as environment variables for production)"
-    );
-    process.env.VAPID_PUBLIC_KEY = keys.publicKey;
-    process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+    publicKey = keys.publicKey;
+    privateKey = keys.privateKey;
+    process.env.VAPID_PUBLIC_KEY = publicKey;
+    process.env.VAPID_PRIVATE_KEY = privateKey;
+    try {
+      await pool.query(
+        `INSERT INTO vapid_keys (id, public_key, private_key)
+         VALUES (1, $1, $2)
+         ON CONFLICT (id) DO UPDATE SET public_key = $1, private_key = $2`,
+        [publicKey, privateKey]
+      );
+      log?.warn(
+        { VAPID_PUBLIC_KEY: publicKey },
+        "VAPID keys auto-generated and persisted to DB — set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY env vars for production"
+      );
+    } catch (dbErr) {
+      log?.warn(
+        { err: dbErr, VAPID_PUBLIC_KEY: publicKey, VAPID_PRIVATE_KEY: privateKey },
+        "VAPID keys auto-generated but could not persist to DB — set as env vars to survive restarts"
+      );
+    }
   }
 
   webpush.setVapidDetails(
     "mailto:info@jctm.org.ng",
-    process.env.VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
+    publicKey,
+    privateKey
   );
 
   vapidInitialized = true;
