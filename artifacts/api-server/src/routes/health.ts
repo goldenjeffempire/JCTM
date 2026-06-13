@@ -6,7 +6,6 @@ import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { getNeonQuotaStatus } from "../lib/neon-quota-monitor.js";
 import { requireAdminRole } from "../lib/adminAuth.js";
 import { getUptimeHistory } from "../lib/uptime-monitor.js";
-import { getKeepaliveStatus } from "../lib/keepalive.js";
 import net from "node:net";
 
 const router: IRouter = Router();
@@ -154,7 +153,6 @@ async function healthHandler(_req: Request, res: Response) {
         status: "running",
         jobs: cronState.running,
       },
-      keepalive: getKeepaliveStatus(),
     },
     library: {
       totalSermons: sermonStats.total,

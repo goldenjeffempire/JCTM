@@ -626,7 +626,6 @@ async function dispatchExpoPush(
 const RECEIPT_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const RECEIPT_MIN_AGE_MS        = 15 * 60 * 1000; // only check receipts > 15 min old
 let receiptCheckerHandle: ReturnType<typeof setInterval> | null = null;
-// selfWarmHandle removed — keepalive is now managed by keepalive.ts (dual-ping)
 let selfWarmHandle: ReturnType<typeof setInterval> | null = null;
 
 async function checkExpoPushReceipts(log: Logger): Promise<void> {
@@ -2302,18 +2301,13 @@ export function startCron(log: Logger, websubUrl?: string): void {
   receiptCheckerHandle.unref();
   log.info({ intervalMs: RECEIPT_CHECK_INTERVAL_MS }, "Expo push receipt checker started (15-min interval)");
 
-  // ── Self-warm pinger ─────────────────────────────────────────────────────────
-  // REMOVED: the old 4-minute localhost-only self-warm pinger has been replaced
-  // by keepalive.ts which runs dual-ping (local + public URL) every 90 s.
-  // Started in index.ts via startKeepalive(). selfWarmHandle left null.
-
   // ── Media download retry scheduler ──────────────────────────────────────────
   // Re-queues failed download jobs that have a next_retry_at timestamp in the
   // past. Runs every 5 minutes with a 20-second startup delay for warmup.
   startMediaRetryScheduler();
   startMediaAbuseGuard();
 
-  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Media retry scheduler | Auto-block guard (15-min) | Daily media digest (7 AM WAT) | [Keepalive: see keepalive.ts]");
+  log.info("Automation engine started: RSS | API (30-min recent) | Full channel sync (24h) | WebSub | AI metadata | Service reminders | Daily devotion push | Midnight pre-generation | Expo receipt checker | Media retry scheduler | Auto-block guard (15-min) | Daily media digest (7 AM WAT)");
 }
 
 export function stopCron(): void {
