@@ -35,7 +35,9 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 packages:
-  - artifacts/*
+  - artifacts/api-server
+  - artifacts/jctm-platform
+  - artifacts/mockup-sandbox
   - lib/*
   - lib/integrations/*
   - scripts
@@ -75,6 +77,10 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # protobufjs@6.x is blocked by the Replit package firewall; override to 7.x which is allowed
+  "protobufjs": "^7.4.0"
+  # shell-quote@1.8.x and 1.7.3 are blocked by the Replit package firewall; override to 1.7.4 which is allowed
+  "shell-quote": "1.7.4"
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
