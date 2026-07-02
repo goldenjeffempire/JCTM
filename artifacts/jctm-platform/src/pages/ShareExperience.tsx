@@ -840,16 +840,16 @@ export default function ShareExperience() {
 
       <AnimatePresence mode="wait">
         {submitted ? (
-          <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className={`min-h-screen transition-colors duration-500 ${isDark ? "bg-[#060415]" : "bg-white"}`}>
             <SuccessScreen onAgain={resetForm} />
           </motion.div>
         ) : (
-          <motion.div key="form-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div key="form-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className={`transition-colors duration-500 ${isDark ? "bg-[#060415]" : "bg-white"}`}>
 
             {/* ── Hero ──────────────────────────────────────────────────────── */}
             <section className="relative min-h-[88vh] flex flex-col items-center justify-center px-4 pt-20 pb-24 overflow-hidden">
-              {/* Background */}
-              <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? "bg-[#060415]" : "bg-gradient-to-b from-violet-50/80 via-purple-50/40 to-white"}`} />
               <HeroOrbs isDark={isDark} />
 
               {/* Large decorative cross */}
