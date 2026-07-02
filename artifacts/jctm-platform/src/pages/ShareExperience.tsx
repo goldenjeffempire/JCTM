@@ -76,7 +76,7 @@ function HeroOrbs({ isDark }: { isDark: boolean }) {
       <motion.div
         animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
         transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-        className={`absolute top-1/3 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[80px] ${isDark ? "bg-indigo-700/15" : "bg-indigo-100/60"}`}
+        className={`absolute top-1/3 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[80px] ${isDark ? "bg-fuchsia-700/18" : "bg-fuchsia-100/55"}`}
       />
     </div>
   );
@@ -84,9 +84,9 @@ function HeroOrbs({ isDark }: { isDark: boolean }) {
 
 // ── Floating stat chips ────────────────────────────────────────────────────────
 const HERO_STATS = [
-  { icon: Users,   value: "2,400+",  label: "Stories Shared" },
-  { icon: Globe,   value: "50+",     label: "Nations Reached" },
-  { icon: Trophy,  value: "10 yrs",  label: "Ministry Legacy" },
+  { icon: Users,  value: "2,400+", label: "Stories Shared",  iconBg: "bg-violet-500/15",  iconColor: "text-violet-500"  },
+  { icon: Globe,  value: "50+",    label: "Nations Reached",  iconBg: "bg-emerald-500/15", iconColor: "text-emerald-500" },
+  { icon: Trophy, value: "10 yrs", label: "Ministry Legacy",  iconBg: "bg-amber-500/18",   iconColor: "text-amber-500"   },
 ];
 
 // ── Step data ──────────────────────────────────────────────────────────────────
@@ -402,7 +402,7 @@ function VideoUpload({ value, onChange }: { value: UploadState; onChange: (v: Up
               className={`w-20 h-20 rounded-3xl mx-auto mb-5 flex items-center justify-center transition-all duration-300 ${
                 isDragging
                   ? "bg-gradient-to-br from-violet-600 to-purple-500 shadow-2xl shadow-violet-500/50"
-                  : "dark:bg-white/[0.06] bg-white shadow-sm group-hover:shadow-md group-hover:dark:bg-white/[0.09] group-hover:bg-violet-50 transition-all"
+                  : "dark:bg-violet-900/25 bg-white shadow-sm group-hover:shadow-lg group-hover:dark:bg-violet-800/35 group-hover:bg-violet-50 dark:border dark:border-violet-700/20 transition-all"
               }`}
             >
               {isDragging
@@ -538,8 +538,8 @@ function VideoUpload({ value, onChange }: { value: UploadState; onChange: (v: Up
                 className="grid grid-cols-2 gap-2.5">
                 {value.speed !== null && (
                   <div className="flex items-center gap-2.5 rounded-2xl dark:bg-white/[0.04] bg-gray-50 px-3.5 py-2.5 border dark:border-white/6 border-gray-100">
-                    <div className="w-7 h-7 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
-                      <Gauge className="w-3.5 h-3.5 text-violet-500" />
+                    <div className="w-7 h-7 rounded-xl bg-fuchsia-500/15 flex items-center justify-center flex-shrink-0">
+                      <Gauge className="w-3.5 h-3.5 text-fuchsia-500" />
                     </div>
                     <div>
                       <p className="text-[9px] dark:text-white/25 text-gray-400 uppercase tracking-[0.1em] font-bold">Speed</p>
@@ -549,8 +549,8 @@ function VideoUpload({ value, onChange }: { value: UploadState; onChange: (v: Up
                 )}
                 {value.eta !== null && (
                   <div className="flex items-center gap-2.5 rounded-2xl dark:bg-white/[0.04] bg-gray-50 px-3.5 py-2.5 border dark:border-white/6 border-gray-100">
-                    <div className="w-7 h-7 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-3.5 h-3.5 text-violet-500" />
+                    <div className="w-7 h-7 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
                     </div>
                     <div>
                       <p className="text-[9px] dark:text-white/25 text-gray-400 uppercase tracking-[0.1em] font-bold">ETA</p>
@@ -593,7 +593,7 @@ function Field({ id, label, required, error, icon: Icon, children }: {
       <div className={Icon ? "relative" : undefined}>
         {Icon && (
           <Icon className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${
-            error ? "text-red-400" : "dark:text-white/25 text-gray-400"
+            error ? "text-red-400" : "dark:text-violet-400/70 text-violet-500"
           }`} />
         )}
         {children}
@@ -658,14 +658,19 @@ function SuccessScreen({ onAgain }: { onAgain: () => void }) {
       <div className="relative max-w-lg w-full text-center z-10">
         {/* Expanding rings + icon */}
         <div className="relative flex items-center justify-center h-64 mb-2">
-          {[100, 150, 200, 260].map((size, i) => (
+          {([
+            [100, "border-violet-500"],
+            [150, "border-fuchsia-500"],
+            [200, "border-purple-400"],
+            [260, "border-indigo-400"],
+          ] as [number, string][]).map(([size, borderColor], i) => (
             <motion.div
               key={size}
               initial={{ opacity: 0, scale: 0.4 }}
-              animate={{ opacity: [0, 0.18, 0], scale: [0.5, 1.1, 1.7] }}
+              animate={{ opacity: [0, 0.2, 0], scale: [0.5, 1.1, 1.7] }}
               transition={{ delay: 0.15 + i * 0.18, duration: 2.2, repeat: Infinity, repeatDelay: 1.8, ease: "easeOut" }}
               style={{ width: size, height: size }}
-              className="absolute rounded-full border-[1.5px] border-violet-500"
+              className={`absolute rounded-full border-[1.5px] ${borderColor}`}
             />
           ))}
           <motion.div
@@ -718,13 +723,13 @@ function SuccessScreen({ onAgain }: { onAgain: () => void }) {
           <p className="text-xs font-bold uppercase tracking-[0.15em] dark:text-white/35 text-gray-400 mb-3 text-center">What happens next</p>
           <div className="space-y-3">
             {[
-              { icon: BookOpen, step: "Review", desc: "Our ministry team carefully reviews your submission" },
-              { icon: CheckCircle2, step: "Approval", desc: "You receive an email once your video is approved" },
-              { icon: Globe, step: "Published", desc: "Your story goes live on JCTM platforms worldwide" },
-            ].map(({ icon: Icon, step, desc }, i) => (
+              { icon: BookOpen,    step: "Review",    desc: "Our ministry team carefully reviews your submission",   iconBg: "bg-violet-500/15",  iconColor: "text-violet-500"  },
+              { icon: CheckCircle2,step: "Approval",  desc: "You receive an email once your video is approved",      iconBg: "bg-amber-500/15",   iconColor: "text-amber-500"   },
+              { icon: Globe,       step: "Published", desc: "Your story goes live on JCTM platforms worldwide",      iconBg: "bg-emerald-500/15", iconColor: "text-emerald-500" },
+            ].map(({ icon: Icon, step, desc, iconBg, iconColor }, i) => (
               <div key={step} className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-violet-500/12 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Icon className="w-3.5 h-3.5 text-violet-500" />
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${iconBg}`}>
+                  <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
                 </div>
                 <div>
                   <p className="text-sm font-semibold dark:text-white text-gray-900">{step}</p>
@@ -944,7 +949,7 @@ export default function ShareExperience() {
                   transition={{ duration: 0.5, delay: 0.5 }}
                   className="flex flex-wrap justify-center gap-3 pt-4"
                 >
-                  {HERO_STATS.map(({ icon: Icon, value, label }, i) => (
+                  {HERO_STATS.map(({ icon: Icon, value, label, iconBg, iconColor }, i) => (
                     <motion.div
                       key={label}
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -956,8 +961,8 @@ export default function ShareExperience() {
                           : "bg-white border-gray-100 shadow-sm hover:shadow-md"
                       }`}
                     >
-                      <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-3.5 h-3.5 text-violet-500" />
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+                        <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-black dark:text-white text-gray-900 leading-none">{value}</p>
@@ -968,22 +973,18 @@ export default function ShareExperience() {
 
                   {/* Trust badges */}
                   {[
-                    { icon: Shield, text: "Secure upload" },
-                    { icon: Clock,  text: "5-day review" },
-                    { icon: Heart,  text: "For God's glory" },
-                  ].map(({ icon: Icon, text }, i) => (
+                    { icon: Shield, text: "Secure upload",   ic: "text-violet-400", dark: "bg-violet-500/10 border-violet-500/18 text-violet-300", light: "bg-violet-50 border-violet-200 text-violet-700" },
+                    { icon: Clock,  text: "5-day review",    ic: "text-amber-400",  dark: "bg-amber-500/10 border-amber-500/18 text-amber-300",    light: "bg-amber-50 border-amber-200 text-amber-700"   },
+                    { icon: Heart,  text: "For God's glory", ic: "text-rose-400",   dark: "bg-rose-500/10 border-rose-500/18 text-rose-300",        light: "bg-rose-50 border-rose-200 text-rose-700"     },
+                  ].map(({ icon: Icon, text, ic, dark: dk, light: lt }, i) => (
                     <motion.div
                       key={text}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.7 + i * 0.07 }}
-                      className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full border transition-colors ${
-                        isDark
-                          ? "bg-white/[0.03] border-white/8 dark:text-white/35"
-                          : "bg-white border-gray-200 text-gray-500 shadow-sm"
-                      }`}
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full border transition-colors ${isDark ? dk : lt}`}
                     >
-                      <Icon className="w-3 h-3 text-violet-400" /> {text}
+                      <Icon className={`w-3 h-3 ${ic}`} /> {text}
                     </motion.div>
                   ))}
                 </motion.div>
@@ -1004,7 +1005,7 @@ export default function ShareExperience() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5 }}
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] dark:text-violet-400/70 text-violet-600 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] dark:text-amber-400/80 text-amber-600 mb-2">
                     Ready to share?
                   </p>
                   <h2 className="text-3xl font-black dark:text-white text-gray-900">
@@ -1027,12 +1028,14 @@ export default function ShareExperience() {
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -32, scale: 0.98 }}
                     transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                    className={`rounded-3xl border p-8 sm:p-10 shadow-2xl transition-colors ${
+                    className={`relative overflow-hidden rounded-3xl border p-8 sm:p-10 shadow-2xl transition-colors ${
                       isDark
                         ? "bg-white/[0.025] border-white/8 shadow-black/50 backdrop-blur-2xl"
                         : "bg-white border-gray-100 shadow-gray-200/60"
                     }`}
                   >
+                    {/* Gradient accent top bar */}
+                    <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 rounded-t-3xl" />
                     {/* ── Step 1: Your Info ── */}
                     {step === 1 && (
                       <div className="space-y-7">
@@ -1095,7 +1098,7 @@ export default function ShareExperience() {
                     {step === 2 && (
                       <div className="space-y-6">
                         <div className="text-center space-y-1.5">
-                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-violet-500/30">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-pink-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-fuchsia-500/30">
                             <FileVideo className="w-5 h-5 text-white" />
                           </div>
                           <h2 className="text-2xl font-black dark:text-white text-gray-900">Video Experience</h2>
@@ -1148,7 +1151,7 @@ export default function ShareExperience() {
                     {step === 3 && (
                       <div className="space-y-5">
                         <div className="text-center space-y-1.5">
-                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-violet-500/30">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-teal-500/30">
                             <Shield className="w-5 h-5 text-white" />
                           </div>
                           <h2 className="text-2xl font-black dark:text-white text-gray-900">Review & Consent</h2>
@@ -1273,11 +1276,11 @@ export default function ShareExperience() {
                         </div>
 
                         {/* Review note */}
-                        <div className={`rounded-2xl border p-4 flex items-start gap-3 transition-colors ${isDark ? "bg-blue-950/20 border-blue-800/20" : "bg-blue-50 border-blue-100"}`}>
-                          <div className="w-7 h-7 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        <div className={`rounded-2xl border p-4 flex items-start gap-3 transition-colors ${isDark ? "bg-amber-950/15 border-amber-700/20" : "bg-amber-50 border-amber-100"}`}>
+                          <div className="w-7 h-7 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-500" />
                           </div>
-                          <p className={`text-xs leading-relaxed ${isDark ? "text-blue-300/75" : "text-blue-700"}`}>
+                          <p className={`text-xs leading-relaxed ${isDark ? "text-amber-300/80" : "text-amber-800"}`}>
                             Your submission will be reviewed within <strong>3–5 business days</strong>.
                             You'll receive an email notification at <strong>{email}</strong> once approved.
                             Please ensure this address is correct before submitting.
@@ -1351,7 +1354,10 @@ export default function ShareExperience() {
                   transition={{ delay: 0.3 }}
                   className="text-center text-xs dark:text-white/20 text-gray-400 mt-5"
                 >
-                  Step {step} of {STEPS.length} — {Math.round((step / STEPS.length) * 100)}% complete
+                  Step {step} of {STEPS.length} —{" "}
+                  <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-500 to-fuchsia-500">
+                    {Math.round((step / STEPS.length) * 100)}% complete
+                  </span>
                 </motion.p>
               </div>
             </section>
