@@ -375,6 +375,17 @@ export default function Sermons() {
                   <Bot className="w-4 h-4" /> Ask AI
                 </Button>
               </Link>
+              <a
+                href="https://play.google.com/store/apps/details?id=com.templetv.jctm"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#01875f]/20 hover:bg-[#01875f]/35 border border-[#01875f]/50 text-[#4ade80] hover:text-white transition-all duration-200 group"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current shrink-0" aria-hidden="true">
+                  <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
+                </svg>
+                <span className="text-xs font-semibold whitespace-nowrap">Download App</span>
+              </a>
             </div>
           </motion.div>
         </div>
