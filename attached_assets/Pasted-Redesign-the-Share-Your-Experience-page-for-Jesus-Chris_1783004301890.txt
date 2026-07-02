@@ -1,0 +1,121 @@
+Redesign the **"Share Your Experience"** page for **Jesus Christ Temple Ministry (JCTM)** into a premium, modern, and emotionally engaging experience that reflects excellence, trust, and the ministry's identity. The page should feel inspiring, welcoming, and professionally crafted while maintaining full consistency with the existing JCTM design system.
+
+Create a polished interface that is fully responsive and optimized for desktop, tablet, and mobile devices, with seamless support for both **Light** and **Dark** themes.
+
+### Design Objectives
+
+* Create a visually compelling page that encourages users to confidently share their experience.
+* Use a clean, modern layout with generous spacing, refined typography, subtle animations, and elegant micro-interactions.
+* Design with accessibility (WCAG AA), usability, and performance as top priorities.
+* Ensure every component adapts beautifully to both Light and Dark modes without compromising readability or visual hierarchy.
+
+### Hero Section
+
+Design a premium hero section that includes:
+
+* A compelling headline such as **"Share Your Experience with JCTM"**
+* A short inspirational message encouraging members and viewers to share how God has impacted their lives through the ministry.
+* A professionally designed CTA button labeled **"Share Your Experience"** that smoothly scrolls to the submission form.
+* A high-quality background using subtle gradients, ministry imagery, or abstract patterns that complement the JCTM brand.
+
+### Experience Submission Card
+
+Present the form inside an elevated glassmorphism or modern card layout with soft shadows, rounded corners, and excellent spacing.
+
+Include:
+
+* Full Name
+* Profile Photo Upload (with live preview)
+* Location
+* Email Address
+* Video Experience Upload
+
+### Premium Upload Experience
+
+Design an advanced upload component that includes:
+
+* Drag-and-drop support
+* Click-to-upload functionality
+* Large file upload support (up to 5 GB or infrastructure limit)
+* Chunked/resumable uploads
+* Animated upload progress bar
+* Estimated upload time
+* Upload speed indicator
+* Upload success and error states
+* File validation with clear messaging
+* Modern upload illustrations or icons
+
+### Consent Section
+
+Replace the traditional checkbox with a professionally styled consent card containing:
+
+* A clearly written permission statement
+* A required consent toggle or checkbox
+* Links to the ministry's Privacy Policy and Terms (if available)
+
+### Success Experience
+
+After submission:
+
+* Display a beautiful success screen with an animated confirmation icon.
+* Thank the participant for sharing their experience.
+* Explain that submissions will be reviewed before publication.
+* Offer navigation back to the homepage or other ministry content.
+
+### Additional UI Enhancements
+
+Include thoughtful UX improvements such as:
+
+* Smooth scrolling
+* Elegant page transitions
+* Skeleton loading states
+* Hover and focus animations
+* Sticky progress indicator during uploads
+* Contextual helper text
+* Inline validation
+* Responsive spacing
+* Modern iconography
+* Accessible keyboard navigation
+
+### Light Theme
+
+Design the Light theme with:
+
+* Bright, clean surfaces
+* Soft neutral backgrounds
+* High-contrast typography
+* Subtle shadows
+* Brand-colored accent buttons
+* Elegant cards and dividers
+
+### Dark Theme
+
+Design the Dark theme with:
+
+* Deep neutral backgrounds
+* Elevated dark surfaces
+* Comfortable text contrast
+* Refined shadows and borders
+* Brand accent colors that remain vibrant
+* Carefully balanced visual hierarchy for extended viewing
+
+### Performance
+
+* Optimize all assets for fast loading.
+* Lazy-load images and media where appropriate.
+* Use efficient animations that do not impact performance.
+* Maintain excellent Core Web Vitals.
+
+### Accessibility
+
+* Full WCAG AA compliance
+* Proper semantic HTML
+* Keyboard accessibility
+* ARIA labels
+* Visible focus states
+* Screen reader compatibility
+* High color contrast in both themes
+
+### Final Deliverable
+
+Deliver a production-ready, enterprise-quality page that feels polished, trustworthy, and emotionally engaging. Every interaction, animation, and visual element should reflect modern UI/UX best practices while providing a seamless experience in both Light and Dark themes. Review the final design holistically and refine every detail to achieve a premium, world-class user experience worthy of the JCTM brand.
