@@ -635,72 +635,6 @@ function ThemedInput({ hasIcon, error, ...props }: React.InputHTMLAttributes<HTM
   );
 }
 
-// ── Social proof section ───────────────────────────────────────────────────────
-const TESTIMONIAL_QUOTES = [
-  { quote: "Sharing my testimony on JCTM changed my life. Thousands reached out to me from across the world.", author: "Sister Grace O.", location: "Lagos, Nigeria" },
-  { quote: "After uploading my video, I received messages from people who were healed by the same word God gave me.", author: "Bro. Emmanuel K.", location: "Accra, Ghana" },
-  { quote: "Your platform is so easy to use. My story is now blessing people in places I have never been.", author: "Deaconess Amaka P.", location: "London, UK" },
-];
-
-function SocialProof() {
-  const [active, setActive] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setActive((a) => (a + 1) % TESTIMONIAL_QUOTES.length), 4500);
-    return () => clearInterval(t);
-  }, []);
-
-  const q = TESTIMONIAL_QUOTES[active];
-  return (
-    <section className="max-w-3xl mx-auto px-4 py-16">
-      <div className="text-center mb-8">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] dark:text-violet-400/70 text-violet-600 mb-2">What others are saying</p>
-        <h2 className="text-2xl font-black dark:text-white text-gray-900">Your story can do the same</h2>
-      </div>
-
-      <div className="relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={active}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="dark:bg-white/[0.03] bg-white rounded-3xl border dark:border-white/8 border-gray-100 p-8 shadow-lg text-center"
-          >
-            <div className="flex justify-center mb-4">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
-              ))}
-            </div>
-            <blockquote className="text-base sm:text-lg dark:text-white/75 text-gray-700 leading-relaxed font-medium italic mb-4">
-              "{q.quote}"
-            </blockquote>
-            <p className="font-bold dark:text-white text-gray-900 text-sm">{q.author}</p>
-            <p className="text-xs dark:text-white/35 text-gray-400 mt-0.5 flex items-center gap-1 justify-center">
-              <MapPin className="w-3 h-3" /> {q.location}
-            </p>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Dot nav */}
-        <div className="flex justify-center gap-2 mt-5">
-          {TESTIMONIAL_QUOTES.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActive(i)}
-              aria-label={`Show quote ${i + 1}`}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === active ? "bg-violet-500 w-6" : "dark:bg-white/15 bg-gray-300 w-1.5 hover:dark:bg-white/30 hover:bg-gray-400"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ── Success Screen ─────────────────────────────────────────────────────────────
 function SuccessScreen({ onAgain }: { onAgain: () => void }) {
   return (
@@ -1055,9 +989,6 @@ export default function ShareExperience() {
                 </motion.div>
               </div>
             </section>
-
-            {/* ── Social Proof ───────────────────────────────────────────────── */}
-            <SocialProof />
 
             {/* ── Form ──────────────────────────────────────────────────────── */}
             <section
