@@ -902,11 +902,29 @@ export default function ShareExperience() {
                   bring healing, and inspire thousands across the globe. Share it and let your story glorify Him.
                 </motion.p>
 
+                {/* Scripture verse */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.32 }}
+                  className="flex items-center justify-center gap-3 py-1"
+                >
+                  <span className="h-px w-8 bg-gradient-to-r from-transparent to-violet-400/50 dark:to-violet-400/40 rounded-full" />
+                  <p className="text-sm italic dark:text-white/40 text-gray-500 text-center">
+                    "They triumphed over him by the blood of the Lamb{" "}
+                    <span className="dark:text-white/60 text-gray-700 not-italic font-medium">
+                      and by the word of their testimony.
+                    </span>"
+                    {" "}<span className="not-italic text-xs font-semibold dark:text-violet-400/80 text-violet-600 tracking-wide">— Rev 12:11</span>
+                  </p>
+                  <span className="h-px w-8 bg-gradient-to-l from-transparent to-violet-400/50 dark:to-violet-400/40 rounded-full" />
+                </motion.div>
+
                 {/* CTA buttons */}
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.35 }}
+                  transition={{ duration: 0.5, delay: 0.42 }}
                   className="flex flex-col sm:flex-row items-center justify-center gap-4"
                 >
                   <motion.button
