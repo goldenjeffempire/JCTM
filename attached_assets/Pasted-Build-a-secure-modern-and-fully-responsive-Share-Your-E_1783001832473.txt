@@ -1,0 +1,60 @@
+Build a secure, modern, and fully responsive **"Share Your Experience"** portal for **Jesus Christ Temple Ministry (JCTM)** where members, visitors, and viewers can share their experience since joining the ministry.
+
+The portal should seamlessly integrate with the existing JCTM website, maintain the current branding and design system, and provide a simple, engaging submission experience.
+
+### Experience Submission Form
+
+Include the following required fields:
+
+* Full Name
+* Profile Photo (image upload with preview)
+* Location (City, State/Country)
+* Email Address
+* Video Experience Upload
+
+### Video Upload Requirements
+
+* Support large video uploads (up to **5 GB** or the maximum supported by the infrastructure).
+* Accept common formats such as MP4, MOV, AVI, and WebM.
+* Implement resumable/chunked uploads to ensure reliable uploads for large files.
+* Display upload progress, estimated time remaining, and upload status.
+* Validate file type and size before upload.
+* Store videos securely using scalable cloud storage.
+
+### Consent
+
+Include a mandatory consent checkbox confirming that:
+
+* The submitted experience is authentic.
+* The participant grants Jesus Christ Temple Ministry permission to review, edit, publish, and share the submitted video and profile photo across the JCTM website, Temple TV, social media platforms, livestreams, promotional materials, and other official ministry channels.
+
+### Submission Workflow
+
+* Validate all required fields.
+* Provide clear error handling and user-friendly validation messages.
+* Display a success confirmation after submission.
+* Send an email notification to administrators when a new submission is received.
+* Store all submissions securely in the database.
+* Keep every submission in a **Pending Review** state until approved by an administrator.
+
+### Admin Dashboard
+
+Build an administrative portal that allows authorized staff to:
+
+* View all submissions.
+* Search and filter submissions.
+* Preview profile photos and uploaded videos.
+* Approve, reject, edit, or delete submissions.
+* Mark selected experiences as **Featured** for display on the website.
+* Download submitted videos when necessary.
+* Export submission records.
+
+### Design & User Experience
+
+* Match the existing JCTM branding, typography, colors, and design system.
+* Create a clean, welcoming, and inspirational interface.
+* Ensure the portal is fully responsive across desktop, tablet, and mobile devices.
+* Optimize for accessibility (WCAG), SEO, and high performance.
+* Protect the form with CAPTCHA, server-side validation, and appropriate security measures to prevent spam and abuse.
+
+Deliver a production-ready, scalable, and secure experience that makes it easy for members and viewers to share their experiences while giving administrators complete moderation and content management capabilities.
