@@ -4041,10 +4041,8 @@ function PlayStoreIcon({ className }: { className?: string }) {
 function AppDownloadSection() {
   const features = [
     { icon: "📺", label: "Live sermons & rebroadcasts" },
-    { icon: "🙏", label: "Daily devotionals" },
     { icon: "🔔", label: "Instant live alerts" },
     { icon: "📖", label: "Ministry knowledge base" },
-    { icon: "❤️", label: "Give & support missions" },
     { icon: "🌍", label: "Reach in 40+ nations" },
   ];
 
