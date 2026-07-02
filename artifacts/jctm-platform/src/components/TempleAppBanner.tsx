@@ -68,7 +68,7 @@ export function TempleAppBanner() {
               {/* Text */}
               <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span className="font-bold text-sm whitespace-nowrap">
-                  📱 Temple TV App is Now Live on Google Play!
+                  📱 Temple TV App — Anywhere & Everywhere You Go!
                 </span>
                 <span className="text-white/70 text-xs hidden sm:inline truncate">
                   Watch sermons, live broadcasts &amp; more — anytime, anywhere.

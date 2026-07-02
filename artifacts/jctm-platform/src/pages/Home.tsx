@@ -4127,11 +4127,10 @@ function AppDownloadSection() {
               className="flex-1 text-white"
             >
               <span className="inline-block text-xs font-semibold uppercase tracking-widest mb-4 border border-white/25 rounded-full px-4 py-1.5 text-white/70">
-                📱 Now Available on Android
+                📱 Anywhere & Everywhere You Go
               </span>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-white leading-tight mb-4">
-                Temple TV App —<br className="hidden sm:block" />
-                <span style={{ color: "#6ee7b7" }}>The Ministry in Your Pocket</span>
+                Temple TV App
               </h2>
               <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-lg">
                 Stream sermons, catch live broadcasts, read daily devotionals, and stay connected to JCTM wherever you are — free on Google Play.
