@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import appPromoLandscape from "@assets/image_1782999582249.png";
 
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.templetv.jctm";
 
@@ -46,14 +47,14 @@ export function TempleAppCTAStrip({
       />
 
       <div className="relative flex flex-col sm:flex-row items-center gap-4 p-5 sm:p-6">
-        {/* Icon badge */}
-        <div
-          className="shrink-0 h-14 w-14 rounded-2xl flex items-center justify-center shadow-lg"
-          style={{ background: "linear-gradient(135deg, #003366, #01875f)" }}
+        {/* Promo image */}
+        <img
+          src={appPromoLandscape}
+          alt="Temple TV App — Stay Updated, Stay Connected"
+          className="shrink-0 w-full sm:w-48 md:w-56 rounded-xl object-cover shadow-md"
+          loading="lazy"
           aria-hidden
-        >
-          <PlayStoreLogo className="h-7 w-7 text-white" />
-        </div>
+        />
 
         {/* Text */}
         <div className="flex-1 min-w-0 text-center sm:text-left">

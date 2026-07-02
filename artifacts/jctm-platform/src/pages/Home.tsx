@@ -28,6 +28,7 @@ import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { VideoDownloadButton } from "@/components/VideoDownloadButton";
+import appPromoPortrait from "@assets/image_1782999572173.png";
 
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -4094,13 +4095,13 @@ function AppDownloadSection() {
               transition={{ duration: 0.7 }}
               className="shrink-0 flex flex-col items-center gap-6"
             >
-              {/* App icon */}
-              <div
-                className="h-28 w-28 rounded-[28px] flex items-center justify-center shadow-2xl border border-white/20"
-                style={{ background: "linear-gradient(135deg, #003366, #01875f)" }}
-              >
-                <PlayStoreIcon className="h-14 w-14 text-white" />
-              </div>
+              {/* Promo poster */}
+              <img
+                src={appPromoPortrait}
+                alt="Temple TV App — The Wait Is Over, Now Live on Google Play"
+                className="w-64 sm:w-72 rounded-3xl shadow-2xl border border-white/20 object-cover"
+                loading="lazy"
+              />
               {/* "Available on" badge */}
               <a
                 href={PLAY_STORE_URL}
