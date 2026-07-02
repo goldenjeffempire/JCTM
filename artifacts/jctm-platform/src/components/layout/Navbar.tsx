@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
 import {
   Menu, X, Moon, Sun, ChevronDown, Bell, BellOff,
 } from "lucide-react";
@@ -438,9 +439,7 @@ export function Navbar() {
               aria-label="Download Temple TV App on Google Play"
               className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#01875f]/40 text-[#01875f] text-[11px] font-semibold hover:bg-[#01875f]/10 transition-colors whitespace-nowrap"
             >
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
-                <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
-              </svg>
+              <img src={googlePlayIcon} className="h-3.5 w-3.5" alt="" aria-hidden="true" />
               Get App
             </a>
 

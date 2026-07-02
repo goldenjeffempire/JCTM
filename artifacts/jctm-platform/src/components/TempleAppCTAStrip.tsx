@@ -1,15 +1,8 @@
 import { motion } from "framer-motion";
 import appPromoLandscape from "@assets/image_1782999582249.png";
+import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
 
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.templetv.jctm";
-
-function PlayStoreLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
-      <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
-    </svg>
-  );
-}
 
 interface TempleAppCTAStripProps {
   className?: string;
@@ -83,7 +76,7 @@ export function TempleAppCTAStrip({
           className="shrink-0 inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
           style={{ background: "linear-gradient(135deg, #01875f, #00704f)" }}
         >
-          <PlayStoreLogo className="h-4 w-4 text-white" />
+          <img src={googlePlayIcon} className="h-4 w-4" alt="" aria-hidden="true" />
           <span className="flex flex-col items-start leading-tight">
             <span className="text-[9px] font-medium opacity-75 uppercase tracking-wider">Download on</span>
             <span className="text-sm font-bold leading-none">Google Play</span>

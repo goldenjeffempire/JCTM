@@ -29,6 +29,7 @@ import { Layout } from "@/components/layout/Layout";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import appPromoPortrait from "@assets/image_1782999572173.png";
+import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
 
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -1217,9 +1218,7 @@ function HeroSection() {
                   rel="noopener noreferrer"
                 >
                   <RippleButton className="group inline-flex items-center justify-center h-14 px-8 rounded-full text-base font-semibold bg-[#01875f] hover:bg-[#017a56] text-white shadow-xl shadow-[#01875f]/30 transition-all duration-300 hover:-translate-y-1 min-h-[44px] gap-2.5">
-                    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white shrink-0 group-hover:scale-110 transition-transform" aria-hidden="true">
-                      <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
-                    </svg>
+                    <img src={googlePlayIcon} className="h-5 w-5 shrink-0 group-hover:scale-110 transition-transform" alt="" aria-hidden="true" />
                     <span className="flex flex-col items-start leading-tight">
                       <span className="text-[10px] font-medium opacity-80 uppercase tracking-wider">Download on</span>
                       <span className="text-sm font-bold">Google Play</span>
@@ -4031,14 +4030,6 @@ function PrayerWallSection() {
 // ═══════════════════════════════════════════════════════════════════════════
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.templetv.jctm";
 
-function PlayStoreIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
-      <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
-    </svg>
-  );
-}
-
 function AppDownloadSection() {
   const features = [
     { icon: "📺", label: "Live sermons & rebroadcasts" },
@@ -4110,7 +4101,7 @@ function AppDownloadSection() {
                 aria-label="Download Temple TV App on Google Play"
                 className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white text-gray-900 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 font-semibold group"
               >
-                <PlayStoreIcon className="h-7 w-7 text-[#01875f] shrink-0" />
+                <img src={googlePlayIcon} className="h-7 w-7 shrink-0" alt="" aria-hidden="true" />
                 <div className="text-left">
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Download Free on</p>
                   <p className="text-lg font-bold leading-none text-gray-900">Google Play</p>
