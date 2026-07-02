@@ -30,6 +30,7 @@ import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import appPromoPortrait from "@assets/image_1782999572173.png";
 import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
+import templeTVAppIcon from "@assets/TempleTV_logo_transparent.png";
 
 import { Button } from "@/components/ui/button";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
@@ -3071,7 +3072,7 @@ function ConnectSection() {
           <motion.p variants={fadeUp} className="text-muted-foreground max-w-lg mx-auto">Follow JCTM across platforms to never miss a broadcast, sermon, or prophetic update.</motion.p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto mb-6">
           {channels.map(({ name, sub, icon: Icon, color, bg, border, href }, i) => (
             <motion.a key={i} href={href} target={href.startsWith("mailto") ? undefined : "_blank"} rel="noopener noreferrer"
               initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
@@ -3088,6 +3089,41 @@ function ConnectSection() {
             </motion.a>
           ))}
         </div>
+
+        {/* Temple TV App download card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
+          className="max-w-3xl mx-auto mb-10"
+        >
+          <a
+            href="https://play.google.com/store/apps/details?id=com.templetv.jctm"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Download Temple TV App on Google Play"
+            className="group flex flex-col sm:flex-row items-center gap-5 p-6 rounded-2xl border border-[#01875f]/25 bg-gradient-to-br from-[#f0faf5] to-[#e6f5ee] hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+          >
+            {/* App icon */}
+            <div className="shrink-0 h-20 w-20 rounded-2xl bg-white shadow-md border border-[#01875f]/15 flex items-center justify-center overflow-hidden">
+              <img src={templeTVAppIcon} className="h-16 w-16 object-contain" alt="Temple TV App icon" />
+            </div>
+            {/* Text */}
+            <div className="flex-1 text-center sm:text-left">
+              <p className="text-[#014d3a] font-bold text-base leading-tight">Temple TV App</p>
+              <p className="text-[#01875f] text-[11px] font-medium mt-0.5">play.google.com/store</p>
+              <p className="text-muted-foreground text-xs mt-2 max-w-sm">
+                Stream sermons, catch live broadcasts &amp; stay connected to JCTM — free on Google Play.
+              </p>
+            </div>
+            {/* Badge */}
+            <div className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl bg-[#01875f] text-white shadow-md group-hover:shadow-lg group-hover:bg-[#017a56] transition-all duration-200">
+              <img src={googlePlayIcon} className="h-5 w-5" alt="" aria-hidden="true" />
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-[9px] font-medium opacity-75 uppercase tracking-wider">Download on</span>
+                <span className="text-sm font-bold leading-none">Google Play</span>
+              </span>
+            </div>
+          </a>
+        </motion.div>
 
         {/* Geo-targeted content banner */}
         <div className="max-w-3xl mx-auto mt-8">

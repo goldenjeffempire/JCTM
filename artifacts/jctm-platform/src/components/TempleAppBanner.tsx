@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
+import templeTVAppIcon from "@assets/TempleTV_logo_transparent.png";
 
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.templetv.jctm";
 const DISMISS_KEY = "jctm_app_banner_dismissed_v1";
@@ -54,8 +55,8 @@ export function TempleAppBanner() {
             {/* Content */}
             <div className="relative flex items-center gap-3 min-w-0 flex-1">
               {/* Icon */}
-              <div className="shrink-0 h-7 w-7 rounded-lg bg-white/15 flex items-center justify-center border border-white/25">
-                <img src={googlePlayIcon} className="h-4 w-4" alt="" aria-hidden="true" />
+              <div className="shrink-0 h-7 w-7 rounded-lg bg-white/15 flex items-center justify-center border border-white/25 overflow-hidden">
+                <img src={templeTVAppIcon} className="h-6 w-6 object-contain" alt="Temple TV App" aria-hidden="true" />
               </div>
 
               {/* Text */}

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGetSermonStats, getGetSermonStatsQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
+import templeTVAppIcon from "@assets/TempleTV_logo_transparent.png";
 import { SEO } from "@/components/SEO";
 import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { Button } from "@/components/ui/button";
@@ -382,7 +383,7 @@ export default function Sermons() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#01875f]/20 hover:bg-[#01875f]/35 border border-[#01875f]/50 text-[#4ade80] hover:text-white transition-all duration-200 group"
               >
-                <img src={googlePlayIcon} className="h-4 w-4 shrink-0" alt="" aria-hidden="true" />
+                <img src={templeTVAppIcon} className="h-5 w-5 object-contain shrink-0" alt="" aria-hidden="true" />
                 <span className="text-xs font-semibold whitespace-nowrap">Download App</span>
               </a>
             </div>

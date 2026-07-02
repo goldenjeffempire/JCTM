@@ -11,6 +11,7 @@ import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 import { emitTrackJob } from "@/components/MediaJobsPanel";
 import { Layout } from "@/components/layout/Layout";
 import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
+import templeTVAppIcon from "@assets/TempleTV_logo_transparent.png";
 import { SEO } from "@/components/SEO";
 import { YouTubeEmbed, type YouTubeEmbedHandle } from "@/components/YouTubeEmbed";
 import { Badge } from "@/components/ui/badge";
@@ -802,7 +803,7 @@ export default function Moments() {
               aria-label="Download Temple TV App"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#01875f] text-white text-[11px] font-bold hover:bg-[#017a56] transition-colors shadow-sm shrink-0"
             >
-              <img src={googlePlayIcon} className="h-3.5 w-3.5" alt="" aria-hidden="true" />
+              <img src={templeTVAppIcon} className="h-4 w-4 object-contain" alt="" aria-hidden="true" />
               Get App
             </a>
           </div>
