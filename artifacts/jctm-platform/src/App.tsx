@@ -55,6 +55,7 @@ const Cookies = lazy(() => import("@/pages/Cookies"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const ShareExperience = lazy(() => import("@/pages/ShareExperience"));
 const AdminExperiences = lazy(() => import("@/pages/AdminExperiences"));
+const ExperiencesShowcase = lazy(() => import("@/pages/ExperiencesShowcase"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -135,6 +136,7 @@ function Router() {
         <Route path="/cookies" component={Cookies} />
         <Route path="/contact" component={Contact} />
         <Route path="/share-experience" component={ShareExperience} />
+        <Route path="/experiences" component={ExperiencesShowcase} />
         <Route path="/admin/experiences" component={AdminExperiences} />
         <Route component={NotFound} />
       </Switch>

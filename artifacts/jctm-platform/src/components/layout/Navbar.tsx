@@ -221,6 +221,7 @@ export function Navbar() {
     { href: "/scripture-study", label: `📖 ${t("Scripture Study")}`, description: t("Deep AI exegetical Bible analysis"), aiHighlight: true },
     { href: "/spiritual-insight", label: `✦ ${t("Spiritual Insight")}`, description: t("Personalized prophetic guidance"), aiHighlight: true },
     { href: "/testimonies", label: t("Testimonies"), description: t("Stories of God's faithfulness") },
+    { href: "/experiences", label: `✨ ${t("Experiences")}`, description: t("Watch member video testimonies") },
     { href: "/share-experience", label: `🎥 ${t("Share Your Experience")}`, description: t("Submit your video testimony") },
     { href: "/events", label: t("Events"), description: t("Upcoming services & programmes") },
     { href: "/crusade", label: t("Crusade"), description: t("Warri crusade & outreach events") },
