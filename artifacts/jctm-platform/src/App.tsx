@@ -53,6 +53,8 @@ const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const Disclaimer = lazy(() => import("@/pages/Disclaimer"));
 const Cookies = lazy(() => import("@/pages/Cookies"));
 const Contact = lazy(() => import("@/pages/Contact"));
+const ShareExperience = lazy(() => import("@/pages/ShareExperience"));
+const AdminExperiences = lazy(() => import("@/pages/AdminExperiences"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,6 +134,8 @@ function Router() {
         <Route path="/disclaimer" component={Disclaimer} />
         <Route path="/cookies" component={Cookies} />
         <Route path="/contact" component={Contact} />
+        <Route path="/share-experience" component={ShareExperience} />
+        <Route path="/admin/experiences" component={AdminExperiences} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

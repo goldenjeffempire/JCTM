@@ -1523,5 +1523,34 @@ export async function runMigrations(): Promise<void> {
     )
   `);
 
+  // ── experience_submissions (Share Your Experience portal) ─────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS experience_submissions (
+      id              serial PRIMARY KEY,
+      full_name       text NOT NULL,
+      email           text NOT NULL,
+      location        text NOT NULL,
+      photo_path      text,
+      video_path      text,
+      video_filename  text,
+      status          text NOT NULL DEFAULT 'pending',
+      is_featured     boolean NOT NULL DEFAULT false,
+      admin_notes     text,
+      ip_address      text,
+      consent         boolean NOT NULL DEFAULT false,
+      created_at      timestamptz NOT NULL DEFAULT now(),
+      updated_at      timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_experience_submissions_status
+      ON experience_submissions (status, created_at DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_experience_submissions_featured
+      ON experience_submissions (is_featured, created_at DESC)
+      WHERE is_featured = true
+  `);
+
   logger.info("All migrations complete");
 }
