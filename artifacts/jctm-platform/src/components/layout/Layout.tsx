@@ -11,6 +11,7 @@ import { EventLiveToast } from "../event-promo/EventLiveToast";
 import { GlobalEventAdBanner } from "../event-promo/GlobalEventAdBanner";
 import { EventPromoPreviewToggle } from "../event-promo/EventPromoPreviewToggle";
 import { MediaJobsPanel } from "../MediaJobsPanel";
+import { TempleAppBanner } from "../TempleAppBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -40,6 +41,7 @@ export function Layout({ children }: LayoutProps) {
       <LiveBanner />
       <Navbar />
       <EventBanner />
+      <TempleAppBanner />
       <main id="main-content" className="flex-1 w-full" tabIndex={-1}>
         {children}
       </main>

@@ -794,6 +794,18 @@ export default function Moments() {
               <Flame className="h-4 w-4 text-red-500" />
               <span className="text-sm font-bold text-primary">{t("Ministry Moments")}</span>
             </div>
+            <a
+              href="https://play.google.com/store/apps/details?id=com.templetv.jctm"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Download Temple TV App"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#01875f] text-white text-[11px] font-bold hover:bg-[#017a56] transition-colors shadow-sm shrink-0"
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+                <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
+              </svg>
+              Get App
+            </a>
           </div>
 
           {/* New video alert */}

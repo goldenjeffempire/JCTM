@@ -14,6 +14,7 @@ import {
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download, CalendarPlus,
   Flame, CheckCircle2, ExternalLink,
 } from "lucide-react";
+import { TempleAppCTAStrip } from "@/components/TempleAppCTAStrip";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -949,7 +950,12 @@ export default function Events() {
           </p>
         </motion.div>
 
-        <AdSlot slot={ADSENSE_SLOTS.eventsPage} minHeight={100} format="horizontal" className="mb-12" />
+        <AdSlot slot={ADSENSE_SLOTS.eventsPage} minHeight={100} format="horizontal" className="mb-8" />
+
+        <TempleAppCTAStrip
+          className="mb-12"
+          message="Never miss a JCTM event or live broadcast — get notified the moment we go live."
+        />
 
         {/* ─── Upcoming Events ──────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">

@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { Heart, Shield, Star, CheckCircle, Globe, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useGeo } from "@/contexts/GeoContext";
+import { TempleAppCTAStrip } from "@/components/TempleAppCTAStrip";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -357,6 +358,11 @@ export default function Give() {
             </div>
           </div>
         </div>
+
+        <TempleAppCTAStrip
+          className="mt-10 max-w-5xl mx-auto"
+          message="Watch Temple TV sermons, give on the go, and stay connected to JCTM — download the free app."
+        />
       </div>
     </Layout>
   );

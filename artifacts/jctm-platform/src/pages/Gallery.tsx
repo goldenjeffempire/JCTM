@@ -15,6 +15,7 @@ import MediaDownloadSheet from "@/components/MediaDownloadSheet";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
+import { TempleAppCTAStrip } from "@/components/TempleAppCTAStrip";
 
 // ─── Utilities ─────────────────────────────────────────────────────────────
 
@@ -1478,6 +1479,11 @@ export default function Gallery() {
                   </div>
                 ))}
               </div>
+
+              <TempleAppCTAStrip
+                className="mt-6 max-w-2xl"
+                message="Access the full JCTM photo gallery, videos and more on the Temple TV app."
+              />
             </div>
 
             {/* Toolbar */}

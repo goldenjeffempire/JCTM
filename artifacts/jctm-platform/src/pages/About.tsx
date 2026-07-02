@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
+import { TempleAppCTAStrip } from "@/components/TempleAppCTAStrip";
 import { BookOpen, Target, Globe, Shield, Eye, Mail, Phone, MapPin, Video } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { SEO } from "@/components/SEO";
@@ -560,6 +561,11 @@ export default function About() {
           </div>
 
         </motion.div>
+
+        <TempleAppCTAStrip
+          className="mt-12"
+          message="Take the ministry with you — sermons, live streams, devotionals and more, right on your phone."
+        />
       </div>
     </Layout>
   );

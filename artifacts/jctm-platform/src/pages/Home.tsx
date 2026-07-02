@@ -4026,6 +4026,146 @@ function PrayerWallSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// APP DOWNLOAD SECTION
+// ═══════════════════════════════════════════════════════════════════════════
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.templetv.jctm";
+
+function PlayStoreIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
+      <path d="M3.18 23.76c.3.17.64.24.99.2l12.24-11.24L12.9 9.2 3.18 23.76zm17.27-10.98-3.35-1.93-3.41 3.13 3.41 3.13 3.38-1.95c.96-.56.96-1.83-.03-2.38zM3 1.07C2.58 1.34 2.3 1.8 2.3 2.4v19.2c0 .6.28 1.06.7 1.33l.1.06 10.76-10.76v-.25L3 1.07zm9.9 9.85L3.18.36c-.35-.04-.69.03-.99.2L12.9 14.8l.41-.38L12.9 10.92z" />
+    </svg>
+  );
+}
+
+function AppDownloadSection() {
+  const features = [
+    { icon: "📺", label: "Live sermons & rebroadcasts" },
+    { icon: "🙏", label: "Daily devotionals" },
+    { icon: "🔔", label: "Instant live alerts" },
+    { icon: "📖", label: "Ministry knowledge base" },
+    { icon: "❤️", label: "Give & support missions" },
+    { icon: "🌍", label: "Reach in 40+ nations" },
+  ];
+
+  return (
+    <section
+      aria-label="Download Temple TV App"
+      className="relative overflow-hidden py-20"
+    >
+      {/* Background gradient */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(135deg, #001f4d 0%, #003366 35%, #014d3a 70%, #01875f 100%)",
+        }}
+      />
+      {/* Subtle noise texture overlay */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+        }}
+      />
+
+      {/* Animated shimmer */}
+      <motion.div
+        aria-hidden
+        className="absolute inset-0 opacity-10"
+        style={{
+          background:
+            "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.6) 50%, transparent 70%)",
+        }}
+        animate={{ x: ["-100%", "220%"] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 8 }}
+      />
+
+      <div className="relative container mx-auto px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+
+            {/* Left — App icon + mock phone */}
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+              className="shrink-0 flex flex-col items-center gap-6"
+            >
+              {/* App icon */}
+              <div
+                className="h-28 w-28 rounded-[28px] flex items-center justify-center shadow-2xl border border-white/20"
+                style={{ background: "linear-gradient(135deg, #003366, #01875f)" }}
+              >
+                <PlayStoreIcon className="h-14 w-14 text-white" />
+              </div>
+              {/* "Available on" badge */}
+              <a
+                href={PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Download Temple TV App on Google Play"
+                className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white text-gray-900 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 font-semibold group"
+              >
+                <PlayStoreIcon className="h-7 w-7 text-[#01875f] shrink-0" />
+                <div className="text-left">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Download Free on</p>
+                  <p className="text-lg font-bold leading-none text-gray-900">Google Play</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-400 ml-2 group-hover:translate-x-1 transition-transform" />
+              </a>
+            </motion.div>
+
+            {/* Right — Text content */}
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, delay: 0.1 }}
+              className="flex-1 text-white"
+            >
+              <span className="inline-block text-xs font-semibold uppercase tracking-widest mb-4 border border-white/25 rounded-full px-4 py-1.5 text-white/70">
+                📱 Now Available on Android
+              </span>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-white leading-tight mb-4">
+                Temple TV App —<br className="hidden sm:block" />
+                <span style={{ color: "#6ee7b7" }}>The Ministry in Your Pocket</span>
+              </h2>
+              <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-lg">
+                Stream sermons, catch live broadcasts, read daily devotionals, and stay connected to JCTM wherever you are — free on Google Play.
+              </p>
+
+              {/* Feature chips */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+                {features.map(({ icon, label }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-2 rounded-xl bg-white/10 border border-white/15 px-3.5 py-2.5 text-sm text-white/90 backdrop-blur-sm"
+                  >
+                    <span className="text-base">{icon}</span>
+                    <span className="font-medium leading-snug">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Social proof */}
+              <p className="text-white/50 text-sm">
+                Free to download · No subscription required · Android
+              </p>
+            </motion.div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // NEWSLETTER SECTION
 // ═══════════════════════════════════════════════════════════════════════════
 function NewsletterSection() {
@@ -4233,6 +4373,7 @@ export default function Home() {
       <AIAssistantTeaser />
       <PrayerWallSection />
       <NewsletterSection />
+      <AppDownloadSection />
       <NewcomerSection />
       <ConnectSection />
       <TimelineTeaser />
