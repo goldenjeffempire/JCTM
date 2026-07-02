@@ -82,13 +82,6 @@ function HeroOrbs({ isDark }: { isDark: boolean }) {
   );
 }
 
-// ── Floating stat chips ────────────────────────────────────────────────────────
-const HERO_STATS = [
-  { icon: Users,  value: "2,400+", label: "Stories Shared",  iconBg: "bg-violet-500/15",  iconColor: "text-violet-500"  },
-  { icon: Globe,  value: "50+",    label: "Nations Reached",  iconBg: "bg-emerald-500/15", iconColor: "text-emerald-500" },
-  { icon: Trophy, value: "10 yrs", label: "Ministry Legacy",  iconBg: "bg-amber-500/18",   iconColor: "text-amber-500"   },
-];
-
 // ── Step data ──────────────────────────────────────────────────────────────────
 const STEPS = [
   { label: "Your Info",  sub: "Tell us about yourself",    icon: User     },
@@ -942,52 +935,6 @@ export default function ShareExperience() {
                   </motion.button>
                 </motion.div>
 
-                {/* Stats row */}
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
-                  className="flex flex-wrap justify-center gap-3 pt-4"
-                >
-                  {HERO_STATS.map(({ icon: Icon, value, label, iconBg, iconColor }, i) => (
-                    <motion.div
-                      key={label}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.55 + i * 0.08 }}
-                      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border transition-colors ${
-                        isDark
-                          ? "bg-white/[0.04] border-white/8 hover:bg-white/[0.07]"
-                          : "bg-white border-gray-100 shadow-sm hover:shadow-md"
-                      }`}
-                    >
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-                        <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-black dark:text-white text-gray-900 leading-none">{value}</p>
-                        <p className="text-[10px] dark:text-white/30 text-gray-500 font-medium mt-0.5">{label}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-
-                  {/* Trust badges */}
-                  {[
-                    { icon: Shield, text: "Secure upload",   ic: "text-violet-400", dark: "bg-violet-500/10 border-violet-500/18 text-violet-300", light: "bg-violet-50 border-violet-200 text-violet-700" },
-                    { icon: Clock,  text: "5-day review",    ic: "text-amber-400",  dark: "bg-amber-500/10 border-amber-500/18 text-amber-300",    light: "bg-amber-50 border-amber-200 text-amber-700"   },
-                    { icon: Heart,  text: "For God's glory", ic: "text-rose-400",   dark: "bg-rose-500/10 border-rose-500/18 text-rose-300",        light: "bg-rose-50 border-rose-200 text-rose-700"     },
-                  ].map(({ icon: Icon, text, ic, dark: dk, light: lt }, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.7 + i * 0.07 }}
-                      className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full border transition-colors ${isDark ? dk : lt}`}
-                    >
-                      <Icon className={`w-3 h-3 ${ic}`} /> {text}
-                    </motion.div>
-                  ))}
-                </motion.div>
               </div>
             </section>
 
