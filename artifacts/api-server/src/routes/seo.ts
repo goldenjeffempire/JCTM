@@ -29,24 +29,18 @@ const ORG_NAME  = "Jesus Christ Temple Ministry";
 const FOUNDER   = "Prophet Amos Evomobor";
 const EMAIL     = "info@jctm.org.ng";
 
+// These 8 slugs correspond exactly to the topic detail pages defined in
+// artifacts/jctm-platform/src/pages/Topics.tsx (TOPICS array).
+// Keep in sync with that file whenever a topic page is added or removed.
 const TOPIC_PAGES = [
-  { slug: "teachings",          label: "Teachings",          desc: "Sermon-based doctrinal articles" },
-  { slug: "bible-studies",      label: "Bible Studies",      desc: "Structured scripture studies" },
-  { slug: "devotionals",        label: "Devotionals",        desc: "Daily reflections and devotions" },
-  { slug: "prophetic-messages", label: "Prophetic Messages", desc: "Prophetic warnings and correction teaching" },
-  { slug: "ministry-insights",  label: "Ministry Insights",  desc: "Leadership and ministry resources" },
-  { slug: "testimonies",        label: "Testimonies",        desc: "Healing, salvation and miracle testimonies" },
-  { slug: "prayer-fasting",     label: "Prayer & Fasting",   desc: "Intercession and fasting guides" },
-  { slug: "youth-family",       label: "Youth & Family",     desc: "Faith content for young believers" },
-  { slug: "christian-living",   label: "Christian Living",   desc: "Practical holiness and lifestyle guidance" },
-  { slug: "revival",            label: "Revival",            desc: "End-time harvest and awakening" },
-  { slug: "holiness",           label: "Holiness",           desc: "The doctrine of holiness in JCTM" },
-  { slug: "correction-mandate", label: "Correction Mandate", desc: "The prophetic mandate to correct doctrinal error" },
-  { slug: "water-baptism",      label: "Water Baptism",      desc: "Baptism by full immersion in Jesus name" },
-  { slug: "holy-spirit",        label: "Holy Spirit",        desc: "Holy Spirit baptism with speaking in tongues" },
-  { slug: "five-fold-ministry", label: "Five-Fold Ministry", desc: "Apostle, Prophet, Evangelist, Pastor and Teacher" },
-  { slug: "end-times",          label: "End Times",          desc: "End-time prophecy and preparedness" },
-  { slug: "salvation",          label: "Salvation",          desc: "The gospel of salvation" },
+  { slug: "holiness",              label: "Holiness",              desc: "The doctrine of holiness — 'without holiness, no man shall see the Lord' (Hebrews 12:14)" },
+  { slug: "correction-mandate",    label: "The Correction Mandate", desc: "JCTM's divine assignment to identify and correct five major doctrinal errors in the global church" },
+  { slug: "primitive-christianity",label: "Primitive Christianity", desc: "A return to the original, unadulterated first-century apostolic faith" },
+  { slug: "healing-miracles",      label: "Healing & Miracles",    desc: "God's healing power at work through prayer and faith — divine healing, miracles, and deliverance" },
+  { slug: "end-times",             label: "End Times & Rapture",   desc: "Signs of the last days, the imminent return of Christ, and how to be ready for His coming" },
+  { slug: "water-baptism",         label: "Water Baptism",         desc: "New Testament doctrine of water baptism — its true meaning, mode, and JCTM's teaching" },
+  { slug: "prayer-intercession",   label: "Prayer & Intercession", desc: "Biblical principles of prayer, intercession, and fasting — communion with God and standing in the gap" },
+  { slug: "family-marriage",       label: "Family & Marriage",     desc: "God's design for the family — marriage, parenting, and building a home that honours Christ" },
 ];
 
 const STATIC_PAGES = [
@@ -330,7 +324,7 @@ router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> =
     }));
 
     const topicEntries = TOPIC_PAGES.map(t => buildUrlEntry({
-      loc: `${BASE_URL}/topics/${t.slug}`, lastmod: today, changefreq: "weekly", priority: "0.82",
+      loc: `${BASE_URL}/topics/${t.slug}`, lastmod: today, changefreq: "weekly", priority: "0.80",
     }));
 
     const blogEntries = blogPosts.map(post => {
@@ -593,13 +587,13 @@ ${videoEntries.join("\n\n")}
 router.get("/sitemap-topics.xml", (_req: Request, res: Response): void => {
   const today = new Date().toISOString().split("T")[0];
 
-  const CORE_TOPICS = new Set(["holiness", "salvation", "holy-spirit", "water-baptism", "end-times", "correction-mandate"]);
-
+  // All 8 doctrine topic pages share the same priority — each one is a rich,
+  // ministry-authored content page that Google should prioritise equally.
   const entries = TOPIC_PAGES.map(t => buildUrlEntry({
     loc:        `${BASE_URL}/topics/${t.slug}`,
     lastmod:    today,
     changefreq: "weekly",
-    priority:   CORE_TOPICS.has(t.slug) ? "0.88" : "0.80",
+    priority:   "0.80",
     images:     [{
       url:         `${BASE_URL}/opengraph.jpg`,
       title:       `${t.label} — Jesus Christ Temple Ministry (JCTM) Teaching Series`,
