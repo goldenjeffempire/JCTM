@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { Cookie } from "lucide-react";
+import { Cookie, SlidersHorizontal } from "lucide-react";
 import { SEO } from "@/components/SEO";
 
 const SECTIONS = [
@@ -118,7 +118,24 @@ export default function Cookies() {
           </div>
           <h1 className="text-3xl md:text-4xl font-bold font-serif text-primary mb-3">Cookie Policy</h1>
           <p className="text-muted-foreground mb-2 text-sm">Jesus Christ Temple Ministry (JCTM) · jctm.org.ng</p>
-          <p className="text-muted-foreground text-sm mb-10">Last updated: May 2025</p>
+          <p className="text-muted-foreground text-sm mb-6">Last updated: May 2025</p>
+
+          <div className="mb-10 rounded-2xl border border-accent/30 bg-accent/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-primary mb-1">Manage Your Cookie Preferences</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                You can review and update your cookie choices at any time. Your selection is saved and can be changed whenever you like.
+              </p>
+            </div>
+            <button
+              onClick={() => window.dispatchEvent(new Event("jctm:open-consent-banner"))}
+              className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm hover:bg-accent/90 active:scale-[0.98] transition-all shadow-md shadow-accent/20"
+              aria-label="Review cookie preferences"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Review Preferences
+            </button>
+          </div>
 
           <div className="space-y-8">
             {SECTIONS.map((section, i) => (

@@ -150,6 +150,9 @@ export function CookieConsent() {
       const saved = getConsentState();
       if (saved) {
         signalConsentToGoogle(saved);
+        // Pre-populate toggles from saved state so "Manage preferences" shows current choices
+        setAnalytics(saved.analytics);
+        setAdvertising(saved.advertising);
       } else {
         const t = setTimeout(() => setVisible(true), 800);
         return () => clearTimeout(t);
@@ -158,6 +161,21 @@ export function CookieConsent() {
       setVisible(true);
     }
     return undefined;
+  }, []);
+
+  // Allow external code to re-open the banner (e.g. "Manage cookie preferences" link)
+  useEffect(() => {
+    function handleOpenRequest() {
+      const saved = getConsentState();
+      if (saved) {
+        setAnalytics(saved.analytics);
+        setAdvertising(saved.advertising);
+      }
+      setExpanded(true);
+      setVisible(true);
+    }
+    window.addEventListener("jctm:open-consent-banner", handleOpenRequest);
+    return () => window.removeEventListener("jctm:open-consent-banner", handleOpenRequest);
   }, []);
 
   const accept = useCallback((state: ConsentState) => {

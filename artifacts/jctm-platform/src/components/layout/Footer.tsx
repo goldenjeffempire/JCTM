@@ -1,8 +1,9 @@
 import { Link } from "wouter";
 import googlePlayIcon from "@assets/vecteezy_google-play-store-icon-logo-symbol_22484501_1783000016861.png";
-import { Facebook, Youtube, Mail, Video } from "lucide-react";
+import { Facebook, Youtube, Mail, Video, SlidersHorizontal } from "lucide-react";
 import { ChurchAddressBlock } from "@/components/ChurchAddressBlock";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CcpaDoNotSellLink } from "@/components/ads/CookieConsent";
 
 const SOCIAL = [
   {
@@ -201,6 +202,15 @@ export function Footer() {
                 <Link href="/disclaimer" className="hover:text-primary transition-colors">{t("Disclaimer")}</Link>
                 <Link href="/cookies" className="hover:text-primary transition-colors">{t("Cookie Policy")}</Link>
                 <Link href="/contact" className="hover:text-primary transition-colors">{t("Contact Us")}</Link>
+                <button
+                  onClick={() => window.dispatchEvent(new Event("jctm:open-consent-banner"))}
+                  className="flex items-center gap-1.5 hover:text-primary transition-colors text-left"
+                  aria-label="Manage cookie preferences"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  {t("Manage cookie preferences")}
+                </button>
+                <CcpaDoNotSellLink />
               </div>
             </div>
           </div>
