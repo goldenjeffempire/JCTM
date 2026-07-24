@@ -257,8 +257,28 @@ export default function Devotion() {
           </div>
         )}
 
+        {/* Static editorial content — always visible without JavaScript */}
+        <section className="mt-16 pt-10 border-t border-border/70 space-y-6">
+          <h2 className="font-serif text-2xl font-bold text-primary tracking-tight">About the JCTM Daily Devotion</h2>
+          <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
+            The JCTM Daily Devotion is a ministry gift from Jesus Christ Temple Ministry — a holiness-preaching, apostolic church founded in Warri, Nigeria by Prophet Amos Evomobor. For years, the devotional tradition of JCTM has been rooted in the conviction that believers must feed daily on the Word of God. As Jesus declared, "Man shall not live by bread alone, but by every word that proceeds from the mouth of God" (Matthew 4:4). The daily devotion brings this tradition into the digital age, ensuring that JCTM's scriptural depth and prophetic anointing reaches believers worldwide — every morning, wherever they are.
+          </p>
+          <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
+            Each devotion follows a structured, five-part format designed to take the believer from scripture to application and into prayer. It opens with a <strong>Scripture</strong> passage drawn from the New King James Version — selected for its relevance to the spiritual climate of the day. This is followed by a <strong>Reflection</strong> that unpacks the passage through the lens of JCTM's Primitive Christianity doctrine: the original, first-century apostolic faith free from the distortions of prosperity theology, false prophetic movements, and spiritual compromise. The reflection connects timeless biblical truth to the real-life challenges believers face today.
+          </p>
+          <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
+            The <strong>Prophetic Word</strong> section brings the immediacy of prophetic ministry into the devotion — a faith-building, Spirit-led word released through the prophetic anointing of the ministry and attributed to Prophet Amos Evomobor. This is followed by a focused <strong>Prayer</strong> — not a formal religious recitation, but a genuine, heartfelt petition aligned with the day's scripture and theme. Finally, the <strong>Declaration</strong> section gives believers a power-filled statement of faith to speak aloud — because Scripture affirms that "death and life are in the power of the tongue" (Proverbs 18:21), and the holy practice of declaring God's Word over one's life has spiritual authority.
+          </p>
+          <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
+            JCTM's devotional approach is not generic Christian encouragement. It is prophetically sharp, doctrinally sound, and unapologetically holiness-focused. Topics covered across the devotional calendar include holiness and consecration, spiritual warfare, the Correction Mandate, end-times readiness, healing and faith, family and relationships, prayer and fasting, and the fear of the Lord. Believers who engage consistently with the JCTM Daily Devotion report a deepened prayer life, greater clarity in spiritual warfare, and a stronger foundation in the apostolic faith that the global church is being called back to in these last days.
+          </p>
+          <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
+            You can also subscribe to receive the JCTM Daily Devotion by email — never miss a day of scripture-anchored pastoral nourishment. Past devotions from the preceding two weeks are available in the archive below, each expandable to show the full scripture, reflection, prophetic word, prayer focus, and declaration. For deeper study of any scripture featured in a devotion, use the <a href="/scripture-study" className="font-semibold text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors">JCTM Scripture Study tool</a>. To generate a personalised prayer for your situation, visit the <a href="/prayer" className="font-semibold text-primary underline underline-offset-4 decoration-accent/50 hover:decoration-accent transition-colors">Prayer Room</a>. All of these resources are free — a ministry gift from Jesus Christ Temple Ministry to the body of Christ worldwide.
+          </p>
+        </section>
+
         {history.length > 0 && (
-          <section className="mt-20 pt-10 border-t border-border/70">
+          <section className="mt-16 pt-10 border-t border-border/70">
             <h2 className="font-serif text-2xl font-bold text-primary mb-6 tracking-tight">
               Past Devotions
             </h2>

@@ -607,6 +607,49 @@ export default function ScriptureStudy() {
           </div>
         </div>
 
+        {/* Static editorial content — always visible, improves crawlability */}
+        <section className="max-w-4xl mx-auto px-4 pb-10">
+          <div className="rounded-3xl border border-white/8 p-7 md:p-10 space-y-6" style={{ background: "rgba(255,254,248,0.03)" }}>
+            <h2 className="font-serif text-2xl font-bold text-white">JCTM's Approach to Scripture Study</h2>
+            <p className="text-sky-100/70 leading-relaxed text-base">
+              At Jesus Christ Temple Ministry (JCTM), the study of scripture is not an academic exercise — it is an act of encounter with the living God. Founded on the conviction that the Bible is the infallible, inerrant Word of God, JCTM approaches every passage of Scripture through the lens of Primitive Christianity: the original, unadulterated apostolic faith that the first-century church practiced. Every sermon, teaching, and Bible study at JCTM flows from this commitment to the text as God gave it, without the distortions of prosperity theology, religious tradition, or cultural compromise.
+            </p>
+            <p className="text-sky-100/70 leading-relaxed text-base">
+              The JCTM Scripture Study tool is an extension of this ministry commitment made available to believers and seekers worldwide. Using the King James / New King James Version of the Bible, it offers three study depths: a Quick Study for focused overviews of 300–400 words, a Standard Study for comprehensive analysis of 600–800 words, and a Deep Dive for exhaustive scholarly treatment exceeding 1,200 words. Each analysis is grounded in JCTM's doctrinal framework — the Correction Mandate, the call to holiness (Hebrews 12:14), and the authority of the apostolic canon.
+            </p>
+
+            <h3 className="font-serif text-lg font-semibold text-white pt-2">What Makes JCTM Scripture Analysis Distinctive</h3>
+            <p className="text-sky-100/70 leading-relaxed text-base">
+              Unlike generic AI Bible tools, JCTM's scripture study engine is specifically trained on the ministry's doctrinal knowledge base. This means analysis of passages on holiness, baptism, the gifts of the Spirit, end times, and the Correction Mandate reflects the theological positions that Prophet Amos Evomobor has established over decades of ministry in Warri, Nigeria and through Temple TV's global broadcast reach. When you study John 3:5 here, you receive an analysis that correctly addresses the new birth in its apostolic fullness — not a watered-down, ecumenical interpretation that strips the passage of its power.
+            </p>
+            <p className="text-sky-100/70 leading-relaxed text-base">
+              The Bible Browser tab provides direct access to the full NKJV scripture text: look up any verse or passage by reference (e.g. "Romans 8:28–39"), search by keyword (e.g. "do not be afraid"), browse ministry-curated topic verse collections covering salvation, holiness, faith, prayer, and more, or read any book chapter by chapter. This makes the JCTM Digital Sanctuary a complete Bible study companion — combining the depth of AI-powered exegesis with the simplicity of a classic Bible reader.
+            </p>
+
+            <h3 className="font-serif text-lg font-semibold text-white pt-2">Scripture Through the Lens of the Correction Mandate</h3>
+            <p className="text-sky-100/70 leading-relaxed text-base">
+              One of JCTM's most important contributions to the body of Christ is the Correction Mandate — the divine assignment to identify and expose five major doctrinal errors that have damaged the global church: the Prosperity Gospel, Prophetic Manipulation, Apostolic Abuse, Sacramental Corruption, and Dangerous Ecumenism. When JCTM studies scripture, this mandate provides a crucial filter: passages are not interpreted to justify financial exploitation (as prosperity teachers do), nor twisted to endorse ecumenical compromise with false religion.
+            </p>
+            <p className="text-sky-100/70 leading-relaxed text-base">
+              Jeremiah 6:16 — "Ask for the old paths, where the good way is" — is the heartbeat of JCTM's hermeneutic. Every Bible passage is read in light of what the original apostolic community believed and practiced, and measured against the New Testament standard. This ensures that JCTM's scripture studies produce not just intellectual knowledge but genuine spiritual transformation — the kind that produces holiness, prayer, separated living, and readiness for Christ's return.
+            </p>
+
+            <div className="border-t border-white/10 pt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { icon: "📖", title: "NKJV Bible Access", desc: "Full King James / New King James Version — all 66 books, 31,102 verses" },
+                { icon: "🔍", title: "AI Exegesis", desc: "Greek & Hebrew word studies, historical context, and doctrinal application" },
+                { icon: "✦",  title: "JCTM Doctrine",    desc: "Every study grounded in Primitive Christianity and the Correction Mandate" },
+              ].map(card => (
+                <div key={card.title} className="text-center px-2">
+                  <div className="text-xl mb-1">{card.icon}</div>
+                  <p className="text-white/80 font-semibold text-sm mb-1">{card.title}</p>
+                  <p className="text-white/40 text-xs leading-relaxed">{card.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Main tab switcher */}
         <div className="max-w-4xl mx-auto px-4 pb-20 space-y-6">
           <div className="flex gap-1 bg-white/5 border border-white/10 rounded-2xl p-1">

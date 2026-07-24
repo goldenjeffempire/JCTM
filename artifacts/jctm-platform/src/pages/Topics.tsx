@@ -174,6 +174,19 @@ export default function Topics() {
             </p>
           </motion.div>
 
+          {/* Static editorial content — always visible, improves crawlability */}
+          <div className="text-left mb-12 space-y-4 max-w-3xl mx-auto">
+            <p className="text-muted-foreground leading-relaxed text-[15px]">
+              Jesus Christ Temple Ministry (JCTM) is an apostolic, holiness-preaching church founded in Warri, Nigeria by Prophet Amos Evomobor. Through Temple TV on YouTube, JCTM's teachings have reached believers in more than 40 nations — carrying the foundational message of Primitive Christianity: the original, unadulterated apostolic faith of the first-century church. The eight doctrinal topics below represent the pillars of JCTM's theological framework — each one essential to genuine Christian discipleship, and each one under sustained attack from the false teachings that the Correction Mandate was assigned to expose and correct.
+            </p>
+            <p className="text-muted-foreground leading-relaxed text-[15px]">
+              JCTM does not teach every popular Christian topic. It teaches the truths that matter most for salvation, holy living, and readiness for Christ's return. Holiness is preached because "without holiness, no man shall see the Lord" (Hebrews 12:14). The Correction Mandate is taught because millions of souls are being destroyed by false doctrine (Hosea 4:6). Primitive Christianity is upheld because the apostolic faith is the only true standard — not the traditions of men, not the inventions of the Reformation era, and certainly not the celebrity-pastor driven, prosperity-soaked Christianity that dominates global Christian television. Each topic page below contains in-depth teaching, key scriptures in the NKJV, answered questions, and links to related sermons from Temple TV's library of 479+ messages.
+            </p>
+            <p className="text-muted-foreground leading-relaxed text-[15px]">
+              The topics here cover salvation (water baptism and new birth), sanctification (holiness), spiritual power (healing, miracles, and intercession), eschatology (end times and the rapture), family life, and the ministry's defining assignment (the Correction Mandate). Together, they form a complete doctrinal map for any sincere believer who wants to build their faith on the New Testament foundation. Use these pages to study, share, search for related sermons, and find scriptural answers to your questions. All teaching here is free — a ministry resource from Jesus Christ Temple Ministry to the global church.
+            </p>
+          </div>
+
           {/* Topic Grid */}
           <motion.div
             variants={stagger}

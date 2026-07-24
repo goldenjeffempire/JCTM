@@ -202,6 +202,36 @@ export default function SpiritualInsight() {
         </div>
 
         <div className="max-w-2xl mx-auto px-4 pb-20">
+
+          {/* Static editorial content — always visible, strengthens crawlability */}
+          <section className="mb-10 space-y-5">
+            <div className="rounded-2xl border p-6 md:p-8 space-y-4" style={{ background: "rgba(124,58,237,0.06)", borderColor: "rgba(124,58,237,0.18)" }}>
+              <h2 className="font-serif text-xl font-bold text-white">What Is JCTM Spiritual Insight?</h2>
+              <p className="text-violet-100/70 leading-relaxed text-[15px]">
+                JCTM Spiritual Insight is a pastoral guidance tool from Jesus Christ Temple Ministry (JCTM) — a ministry founded in Warri, Nigeria and known globally through Temple TV on YouTube. It delivers personalised, scripture-based spiritual insight grounded in JCTM's Primitive Christianity doctrine and the prophetic ministry of Prophet Amos Evomobor. Whether you are facing doubt, spiritual dryness, fear, a major life decision, or a ministry challenge, this tool provides guidance that is honest, doctrinally sound, and compassionately pastoral.
+              </p>
+              <p className="text-violet-100/70 leading-relaxed text-[15px]">
+                Unlike generic Christian chatbots that offer vague encouragement, JCTM Spiritual Insight is grounded in a specific doctrinal framework: the Correction Mandate, holiness as a non-negotiable standard (Hebrews 12:14), and the authority of the New Testament as interpreted through first-century apostolic Christianity. This means the guidance you receive here does not tell you what you want to hear — it tells you what the Word of God says, through the lens of a ministry that has spent decades restoring believers to God's original standard.
+              </p>
+
+              <h3 className="font-serif text-base font-semibold text-white pt-1">Doctrinally Grounded Guidance</h3>
+              <p className="text-violet-100/70 leading-relaxed text-[15px]">
+                JCTM's spiritual insight covers eight life categories: General guidance, Faith &amp; Doubt, Purpose &amp; Calling, Healing &amp; Health, Protection &amp; Fear, Relationships, Peace &amp; Anxiety, and Breakthrough. Each category draws on the specific scriptures and theological positions that JCTM has taught for decades. When you seek insight on purpose and calling, the response is grounded in the New Testament apostolic model of divine commission — not the prosperity gospel's redefinition of calling as financial success. When you seek insight on healing, it is anchored in Isaiah 53:5 and James 5:14-15 — not theatrical performance ministries that exploit sick people for offerings.
+              </p>
+              <p className="text-violet-100/70 leading-relaxed text-[15px]">
+                This doctrinal grounding is what makes JCTM Spiritual Insight different. JCTM's Correction Mandate — the divine assignment to expose and correct five major errors in the church — means that every piece of spiritual guidance here is tested against the Word of God and the apostolic tradition, not against cultural sentiment, religious tradition, or commercial interest.
+              </p>
+
+              <h3 className="font-serif text-base font-semibold text-white pt-1">A Ministry Gift to the Global Body of Christ</h3>
+              <p className="text-violet-100/70 leading-relaxed text-[15px]">
+                JCTM Spiritual Insight is completely free to use — a ministry gift to believers and seekers worldwide who need doctrinally sound pastoral counsel but may not have access to a genuine, Bible-teaching church. It is especially designed for believers in regions where the prosperity gospel and false apostolic movements dominate the landscape, leaving sincere Christians without sound spiritual covering. Jesus Christ Temple Ministry has been a corrective prophetic voice for these believers since its founding, and this tool extends that pastoral reach to any device, in any nation, at any hour.
+              </p>
+              <p className="text-violet-100/70 leading-relaxed text-[15px]">
+                After receiving your insight, you are encouraged to take it back to the Word of God and test it — "test all things; hold fast what is good" (1 Thessalonians 5:21). You are also encouraged to watch the relevant teachings on Temple TV (YouTube), use the Prayer Room at JCTM Digital Sanctuary to generate a personal prayer for your situation, and study the relevant scriptures through the Scripture Study tool. The insight you receive is a starting point, not a conclusion — your walk with God is the destination.
+              </p>
+            </div>
+          </section>
+
           {!result ? (
             <motion.div
               initial={{ opacity: 0, y: 24 }}
