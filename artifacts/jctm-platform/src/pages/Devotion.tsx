@@ -20,10 +20,23 @@ interface DailyDevotion {
   declaration: string;
 }
 
+// Read the server-pre-rendered devotion injected by the API server into the HTML.
+// If present, this seeds the initial state so the page is fully rendered on
+// first paint — no loading spinner, no client-side fetch delay for Google.
+function getServerDevotion(): DailyDevotion | null {
+  try {
+    const w = window as unknown as { __DEVOTION__?: DailyDevotion };
+    return w.__DEVOTION__ ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Devotion() {
   useAdPageTracker("/devotion", 1);
-  const [devotion, setDevotion] = useState<DailyDevotion | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const serverDevotion = getServerDevotion();
+  const [devotion, setDevotion] = useState<DailyDevotion | null>(serverDevotion);
+  const [isLoading, setIsLoading] = useState(serverDevotion === null);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DailyDevotion[]>([]);
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
@@ -48,8 +61,11 @@ export default function Devotion() {
   }, []);
 
   useEffect(() => {
+    // Skip the initial fetch when the server already pre-rendered today's devotion
+    // into window.__DEVOTION__. The "Reload" button still calls load() manually.
+    if (serverDevotion !== null) return;
     load();
-  }, [load]);
+  }, [load, serverDevotion]);
 
   useEffect(() => {
     fetch(`${BASE}/api/devotion/history?limit=14`)

@@ -9,6 +9,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "url";
 import { randomUUID } from "node:crypto";
 import { getActiveEventSchemaScripts } from "./lib/event-schema.js";
+import { getDevotionPrerenderScript } from "./lib/devotion-prerender.js";
 import router from "./routes";
 import seoRouter from "./routes/seo";
 import { logger } from "./lib/logger";
@@ -464,22 +465,33 @@ if (process.env.NODE_ENV === "production") {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
 
     try {
-      const [baseHtml, eventSchemas] = await Promise.all([
+      const [baseHtml, eventSchemas, devotionScript] = await Promise.all([
         Promise.resolve(getHtmlTemplate()),
         getActiveEventSchemaScripts(),
+        getDevotionPrerenderScript(),
       ]);
 
-      if (!eventSchemas) {
-        res.send(baseHtml);
-        return;
-      }
+      let html = baseHtml;
 
       // Inject active event schemas immediately before </head> so they appear
       // in the <head> section for all crawlers, including non-JS bots.
-      const html = baseHtml.replace(
-        "</head>",
-        `\n    <!-- Dynamic Event Schema (auto-expires at event end_at) -->\n${eventSchemas}\n  </head>`,
-      );
+      if (eventSchemas) {
+        html = html.replace(
+          "</head>",
+          `\n    <!-- Dynamic Event Schema (auto-expires at event end_at) -->\n${eventSchemas}\n  </head>`,
+        );
+      }
+
+      // Inject today's devotion as window.__DEVOTION__ just before </body> so
+      // the React component can hydrate immediately without a client-side fetch.
+      // Google's crawler sees the full devotional content on first render.
+      if (devotionScript) {
+        html = html.replace(
+          "</body>",
+          `\n  <!-- Pre-rendered devotion for instant hydration & SEO -->\n${devotionScript}\n</body>`,
+        );
+      }
+
       res.send(html);
     } catch {
       // Fallback to plain file on any error (DB down, FS error, etc.)
