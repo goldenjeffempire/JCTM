@@ -19,6 +19,7 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sermonsTable, blogPostsTable, galleryImagesTable } from "@workspace/db";
+import { TOPIC_ENTRIES } from "@workspace/content";
 import { desc, eq, and, gte, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -29,19 +30,9 @@ const ORG_NAME  = "Jesus Christ Temple Ministry";
 const FOUNDER   = "Prophet Amos Evomobor";
 const EMAIL     = "info@jctm.org.ng";
 
-// These 8 slugs correspond exactly to the topic detail pages defined in
-// artifacts/jctm-platform/src/pages/Topics.tsx (TOPICS array).
-// Keep in sync with that file whenever a topic page is added or removed.
-const TOPIC_PAGES = [
-  { slug: "holiness",              label: "Holiness",              desc: "The doctrine of holiness — 'without holiness, no man shall see the Lord' (Hebrews 12:14)" },
-  { slug: "correction-mandate",    label: "The Correction Mandate", desc: "JCTM's divine assignment to identify and correct five major doctrinal errors in the global church" },
-  { slug: "primitive-christianity",label: "Primitive Christianity", desc: "A return to the original, unadulterated first-century apostolic faith" },
-  { slug: "healing-miracles",      label: "Healing & Miracles",    desc: "God's healing power at work through prayer and faith — divine healing, miracles, and deliverance" },
-  { slug: "end-times",             label: "End Times & Rapture",   desc: "Signs of the last days, the imminent return of Christ, and how to be ready for His coming" },
-  { slug: "water-baptism",         label: "Water Baptism",         desc: "New Testament doctrine of water baptism — its true meaning, mode, and JCTM's teaching" },
-  { slug: "prayer-intercession",   label: "Prayer & Intercession", desc: "Biblical principles of prayer, intercession, and fasting — communion with God and standing in the gap" },
-  { slug: "family-marriage",       label: "Family & Marriage",     desc: "God's design for the family — marriage, parenting, and building a home that honours Christ" },
-];
+// TOPIC_ENTRIES is imported from @workspace/content — the shared source of truth
+// for topic slugs. Both this file and the frontend (Topics.tsx) import from there,
+// so a rename or addition is reflected in both places automatically.
 
 const STATIC_PAGES = [
   { path: "/",                        priority: "1.00", changefreq: "daily"   },
@@ -323,7 +314,7 @@ router.get("/sitemap.xml", async (_req: Request, res: Response): Promise<void> =
           : [],
     }));
 
-    const topicEntries = TOPIC_PAGES.map(t => buildUrlEntry({
+    const topicEntries = TOPIC_ENTRIES.map(t => buildUrlEntry({
       loc: `${BASE_URL}/topics/${t.slug}`, lastmod: today, changefreq: "weekly", priority: "0.80",
     }));
 
@@ -589,7 +580,7 @@ router.get("/sitemap-topics.xml", (_req: Request, res: Response): void => {
 
   // All 8 doctrine topic pages share the same priority — each one is a rich,
   // ministry-authored content page that Google should prioritise equally.
-  const entries = TOPIC_PAGES.map(t => buildUrlEntry({
+  const entries = TOPIC_ENTRIES.map(t => buildUrlEntry({
     loc:        `${BASE_URL}/topics/${t.slug}`,
     lastmod:    today,
     changefreq: "weekly",
@@ -1085,7 +1076,7 @@ ${postList}
 
 ## Topic Categories
 
-${TOPIC_PAGES.map(t => `- [${t.label}](${BASE_URL}/topics/${t.slug}) — ${t.desc}`).join("\n")}
+${TOPIC_ENTRIES.map(t => `- [${t.label}](${BASE_URL}/topics/${t.slug}) — ${t.desc}`).join("\n")}
 
 ## Platform Features
 

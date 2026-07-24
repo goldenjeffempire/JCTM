@@ -8,97 +8,35 @@ import {
   Shield, BookOpen, Globe, Heart, Clock, Droplets,
   Mic2, Home, ArrowRight, Star,
 } from "lucide-react";
+import { TOPIC_ENTRIES } from "@workspace/content";
 
-export const TOPICS = [
-  {
-    slug: "holiness",
-    title: "Holiness",
-    subtitle: "Without holiness, no man shall see the Lord",
-    icon: Shield,
-    color: "from-blue-600 to-blue-900",
-    accent: "#38BDF8",
-    scripture: "Hebrews 12:14",
-    description: "JCTM's foundational teaching — what holiness means, why it is non-negotiable, and how to live a sanctified life in the modern world.",
-    keywords: ["holiness", "sanctification", "separation", "righteousness", "purity"],
-  },
-  {
-    slug: "correction-mandate",
-    title: "The Correction Mandate",
-    subtitle: "Ask for the old paths, where the good way is",
-    icon: Globe,
-    color: "from-indigo-700 to-indigo-950",
-    accent: "#6366F1",
-    scripture: "Jeremiah 6:16",
-    description: "The divine assignment of Jesus Christ Temple Ministry to identify and correct five major doctrinal errors that have infiltrated the global church.",
-    keywords: ["correction", "mandate", "false doctrine", "prosperity gospel", "reformation"],
-  },
-  {
-    slug: "primitive-christianity",
-    title: "Primitive Christianity",
-    subtitle: "Return to the faith once delivered to the saints",
+// UI-only metadata merged with the canonical slug/label/desc from @workspace/content
+const TOPIC_UI = {
+  holiness:              { title: "Holiness",               subtitle: "Without holiness, no man shall see the Lord",                     icon: Shield,   color: "from-blue-600 to-blue-900",    accent: "#38BDF8", scripture: "Hebrews 12:14",  description: "JCTM's foundational teaching — what holiness means, why it is non-negotiable, and how to live a sanctified life in the modern world.",                                                                           keywords: ["holiness", "sanctification", "separation", "righteousness", "purity"] },
+  "correction-mandate":  { title: "The Correction Mandate",  subtitle: "Ask for the old paths, where the good way is",                   icon: Globe,    color: "from-indigo-700 to-indigo-950", accent: "#6366F1", scripture: "Jeremiah 6:16",  description: "The divine assignment of Jesus Christ Temple Ministry to identify and correct five major doctrinal errors that have infiltrated the global church.",                                                                 keywords: ["correction", "mandate", "false doctrine", "prosperity gospel", "reformation"] },
+  "primitive-christianity": { title: "Primitive Christianity", subtitle: "Return to the faith once delivered to the saints",             icon: BookOpen, color: "from-emerald-700 to-emerald-950", accent: "#10B981", scripture: "Jude 1:3",    description: "A return to the original, unadulterated first-century apostolic faith — holy in practice, sound in doctrine, and powerful in manifestation.",                                                                     keywords: ["primitive christianity", "apostolic", "first century", "original faith", "restoration"] },
+  "healing-miracles":    { title: "Healing & Miracles",      subtitle: "By His stripes we are healed",                                   icon: Heart,    color: "from-rose-600 to-rose-900",    accent: "#F43F5E", scripture: "Isaiah 53:5",   description: "God's healing power at work through prayer and faith. JCTM's biblical approach to divine healing, miracles, and deliverance from affliction.",                                                                    keywords: ["healing", "miracles", "deliverance", "divine healing", "prayer for healing"] },
+  "end-times":           { title: "End Times & Rapture",     subtitle: "Watch therefore, for you know not the hour",                     icon: Clock,    color: "from-amber-600 to-amber-950",  accent: "#F59E0B", scripture: "Matthew 24:42", description: "JCTM's end-time message — the signs of the last days, the imminent return of Christ, and how to be ready for His coming.",                                                                                     keywords: ["end times", "rapture", "second coming", "last days", "eschatology"] },
+  "water-baptism":       { title: "Water Baptism",           subtitle: "Buried with Him in baptism, raised with Him in faith",           icon: Droplets, color: "from-cyan-600 to-cyan-900",   accent: "#06B6D4", scripture: "Romans 6:3-4",  description: "The New Testament doctrine of water baptism — its true meaning, mode of administration, and what JCTM teaches about this foundational sacrament.",                                                              keywords: ["water baptism", "baptism", "immersion", "sacrament", "New Testament baptism"] },
+  "prayer-intercession": { title: "Prayer & Intercession",   subtitle: "The effectual fervent prayer of a righteous man avails much",    icon: Mic2,     color: "from-purple-600 to-purple-950", accent: "#A855F7", scripture: "James 5:16",  description: "Biblical principles of prayer, intercession, and fasting — how JCTM approaches communion with God and standing in the gap for souls.",                                                                          keywords: ["prayer", "intercession", "fasting", "spiritual warfare", "prayer ministry"] },
+  "family-marriage":     { title: "Family & Marriage",       subtitle: "Honour marriage and keep the marriage bed pure",                  icon: Home,     color: "from-orange-600 to-orange-950", accent: "#F97316", scripture: "Hebrews 13:4", description: "God's design for the family — marriage, parenting, and building a home that honours Christ according to JCTM's biblical teaching.",                                                                            keywords: ["family", "marriage", "husband wife", "parenting", "Christian home"] },
+} as const;
+
+// TOPICS is the full merged list consumed by the rest of this file and its JSDoc.
+// Slugs come from @workspace/content; UI fields are layered on top locally.
+export const TOPICS = TOPIC_ENTRIES.map(entry => ({
+  ...entry,
+  ...(TOPIC_UI[entry.slug as keyof typeof TOPIC_UI] ?? {
+    title: entry.label,
+    subtitle: "",
     icon: BookOpen,
-    color: "from-emerald-700 to-emerald-950",
-    accent: "#10B981",
-    scripture: "Jude 1:3",
-    description: "A return to the original, unadulterated first-century apostolic faith — holy in practice, sound in doctrine, and powerful in manifestation.",
-    keywords: ["primitive christianity", "apostolic", "first century", "original faith", "restoration"],
-  },
-  {
-    slug: "healing-miracles",
-    title: "Healing & Miracles",
-    subtitle: "By His stripes we are healed",
-    icon: Heart,
-    color: "from-rose-600 to-rose-900",
-    accent: "#F43F5E",
-    scripture: "Isaiah 53:5",
-    description: "God's healing power at work through prayer and faith. JCTM's biblical approach to divine healing, miracles, and deliverance from affliction.",
-    keywords: ["healing", "miracles", "deliverance", "divine healing", "prayer for healing"],
-  },
-  {
-    slug: "end-times",
-    title: "End Times & Rapture",
-    subtitle: "Watch therefore, for you know not the hour",
-    icon: Clock,
-    color: "from-amber-600 to-amber-950",
-    accent: "#F59E0B",
-    scripture: "Matthew 24:42",
-    description: "JCTM's end-time message — the signs of the last days, the imminent return of Christ, and how to be ready for His coming.",
-    keywords: ["end times", "rapture", "second coming", "last days", "eschatology"],
-  },
-  {
-    slug: "water-baptism",
-    title: "Water Baptism",
-    subtitle: "Buried with Him in baptism, raised with Him in faith",
-    icon: Droplets,
-    color: "from-cyan-600 to-cyan-900",
-    accent: "#06B6D4",
-    scripture: "Romans 6:3-4",
-    description: "The New Testament doctrine of water baptism — its true meaning, mode of administration, and what JCTM teaches about this foundational sacrament.",
-    keywords: ["water baptism", "baptism", "immersion", "sacrament", "New Testament baptism"],
-  },
-  {
-    slug: "prayer-intercession",
-    title: "Prayer & Intercession",
-    subtitle: "The effectual fervent prayer of a righteous man avails much",
-    icon: Mic2,
-    color: "from-purple-600 to-purple-950",
-    accent: "#A855F7",
-    scripture: "James 5:16",
-    description: "Biblical principles of prayer, intercession, and fasting — how JCTM approaches communion with God and standing in the gap for souls.",
-    keywords: ["prayer", "intercession", "fasting", "spiritual warfare", "prayer ministry"],
-  },
-  {
-    slug: "family-marriage",
-    title: "Family & Marriage",
-    subtitle: "Honour marriage and keep the marriage bed pure",
-    icon: Home,
-    color: "from-orange-600 to-orange-950",
-    accent: "#F97316",
-    scripture: "Hebrews 13:4",
-    description: "God's design for the family — marriage, parenting, and building a home that honours Christ according to JCTM's biblical teaching.",
-    keywords: ["family", "marriage", "husband wife", "parenting", "Christian home"],
-  },
-];
+    color: "from-gray-600 to-gray-900",
+    accent: "#6B7280",
+    scripture: "",
+    description: entry.desc,
+    keywords: [] as string[],
+  }),
+}));
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
