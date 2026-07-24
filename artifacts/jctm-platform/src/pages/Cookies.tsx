@@ -16,7 +16,7 @@ const SECTIONS = [
 
 • **Analytics Cookies:** Used to understand how visitors interact with our platform — which pages are visited most, how long sessions last, and where traffic originates. This helps us improve the platform. These cookies do not identify you personally.
 
-• **Advertising Cookies:** Served through Google AdSense (Publisher ID: ca-pub-9869546801865196). These cookies allow Google to serve ads that may be relevant to your interests based on your browsing history. Revenue from these ads supports JCTM's Temple TV broadcasts and digital ministry operations.
+• **Advertising Cookies:** Served through Google AdSense (Publisher ID: ca-pub-6817509745706083). These cookies allow Google to serve ads that may be relevant to your interests based on your browsing history. Revenue from these ads supports JCTM's Temple TV broadcasts and digital ministry operations.
 
 • **Preference Cookies:** Store your preferences such as language selection, cookie consent choices, and notification settings between sessions.`,
   },

@@ -59,6 +59,15 @@ A full-stack ministry platform for Jesus Christ Temple Ministry (Warri, Nigeria)
 - Keep the pnpm monorepo structure intact
 - All migrations are idempotent — safe to re-run on every restart
 
+## AdSense / Monetization
+
+- **Publisher ID:** `ca-pub-6817509745706083` (pub-6817509745706083)
+- **ads.txt** at `/ads.txt`: `google.com, pub-6817509745706083, DIRECT, f08c47fec0942fa0` ✅
+- **app-ads.txt** at `/app-ads.txt`: same entry ✅
+- Publisher ID is set via `VITE_ADSENSE_CLIENT_ID` env var (fallback hardcoded in `artifacts/jctm-platform/src/components/ads/AdSense.tsx`)
+- Auto Ads script injected in `artifacts/jctm-platform/index.html` (both `<meta google-adsense-account>` and the `<script>` tag)
+- Consent Mode v2 is configured (deny-by-default, `wait_for_update: 2000`)
+
 ## Gotchas
 
 - The `migrations.ts` file runs `ALTER TABLE member_auth ADD COLUMN IF NOT EXISTS role` — this requires `member_auth` to already exist. The base schema tables must be created first.

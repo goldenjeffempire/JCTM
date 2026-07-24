@@ -26,7 +26,7 @@ const SECTIONS = [
   },
   {
     title: "6. Advertising Content",
-    content: `This website displays advertisements served through Google AdSense (Publisher ID: ca-pub-9869546801865196). Advertisements appearing on this platform are served by Google and do not constitute endorsement by JCTM of any advertised product, service, or organisation. Advertising revenue supports the operational costs of the JCTM Digital Sanctuary and Temple TV ministry broadcasts. JCTM is not responsible for the content of any third-party advertisements displayed on this platform.`,
+    content: `This website displays advertisements served through Google AdSense (Publisher ID: ca-pub-6817509745706083). Advertisements appearing on this platform are served by Google and do not constitute endorsement by JCTM of any advertised product, service, or organisation. Advertising revenue supports the operational costs of the JCTM Digital Sanctuary and Temple TV ministry broadcasts. JCTM is not responsible for the content of any third-party advertisements displayed on this platform.`,
   },
   {
     title: "7. Medical, Legal & Professional Advice",

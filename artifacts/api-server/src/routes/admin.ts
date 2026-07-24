@@ -1315,7 +1315,7 @@ router.get(
   "/admin/adsense-diagnostics",
   requireAdminRole(["sermon", "gallery", "livestream"]),
   async (_req: Request, res: Response): Promise<void> => {
-    const PUBLISHER_ID_FALLBACK = "ca-pub-9869546801865196";
+    const PUBLISHER_ID_FALLBACK = "ca-pub-6817509745706083";
     const rawClientId = (
       process.env.VITE_ADSENSE_CLIENT_ID ??
       process.env.VITE_GOOGLE_ADSENSE_CLIENT ??

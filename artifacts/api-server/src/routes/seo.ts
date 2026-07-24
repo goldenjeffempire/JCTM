@@ -180,7 +180,7 @@ router.get("/sitemap-index.xml", (_req: Request, res: Response): void => {
   ];
   const index = `<?xml version="1.0" encoding="UTF-8"?>
 <!-- JCTM Digital Sanctuary — Sitemap Index -->
-<!-- Publisher: ca-pub-9869546801865196 | Site: ${BASE_URL} -->
+<!-- Publisher: ca-pub-6817509745706083 | Site: ${BASE_URL} -->
 <!-- Generated: ${new Date().toISOString()} -->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${sitemaps.map(s => `  <!-- ${s.note} -->
@@ -1269,7 +1269,7 @@ Contact: ${EMAIL}
 // This endpoint is PUBLIC (no auth) so the admin panel, external monitors,
 // and Google's own verification tools can check platform compliance status.
 router.get("/adsense-status", async (_req: Request, res: Response): Promise<void> => {
-  const PUBLISHER_ID = "ca-pub-9869546801865196";
+  const PUBLISHER_ID = "ca-pub-6817509745706083";
   const EXPECTED_ADS_TXT = `google.com, pub-${PUBLISHER_ID.replace("ca-pub-", "")}, DIRECT, f08c47fec0942fa0`;
 
   let adsTxtStatus: "ok" | "missing" | "wrong" | "error" = "error";
@@ -1303,7 +1303,7 @@ router.get("/adsense-status", async (_req: Request, res: Response): Promise<void
     robotsTxtAllowsAds: { status: "ok", note: "Mediapartners-Google and AdsBot-Google explicitly allowed in robots.txt" },
     csp:                { status: "ok", note: "CSP includes *.googlesyndication.com, *.doubleclick.net, *.google.com" },
     https:              { status: "ok", note: "HSTS enabled with preload, max-age=31536000" },
-    metaTag:            { status: "ok", note: "<meta name=google-adsense-account content=ca-pub-9869546801865196>" },
+    metaTag:            { status: "ok", note: "<meta name=google-adsense-account content=ca-pub-6817509745706083>" },
     scriptTag:          { status: "ok", note: "pagead2.googlesyndication.com script in <head> on all pages" },
     xRobotsTag:         { status: "ok", note: "X-Robots-Tag: index, follow on all routes" },
     consentMode:        { status: "ok", note: "Google Consent Mode v2 gtag() default deny configured" },
