@@ -9,7 +9,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "url";
 import { randomUUID } from "node:crypto";
 import { getActiveEventSchemaScripts } from "./lib/event-schema.js";
-import { getDevotionPrerenderScript } from "./lib/devotion-prerender.js";
+import { getDevotionPrerenderScript, getDevotionOgData } from "./lib/devotion-prerender.js";
 import router from "./routes";
 import seoRouter from "./routes/seo";
 import { logger } from "./lib/logger";
@@ -494,6 +494,44 @@ if (process.env.NODE_ENV === "production") {
           "</body>",
           `\n  <!-- Pre-rendered devotion for instant hydration & SEO -->\n${devotionScript}\n</body>`,
         );
+      }
+
+      // Replace static Open Graph / Twitter meta tags with today's devotion
+      // title and scripture reference on the /devotion route, so Google,
+      // WhatsApp, Facebook, and Twitter generate a rich, content-specific
+      // link preview without needing to execute JavaScript.
+      // getDevotionOgData() reads the same in-process cache that was just
+      // populated by getDevotionPrerenderScript(), so there is no extra DB hit.
+      if (isDevotionRoute) {
+        const ogData = getDevotionOgData();
+        if (ogData) {
+          const escHtml = (s: string) =>
+            s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+          const ogTitle       = escHtml(`${ogData.title} | JCTM Daily Devotion`);
+          const ogDescription = escHtml(`"${ogData.scripture}" — ${ogData.reference} · JCTM Daily Devotion`);
+
+          // Replace og:title — matches any content="…" value on that property
+          html = html.replace(
+            /(<meta\s+property="og:title"\s+content=")[^"]*(")/,
+            `$1${ogTitle}$2`,
+          );
+          // Replace og:description
+          html = html.replace(
+            /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
+            `$1${ogDescription}$2`,
+          );
+          // Replace twitter:title
+          html = html.replace(
+            /(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
+            `$1${ogTitle}$2`,
+          );
+          // Replace twitter:description
+          html = html.replace(
+            /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
+            `$1${ogDescription}$2`,
+          );
+        }
       }
 
       res.send(html);

@@ -20,6 +20,14 @@ let cachedForDate: string = "";          // YYYY-MM-DD
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 7 * 60_000;        // 7 minutes
 
+/** Subset of the devotion object kept for Open Graph tag injection. */
+interface DevotionOgData {
+  title: string;
+  scripture: string;
+  reference: string;
+}
+let cachedOgData: DevotionOgData | null = null;
+
 function todayNigeriaDate(): string {
   return new Date()
     .toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" }); // YYYY-MM-DD
@@ -58,12 +66,42 @@ export async function getDevotionPrerenderScript(): Promise<string> {
     cachedScript = script;
     cachedForDate = todayStr;
     cacheExpiresAt = now + CACHE_TTL_MS;
+    cachedOgData = {
+      title: devotion.title,
+      scripture: devotion.scripture,
+      reference: devotion.reference,
+    };
     return script;
   } catch (err) {
     logger.warn({ err }, "devotion-prerender: failed to fetch today's devotion — skipping injection");
     // Don't cache the failure; retry on the next request.
     return "";
   }
+}
+
+/**
+ * Returns the Open Graph data (title, scripture, reference) for today's
+ * devotion, reusing the same in-process cache as getDevotionPrerenderScript().
+ * Returns null if the devotion is unavailable or if the cache is stale /
+ * for a different calendar date, so callers fall back gracefully to the
+ * static index.html meta tags rather than serving yesterday's content.
+ *
+ * This function must be called AFTER getDevotionPrerenderScript() in the
+ * same request (both are awaited together via Promise.all in app.ts), which
+ * ensures the cache is always warm when this is read.
+ */
+export function getDevotionOgData(): DevotionOgData | null {
+  // Guard: only serve OG data when the cache is fresh AND for today's date.
+  // If the re-fetch failed after expiry or date rollover, cachedOgData may
+  // hold yesterday's values — return null so the static fallback is used.
+  if (
+    cachedOgData === null ||
+    cachedForDate !== todayNigeriaDate() ||
+    Date.now() >= cacheExpiresAt
+  ) {
+    return null;
+  }
+  return cachedOgData;
 }
 
 /**
@@ -74,5 +112,6 @@ export function invalidateDevotionPrerenderCache(): void {
   cachedScript = null;
   cachedForDate = "";
   cacheExpiresAt = 0;
+  cachedOgData = null;
   logger.debug("devotion-prerender: cache invalidated");
 }
