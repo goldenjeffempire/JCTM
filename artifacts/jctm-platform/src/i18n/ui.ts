@@ -677,12 +677,6 @@ export const UI: UIStrings = {
     zh: "事工时刻", hi: "सेवकाई के पल", sw: "Nyakati za Huduma", ru: "Моменты служения", it: "Momenti del Ministero",
     ko: "사역의 순간들", ja: "ミニストリーの瞬間", id: "Momen Pelayanan",
   },
-  "Gallery": {
-    en: "Gallery", yo: "Ìkójọ Àwọn Àwòrán", ig: "Nnọchi anya", ha: "Gidan Hotuna", fr: "Galerie",
-    es: "Galería", pt: "Galeria", de: "Galerie", ar: "معرض الصور",
-    zh: "相册", hi: "गैलरी", sw: "Ukumbi wa Picha", ru: "Галерея", it: "Galleria",
-    ko: "갤러리", ja: "ギャラリー", id: "Galeri",
-  },
   "Our Mission": {
     en: "Our Mission", yo: "Ìsìn Wa", ig: "Ọrụ anyị", ha: "Manufarmu", fr: "Notre mission",
     es: "Nuestra misión", pt: "Nossa missão", de: "Unsere Mission", ar: "مهمتنا",
@@ -706,54 +700,6 @@ export const UI: UIStrings = {
     es: "Devoción diaria", pt: "Devoção diária", de: "Tägliche Andacht", ar: "التأمل اليومي",
     zh: "每日灵修", hi: "दैनिक भक्ति", sw: "Ibada ya Kila Siku", ru: "Ежедневное посвящение", it: "Devozione quotidiana",
     ko: "일일 묵상", ja: "デボーション", id: "Renungan Harian",
-  },
-  "Scripture Study": {
-    en: "Scripture Study", yo: "Ìkẹ́kọ̀ Ìwé Mímọ́", ig: "Ọmụmụ Akwụkwọ Nsọ", ha: "Nazarin Littafi Mai Tsarki", fr: "Étude des Écritures",
-    es: "Estudio bíblico", pt: "Estudo das Escrituras", de: "Bibelstudium", ar: "دراسة الكتاب المقدس",
-    zh: "圣经研读", hi: "शास्त्र अध्ययन", sw: "Utafiti wa Maandiko", ru: "Изучение Писания", it: "Studio delle Scritture",
-    ko: "성경 연구", ja: "聖書研究", id: "Studi Kitab Suci",
-  },
-  "Viewing Center": {
-    en: "Viewing Center", yo: "Ibùdó Ìwo", ig: "Ebe Nlele", ha: "Cibiyar Kallo", fr: "Centre de visionnage",
-    es: "Centro de visualización", pt: "Centro de visualização", de: "Beobachtungszentrum", ar: "مركز المشاهدة",
-    zh: "观看中心", hi: "व्यूइंग सेंटर", sw: "Kituo cha Kutazama", ru: "Центр просмотра", it: "Centro di visione",
-    ko: "시청 센터", ja: "視聴センター", id: "Pusat Menonton",
-  },
-  "Intro": {
-    en: "Intro", yo: "Ìfilọlẹ", ig: "Mmalite", ha: "Gabatarwa", fr: "Intro",
-    es: "Intro", pt: "Intro", de: "Intro", ar: "مقدمة",
-    zh: "介绍", hi: "परिचय", sw: "Utangulizi", ru: "Введение", it: "Intro",
-    ko: "소개", ja: "イントロ", id: "Perkenalan",
-  },
-  "Bible Topics": {
-    en: "Bible Topics", yo: "Àwọn Kókó Bíbélì", ig: "Isiokwu Baibul", ha: "Batutuwan Littafi Mai Tsarki", fr: "Sujets bibliques",
-    es: "Temas bíblicos", pt: "Tópicos bíblicos", de: "Bibelthemen", ar: "مواضيع الكتاب المقدس",
-    zh: "圣经主题", hi: "बाइबल विषय", sw: "Mada za Biblia", ru: "Темы Библии", it: "Argomenti biblici",
-    ko: "성경 주제", ja: "聖書のテーマ", id: "Topik Alkitab",
-  },
-  "Ministry Blog": {
-    en: "Ministry Blog", yo: "Àkọsílẹ̀ Iṣẹ́ Ọlọ́run", ig: "Blọgụ Ọrụ", ha: "Blog na Hidima", fr: "Blog du Ministère",
-    es: "Blog del Ministerio", pt: "Blog do Ministério", de: "Ministeriums-Blog", ar: "مدونة الخدمة",
-    zh: "事工博客", hi: "सेवकाई ब्लॉग", sw: "Blogu ya Huduma", ru: "Блог служения", it: "Blog del Ministero",
-    ko: "사역 블로그", ja: "ミニストリーブログ", id: "Blog Pelayanan",
-  },
-  "Spiritual Insight": {
-    en: "Spiritual Insight", yo: "Ìmọ̀ Ẹ̀mí", ig: "Ịghọta Ọmụmụ", ha: "Fahimtar Ruhaniya", fr: "Perspicacité spirituelle",
-    es: "Perspicacia espiritual", pt: "Discernimento espiritual", de: "Geistliche Einsicht", ar: "البصيرة الروحية",
-    zh: "属灵洞见", hi: "आध्यात्मिक अंतर्दृष्टि", sw: "Ufahamu wa Kiroho", ru: "Духовное прозрение", it: "Intuizione spirituale",
-    ko: "영적 통찰", ja: "霊的洞察", id: "Wawasan Rohani",
-  },
-  "WhatsApp Channel": {
-    en: "WhatsApp Channel", yo: "Ikanni WhatsApp", ig: "Ikpo WhatsApp", ha: "Tashar WhatsApp", fr: "Canal WhatsApp",
-    es: "Canal de WhatsApp", pt: "Canal do WhatsApp", de: "WhatsApp-Kanal", ar: "قناة واتساب",
-    zh: "WhatsApp频道", hi: "WhatsApp चैनल", sw: "Njia ya WhatsApp", ru: "Канал WhatsApp", it: "Canale WhatsApp",
-    ko: "WhatsApp 채널", ja: "WhatsAppチャンネル", id: "Saluran WhatsApp",
-  },
-  "Follow us on WhatsApp": {
-    en: "Follow us on WhatsApp", yo: "Tẹ̀lé wa lórí WhatsApp", ig: "Soro anyị na WhatsApp", ha: "Bimu mu a WhatsApp", fr: "Suivez-nous sur WhatsApp",
-    es: "Síguenos en WhatsApp", pt: "Siga-nos no WhatsApp", de: "Folge uns auf WhatsApp", ar: "تابعنا على واتساب",
-    zh: "关注我们的WhatsApp", hi: "WhatsApp पर फॉलो करें", sw: "Tufuate kwenye WhatsApp", ru: "Следите за нами в WhatsApp", it: "Seguici su WhatsApp",
-    ko: "WhatsApp에서 팔로우", ja: "WhatsAppでフォロー", id: "Ikuti kami di WhatsApp",
   },
 };
 
