@@ -10,16 +10,48 @@ export type ConsentState = {
   advertising: boolean;
 };
 
+/** Shape actually written to localStorage — includes a timestamp for expiry logic. */
+type StoredConsent = ConsentState & { consentedAt?: number };
+
 const STORAGE_KEY     = "jctm_cookie_consent_v2";
 const LEGACY_KEY      = "jctm_cookie_notice_dismissed";
 const CCPA_OPT_KEY    = "jctm_ccpa_optout";
 
+/** Re-prompt after 12 months (GDPR best practice). */
+const CONSENT_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * Grace period for stored entries that have no timestamp (written before this
+ * feature shipped). We back-date them to (now − 11 months) so they expire in
+ * ~30 days rather than immediately, giving existing users a gentle transition.
+ */
+const LEGACY_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function getConsentState(): ConsentState | null {
   try {
     const raw = safeLocalGet(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as ConsentState;
+    if (raw) {
+      const stored = JSON.parse(raw) as StoredConsent;
+
+      if (stored.consentedAt !== undefined) {
+        // Timestamp present — check if it has expired.
+        if (Date.now() - stored.consentedAt > CONSENT_MAX_AGE_MS) return null;
+      } else {
+        // No timestamp (written before this feature). Back-date to give a 30-day grace
+        // period, then persist the migrated entry so we don't re-migrate every load.
+        const migratedAt = Date.now() - (CONSENT_MAX_AGE_MS - LEGACY_GRACE_MS);
+        const migrated: StoredConsent = { ...stored, consentedAt: migratedAt };
+        try { safeLocalSet(STORAGE_KEY, JSON.stringify(migrated)); } catch { /* ignore */ }
+      }
+
+      // Return only the ConsentState fields (drop consentedAt from the public API).
+      const { essential, analytics, advertising } = stored;
+      return { essential, analytics, advertising };
+    }
+
     if (safeLocalGet(LEGACY_KEY)) {
-      return { essential: true, analytics: true, advertising: true };
+      // Very old format — treat as needing re-consent (no timestamp, unknown age).
+      return null;
     }
   } catch { /* ignore */ }
   return null;
@@ -38,7 +70,8 @@ function saveCcpaOptOut(optOut: boolean) {
 
 function saveConsent(state: ConsentState) {
   try {
-    safeLocalSet(STORAGE_KEY, JSON.stringify(state));
+    const stored: StoredConsent = { ...state, consentedAt: Date.now() };
+    safeLocalSet(STORAGE_KEY, JSON.stringify(stored));
     safeLocalSet(LEGACY_KEY, "1");
   } catch { /* ignore */ }
 }
