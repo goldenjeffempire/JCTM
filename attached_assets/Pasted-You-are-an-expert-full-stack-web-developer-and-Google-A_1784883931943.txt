@@ -1,0 +1,223 @@
+You are an expert full-stack web developer and Google AdSense integration specialist.
+
+I need you to audit and update the Temple TV website so that it is technically ready for Google AdSense monetization and has the best possible chance of passing Google's AdSense review.
+
+The current Google AdSense review status shows:
+
+"Your site isn't ready to show ads"
+
+Policy issue:
+"Low value content"
+
+Google's message says the site does not yet meet the criteria for use in the Google publisher network and recommends:
+- Meeting Google's minimum content requirements
+- Providing unique, high-quality content and a good user experience
+- Avoiding thin content
+- Following Google's Webmaster Quality Guidelines
+
+The website is Temple TV.
+
+IMPORTANT:
+The verified Google AdSense Publisher ID shown in my AdSense account is:
+
+pub-6817509745706083
+
+Use this Publisher ID only for the actual AdSense integration if it matches the verified account connected to the Temple TV website.
+
+YOUR TASKS:
+
+1. AUDIT THE ENTIRE TEMPLE TV WEBSITE
+- Inspect the complete frontend and backend codebase.
+- Identify the framework, routing structure, CMS/database, and deployment configuration.
+- Review every publicly accessible page.
+- Identify pages with thin, empty, duplicated, placeholder, or low-value content.
+- Check whether important pages are accessible to Googlebot.
+- Check robots.txt, sitemap.xml, canonical URLs, meta tags, structured data, and internal linking.
+- Check mobile responsiveness, page speed, Core Web Vitals, accessibility, navigation, and overall user experience.
+
+2. FIX THE "LOW VALUE CONTENT" PROBLEM
+Do not create fake, spun, AI-generated, or meaningless content just to satisfy AdSense.
+
+Instead:
+- Improve the quality and usefulness of the existing Temple TV content.
+- Ensure each important page provides genuine value to visitors.
+- Add substantial original editorial content where appropriate.
+- Remove or noindex pages that are empty, duplicate, placeholder, tag/archive pages with little value, or otherwise unsuitable for indexing.
+- Improve article pages with meaningful headlines, original descriptions, context, images where legally appropriate, publication dates, author information, and related content.
+- Ensure video pages contain useful original descriptions and supporting information rather than only an embedded video.
+- Create useful category pages with real content and clear navigation.
+- Avoid duplicate content across pages.
+- Make sure content is clearly written for users first, not search engines.
+
+3. IMPROVE THE WEBSITE STRUCTURE
+Ensure the website has:
+- Clear navigation
+- About page
+- Contact page
+- Privacy Policy
+- Terms and Conditions
+- Cookie/privacy consent where legally appropriate
+- Clear editorial or content ownership information
+- Author information where applicable
+- Consistent header and footer
+- Search functionality if appropriate
+- Logical categories
+- Breadcrumb navigation where useful
+- Related articles/content
+- No broken links
+- No placeholder text
+- No "Lorem ipsum"
+- No empty pages
+- No unfinished features visible to users
+
+4. GOOGLE ADSENSE INTEGRATION
+Integrate Google AdSense correctly using the verified Publisher ID:
+
+pub-6817509745706083
+
+Use the correct Google AdSense code format and ensure the AdSense script is loaded only once.
+
+The site should include the appropriate AdSense script in the site's global HTML/head section.
+
+Do not hard-code ad units everywhere.
+
+Create a clean, reusable AdSense component that can be safely enabled after Google approves the site.
+
+If using Auto ads, configure the site appropriately.
+
+If using manual ad placements, create sensible placements that do not:
+- Interfere with navigation
+- Cover content
+- Cause accidental clicks
+- Violate Google's ad placement policies
+- Create excessive ad density
+
+Do not attempt to bypass or manipulate Google's AdSense review process.
+
+5. ADS.TXT
+Create or update the site's ads.txt file with the correct authorized seller entry for the verified AdSense account.
+
+The entry should correspond to the verified Publisher ID:
+
+google.com, pub-6817509745706083, DIRECT, f08c47fec0942fa0
+
+Ensure that:
+https://YOUR-DOMAIN.com/ads.txt
+
+returns the correct content with HTTP 200.
+
+Replace YOUR-DOMAIN.com with the actual Temple TV production domain.
+
+6. SEO AND INDEXING
+Make sure:
+- robots.txt does not accidentally block important pages
+- sitemap.xml contains only useful indexable URLs
+- canonical URLs are correct
+- important pages return HTTP 200
+- no accidental noindex tags exist on important content
+- Open Graph and Twitter metadata are present
+- structured data is valid where appropriate
+- Google can crawl the site efficiently
+
+7. SECURITY AND PERFORMANCE
+Check for:
+- HTTPS
+- Secure headers
+- Fast loading
+- Optimized images
+- Lazy loading where appropriate
+- Efficient JavaScript
+- No unnecessary third-party scripts
+- No console errors
+- No broken API requests
+- No exposed secrets or API keys
+
+8. ADSENSE POLICY COMPLIANCE
+Review the website against Google's current AdSense Program Policies.
+
+Pay particular attention to:
+- Low-value content
+- Copyrighted content
+- Reused content
+- Automatically generated content
+- Misleading navigation
+- Invalid traffic risks
+- Prohibited content
+- Ad placement
+- User experience
+- Privacy requirements
+
+Do not fabricate content, fake traffic, click ads, encourage users to click ads, or implement anything intended to circumvent Google policies.
+
+9. IMPORTANT CONTENT RULE FOR TEMPLE TV
+Temple TV is a media/content website.
+
+If the website publishes news, entertainment, videos, interviews, or other media:
+- Ensure content is original or properly licensed.
+- Add meaningful editorial context to video content.
+- Clearly identify the source of third-party material.
+- Do not simply embed third-party videos with no additional value.
+- Add original descriptions, analysis, reporting, or context where appropriate.
+- Ensure copyright ownership and licensing are respected.
+
+10. PUBLISHER ID SAFETY
+Do not modify unrelated IDs or credentials.
+
+Do not replace:
+- User IDs
+- Customer IDs
+- Database IDs
+- API keys
+- Firebase IDs
+- Analytics IDs
+- Payment IDs
+
+Only use the AdSense Publisher ID:
+
+pub-6817509745706083
+
+for the Google AdSense integration, and only if it is confirmed to belong to the Temple TV AdSense account.
+
+11. IMPLEMENT THE CHANGES
+After the audit:
+- Make the necessary code changes.
+- Preserve all existing Temple TV functionality.
+- Do not break authentication, video streaming, CMS functionality, APIs, or database operations.
+- Keep the design professional and responsive.
+- Follow the existing project's coding conventions.
+
+12. FINAL VERIFICATION
+Before finishing, test:
+- Homepage
+- Article pages
+- Video pages
+- Category pages
+- Search
+- Mobile layout
+- Desktop layout
+- Privacy Policy
+- Terms
+- Contact
+- About
+- robots.txt
+- sitemap.xml
+- ads.txt
+- AdSense script
+- Console errors
+- Broken links
+- HTTP status codes
+
+Then provide me with a detailed report containing:
+
+A. Problems found
+B. Changes made
+C. Files modified
+D. AdSense integration status
+E. Publisher ID used
+F. ads.txt status
+G. SEO/indexing status
+H. Remaining issues that require human action
+I. Exact steps I need to take in Google AdSense to request another review
+
+IMPORTANT FINAL REQUIREMENT:
+Do not claim that the site is guaranteed to be approved by Google AdSense. The goal is to make Temple TV genuinely useful, technically correct, and compliant with Google's policies so that it is ready for a legitimate review.

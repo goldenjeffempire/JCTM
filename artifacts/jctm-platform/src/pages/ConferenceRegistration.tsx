@@ -1101,14 +1101,11 @@ export default function ConferenceRegistration() {
   return (
     <Layout>
       <SEO
-        title="Ministers Conference 2026 — Register to Attend | JCTM"
-        description="Register your attendance for the JCTM Ministers Conference 2026. May 8–10, 2026. An apostolic gathering of ministers, leaders and kingdom builders. Ebrumede Roundabout, Effurun Uvwie, Delta State."
+        title="Ministers Conference 2026 — Archive | JCTM"
+        description="Archive of the JCTM Ministers Conference 2026, held May 8–10, 2026. An apostolic gathering of ministers, leaders and kingdom builders at Ebrumede Roundabout, Effurun Uvwie, Delta State."
         path="/conference-registration"
         keywords="Ministers Conference 2026, JCTM conference, Jesus Christ Temple Ministry conference, Prophet Amos Evomobor, church conference Delta State 2026, apostolic gathering Nigeria"
-        breadcrumbs={[
-          { name: "Home", url: "https://jctm.org.ng/" },
-          { name: "Ministers Conference 2026", url: "https://jctm.org.ng/conference-registration" },
-        ]}
+        noIndex={true}
       />
 
       {cropSrc && (

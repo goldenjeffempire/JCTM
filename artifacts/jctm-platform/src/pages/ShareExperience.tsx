@@ -829,6 +829,7 @@ export default function ShareExperience() {
       <SEO
         title="Share Your Experience | Jesus Christ Temple Ministry"
         description="Share how God has moved in your life through JCTM. Submit your video testimony and inspire thousands around the world."
+        noIndex={true}
       />
 
       <AnimatePresence mode="wait">
