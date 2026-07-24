@@ -456,7 +456,7 @@ if (process.env.NODE_ENV === "production") {
   // automatically excluded because the DB query filters end_at > NOW().
   // When there are no live events the response is identical to a plain
   // sendFile — no overhead, no empty <script> tags.
-  app.get("/{*splat}", async (_req, res) => {
+  app.get("/{*splat}", async (req, res) => {
     res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
     res.setHeader("CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
     res.setHeader("Cloudflare-CDN-Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
@@ -464,11 +464,15 @@ if (process.env.NODE_ENV === "production") {
     res.setHeader("X-Robots-Tag", "index, follow");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
 
+    // Only pre-render the devotion data on /devotion — other routes never
+    // consume window.__DEVOTION__ so fetching it would waste DB/AI resources.
+    const isDevotionRoute = req.path === "/devotion" || req.path.startsWith("/devotion/");
+
     try {
       const [baseHtml, eventSchemas, devotionScript] = await Promise.all([
         Promise.resolve(getHtmlTemplate()),
         getActiveEventSchemaScripts(),
-        getDevotionPrerenderScript(),
+        isDevotionRoute ? getDevotionPrerenderScript() : Promise.resolve(null),
       ]);
 
       let html = baseHtml;
