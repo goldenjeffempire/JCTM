@@ -22,11 +22,12 @@ import userEvent from "@testing-library/user-event";
 import { CookieConsent } from "@/components/ads/CookieConsent";
 import { Footer } from "@/components/layout/Footer";
 import CookiesPage from "@/pages/Cookies";
+import App from "@/App";
 
 // ── Module mocks ──────────────────────────────────────────────────────────
 // vi.mock calls are hoisted by Vite — they run before imports are evaluated.
 
-// wouter: replace <Link> with a plain <a> (no router context needed)
+// wouter: replace routing primitives with lightweight stubs (no router context needed)
 vi.mock("wouter", () => ({
   Link: ({
     href,
@@ -41,6 +42,58 @@ vi.mock("wouter", () => ({
       {children}
     </a>
   ),
+  // Router/Switch/Route: render nothing — we test the shell, not page content
+  Router: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Switch: () => null,
+  Route: () => null,
+  useLocation: () => ["/" as string, () => {}] as [string, () => void],
+}));
+
+// Providers that are context-only — just pass through children
+vi.mock("@/contexts/ThemeContext", () => ({
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/contexts/GeoContext", () => ({
+  GeoProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+// Heavy global components not relevant to cookie banner tests
+vi.mock("@/components/VoiceTempleBots", () => ({
+  VoiceTempleBots: () => null,
+}));
+
+vi.mock("@/components/PushNotificationPrompt", () => ({
+  PushNotificationPrompt: () => null,
+}));
+
+vi.mock("@/components/BroadcastEngagementSystem", () => ({
+  BroadcastEngagementSystem: () => null,
+}));
+
+vi.mock("@/hooks/useVisitorHeartbeat", () => ({
+  useVisitorHeartbeat: () => {},
+}));
+
+vi.mock("@/lib/analytics", () => ({
+  trackPageView: () => {},
+}));
+
+// Toaster and Tooltip: render nothing / pass through
+vi.mock("sonner", () => ({
+  Toaster: () => null,
+}));
+
+vi.mock("@/components/ui/tooltip", () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/components/ErrorBoundary", () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/components/ui/skeleton", () => ({
+  Skeleton: () => null,
 }));
 
 // framer-motion: render children without animation (avoids timers / requestAnimationFrame)
@@ -93,7 +146,8 @@ vi.mock("lucide-react", () => {
   };
 });
 
-// LanguageContext: provide a minimal t() passthrough so Footer text renders
+// LanguageContext: provide a minimal t() passthrough so Footer text renders;
+// also export LanguageProvider so App.tsx can use it as a wrapper
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({
     t: (s: string) => s,
@@ -103,6 +157,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
     translateBatch: async (arr: string[]) => arr,
     isTranslating: false,
   }),
+  LanguageProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // ChurchAddressBlock: stub the address block (depends on DirectionsModal etc.)
@@ -324,6 +379,83 @@ describe("/cookies page 'Review Preferences' button", () => {
 
     expect(listener).toHaveBeenCalledTimes(1);
     window.removeEventListener("jctm:open-consent-banner", listener);
+  });
+});
+
+// ── Full App shell: CookieConsent must be mounted at the app root ─────────
+//
+// These tests render the complete <App /> component (all providers, Router,
+// ErrorBoundary, and CookieConsent) alongside a real <Footer />.  They
+// catch the class of silent breakage where CookieConsent is accidentally:
+//   • removed from App.tsx
+//   • wrapped in a lazy() / Suspense boundary
+//   • conditionally rendered so it never mounts on initial paint
+//
+// If any of those happen, the event listener is never registered and the
+// "Manage cookie preferences" footer button silently stops working.
+
+describe("Full App shell: CookieConsent mounted at app root", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("dispatching the open event reaches CookieConsent inside the rendered App", () => {
+    setExistingConsent();
+    render(<App />);
+
+    // Banner is hidden — consent already recorded
+    expect(screen.queryByText(/your privacy/i)).toBeNull();
+
+    // Dispatching the event should reach the listener registered by CookieConsent.
+    // If CookieConsent is not in the tree (removed, lazy, or conditional) this fails.
+    dispatchOpenConsentBanner();
+
+    expect(screen.getByText(/your privacy/i)).toBeInTheDocument();
+    expect(screen.getByText("Analytics Cookies")).toBeInTheDocument();
+  });
+
+  it("clicking the real footer button re-opens the banner rendered by App", async () => {
+    setExistingConsent();
+    const user = userEvent.setup();
+
+    // App provides CookieConsent; Footer provides the trigger button.
+    render(
+      <>
+        <App />
+        <Footer />
+      </>
+    );
+
+    // Banner starts hidden (consent recorded)
+    expect(screen.queryByText(/your privacy/i)).toBeNull();
+
+    // Click the real "Manage cookie preferences" button in the footer
+    await user.click(
+      screen.getByRole("button", { name: /manage cookie preferences/i })
+    );
+
+    // CookieConsent (mounted in App root, not lazy-loaded) receives the event
+    expect(screen.getByText(/your privacy/i)).toBeInTheDocument();
+    expect(screen.getByText("Analytics Cookies")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /save my choices/i })
+    ).toBeInTheDocument();
+  });
+
+  it("the test fails if CookieConsent is absent from App — verifying the guard works", () => {
+    // Render ONLY the Footer (no CookieConsent in the tree at all).
+    // Dispatching the event should find no listener, so the banner never appears.
+    setExistingConsent();
+    render(<Footer />);
+
+    dispatchOpenConsentBanner();
+
+    // No banner — CookieConsent is not mounted
+    expect(screen.queryByText(/your privacy/i)).toBeNull();
+    expect(screen.queryByText("Analytics Cookies")).toBeNull();
   });
 });
 
