@@ -336,6 +336,10 @@ export function CookieConsent() {
                     Privacy Policy
                   </Link>
                   <span>·</span>
+                  <Link href="/cookies" className="hover:text-muted-foreground underline" onClick={acceptEssential}>
+                    Cookie Policy
+                  </Link>
+                  <span>·</span>
                   <CcpaDoNotSellLink />
                 </p>
 

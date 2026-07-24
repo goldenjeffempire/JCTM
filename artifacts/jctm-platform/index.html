@@ -7,7 +7,21 @@
     <!-- Google AdSense site ownership verification -->
     <meta name="google-adsense-account" content="ca-pub-6817509745706083" />
 
-    <!-- Google AdSense Auto Ads -->
+    <!-- Google Consent Mode v2 — MUST appear before any Google tag/AdSense script -->
+    <!-- All signals denied by default until the user makes an explicit choice      -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { window.dataLayer.push(arguments); }
+      gtag('consent', 'default', {
+        'ad_storage':         'denied',
+        'analytics_storage':  'denied',
+        'ad_user_data':       'denied',
+        'ad_personalization': 'denied',
+        'wait_for_update':    2000
+      });
+    </script>
+
+    <!-- Google AdSense Auto Ads — loaded after consent defaults are set -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6817509745706083"
          crossorigin="anonymous"></script>
 
@@ -496,20 +510,6 @@
     }
     </script>
 
-    <!-- Google Consent Mode v2 — all signals denied by default until user makes a choice -->
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() { window.dataLayer.push(arguments); }
-      gtag('consent', 'default', {
-        'ad_storage':         'denied',
-        'analytics_storage':  'denied',
-        'ad_user_data':       'denied',
-        'ad_personalization': 'denied',
-        'wait_for_update':    2000
-      });
-    </script>
-    <!-- Google AdSense — loaded async so it never blocks initial render -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6817509745706083" crossorigin="anonymous"></script>
   </head>
   <body>
     <!-- ─── Non-JS / Bot Fallback Content ────────────────────────────────────
