@@ -13,6 +13,7 @@
 import { pool } from "@workspace/db";
 import { logger } from "./logger.js";
 import { sendUptimeAlertEmail } from "./email-engine.js";
+import { withDbRetry } from "./db-retry.js";
 
 const HEARTBEAT_INTERVAL_MS  = 60_000;       // write every 60 s
 const DOWNTIME_THRESHOLD_MS  = 3 * 60_000;   // gap >3 min == downtime
@@ -23,14 +24,20 @@ let heartbeatHandle: ReturnType<typeof setInterval> | null = null;
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 async function writeHeartbeat(): Promise<void> {
-  await pool.query(`INSERT INTO server_heartbeats (beat_at) VALUES (now())`);
+  // Retry on transient connectivity errors (ECONNABORTED, ECONNRESET, etc.).
+  // If all retries fail the error is swallowed by the caller (.catch(log.debug))
+  // so a temporary DB blip never crashes the process.
+  await withDbRetry(
+    () => pool.query(`INSERT INTO server_heartbeats (beat_at) VALUES (now())`),
+    { label: "heartbeat-write", maxAttempts: 3, baseDelayMs: 500 },
+  );
 }
 
 async function pruneOldHeartbeats(): Promise<void> {
   const cutoff = new Date(Date.now() - HEARTBEAT_RETENTION_MS).toISOString();
-  const res = await pool.query(
-    `DELETE FROM server_heartbeats WHERE beat_at < $1`,
-    [cutoff],
+  const res = await withDbRetry(
+    () => pool.query(`DELETE FROM server_heartbeats WHERE beat_at < $1`, [cutoff]),
+    { label: "heartbeat-prune", maxAttempts: 3, baseDelayMs: 500 },
   );
   if ((res.rowCount ?? 0) > 0) {
     logger.debug({ deleted: res.rowCount }, "Uptime monitor: pruned old heartbeat rows");

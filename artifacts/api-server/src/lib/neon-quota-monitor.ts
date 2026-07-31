@@ -133,10 +133,22 @@ export function startNeonQuotaMonitor(
   if (intervalHandle) return;
   monitorLogger = log;
 
+  // ── Pool-level error boundary ──────────────────────────────────────────────
+  // pg emits 'error' on the Pool when an idle client encounters a connectivity
+  // problem (ECONNABORTED, ECONNRESET, etc.).  The lib/db pool already has a
+  // catch-all 'error' listener that logs and prevents crashes, but we add a
+  // second listener here to additionally record quota-exceeded transitions so
+  // the monitor state stays accurate.
+  //
+  // NOTE: EventEmitter listeners are additive — both fire.  We must NOT
+  // re-throw here; pg removes the dead client automatically and the pool
+  // recovers on the next query.
   pool.on("error", (err) => {
     if (isQuotaError(err)) {
       recordDbError(err);
     }
+    // Non-quota transient errors (ECONNABORTED etc.) are already logged by the
+    // pool's own catch-all handler in lib/db/src/index.ts — no action needed.
   });
 
   // Initial probe shortly after startup

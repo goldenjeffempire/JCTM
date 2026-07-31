@@ -97,78 +97,86 @@ const server = app.listen(port, async (err) => {
   await initSentry();
 
   // ── Database migrations (idempotent — safe to re-run on every deploy) ─────
+  // Migrations run first, synchronously, so every subsequent task operates on
+  // a fully-migrated schema.
   try {
     await runMigrations();
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
   }
 
-  // ── Recover orphaned media jobs (processing/queued → failed on restart) ────
-  recoverOrphanedJobs().catch((err) =>
-    logger.warn({ err }, "Orphaned job recovery failed — continuing startup"),
-  );
+  // ── Start Neon DB quota health watcher immediately after migrations ────────
+  // This installs the pool.on('error') listener as early as possible so any
+  // pool-level connectivity errors (ECONNABORTED etc.) are handled and logged
+  // rather than propagating as uncaught exceptions.
+  startNeonQuotaMonitor(logger);
 
-  // ── Clean up partial yt-dlp temp files left by the previous server run ─────
+  // ── Non-DB startup tasks (no database access) ─────────────────────────────
   cleanupOrphanedTempFiles();
 
-  // ── Uptime check ──────────────────────────────────────────────────────────
-  try {
-    await checkUptimeOnStartup();
-  } catch (err) {
-    logger.warn({ err }, "Uptime startup check failed — continuing");
-  }
+  // ── Staggered DB startup tasks ────────────────────────────────────────────
+  // Root cause of ECONNABORTED at startup: multiple DB-heavy tasks fire
+  // simultaneously right after migrations, overwhelming a cold Neon compute
+  // endpoint that may take 1-2 s to wake.  By staggering each task 1 s apart
+  // we stay within the pool's connection limit and give the DB time to wake
+  // before the next task connects.
+  //
+  // All tasks are fire-and-forget (.catch()) so the startup sequence never
+  // blocks on them and a single failure doesn't abort the rest.
 
-  // ── Ministry blog seeding ─────────────────────────────────────────────────
-  try {
-    await seedMinistryBlogLibrary();
-  } catch (err) {
-    logger.warn({ err }, "Blog library seeding failed — continuing startup");
-  }
+  const stagger = (delayMs: number, label: string, fn: () => Promise<unknown>) => {
+    setTimeout(() => {
+      fn().catch((err) => logger.warn({ err }, `${label} failed — continuing startup`));
+    }, delayMs).unref();
+  };
 
-  // ── Bible database seeding (NKJV — idempotent) ───────────────────────────
-  seedBibleDatabase().catch((err) =>
-    logger.warn({ err }, "Bible database seeding failed — continuing startup"),
-  );
+  // t=0: uptime check (fast query — just reads server_heartbeats)
+  stagger(0, "Uptime startup check", () => checkUptimeOnStartup());
 
-  // ── Subscriber registry bootstrap (seed + legacy sync — idempotent) ────────
-  bootstrapSubscribers(logger).catch((err) =>
-    logger.warn({ err }, "Subscriber bootstrap failed — continuing startup"),
-  );
+  // t=1s: orphan job recovery
+  stagger(1_000, "Orphaned job recovery", () => recoverOrphanedJobs());
 
-  // ── Admin passphrase config check ─────────────────────────────────────────
-  const adminRoles: AdminRole[] = ["gallery", "sermon", "livestream"];
-  const configuredFlags = await Promise.all(adminRoles.map((r) => isRoleConfigured(r)));
-  const configured   = adminRoles.filter((_, i) => configuredFlags[i]);
-  const unconfigured = adminRoles.filter((_, i) => !configuredFlags[i]);
-  if (unconfigured.length > 0) {
-    logger.warn(
-      { unconfiguredRoles: unconfigured, configuredRoles: configured },
-      "Some admin roles have no passphrase configured — " +
-      "use the Setup Admin Access form on the site to create credentials, " +
-      "or set ADMIN_PASSPHRASE_* env vars in the Render dashboard.",
-    );
-  } else {
-    logger.info({ configured }, "All admin roles configured");
-  }
+  // t=2s: VAPID key init (reads/writes vapid_keys table)
+  stagger(2_000, "VAPID key init", () => initVapidKeys(logger));
 
-  // Initialize VAPID keys for push notifications (async — checks DB fallback)
-  await initVapidKeys(logger).catch((err) =>
-    logger.warn({ err }, "VAPID key initialization failed — push notifications disabled")
-  );
+  // t=3s: admin passphrase config check
+  stagger(3_000, "Admin role check", async () => {
+    const adminRoles: AdminRole[] = ["gallery", "sermon", "livestream"];
+    const configuredFlags = await Promise.all(adminRoles.map((r) => isRoleConfigured(r)));
+    const configured   = adminRoles.filter((_, i) => configuredFlags[i]);
+    const unconfigured = adminRoles.filter((_, i) => !configuredFlags[i]);
+    if (unconfigured.length > 0) {
+      logger.warn(
+        { unconfiguredRoles: unconfigured, configuredRoles: configured },
+        "Some admin roles have no passphrase configured — " +
+        "use the Setup Admin Access form on the site to create credentials, " +
+        "or set ADMIN_PASSPHRASE_* env vars in the Render dashboard.",
+      );
+    } else {
+      logger.info({ configured }, "All admin roles configured");
+    }
+  });
 
-  // One-shot cleanup of stale push endpoints.
-  void cleanupStalePushSubscriptions(60, logger).catch((err) =>
-    logger.warn({ err }, "Startup push cleanup failed"),
-  );
+  // t=4s: ministry blog seeding (idempotent — skips if rows already exist)
+  stagger(4_000, "Blog library seeding", () => seedMinistryBlogLibrary());
+
+  // t=5s: subscriber bootstrap
+  stagger(5_000, "Subscriber bootstrap", () => bootstrapSubscribers(logger));
+
+  // t=7s: stale push subscription cleanup (one-shot, non-critical)
+  stagger(7_000, "Stale push subscription cleanup",
+    () => cleanupStalePushSubscriptions(60, logger));
+
+  // t=10s: Bible database seeding (potentially large — run last in the wave)
+  stagger(10_000, "Bible database seeding", () => seedBibleDatabase());
+
+  // ── Recurring background tasks (all unref'd — don't prevent clean shutdown) ─
 
   // Start uptime heartbeat writer (every 60 s)
   startHeartbeat(logger);
 
   // Start the 30-minute YouTube sync cron
   startCron(logger);
-
-  // Start Neon DB quota health watcher (1-min ping cycle)
-  startNeonQuotaMonitor(logger);
 
   // Resolve public base URL for WebSub callback
   const replitDomain = process.env.REPLIT_DEV_DOMAIN;

@@ -74,6 +74,7 @@ A full-stack ministry platform for Jesus Christ Temple Ministry (Warri, Nigeria)
 - `DATABASE_URL` must not have `sslmode=prefer` — the db client normalizes it to `verify-full` to suppress pg deprecation warnings.
 - Port 5000 is the only exposed port (mapped to external port 80 in `.replit`).
 - The `blog_posts` table has both `meta_title`/`meta_description` declared twice (idempotent ALTER TABLE handles this).
+- **PostgreSQL `write ECONNABORTED` fix:** `lib/db/src/index.ts` configures the pool with `keepAlive: true`, `idleTimeoutMillis: 30_000`, `max: 10`, `connectionTimeoutMillis: 10_000`, and a catch-all `pool.on('error')` listener. These four settings together prevent the process crash that occurred when Neon killed idle TCP connections. Do NOT remove them. Any new background DB task should use `withDbRetry()` from `artifacts/api-server/src/lib/db-retry.ts`.
 
 ## Pointers
 
