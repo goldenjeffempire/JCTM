@@ -18,6 +18,7 @@
  */
 
 import { pool } from "@workspace/db";
+import { withDbRetry } from "./db-retry.js";
 import type { Logger } from "pino";
 import { embed } from "./local-embeddings.js";
 
@@ -390,7 +391,7 @@ export async function ingestKnowledgeIfEmpty(
   _unused: unknown,
   log: Logger,
 ): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     // Check if the current version stamp exists — if so, skip
     const versionCheck = await client.query<{ count: string }>(
@@ -470,7 +471,7 @@ export async function ingestSermonSummary(opts: {
     `Watch: https://www.youtube.com/watch?v=${videoId}`,
   ].filter(Boolean).join("\n");
 
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const vectorStr = await generateEmbeddingVector(content);
     await client.query(
@@ -494,7 +495,7 @@ export async function ingestSermonSummary(opts: {
 // knowledge chunk so TempleBots can answer questions about specific sermons.
 
 export async function ingestAllSermons(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const result = await client.query<{
       video_id: string;
@@ -603,7 +604,7 @@ export async function ingestAllSermons(log?: Logger): Promise<void> {
 // and upcoming events so TempleBots is aware of real community activity.
 
 export async function ingestActivityLearning(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     log?.info("Starting activity learning ingestion...");
 
@@ -786,7 +787,7 @@ export async function ingestActivityLearning(log?: Logger): Promise<void> {
 // today's word.
 
 export async function ingestDailyDevotionals(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const result = await client.query<{
       date: string;
@@ -1009,7 +1010,7 @@ JCTM stands against infant baptism as a doctrinal error (you cannot be baptized 
 ];
 
 export async function ingestMinistryFAQs(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     // Check if FAQ version is current
     const versionCheck = await client.query<{ count: string }>(
@@ -1063,7 +1064,7 @@ export async function ingestMinistryFAQs(log?: Logger): Promise<void> {
 // reference and recommend short teaching clips.
 
 export async function ingestMinistryShorts(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     // Ministry Moments: typically shorter sermons, stored in sermon_data
     const result = await client.query<{
@@ -1119,7 +1120,7 @@ export async function ingestMinistryShorts(log?: Logger): Promise<void> {
 // so TempleBots can tell users whether a service is live right now.
 
 export async function ingestLiveStreamContext(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     // Check for manual override state first
     const overrideResult = await client.query<{
@@ -1192,7 +1193,7 @@ export async function ingestLiveStreamContext(log?: Logger): Promise<void> {
 // is aware of upcoming campaigns and can encourage sign-ups.
 
 export async function ingestConferenceData(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     // Active event promotions
     const promotions = await client.query<{
@@ -1274,7 +1275,7 @@ export async function ingestConferenceData(log?: Logger): Promise<void> {
 // encourage users who are seeking testimonies of healing, salvation, provision.
 
 export async function ingestTestimonies(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const result = await client.query<{
       id: number;
@@ -1327,7 +1328,7 @@ export async function ingestTestimonies(log?: Logger): Promise<void> {
 // Pulls published blog posts (Ministry Moments / articles) into the RAG index.
 
 export async function ingestBlogPosts(log?: Logger): Promise<void> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const result = await client.query<{
       id: number;

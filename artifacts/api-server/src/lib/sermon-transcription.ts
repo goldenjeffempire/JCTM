@@ -10,6 +10,7 @@
  */
 
 import { pool } from "@workspace/db";
+import { withDbRetry } from "./db-retry.js";
 import OpenAI from "openai";
 import type { Logger } from "pino";
 import { embed } from "./local-embeddings.js";
@@ -236,7 +237,7 @@ export async function transcribeSermonBatch(
     failed: 0,
   };
 
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const sermonsRes = await client.query<SermonRow>(
       `SELECT video_id, title, description, published_at, category, tags, ai_summary, view_count
@@ -316,7 +317,7 @@ export async function transcribeSermonBatch(
 // ─── Reset Failed Transcriptions ─────────────────────────────────────────────
 
 export async function resetFailedTranscriptions(log?: Logger): Promise<number> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const res = await client.query(
       `UPDATE sermon_data SET transcript_status = 'none'
@@ -340,7 +341,7 @@ export async function getTranscriptionStats(): Promise<{
   failed: number;
   transcriptChunks: number;
 }> {
-  const client = await pool.connect();
+  const client = await withDbRetry(() => pool.connect(), { maxAttempts: 3 });
   try {
     const [statsRes, chunkRes, totalRes] = await Promise.all([
       client.query<{ status: string; count: string }>(

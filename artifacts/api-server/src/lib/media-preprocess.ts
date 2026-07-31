@@ -218,16 +218,28 @@ export function startPreprocessScheduler(): void {
   if (rescanTimer) return; // idempotent
 
   // Delayed startup sweep — don't compete with migrations and seeding
-  startupTimer = setTimeout(async () => {
+  //
+  // Root cause fix: the original callbacks were `async () => { await fn() }`.
+  // If preprocessFeaturedSermons() throws (e.g. ECONNABORTED while querying
+  // the sermons table), the async arrow function creates an unhandled promise
+  // rejection. The global unhandledRejection handler logs it but it is still
+  // a silent failure. The correct pattern for timer callbacks is fire-and-forget
+  // with explicit .catch() — this makes error handling visible and removes the
+  // async wrapper so Node.js never sees an unhandled rejection from these timers.
+  startupTimer = setTimeout(() => {
     logger.info("Starting initial featured-sermon MP3 pre-processing sweep");
-    await preprocessFeaturedSermons();
+    preprocessFeaturedSermons().catch((err) =>
+      logger.warn({ err }, "Initial MP3 pre-process sweep failed (non-fatal)"),
+    );
   }, STARTUP_DELAY_MS);
   startupTimer.unref(); // Don't prevent clean shutdown during the 30-s delay window
 
   // Periodic re-scan (unref so it doesn't prevent clean shutdown)
-  rescanTimer = setInterval(async () => {
+  rescanTimer = setInterval(() => {
     logger.debug("Periodic MP3 pre-process sweep starting");
-    await preprocessFeaturedSermons();
+    preprocessFeaturedSermons().catch((err) =>
+      logger.warn({ err }, "Periodic MP3 pre-process sweep failed (non-fatal)"),
+    );
   }, RESCAN_INTERVAL_MS);
   rescanTimer.unref();
 }

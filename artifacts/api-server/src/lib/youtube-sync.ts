@@ -1,6 +1,7 @@
 import { db, sermonsTable, settingsTable, pool } from "@workspace/db";
 import { eq, sql, desc, inArray } from "drizzle-orm";
 import type { Logger } from "pino";
+import { withDbRetry } from "./db-retry.js";
 
 export const CHANNEL_ID = "UCPFFvkE-KGpR37qJgvYriJg";
 // Uploads playlist = UU + channel_id without the leading UC
@@ -296,12 +297,27 @@ export async function harvestAll(apiKey: string, log?: Logger): Promise<SyncResu
   // ── Step 2: Atomically replace catalogue in a single transaction ───────────
   // All API data is already in memory — if any DB write fails, the transaction
   // rolls back and the existing catalogue remains fully intact.
-  await db.transaction(async (tx) => {
-    await tx.delete(sermonsTable);
-    for (let i = 0; i < inserts.length; i += 100) {
-      await tx.insert(sermonsTable).values(inserts.slice(i, i + 100));
-    }
-  });
+  //
+  // Root cause fix: wrapping db.transaction in withDbRetry.
+  // Risk: ECONNABORTED can fire during the batch insert loop (up to N/100 round-
+  // trips for a large catalogue). When it does, Neon rolls back the transaction
+  // atomically — the existing catalogue is preserved — but the harvest fails
+  // entirely and won't retry until the next 24-hour scheduled run.
+  // Fix: withDbRetry retries the entire transaction up to 3 times with exponential
+  // backoff. The retry is safe because:
+  //   1. The inserts array is fully in memory before any DB call.
+  //   2. The transaction is atomic — a failed attempt leaves no partial state.
+  //   3. The INSERT batch uses implicit ON CONFLICT keys (video_id is the PK),
+  //      so replaying the same inserts after a rolled-back attempt is idempotent.
+  await withDbRetry(
+    () => db.transaction(async (tx) => {
+      await tx.delete(sermonsTable);
+      for (let i = 0; i < inserts.length; i += 100) {
+        await tx.insert(sermonsTable).values(inserts.slice(i, i + 100));
+      }
+    }),
+    { label: "harvestAll-catalogue-transaction", maxAttempts: 3, baseDelayMs: 500 },
+  );
 
   log?.info({ synced: inserts.length, featured, live }, "Full harvest complete");
   return {

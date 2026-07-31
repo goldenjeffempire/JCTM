@@ -17,6 +17,7 @@ import { getActiveSubscribersMissedToday, recordDelivery, makeUnsubscribeUrl } f
 import { db, sermonsTable, devotionsTable, devotionSubscribersTable, eventPromotionsTable, pool } from "@workspace/db";
 import { sql, eq, and, ne, isNull, or } from "drizzle-orm";
 import type { Logger } from "pino";
+import { withDbRetry } from "./db-retry.js";
 
 const API_INTERVAL_MS       = 30 * 60 * 1000;       // 30 minutes
 const FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;  // 24 hours — full channel harvest
@@ -538,8 +539,14 @@ async function dispatchExpoPush(
   let sent = 0;
   let failed = 0;
   try {
-    const result = await pool.query<{ token: string }>(
-      `SELECT token FROM expo_push_tokens WHERE is_active = true ORDER BY created_at DESC LIMIT 1000`,
+    // withDbRetry: if the token SELECT hits ECONNABORTED (pool connection dropped
+    // between dispatch calls), retry up to 3 times before giving up. This prevents
+    // push notifications from silently failing on transient connection blips.
+    const result = await withDbRetry(
+      () => pool.query<{ token: string }>(
+        `SELECT token FROM expo_push_tokens WHERE is_active = true ORDER BY created_at DESC LIMIT 1000`,
+      ),
+      { label: "expo-push-fetch-tokens", maxAttempts: 3 },
     );
     if (result.rows.length === 0) return { sent: 0, failed: 0 };
 

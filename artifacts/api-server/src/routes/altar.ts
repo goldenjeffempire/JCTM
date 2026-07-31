@@ -60,11 +60,21 @@ loadPersistedCount();
 
 // Simulate realistic fluctuation every 9 seconds and persist.
 // The handle is exported so the shutdown sequence can cancel it cleanly.
-export const altarSimInterval = setInterval(async () => {
+//
+// Root cause fix: the original callback was `async () => { await persistCount() }`.
+// persistCount() already has an internal try/catch that swallows all errors, so it
+// can never reject in practice. But if it were ever changed to throw, the unhandled
+// promise rejection from the async setInterval callback would reach the global
+// unhandledRejection handler. Using fire-and-forget with .catch() instead of async/
+// await is the correct pattern for setInterval callbacks: it makes error handling
+// explicit and removes the async wrapper entirely.
+export const altarSimInterval = setInterval(() => {
   const delta = Math.floor(Math.random() * 5) - 2;
   ghostClients = Math.max(0, Math.min(ghostClients + delta, 20));
   broadcast();
-  await persistCount();
+  // Non-blocking: persistCount() has its own try/catch — any error is swallowed there.
+  // The .catch() here is a defensive belt-and-suspenders guard.
+  persistCount().catch(() => { /* non-fatal — in-memory value still valid */ });
 }, 9000);
 
 router.get("/altar/stream", (req, res): void => {
