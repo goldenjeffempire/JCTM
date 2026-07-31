@@ -144,6 +144,23 @@ function buildUrlEntry({
   return `  <url>\n${inner}\n  </url>`;
 }
 
+// ── GET /ping — root-level uptime probe ───────────────────────────────────────
+// Zero-allocation 200 OK at the root (not under /api) for external uptime
+// monitors (UptimeRobot, BetterUptime, Cloudflare Workers, etc.).
+// Googlebot and AdsBot-Google do not call /ping, but uptime monitors that
+// validate the root path do — this lets them confirm the SPA server is alive
+// without hitting a DB-backed route.
+router.get("/ping", (_req: Request, res: Response): void => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("X-Robots-Tag", "noindex");
+  res.status(200).type("text/plain").send("ok");
+});
+router.head("/ping", (_req: Request, res: Response): void => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("X-Robots-Tag", "noindex");
+  res.status(200).end();
+});
+
 // ── GET /sitemap-index.xml — master index ─────────────────────────────────────
 // Lists all sub-sitemaps. Cache at 1h so new sub-sitemaps are discovered quickly.
 // Each entry includes an accurate lastmod so Google can skip unchanged sitemaps.
@@ -1326,6 +1343,125 @@ router.get("/adsense-status", async (_req: Request, res: Response): Promise<void
       "Ensure the site has been live and publishing content for at least 1-3 months for new domains",
     ],
   });
+});
+
+// ── GET /sitemap-images.xml — key static page images for Google Images ─────────
+// Replaces the old static public/sitemap-images.xml. Includes rich image
+// metadata for all key ministry pages, enriched with recent gallery photos
+// from the database so the sitemap stays fresh without manual updates.
+// Capped at 200 images to keep the sitemap under the 50MB / 50k URL limit.
+// Referenced by sitemap-index.xml sub-sitemap list.
+
+router.get("/sitemap-images.xml", async (_req: Request, res: Response): Promise<void> => {
+  const today = new Date().toISOString().split("T")[0];
+
+  // Key static page images — always included regardless of DB content
+  const STATIC_ENTRIES: Array<{ loc: string; images: ImageEntry[] }> = [
+    {
+      loc: `${BASE_URL}/`,
+      images: [
+        { url: `${BASE_URL}/opengraph.jpg`,                   title: "JCTM Digital Sanctuary — Jesus Christ Temple Ministry Official Homepage", caption: "The official digital home of Jesus Christ Temple Ministry (JCTM), Warri, Nigeria — Temple TV sermons, giving, events, and the Correction Mandate.", geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+      ],
+    },
+    {
+      loc: `${BASE_URL}/about`,
+      images: [
+        { url: `${BASE_URL}/founder/prophet-portrait.jpg`,    title: `${FOUNDER} — Founder and Senior Pastor of ${ORG_NAME}`, caption: `${FOUNDER}, founder of JCTM, Warri, Delta State, Nigeria — carrier of the divine Correction Mandate.`, geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+        { url: `${BASE_URL}/opengraph.jpg`,                   title: `About ${ORG_NAME} — History, Vision, and Mission`, geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+      ],
+    },
+    {
+      loc: `${BASE_URL}/leadership`,
+      images: [
+        { url: `${BASE_URL}/founder/prophet-portrait.jpg`,    title: `${FOUNDER} — Leader of ${ORG_NAME} (JCTM)`, caption: `${FOUNDER} leads JCTM with the Correction Mandate, restoring apostolic Christianity across Nigeria and 40+ nations.`, geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+      ],
+    },
+    {
+      loc: `${BASE_URL}/sermons`,
+      images: [
+        { url: `${BASE_URL}/opengraph.jpg`,                   title: "Temple TV Sermons — JCTM Sermon Library by Prophet Amos Evomobor", caption: "Browse Temple TV sermons — teachings on holiness, the Correction Mandate, apostolic Christianity, end times, and more.", geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+      ],
+    },
+    {
+      loc: `${BASE_URL}/crusade`,
+      images: [
+        { url: `${BASE_URL}/warri-city-crusade-2026.jpeg`,    title: "Warri City Crusade 2026 — Jesus Christ Temple Ministry", caption: "Prophet Amos Global Crusade — Ighogbadu Primary School, Okumagba Avenue, Warri, Nigeria.", geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+        { url: `${BASE_URL}/warri-city-crusade-2026-flyer.jpeg`, title: "Warri Crusade 2026 Flyer — JCTM", geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+      ],
+    },
+    {
+      loc: `${BASE_URL}/gallery`,
+      images: [
+        { url: `${BASE_URL}/opengraph.jpg`,                   title: "JCTM Ministry Photo Gallery", caption: "Ministry moments, services, and events from Jesus Christ Temple Ministry, Warri, Nigeria.", geoLocation: "Warri, Delta State, Nigeria", license: `${BASE_URL}/terms` },
+      ],
+    },
+  ];
+
+  try {
+    // Enrich with up to 150 recent published gallery images from the DB
+    const galleryImages = await db
+      .select({
+        id:            galleryImagesTable.id,
+        title:         galleryImagesTable.title,
+        altText:       galleryImagesTable.altText,
+        description:   galleryImagesTable.description,
+        objectPath:    galleryImagesTable.objectPath,
+        thumbnailPath: galleryImagesTable.thumbnailPath,
+      })
+      .from(galleryImagesTable)
+      .where(eq(galleryImagesTable.isPublished, true))
+      .orderBy(desc(galleryImagesTable.sortOrder), desc(galleryImagesTable.createdAt))
+      .limit(150);
+
+    function imgUrl(img: typeof galleryImages[0]): string {
+      const p = img.thumbnailPath ?? img.objectPath ?? "";
+      return /^https?:\/\//i.test(p) ? p : `${BASE_URL}/api/storage${p}`;
+    }
+
+    // Group gallery images under /gallery as a single <url> block
+    if (galleryImages.length > 0) {
+      STATIC_ENTRIES.find(e => e.loc === `${BASE_URL}/gallery`)!.images.push(
+        ...galleryImages.map(img => ({
+          url:         imgUrl(img),
+          title:       img.title || img.altText || "JCTM Ministry Photo",
+          caption:     (img.description ?? img.altText ?? `${img.title} — Jesus Christ Temple Ministry`).slice(0, 400),
+          geoLocation: "Warri, Delta State, Nigeria",
+          license:     `${BASE_URL}/terms`,
+        })),
+      );
+    }
+
+    const urlEntries = STATIC_ENTRIES.map(entry =>
+      buildUrlEntry({ loc: entry.loc, lastmod: today, changefreq: "weekly", priority: "0.70", images: entry.images }),
+    );
+
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- JCTM Digital Sanctuary — Key Static Page Image Sitemap -->
+<!-- Generated: ${new Date().toISOString()} | ${urlEntries.length} URL entries -->
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+${urlEntries.join("\n\n")}
+
+</urlset>`;
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600");
+    res.setHeader("X-Sitemap-Count", String(urlEntries.length));
+    res.status(200).send(sitemap);
+  } catch {
+    // Fallback: serve static entries only if DB is unavailable
+    const urlEntries = STATIC_ENTRIES.map(entry =>
+      buildUrlEntry({ loc: entry.loc, lastmod: today, changefreq: "weekly", priority: "0.70", images: entry.images }),
+    );
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urlEntries.join("\n\n")}
+</urlset>`;
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.status(200).send(sitemap);
+  }
 });
 
 export default router;
