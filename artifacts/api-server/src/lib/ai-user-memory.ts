@@ -10,17 +10,7 @@
  * Zero PII beyond what the user explicitly shares in chat.
  */
 
-import pg from "pg";
-const { Pool } = pg;
-
-function normalizeDbUrl(url: string): string {
-  return url.replace(
-    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
-    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
-  );
-}
-
-const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
+import { pool } from "@workspace/db";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

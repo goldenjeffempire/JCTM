@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sermonsTable, conversations, messages } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { ChatWithTempleBotsBody, ChatWithTempleBotsResponse } from "@workspace/api-zod";
-import pg from "pg";
+import { pool as ragPool } from "@workspace/db";
 import OpenAI from "openai";
 import { runLocalInference, streamLocalResponse, ENGINE_METADATA } from "../lib/local-ai-engine.js";
 import { localAIEnhancer } from "../lib/local-ai-enhancer.js";
@@ -36,12 +36,7 @@ import { buildAugmentedHistory } from "../lib/ai-conversation-summarizer.js";
 import { fetchScriptureForRAG } from "../lib/bible-seed.js";
 import { getActiveEventContext } from "../lib/event-schema.js";
 
-const { Pool } = pg;
-
 const router: IRouter = Router();
-
-// ── pgvector pool (RAG similarity search) ─────────────────────────────────────
-const ragPool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // ── OpenAI client (optional — only active when OPENAI_API_KEY is set) ─────────
 const openaiClient = process.env.OPENAI_API_KEY

@@ -17,20 +17,9 @@
  *  3. Website activity: prayer themes, testimonies, blog posts, events (ingestActivityLearning)
  */
 
-import pg from "pg";
+import { pool } from "@workspace/db";
 import type { Logger } from "pino";
 import { embed } from "./local-embeddings.js";
-
-const { Pool } = pg;
-
-function normalizeDbUrl(url: string): string {
-  return url.replace(
-    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
-    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
-  );
-}
-
-const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
 
 // ─── Version Stamp ────────────────────────────────────────────────────────────
 // Increment this when the static JCTM_KNOWLEDGE array changes to force

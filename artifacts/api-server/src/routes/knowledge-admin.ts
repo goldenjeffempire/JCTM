@@ -10,21 +10,14 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import pg from "pg";
+import { pool } from "@workspace/db";
 import { embed } from "../lib/local-embeddings.js";
 import { runFullContentSync } from "../lib/knowledge-ingestion.js";
 import { logger } from "../lib/logger.js";
 
-const { Pool } = pg;
-
 const router: IRouter = Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-function normalizeDbUrl(url: string): string {
-  return url.replace(/([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
-    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`);
-}
-const knPool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
+// Both pools consolidated into the shared production-grade pool from @workspace/db
+const knPool = pool;
 
 async function embedAndStore(opts: {
   content: string;

@@ -13,10 +13,8 @@
  *   - Book + testament filtering
  */
 
-import pg from "pg";
+import { pool as biblePool } from "@workspace/db";
 import { logger } from "./logger.js";
-
-const { Pool } = pg;
 
 export interface BibleVerse {
   book: string;
@@ -805,7 +803,6 @@ export function parseScriptureRef(raw: string): ParsedRef | null {
 
 // ─── Seeding Function ─────────────────────────────────────────────────────────
 
-const biblePool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export async function seedBibleDatabase(): Promise<void> {
   try {

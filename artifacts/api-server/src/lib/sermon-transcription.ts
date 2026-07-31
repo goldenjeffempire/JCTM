@@ -9,21 +9,10 @@
  * This gives TempleBots rich topical content even without full transcripts.
  */
 
-import pg from "pg";
+import { pool } from "@workspace/db";
 import OpenAI from "openai";
 import type { Logger } from "pino";
 import { embed } from "./local-embeddings.js";
-
-const { Pool } = pg;
-
-function normalizeDbUrl(url: string): string {
-  return url.replace(
-    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
-    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
-  );
-}
-
-const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;

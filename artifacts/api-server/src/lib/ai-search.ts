@@ -15,12 +15,9 @@
  * Zero external API — fully local.
  */
 
-import pg from "pg";
+import { pool } from "@workspace/db";
 import { tfidfEmbed, cosineSimilarity } from "./local-embeddings.js";
 import { logger } from "./logger.js";
-
-const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

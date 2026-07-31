@@ -10,20 +10,9 @@
  *   - Overall platform status (green / degraded / down)
  */
 
-import pg from "pg";
 import os from "os";
+import { pool } from "@workspace/db";
 import { ENGINE_METADATA } from "./local-ai-engine.js";
-
-const { Pool } = pg;
-
-function normalizeDbUrl(url: string): string {
-  return url.replace(
-    /([?&])sslmode=(prefer|require|verify-ca)(&|$)/g,
-    (_m, prefix, _mode, suffix) => `${prefix}sslmode=verify-full${suffix}`,
-  );
-}
-
-const pool = new Pool({ connectionString: normalizeDbUrl(process.env.DATABASE_URL ?? "") });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

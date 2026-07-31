@@ -7,7 +7,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import pg from "pg";
+import { pool } from "@workspace/db";
 import { getContentSyncStats } from "../lib/content-sync-scheduler.js";
 import {
   getTranscriptionStats,
@@ -16,9 +16,7 @@ import {
 } from "../lib/sermon-transcription.js";
 import { getMemoryStats } from "../lib/ai-user-memory.js";
 
-const { Pool } = pg;
 const router: IRouter = Router();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // ─── GET /api/admin/ai/health ─────────────────────────────────────────────────
 
