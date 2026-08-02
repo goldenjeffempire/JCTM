@@ -63,8 +63,15 @@ export async function checkUptimeOnStartup(): Promise<void> {
   try {
     await pruneOldHeartbeats();
 
-    const result = await pool.query<{ beat_at: string }>(
-      `SELECT beat_at FROM server_heartbeats ORDER BY beat_at DESC LIMIT 1`,
+    // withDbRetry: if the startup check hits ECONNABORTED (pool connection
+    // cold-started alongside migrations), retry before giving up. The outer
+    // try/catch still swallows all errors so this is never fatal.
+    const result = await withDbRetry(
+      () =>
+        pool.query<{ beat_at: string }>(
+          `SELECT beat_at FROM server_heartbeats ORDER BY beat_at DESC LIMIT 1`,
+        ),
+      { label: "uptime-startup-heartbeat-select", maxAttempts: 3 },
     );
 
     const now = new Date();
@@ -91,11 +98,15 @@ export async function checkUptimeOnStartup(): Promise<void> {
       "Uptime monitor: downtime detected — server was unreachable",
     );
 
-    const insertRes = await pool.query<{ id: number }>(
-      `INSERT INTO server_downtime_events (started_at, recovered_at, downtime_ms, alert_sent)
-       VALUES ($1, $2, $3, false)
-       RETURNING id`,
-      [lastBeat.toISOString(), now.toISOString(), gapMs],
+    const insertRes = await withDbRetry(
+      () =>
+        pool.query<{ id: number }>(
+          `INSERT INTO server_downtime_events (started_at, recovered_at, downtime_ms, alert_sent)
+           VALUES ($1, $2, $3, false)
+           RETURNING id`,
+          [lastBeat.toISOString(), now.toISOString(), gapMs],
+        ),
+      { label: "uptime-downtime-event-insert", maxAttempts: 3 },
     );
     const eventId = insertRes.rows[0]?.id;
 
@@ -111,9 +122,13 @@ export async function checkUptimeOnStartup(): Promise<void> {
     });
 
     if (eventId && sent) {
-      await pool.query(
-        `UPDATE server_downtime_events SET alert_sent = true WHERE id = $1`,
-        [eventId],
+      await withDbRetry(
+        () =>
+          pool.query(
+            `UPDATE server_downtime_events SET alert_sent = true WHERE id = $1`,
+            [eventId],
+          ),
+        { label: "uptime-downtime-alert-flag", maxAttempts: 3 },
       );
     }
   } catch (err) {

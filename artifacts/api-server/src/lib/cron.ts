@@ -177,17 +177,25 @@ async function checkAndBroadcastMinistersConferenceDay2Hourly(log: Logger): Prom
   const dedupMessage = `${MC_DAY2_BODY} [slot:${bucket}]`;
 
   try {
-    const existing = await pool.query<{ id: number }>(
-      `SELECT id FROM broadcast_events
-        WHERE type = 'ministers_conf_day2_promo' AND title = $1 AND message = $2
-        LIMIT 1`,
-      [MC_DAY2_TITLE, dedupMessage],
+    const existing = await withDbRetry(
+      () =>
+        pool.query<{ id: number }>(
+          `SELECT id FROM broadcast_events
+            WHERE type = 'ministers_conf_day2_promo' AND title = $1 AND message = $2
+            LIMIT 1`,
+          [MC_DAY2_TITLE, dedupMessage],
+        ),
+      { label: "mc-day2-dedup-select", maxAttempts: 3 },
     );
     if (existing.rowCount && existing.rowCount > 0) return;
 
-    await pool.query(
-      `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-      ["ministers_conf_day2_promo", MC_DAY2_TITLE, dedupMessage, MC_DAY2_URL],
+    await withDbRetry(
+      () =>
+        pool.query(
+          `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+          ["ministers_conf_day2_promo", MC_DAY2_TITLE, dedupMessage, MC_DAY2_URL],
+        ),
+      { label: "mc-day2-dedup-insert", maxAttempts: 3 },
     );
 
     const isLive = now >= MC_DAY2_START_MS;
@@ -272,8 +280,12 @@ async function checkAndTransitionToDay3(log: Logger): Promise<void> {
 
   // DB dedup — check if the row is already on Day 3
   try {
-    const check = await pool.query<{ start_at: Date }>(
-      `SELECT start_at FROM event_promotions WHERE slug = 'ministers-conference-2026' LIMIT 1`,
+    const check = await withDbRetry(
+      () =>
+        pool.query<{ start_at: Date }>(
+          `SELECT start_at FROM event_promotions WHERE slug = 'ministers-conference-2026' LIMIT 1`,
+        ),
+      { label: "mc-day3-transition-check", maxAttempts: 3 },
     );
     if (check.rows.length === 0) return; // row doesn't exist — nothing to do
     const existing = check.rows[0]!;
@@ -290,18 +302,22 @@ async function checkAndTransitionToDay3(log: Logger): Promise<void> {
   mcDay3Transitioned.done = true; // Optimistic lock
 
   try {
-    await pool.query(
-      `UPDATE event_promotions
-       SET
-         title             = $1,
-         subtitle          = 'Final Day · 8:00 AM WAT · JCTM Auditorium, Ebrumede Roundabout',
-         cta_text          = 'Join Day 3',
-         start_at          = '2026-05-10T07:00:00Z',
-         push_sent_at      = NULL,
-         updated_at        = now()
-       WHERE slug = 'ministers-conference-2026'
-         AND start_at < '2026-05-10T07:00:00Z'`,
-      [MC_DAY3_TITLE],
+    await withDbRetry(
+      () =>
+        pool.query(
+          `UPDATE event_promotions
+           SET
+             title             = $1,
+             subtitle          = 'Final Day · 8:00 AM WAT · JCTM Auditorium, Ebrumede Roundabout',
+             cta_text          = 'Join Day 3',
+             start_at          = '2026-05-10T07:00:00Z',
+             push_sent_at      = NULL,
+             updated_at        = now()
+           WHERE slug = 'ministers-conference-2026'
+             AND start_at < '2026-05-10T07:00:00Z'`,
+          [MC_DAY3_TITLE],
+        ),
+      { label: "mc-day3-transition-update", maxAttempts: 3 },
     );
 
     log.info(
@@ -379,17 +395,25 @@ async function checkAndBroadcastMinistersConferenceDay3Hourly(log: Logger): Prom
   const dedupMessage = `${MC_DAY3_BODY} [slot:${bucket}]`;
 
   try {
-    const existing = await pool.query<{ id: number }>(
-      `SELECT id FROM broadcast_events
-        WHERE type = 'ministers_conf_day3_promo' AND title = $1 AND message = $2
-        LIMIT 1`,
-      [MC_DAY3_TITLE, dedupMessage],
+    const existing = await withDbRetry(
+      () =>
+        pool.query<{ id: number }>(
+          `SELECT id FROM broadcast_events
+            WHERE type = 'ministers_conf_day3_promo' AND title = $1 AND message = $2
+            LIMIT 1`,
+          [MC_DAY3_TITLE, dedupMessage],
+        ),
+      { label: "mc-day3-dedup-select", maxAttempts: 3 },
     );
     if (existing.rowCount && existing.rowCount > 0) return;
 
-    await pool.query(
-      `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-      ["ministers_conf_day3_promo", MC_DAY3_TITLE, dedupMessage, MC_DAY3_URL],
+    await withDbRetry(
+      () =>
+        pool.query(
+          `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+          ["ministers_conf_day3_promo", MC_DAY3_TITLE, dedupMessage, MC_DAY3_URL],
+        ),
+      { label: "mc-day3-dedup-insert", maxAttempts: 3 },
     );
 
     const isLive = now >= MC_DAY3_START_MS;
@@ -438,8 +462,12 @@ async function checkAndFireConferenceWindDown(log: Logger): Promise<void> {
 
   // DB dedup — bail if the wind-down notification was already sent
   try {
-    const check = await pool.query<{ id: number }>(
-      `SELECT id FROM broadcast_events WHERE type = 'ministers_conf_wind_down' LIMIT 1`,
+    const check = await withDbRetry(
+      () =>
+        pool.query<{ id: number }>(
+          `SELECT id FROM broadcast_events WHERE type = 'ministers_conf_wind_down' LIMIT 1`,
+        ),
+      { label: "mc-winddown-dedup-select", maxAttempts: 3 },
     );
     if (check.rowCount && check.rowCount > 0) {
       mcWindDownFired.done = true;
@@ -454,25 +482,33 @@ async function checkAndFireConferenceWindDown(log: Logger): Promise<void> {
 
   try {
     // 1. Mark the promotion as ended and disable future broadcasts
-    await pool.query(
-      `UPDATE event_promotions
-       SET status             = 'ended',
-           broadcast_enabled  = false,
-           updated_at         = now()
-       WHERE slug = 'ministers-conference-2026'
-         AND status != 'ended'`,
+    await withDbRetry(
+      () =>
+        pool.query(
+          `UPDATE event_promotions
+           SET status             = 'ended',
+               broadcast_enabled  = false,
+               updated_at         = now()
+           WHERE slug = 'ministers-conference-2026'
+             AND status != 'ended'`,
+        ),
+      { label: "mc-winddown-end-update", maxAttempts: 3 },
     );
 
     // 2. Persist dedup record
-    await pool.query(
-      `INSERT INTO broadcast_events (type, title, message, url)
-       VALUES ($1, $2, $3, $4)`,
-      [
-        "ministers_conf_wind_down",
-        "Ministers Conference 2026 — Thank You!",
-        "Conference wind-down notification sent after 9 PM WAT May 10",
-        "/sermons",
-      ],
+    await withDbRetry(
+      () =>
+        pool.query(
+          `INSERT INTO broadcast_events (type, title, message, url)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            "ministers_conf_wind_down",
+            "Ministers Conference 2026 — Thank You!",
+            "Conference wind-down notification sent after 9 PM WAT May 10",
+            "/sermons",
+          ],
+        ),
+      { label: "mc-winddown-dedup-insert", maxAttempts: 3 },
     );
 
     log.info("Ministers Conference 2026 event_promotions marked as ended");
@@ -637,11 +673,17 @@ let receiptCheckerHandle: ReturnType<typeof setInterval> | null = null;
 async function checkExpoPushReceipts(log: Logger): Promise<void> {
   try {
     const cutoff = new Date(Date.now() - RECEIPT_MIN_AGE_MS).toISOString();
-    const pending = await pool.query<{ id: number; ticket_id: string; token: string }>(
-      `SELECT id, ticket_id, token FROM expo_push_receipts
-       WHERE status = 'pending' AND sent_at < $1
-       ORDER BY sent_at ASC LIMIT 300`,
-      [cutoff],
+    // withDbRetry: ECONNABORTED on this SELECT (pool connection was idle between
+    // cron ticks) would silently skip the entire receipt-check run. Retrying
+    // automatically keeps the receipts pipeline current without manual restart.
+    const pending = await withDbRetry(
+      () => pool.query<{ id: number; ticket_id: string; token: string }>(
+        `SELECT id, ticket_id, token FROM expo_push_receipts
+         WHERE status = 'pending' AND sent_at < $1
+         ORDER BY sent_at ASC LIMIT 300`,
+        [cutoff],
+      ),
+      { label: "expo-receipt-select", maxAttempts: 3 },
     );
     if (pending.rows.length === 0) return;
 
@@ -667,27 +709,57 @@ async function checkExpoPushReceipts(log: Logger): Promise<void> {
 
     const invalid: string[] = [];
 
+    // ── Batched status update ────────────────────────────────────────────────
+    // Root cause: N individual pool.query UPDATE calls inside a for-loop means
+    // a single ECONNABORTED mid-loop leaves some receipts processed and others
+    // still 'pending'. Two problems: (a) inconsistent state until next run,
+    // (b) no retry on any of the N queries.
+    //
+    // Fix: collect all status transitions first (zero DB traffic), then apply
+    // them all in a single VALUES-list UPDATE. One round-trip is either fully
+    // retried (withDbRetry) or fully skipped — no partial state.
+    const updates: Array<{ id: number; status: "ok" | "error"; errCode: string | null }> = [];
     for (const row of pending.rows) {
       const receipt = json.data[row.ticket_id];
       if (!receipt) continue; // not ready yet — leave as pending
 
       const status = receipt.status === "ok" ? "ok" : "error";
       const errCode = receipt.details?.error ?? null;
-
-      await pool.query(
-        `UPDATE expo_push_receipts SET status = $1, error_code = $2, checked_at = now() WHERE id = $3`,
-        [status, errCode, row.id],
-      );
+      updates.push({ id: row.id, status, errCode });
 
       if (errCode === "DeviceNotRegistered") {
         invalid.push(row.token);
       }
     }
 
+    if (updates.length > 0) {
+      const placeholders = updates
+        .map((_, i) => `($${i * 3 + 1}::int, $${i * 3 + 2}::text, $${i * 3 + 3}::text)`)
+        .join(", ");
+      const params: Array<number | string | null> = updates.flatMap((u) => [u.id, u.status, u.errCode]);
+      await withDbRetry(
+        () =>
+          pool.query(
+            `UPDATE expo_push_receipts AS r
+                SET status     = v.status,
+                    error_code = v.error_code,
+                    checked_at = now()
+               FROM (VALUES ${placeholders}) AS v(id, status, error_code)
+              WHERE r.id = v.id`,
+            params,
+          ),
+        { label: "expo-receipt-bulk-update", maxAttempts: 3 },
+      );
+    }
+
     if (invalid.length > 0) {
-      await pool.query(
-        `UPDATE expo_push_tokens SET is_active = false, updated_at = now() WHERE token = ANY($1)`,
-        [invalid],
+      await withDbRetry(
+        () =>
+          pool.query(
+            `UPDATE expo_push_tokens SET is_active = false, updated_at = now() WHERE token = ANY($1)`,
+            [invalid],
+          ),
+        { label: "expo-receipt-deactivate-tokens", maxAttempts: 3 },
       );
       log.info({ count: invalid.length }, "Expo receipt check — deactivated stale tokens");
     }
@@ -1009,11 +1081,15 @@ function checkAndSendEventReminders(log: Logger): void {
 
           const dedupMessage = `${row.title} starts ${humaniseHours(hours)}`;
           try {
-            const recent = await pool.query<{ id: number }>(
-              `SELECT id FROM broadcast_events
-                WHERE type = 'event_reminder' AND title = $1 AND message = $2
-                LIMIT 1`,
-              [row.title, dedupMessage],
+            const recent = await withDbRetry(
+              () =>
+                pool.query<{ id: number }>(
+                  `SELECT id FROM broadcast_events
+                    WHERE type = 'event_reminder' AND title = $1 AND message = $2
+                    LIMIT 1`,
+                  [row.title, dedupMessage],
+                ),
+              { label: "event-reminder-dedup-select", maxAttempts: 3 },
             );
             if (recent.rowCount && recent.rowCount > 0) continue;
 
@@ -1026,10 +1102,14 @@ function checkAndSendEventReminders(log: Logger): void {
               log,
               "event_reminder",
             );
-            await pool.query(
-              `INSERT INTO broadcast_events (type, title, message, url)
-               VALUES ($1, $2, $3, $4)`,
-              ["event_reminder", row.title, dedupMessage, row.ctaUrl],
+            await withDbRetry(
+              () =>
+                pool.query(
+                  `INSERT INTO broadcast_events (type, title, message, url)
+                   VALUES ($1, $2, $3, $4)`,
+                  ["event_reminder", row.title, dedupMessage, row.ctaUrl],
+                ),
+              { label: "event-reminder-dedup-insert", maxAttempts: 3 },
             );
           } catch (err) {
             log.warn(
@@ -1077,9 +1157,13 @@ function checkEventPromotionTransitions(log: Logger): void {
           const notif = buildEventLiveNotification(row.title, row.location, row.ctaUrl);
           log.info({ slug: row.slug, title: row.title }, "Event promotion → LIVE — dispatching push + broadcast log");
           await dispatchPushNotification(notif, log, "event_live");
-          await pool.query(
-            `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-            ["event_live", row.title, `${row.title} is now live`, row.ctaUrl],
+          await withDbRetry(
+            () =>
+              pool.query(
+                `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+                ["event_live", row.title, `${row.title} is now live`, row.ctaUrl],
+              ),
+            { label: "event-live-broadcast-insert", maxAttempts: 3 },
           );
           await db
             .update(eventPromotionsTable)
@@ -1107,11 +1191,15 @@ function checkEventPromotionTransitions(log: Logger): void {
       });
       for (const row of upcoming) {
         try {
-          const recent = await pool.query<{ id: number }>(
-            `SELECT id FROM broadcast_events
-              WHERE type = 'event_starting_soon' AND title = $1
-                AND fired_at > NOW() - INTERVAL '20 minutes' LIMIT 1`,
-            [row.title],
+          const recent = await withDbRetry(
+            () =>
+              pool.query<{ id: number }>(
+                `SELECT id FROM broadcast_events
+                  WHERE type = 'event_starting_soon' AND title = $1
+                    AND fired_at > NOW() - INTERVAL '20 minutes' LIMIT 1`,
+                [row.title],
+              ),
+            { label: "event-soon-dedup-select", maxAttempts: 3 },
           );
           if (recent.rowCount && recent.rowCount > 0) continue;
           log.info({ slug: row.slug }, "Event promotion → 30-min reminder — dispatching");
@@ -1120,9 +1208,13 @@ function checkEventPromotionTransitions(log: Logger): void {
             log,
             "event_starting_soon",
           );
-          await pool.query(
-            `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-            ["event_starting_soon", row.title, `${row.title} starts in 30 minutes`, row.ctaUrl],
+          await withDbRetry(
+            () =>
+              pool.query(
+                `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+                ["event_starting_soon", row.title, `${row.title} starts in 30 minutes`, row.ctaUrl],
+              ),
+            { label: "event-soon-dedup-insert", maxAttempts: 3 },
           );
         } catch (err) {
           log.warn({ err, slug: row.slug }, "Event 30-min reminder failed");
@@ -1210,27 +1302,53 @@ function buildWarriCrusadeNotification(slotBucket: string): NotificationPayload 
 // so the SSE relay surfaces it as an in-app toast for connected clients.
 
 async function processScheduledBroadcasts(log: Logger): Promise<void> {
+  // ── Recovery: reset rows stuck in 'processing' ──────────────────────────────
+  // Root cause of stuck rows: the claim UPDATE succeeds (pending→processing),
+  // but then ECONNABORTED fires before the subsequent status UPDATE
+  // (processing→sent/failed), leaving the row in 'processing' indefinitely.
+  // Neither the claim loop nor any periodic cleanup ever revisited these rows.
+  //
+  // Fix: reset any row that has been in 'processing' since before its
+  // scheduled_for crossed 5 minutes ago. Those are definitively stuck: real
+  // processing completes in seconds, never minutes.
+  await withDbRetry(
+    () =>
+      pool.query(
+        `UPDATE scheduled_broadcasts
+            SET status = 'pending'
+          WHERE status = 'processing'
+            AND scheduled_for < now() - INTERVAL '5 minutes'`,
+      ),
+    { label: "scheduled-broadcasts-stuck-reset", maxAttempts: 3 },
+  ).catch((err: unknown) =>
+    log.warn({ err }, "Scheduled broadcasts stuck-row reset failed (non-fatal)"),
+  );
+
   // Claim up to 10 due rows in one transaction. UPDATE ... RETURNING is
   // atomic, so two ticks running concurrently will partition the work
   // instead of double-firing it.
-  const due = await pool.query<{
-    id: number;
-    title: string;
-    body: string;
-    url: string;
-    require_interaction: boolean;
-    scheduled_for: string;
-  }>(
-    `UPDATE scheduled_broadcasts
-        SET status = 'processing'
-      WHERE id IN (
-        SELECT id FROM scheduled_broadcasts
-         WHERE status = 'pending' AND scheduled_for <= now()
-         ORDER BY scheduled_for ASC
-         LIMIT 10
-         FOR UPDATE SKIP LOCKED
-      )
-      RETURNING id, title, body, url, require_interaction, scheduled_for`,
+  const due = await withDbRetry(
+    () =>
+      pool.query<{
+        id: number;
+        title: string;
+        body: string;
+        url: string;
+        require_interaction: boolean;
+        scheduled_for: string;
+      }>(
+        `UPDATE scheduled_broadcasts
+            SET status = 'processing'
+          WHERE id IN (
+            SELECT id FROM scheduled_broadcasts
+             WHERE status = 'pending' AND scheduled_for <= now()
+             ORDER BY scheduled_for ASC
+             LIMIT 10
+             FOR UPDATE SKIP LOCKED
+          )
+          RETURNING id, title, body, url, require_interaction, scheduled_for`,
+      ),
+    { label: "scheduled-broadcasts-claim", maxAttempts: 3 },
   );
 
   if (due.rows.length === 0) return;
@@ -1240,9 +1358,13 @@ async function processScheduledBroadcasts(log: Logger): Promise<void> {
   for (const row of due.rows) {
     try {
       // Log to broadcast_events so SSE/in-app toast picks it up
-      await pool.query(
-        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-        ["admin_broadcast", row.title, row.body, row.url],
+      await withDbRetry(
+        () =>
+          pool.query(
+            `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+            ["admin_broadcast", row.title, row.body, row.url],
+          ),
+        { label: "scheduled-broadcast-log", maxAttempts: 3 },
       );
 
       const result = await dispatchPushNotification(
@@ -1265,15 +1387,22 @@ async function processScheduledBroadcasts(log: Logger): Promise<void> {
         "admin_broadcast_scheduled",
       );
 
-      await pool.query(
-        `UPDATE scheduled_broadcasts
-            SET status = 'sent',
-                sent_at = now(),
-                sent_count = $1,
-                failed_count = $2,
-                deactivated_count = $3
-          WHERE id = $4`,
-        [result.sent, result.failed, result.deactivated, row.id],
+      // withDbRetry: ECONNABORTED here without retry = row stays permanently
+      // in 'processing'. The stuck-reset at the top of this function will
+      // eventually recover it, but withDbRetry means instant recovery instead.
+      await withDbRetry(
+        () =>
+          pool.query(
+            `UPDATE scheduled_broadcasts
+                SET status = 'sent',
+                    sent_at = now(),
+                    sent_count = $1,
+                    failed_count = $2,
+                    deactivated_count = $3
+              WHERE id = $4`,
+            [result.sent, result.failed, result.deactivated, row.id],
+          ),
+        { label: "scheduled-broadcast-mark-sent", maxAttempts: 3 },
       );
       log.info(
         { id: row.id, title: row.title, sent: result.sent, failed: result.failed },
@@ -1282,13 +1411,26 @@ async function processScheduledBroadcasts(log: Logger): Promise<void> {
     } catch (err) {
       log.error({ err, id: row.id }, "Scheduled broadcast failed");
       const message = err instanceof Error ? err.message : String(err);
-      await pool.query(
-        `UPDATE scheduled_broadcasts
-            SET status = 'failed',
-                error = $1,
-                sent_at = now()
-          WHERE id = $2`,
-        [message.slice(0, 500), row.id],
+      // withDbRetry: if this query also fails, the row stays in 'processing'
+      // but the stuck-reset at the start of the function will recover it on the
+      // next tick (5-minute threshold). We swallow the retry error so a DB blip
+      // here doesn't prevent the for-loop from processing the remaining rows.
+      await withDbRetry(
+        () =>
+          pool.query(
+            `UPDATE scheduled_broadcasts
+                SET status = 'failed',
+                    error = $1,
+                    sent_at = now()
+              WHERE id = $2`,
+            [message.slice(0, 500), row.id],
+          ),
+        { label: "scheduled-broadcast-mark-failed", maxAttempts: 3 },
+      ).catch((retryErr: unknown) =>
+        log.warn(
+          { retryErr, id: row.id },
+          "Scheduled broadcast mark-failed exhausted retries — stuck-reset will recover on next tick",
+        ),
       );
     }
   }
@@ -1316,14 +1458,18 @@ export async function broadcastWarriCrusadeManual(
 
   // Look back `cooldownMinutes` for any manual send (synthetic [manual] tag).
   const cooldownAgo = new Date(now - cooldownMinutes * 60_000).toISOString();
-  const recent = await pool.query<{ fired_at: string }>(
-    `SELECT fired_at::text FROM broadcast_events
-      WHERE type = 'warri_crusade_promo'
-        AND message LIKE $1
-        AND fired_at >= $2
-      ORDER BY fired_at DESC
-      LIMIT 1`,
-    [`%[manual%`, cooldownAgo],
+  const recent = await withDbRetry(
+    () =>
+      pool.query<{ fired_at: string }>(
+        `SELECT fired_at::text FROM broadcast_events
+          WHERE type = 'warri_crusade_promo'
+            AND message LIKE $1
+            AND fired_at >= $2
+          ORDER BY fired_at DESC
+          LIMIT 1`,
+        [`%[manual%`, cooldownAgo],
+      ),
+    { label: "crusade-manual-cooldown-select", maxAttempts: 3 },
   );
   if (recent.rowCount && recent.rowCount > 0) {
     return {
@@ -1334,9 +1480,13 @@ export async function broadcastWarriCrusadeManual(
   }
 
   const manualMessage = `${WARRI_CRUSADE_BODY} [manual:${new Date(now).toISOString()}:${triggeredBy}]`;
-  await pool.query(
-    `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-    ["warri_crusade_promo", WARRI_CRUSADE_TITLE, manualMessage, WARRI_CRUSADE_URL],
+  await withDbRetry(
+    () =>
+      pool.query(
+        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+        ["warri_crusade_promo", WARRI_CRUSADE_TITLE, manualMessage, WARRI_CRUSADE_URL],
+      ),
+    { label: "crusade-manual-broadcast-insert", maxAttempts: 3 },
   );
 
   log.info({ triggeredBy }, "Warri Crusade Day 2 manual broadcast — dispatching push + in-app toast");
@@ -1376,13 +1526,17 @@ export async function broadcastWarriCrusadeLiveAlert(
 
   // Cooldown guard — look for a recent [live-alert] tag in broadcast_events
   const cooldownAgo = new Date(now - cooldownMinutes * 60_000).toISOString();
-  const recent = await pool.query<{ fired_at: string }>(
-    `SELECT fired_at::text FROM broadcast_events
-      WHERE type = 'warri_crusade_promo'
-        AND message LIKE $1
-        AND fired_at >= $2
-      ORDER BY fired_at DESC LIMIT 1`,
-    [`%[live-alert%`, cooldownAgo],
+  const recent = await withDbRetry(
+    () =>
+      pool.query<{ fired_at: string }>(
+        `SELECT fired_at::text FROM broadcast_events
+          WHERE type = 'warri_crusade_promo'
+            AND message LIKE $1
+            AND fired_at >= $2
+          ORDER BY fired_at DESC LIMIT 1`,
+        [`%[live-alert%`, cooldownAgo],
+      ),
+    { label: "crusade-live-alert-cooldown-select", maxAttempts: 3 },
   );
   if (recent.rowCount && recent.rowCount > 0) {
     return {
@@ -1397,9 +1551,13 @@ export async function broadcastWarriCrusadeLiveAlert(
 
   // Persist to broadcast_events (drives in-app SSE toast on connected browsers)
   const liveMessage = `${LIVE_BODY} [live-alert:${new Date(now).toISOString()}:${triggeredBy}]`;
-  await pool.query(
-    `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-    ["warri_crusade_promo", LIVE_TITLE, liveMessage, WARRI_CRUSADE_URL],
+  await withDbRetry(
+    () =>
+      pool.query(
+        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+        ["warri_crusade_promo", LIVE_TITLE, liveMessage, WARRI_CRUSADE_URL],
+      ),
+    { label: "crusade-live-alert-insert", maxAttempts: 3 },
   );
 
   log.info({ triggeredBy }, "Warri Crusade LIVE alert — dispatching web push + Expo mobile");
@@ -1451,20 +1609,30 @@ async function checkAndBroadcastWarriCrusadeHourly(log: Logger): Promise<void> {
   const dedupMessage = `${WARRI_CRUSADE_BODY} [slot:${bucket}]`;
 
   try {
-    // Atomic insert-or-skip via UNIQUE constraint check
-    const existing = await pool.query<{ id: number }>(
-      `SELECT id FROM broadcast_events
-        WHERE type = 'warri_crusade_promo' AND title = $1 AND message = $2
-        LIMIT 1`,
-      [WARRI_CRUSADE_TITLE, dedupMessage],
+    // Atomic insert-or-skip via UNIQUE constraint check.
+    // withDbRetry: ECONNABORTED on this SELECT silently skips the entire hourly
+    // broadcast. Retrying on transient errors keeps the push pipeline reliable.
+    const existing = await withDbRetry(
+      () =>
+        pool.query<{ id: number }>(
+          `SELECT id FROM broadcast_events
+            WHERE type = 'warri_crusade_promo' AND title = $1 AND message = $2
+            LIMIT 1`,
+          [WARRI_CRUSADE_TITLE, dedupMessage],
+        ),
+      { label: "crusade-hourly-dedup-select", maxAttempts: 3 },
     );
     if (existing.rowCount && existing.rowCount > 0) return;
 
     // Acquire the lock row first; if a parallel process beat us, the next
     // tick will short-circuit on the SELECT above.
-    await pool.query(
-      `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-      ["warri_crusade_promo", WARRI_CRUSADE_TITLE, dedupMessage, WARRI_CRUSADE_URL],
+    await withDbRetry(
+      () =>
+        pool.query(
+          `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+          ["warri_crusade_promo", WARRI_CRUSADE_TITLE, dedupMessage, WARRI_CRUSADE_URL],
+        ),
+      { label: "crusade-hourly-dedup-insert", maxAttempts: 3 },
     );
 
     log.info(
@@ -1599,28 +1767,32 @@ async function checkAndBroadcastCampaignPromotions(log: Logger): Promise<void> {
 
   let rows: CampaignPromotionRow[];
   try {
-    const result = await pool.query<{
-      id: number;
-      slug: string;
-      title: string;
-      subtitle: string | null;
-      artwork_url: string | null;
-      cta_url: string;
-      end_at: Date;
-      broadcast_enabled: boolean;
-      broadcast_cadence: string;
-      broadcast_interval_minutes: number | null;
-      broadcast_messages: string[] | null;
-      broadcast_title_override: string | null;
-      broadcast_image_url: string | null;
-    }>(
-      `SELECT id, slug, title, subtitle, artwork_url, cta_url, end_at,
-              broadcast_enabled, broadcast_cadence, broadcast_interval_minutes,
-              broadcast_messages, broadcast_title_override, broadcast_image_url
-         FROM event_promotions
-        WHERE status = 'active'
-          AND broadcast_enabled = true
-          AND end_at > now()`,
+    const result = await withDbRetry(
+      () =>
+        pool.query<{
+          id: number;
+          slug: string;
+          title: string;
+          subtitle: string | null;
+          artwork_url: string | null;
+          cta_url: string;
+          end_at: Date;
+          broadcast_enabled: boolean;
+          broadcast_cadence: string;
+          broadcast_interval_minutes: number | null;
+          broadcast_messages: string[] | null;
+          broadcast_title_override: string | null;
+          broadcast_image_url: string | null;
+        }>(
+          `SELECT id, slug, title, subtitle, artwork_url, cta_url, end_at,
+                  broadcast_enabled, broadcast_cadence, broadcast_interval_minutes,
+                  broadcast_messages, broadcast_title_override, broadcast_image_url
+             FROM event_promotions
+            WHERE status = 'active'
+              AND broadcast_enabled = true
+              AND end_at > now()`,
+        ),
+      { label: "campaign-promo-select", maxAttempts: 3 },
     );
     rows = result.rows.map(r => ({
       id: r.id,
@@ -1661,11 +1833,15 @@ async function checkAndBroadcastCampaignPromotions(log: Logger): Promise<void> {
     const dedupMessage = `${body} [slot:${bucket}:promo${row.id}]`;
 
     try {
-      const existing = await pool.query<{ id: number }>(
-        `SELECT id FROM broadcast_events
-          WHERE type = 'campaign_promo' AND title = $1 AND message = $2
-          LIMIT 1`,
-        [effectiveTitle, dedupMessage],
+      const existing = await withDbRetry(
+        () =>
+          pool.query<{ id: number }>(
+            `SELECT id FROM broadcast_events
+              WHERE type = 'campaign_promo' AND title = $1 AND message = $2
+              LIMIT 1`,
+            [effectiveTitle, dedupMessage],
+          ),
+        { label: "campaign-promo-dedup-select", maxAttempts: 3 },
       );
       if (existing.rowCount && existing.rowCount > 0) continue;
 
@@ -1673,9 +1849,13 @@ async function checkAndBroadcastCampaignPromotions(log: Logger): Promise<void> {
       // SELECT above. The unique-by-(type,title,message) idempotency check
       // is the same pattern used by the Warri Crusade and event reminder
       // broadcasters, so behaviour is consistent across the codebase.
-      await pool.query(
-        `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
-        ["campaign_promo", effectiveTitle, dedupMessage, row.ctaUrl],
+      await withDbRetry(
+        () =>
+          pool.query(
+            `INSERT INTO broadcast_events (type, title, message, url) VALUES ($1, $2, $3, $4)`,
+            ["campaign_promo", effectiveTitle, dedupMessage, row.ctaUrl],
+          ),
+        { label: "campaign-promo-dedup-insert", maxAttempts: 3 },
       );
 
       const imageUrl = row.broadcastImageUrl ?? row.artworkUrl ?? undefined;
