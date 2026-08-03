@@ -16,14 +16,15 @@ import { subscribeToWebSub } from "./lib/youtube-sync.js";
 import { ingestKnowledgeIfEmpty } from "./lib/knowledge-ingestion.js";
 import { startAISyncScheduler, stopAISyncScheduler } from "./lib/ai-sync-scheduler.js";
 import { startPreprocessScheduler, stopPreprocessScheduler } from "./lib/media-preprocess.js";
-import { recoverOrphanedJobs, cleanupOrphanedTempFiles } from "./lib/media-processor.js";
+import { recoverOrphanedJobs, cleanupOrphanedTempFiles, stopMediaCleanupInterval } from "./lib/media-processor.js";
 import { initSentry } from "./lib/sentry.js";
 import { initVapidKeys, cleanupStalePushSubscriptions } from "./lib/push-manager.js";
 import { isRoleConfigured, type AdminRole } from "./lib/adminAuth.js";
 import { seedMinistryBlogLibrary } from "./lib/ministry-blog-seed.js";
 import { seedBibleDatabase } from "./lib/bible-seed.js";
 import { runMigrations } from "./lib/migrations.js";
-import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
+import { startNeonQuotaMonitor, stopNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
+import { startKeepalive, stopKeepalive } from "./lib/keepalive.js";
 import { bootstrapSubscribers } from "./lib/subscriber-manager.js";
 import { pool } from "@workspace/db";
 import { initHealthCache, stopHealthCache, setReadyState } from "./routes/health.js";
@@ -118,6 +119,12 @@ const server = app.listen(port, async (err) => {
   // Until this point, healthHandler returns status:"starting" (HTTP 200) so
   // Render accepts the instance during the migration window without restarting.
   setReadyState(true);
+
+  // ── Keepalive — dual local+public ping every 90 s ─────────────────────────
+  // Keeps the Node.js event loop, V8 JIT caches, and DB pool warm between
+  // real requests. The public ping also registers as real proxy-layer traffic
+  // so Replit/Render don't mark the instance idle and suspend it.
+  startKeepalive(logger);
 
   // ── Start Neon DB quota health watcher immediately after migrations ────────
   // This installs the pool.on('error') listener as early as possible so any
@@ -233,6 +240,9 @@ function shutdown(signal: string) {
   logger.info({ signal }, "Graceful shutdown initiated");
   stopHealthCache();
   stopHeartbeat();
+  stopKeepalive();
+  stopNeonQuotaMonitor();
+  stopMediaCleanupInterval();
   stopCron();
   stopAISyncScheduler();
   stopPreprocessScheduler();

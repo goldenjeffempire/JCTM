@@ -125,6 +125,8 @@ async function probeOnce(): Promise<void> {
 }
 
 let intervalHandle: NodeJS.Timeout | null = null;
+/** Tracked so stopNeonQuotaMonitor can cancel it if shutdown races the delay. */
+let initialProbeTimerRef: ReturnType<typeof setTimeout> | null = null;
 
 export function startNeonQuotaMonitor(
   log: Logger,
@@ -151,8 +153,10 @@ export function startNeonQuotaMonitor(
     // pool's own catch-all handler in lib/db/src/index.ts — no action needed.
   });
 
-  // Initial probe shortly after startup
-  setTimeout(probeOnce, 2_000);
+  // Initial probe shortly after startup — tracked so stopNeonQuotaMonitor can
+  // cancel it if the process receives SIGTERM before the 2-second delay fires.
+  initialProbeTimerRef = setTimeout(probeOnce, 2_000);
+  if (initialProbeTimerRef.unref) initialProbeTimerRef.unref();
 
   intervalHandle = setInterval(probeOnce, intervalMs);
   if (intervalHandle.unref) intervalHandle.unref();
@@ -164,6 +168,10 @@ export function startNeonQuotaMonitor(
 }
 
 export function stopNeonQuotaMonitor(): void {
+  if (initialProbeTimerRef) {
+    clearTimeout(initialProbeTimerRef);
+    initialProbeTimerRef = null;
+  }
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;

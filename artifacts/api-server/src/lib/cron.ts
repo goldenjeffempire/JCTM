@@ -2519,4 +2519,5 @@ export function stopCron(): void {
   dailyDevotionHandle = null;
   eventNotificationHandle = null;
   eventNotificationStartupTimer = null;
+  aiKnowledgeRefreshHandle = null;
 }

@@ -503,6 +503,12 @@ async function fetchYtMeta(videoId: string): Promise<YtMeta | null> {
     proc.stdout.on("data", (d: Buffer) => {
       if (stdout.length < MAX_META_STDOUT) stdout += d.toString();
     });
+    // Drain stderr — without a consumer the OS pipe buffer (~64 KB) fills up when
+    // yt-dlp writes error output, causing the subprocess to block on its next
+    // write() call.  This turns every metadata failure into a 30-second stall
+    // (waiting for META_KILL_MS) instead of an immediate exit.  Resuming discards
+    // the data safely; we only need stdout for the JSON output.
+    proc.stderr.resume();
     proc.on("close", (code) => {
       clearTimeout(kill);
       if (code !== 0) { resolve(null); return; }
@@ -1287,8 +1293,13 @@ export function getQueueStats(): {
 }
 
 // ─── Periodic cleanup (every 4 hours) ────────────────────────────────────────
+// Root cause of shutdown hang: an anonymous module-level setInterval fires
+// the moment this module is imported and keeps the event loop alive indefinitely
+// because it was never unref()'d and never tracked for cleanup.  Fix: assign it
+// to a tracked variable, unref() it immediately, and export a stop function so
+// the graceful-shutdown handler in index.ts can cancel it explicitly.
 
-setInterval(async () => {
+let cleanupIntervalHandle: ReturnType<typeof setInterval> | null = setInterval(async () => {
   try {
     const { rows } = await pool.query<{ output_path: string }>(
       `DELETE FROM media_download_jobs WHERE expires_at < now() RETURNING output_path`,
@@ -1313,3 +1324,12 @@ setInterval(async () => {
     logger.warn({ err }, "Media cleanup failed");
   }
 }, 4 * 60 * 60 * 1000);
+// .unref() — don't prevent graceful shutdown during the 4-hour idle window
+if (cleanupIntervalHandle) cleanupIntervalHandle.unref();
+
+export function stopMediaCleanupInterval(): void {
+  if (cleanupIntervalHandle) {
+    clearInterval(cleanupIntervalHandle);
+    cleanupIntervalHandle = null;
+  }
+}

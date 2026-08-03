@@ -106,6 +106,14 @@ class SSEBroadcaster {
         this.clients.delete(id);
       }
     }, 25000);
+    // .unref() — each SSE client creates its own 25-second interval.  Without
+    // unref(), any connected client prevents graceful shutdown from completing
+    // because the event loop stays alive waiting for the next ping tick.  The
+    // cleanup() handler registered on 'close'/'finish'/'error' already clears
+    // the interval when the client disconnects normally; unref() is the safety
+    // net for the shutdown race where clients are still connected when the
+    // server receives SIGTERM.
+    pingInterval.unref();
 
     this.clients.set(id, { id, res });
 
