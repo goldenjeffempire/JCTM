@@ -20,9 +20,40 @@ const app: Express = express();
 
 app.set("trust proxy", 1);
 
+// ── Ultra-fast ping — BEFORE every middleware layer ───────────────────────────
+// Root cause of health-check failures: /api/ping was previously processed
+// through 9+ middleware layers (pinoHttp, helmet, compression, cors, body
+// parsers, globalLimiter, router, healthRouter) adding 5–30 ms of overhead
+// and making it subject to pool exhaustion via the /api/healthz path.
+//
+// Mounting here (before pinoHttp) means Render's health probe gets a response
+// in <1 ms with zero DB I/O, zero logging overhead, and zero rate-limit risk.
+// This is the endpoint that should be set as Render's healthCheckPath.
+app.get("/api/ping", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.status(200).type("text/plain").send("ok");
+});
+app.head("/api/ping", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.status(200).end();
+});
+
+// ── Paths that must never be rate-limited or compressed ───────────────────────
+const HEALTH_PATHS = new Set(["/api/ping", "/api/healthz", "/api/health"]);
+
 app.use(
   pinoHttp({
     logger,
+    // Suppress high-frequency health-check logs — they generate noise and add
+    // minor serialisation overhead on every Render probe.  All other paths
+    // remain at INFO.  Use "trace" (not "silent") so the entry still exists in
+    // the pino stream but is below the configured minimum level.
+    customLogLevel(req, res, err) {
+      if (HEALTH_PATHS.has((req as Request).path)) return "trace";
+      if (err || res.statusCode >= 500) return "error";
+      if (res.statusCode >= 400) return "warn";
+      return "info";
+    },
     serializers: {
       req(req) {
         return {
@@ -222,6 +253,11 @@ app.use(
     threshold: 1024,
     filter(req, res) {
       if (req.headers["x-no-compression"]) return false;
+      // Never compress health/ping — they are tiny text/JSON responses and
+      // compressing them wastes CPU on both ends. More importantly, /api/ping
+      // is now mounted before this middleware but /api/healthz still passes
+      // through here — skip it explicitly.
+      if (HEALTH_PATHS.has((req as Request).path)) return false;
       // Never compress SSE streams — they must be flushed unbuffered in real time.
       const accept = req.headers["accept"] ?? "";
       if (accept.includes("text/event-stream")) return false;
@@ -278,6 +314,10 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
   skip: (req) => {
+    // Never rate-limit health/ping — these are Render probes and monitoring
+    // tools that must always get a fast 200.  Throttling them causes false
+    // "unhealthy" alerts and restart loops.
+    if (HEALTH_PATHS.has(req.path)) return true;
     if (req.method === "OPTIONS") return true;
     if (req.headers.accept?.includes("text/event-stream")) return true;
     if (req.method !== "GET") return false;

@@ -26,6 +26,7 @@ import { runMigrations } from "./lib/migrations.js";
 import { startNeonQuotaMonitor } from "./lib/neon-quota-monitor.js";
 import { bootstrapSubscribers } from "./lib/subscriber-manager.js";
 import { pool } from "@workspace/db";
+import { initHealthCache, stopHealthCache, setReadyState } from "./routes/health.js";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -93,6 +94,14 @@ const server = app.listen(port, async (err) => {
 
   logger.info({ port }, "Server listening");
 
+  // ── Background health probe — start immediately so first Render probe ─────
+  // hits a warm cache rather than waiting for the first 30-second tick.
+  // initHealthCache() fires a probe right away (non-blocking) and then every
+  // 30 s after that, with 2-second timeouts per query.  The health handler
+  // reads only from the cache so it always responds in <5 ms regardless of
+  // DB load.  setReadyState(true) is called below once migrations complete.
+  initHealthCache();
+
   // ── Sentry error tracking ─────────────────────────────────────────────────
   await initSentry();
 
@@ -104,6 +113,11 @@ const server = app.listen(port, async (err) => {
   } catch (err) {
     logger.error({ err }, "Startup migration failed — continuing anyway");
   }
+
+  // ── Signal readiness — health handler returns "ok" from this point ────────
+  // Until this point, healthHandler returns status:"starting" (HTTP 200) so
+  // Render accepts the instance during the migration window without restarting.
+  setReadyState(true);
 
   // ── Start Neon DB quota health watcher immediately after migrations ────────
   // This installs the pool.on('error') listener as early as possible so any
@@ -217,6 +231,7 @@ function shutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   logger.info({ signal }, "Graceful shutdown initiated");
+  stopHealthCache();
   stopHeartbeat();
   stopCron();
   stopAISyncScheduler();

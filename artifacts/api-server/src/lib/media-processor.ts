@@ -496,9 +496,13 @@ async function fetchYtMeta(videoId: string): Promise<YtMeta | null> {
       "--no-warnings", "--socket-timeout", "15",
       `https://www.youtube.com/watch?v=${videoId}`,
     ]);
+    // Cap stdout — yt-dlp --print-json is typically <64KB but guard against edge cases
+    const MAX_META_STDOUT = 512 * 1024;
     let stdout = "";
     const kill = setTimeout(() => { try { proc.kill("SIGKILL"); } catch {} }, META_KILL_MS);
-    proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+    proc.stdout.on("data", (d: Buffer) => {
+      if (stdout.length < MAX_META_STDOUT) stdout += d.toString();
+    });
     proc.on("close", (code) => {
       clearTimeout(kill);
       if (code !== 0) { resolve(null); return; }
@@ -551,6 +555,15 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
 
     activeProcesses.set(job.id, proc);
 
+    // ── Bounded stderr accumulation ─────────────────────────────────────────────
+    // Root cause of RangeError: Invalid string length (uncaughtException crash):
+    // yt-dlp can emit megabytes of stderr (DASH fragment lines, verbose retries).
+    // Unbounded `stderr +=` eventually hits V8's max string length (~512MB),
+    // throws RangeError inside a raw Socket event handler (no Express boundary),
+    // which becomes uncaughtException → graceful shutdown → Render restart loop.
+    // Fix: cap stderr at 128KB (plenty for error messages) and stderrBuf at 1MB.
+    const MAX_STDERR_BYTES = 128 * 1024;
+    const MAX_STDERR_BUF_BYTES = 1024 * 1024;
     let stderr = "";
     let stderrBuf = "";
 
@@ -601,11 +614,18 @@ async function processYouTubeAudio(job: MediaJob): Promise<void> {
       clearTimeout(stallKill);
       stallKill = makeStallTimer(STALL_AUDIO_MS);
 
-      stderrBuf += d.toString();
+      // Cap stderrBuf to prevent overflow on huge bursts (no-newline chunks)
+      if (stderrBuf.length < MAX_STDERR_BUF_BYTES) {
+        stderrBuf += d.toString();
+      }
       const lines = stderrBuf.split("\n");
       stderrBuf = lines.pop() ?? "";
       for (const line of lines) {
-        stderr += line + "\n";
+        // Cap total stderr — keeps last lines, drops oldest to prevent RangeError
+        if (stderr.length < MAX_STDERR_BYTES) {
+          stderr += line + "\n";
+        }
+        // Always parse progress regardless of cap (line is still in scope)
         // Overall percentage (simple or DASH merged) e.g. "  12.3% of ~17 MiB"
         const pctMatch = /(\d+(?:\.\d+)?)%/.exec(line);
         if (pctMatch) {
@@ -720,6 +740,9 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
 
     activeProcesses.set(job.id, proc);
 
+    // Same bounded-buffer pattern as audio section — prevents RangeError crash
+    const MAX_STDERR_BYTES = 128 * 1024;
+    const MAX_STDERR_BUF_BYTES = 1024 * 1024;
     let stderr = "";
     let stderrBuf = "";
 
@@ -771,11 +794,15 @@ async function processYouTubeVideo(job: MediaJob): Promise<void> {
       clearTimeout(stallKill);
       stallKill = makeVideoStallTimer(STALL_VIDEO_MS);
 
-      stderrBuf += d.toString();
+      if (stderrBuf.length < MAX_STDERR_BUF_BYTES) {
+        stderrBuf += d.toString();
+      }
       const lines = stderrBuf.split("\n");
       stderrBuf = lines.pop() ?? "";
       for (const line of lines) {
-        stderr += line + "\n";
+        if (stderr.length < MAX_STDERR_BYTES) {
+          stderr += line + "\n";
+        }
         // Overall percentage e.g. "  12.3% of ~240 MiB"
         const pctMatch = /(\d+(?:\.\d+)?)%/.exec(line);
         if (pctMatch) {

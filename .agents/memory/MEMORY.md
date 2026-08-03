@@ -1,4 +1,5 @@
 - [ECONNABORTED permanent fix](econnaborted-fix.md) — pool keepAlive+idleTimeout+max+error-listener; withDbRetry for background tasks; staggered startup; do NOT remove pool config.
+- [Render health crash root causes](render-health-crash-fix.md) — yt-dlp stderr overflow crashes server; health check must use background cache not live queries; /api/ping before all middleware.
 - [Translation architecture](translation-architecture.md) — three-tier i18n: t() static (17 langs), T component async AI, usePageStrings batch; terms JCTM/Temple TV/TempleBots/Prophet Amos never translated.
 - [yt-dlp production setup](ytdlp-production-setup.md) — standalone v2026.06.09 at workspace/bin/yt-dlp; resolver checks workspace binary first; default android_vr client (no --extractor-args).
 - [Embedding migration guard](embedding-migration-guard.md) — pgvector atttypmod stores (dim+4); use atttypmod directly (not -4) when comparing stored vs expected dimension.
