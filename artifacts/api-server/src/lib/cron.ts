@@ -1063,9 +1063,10 @@ function checkAndSendMediaDigest(log: Logger): void {
 function checkAndSendEventReminders(log: Logger): void {
   const now = Date.now();
 
-  db.select()
-    .from(eventPromotionsTable)
-    .where(eq(eventPromotionsTable.status, "active"))
+  withDbRetry(
+    () => db.select().from(eventPromotionsTable).where(eq(eventPromotionsTable.status, "active")),
+    { label: "event-reminder-scan-select", maxAttempts: 3 },
+  )
     .then(async (rows) => {
       for (const row of rows) {
         const startMs = row.startAt.getTime();
@@ -1129,15 +1130,19 @@ function checkEventPromotionTransitions(log: Logger): void {
   const now = Date.now();
   const tolStart = new Date(now - EVENT_LIVE_FIRE_TOLERANCE_MS);
 
-  db.select()
-    .from(eventPromotionsTable)
-    .where(
-      and(
-        eq(eventPromotionsTable.status, "active"),
-        isNull(eventPromotionsTable.pushSentAt),
-        // start_at crossed within the tolerance window AND end is still in the future
-      ),
-    )
+  withDbRetry(
+    () =>
+      db.select()
+        .from(eventPromotionsTable)
+        .where(
+          and(
+            eq(eventPromotionsTable.status, "active"),
+            isNull(eventPromotionsTable.pushSentAt),
+            // start_at crossed within the tolerance window AND end is still in the future
+          ),
+        ),
+    { label: "event-promo-transition-select", maxAttempts: 3 },
+  )
     .then(async (rows) => {
       const ready = rows.filter(r =>
         r.startAt.getTime() <= now &&
@@ -1181,9 +1186,10 @@ function checkEventPromotionTransitions(log: Logger): void {
   // check: we only fire if start_at is between now+28min and now+32min.
   // Idempotency comes from the broadcast_events table (we check for an existing
   // row with the same title in the last 10 minutes).
-  db.select()
-    .from(eventPromotionsTable)
-    .where(eq(eventPromotionsTable.status, "active"))
+  withDbRetry(
+    () => db.select().from(eventPromotionsTable).where(eq(eventPromotionsTable.status, "active")),
+    { label: "event-soon-scan-select", maxAttempts: 3 },
+  )
     .then(async (rows) => {
       const upcoming = rows.filter(r => {
         const ms = r.startAt.getTime() - now;
