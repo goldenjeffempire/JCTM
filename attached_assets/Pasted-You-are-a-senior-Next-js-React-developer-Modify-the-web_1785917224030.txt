@@ -1,0 +1,56 @@
+You are a senior Next.js/React developer. Modify the website's AdSense implementation to comply with the following requirements.
+
+Objective
+
+Display Google AdSense ads only on pages that do not contain embedded YouTube videos, while ensuring ads are displayed on the homepage.
+
+Requirements
+Homepage
+Always display AdSense ads on the homepage (/).
+Maintain the existing ad placements unless they cause layout issues.
+Ensure ads load only after the AdSense script is initialized.
+Pages with YouTube Videos
+Detect pages containing embedded YouTube videos (iframe pointing to youtube.com or youtu.be, or any YouTube player component).
+Do not render any AdSense ad units on these pages.
+Prevent AdSense requests from being made on these pages to avoid unnecessary ad initialization.
+Pages without YouTube Videos
+Continue displaying AdSense ads normally.
+Preserve responsive ad behavior.
+Keep existing lazy loading and performance optimizations.
+Implementation
+Centralize the logic in a reusable utility, hook, or context instead of duplicating conditions across pages.
+
+Example:
+
+const shouldShowAds = isHomePage || !pageContainsYouTube;
+If using the App Router, use the current pathname and page metadata where appropriate.
+If using the Pages Router, use router.pathname.
+Performance
+Do not load or initialize AdSense on pages where ads are disabled.
+Avoid hydration mismatches.
+Ensure no console errors occur when ads are skipped.
+Maintain Existing Features
+Do not modify unrelated functionality.
+Keep analytics, SEO, and page layout unchanged.
+Preserve dark mode, responsive behavior, and existing components.
+Code Quality
+Remove duplicated ad logic.
+Create a reusable <AdWrapper /> or similar component that internally decides whether to render ads.
+Add clear comments explaining the conditional rendering logic.
+Expected Result
+Page Type	Show Ads
+Homepage	✅ Yes
+Sermon page with embedded YouTube video	❌ No
+Blog article	✅ Yes
+About page	✅ Yes
+Contact page	✅ Yes
+Resources page without video	✅ Yes
+Livestream page with YouTube embed	❌ No
+
+After implementing, verify that:
+
+Ads appear correctly on the homepage.
+Ads are completely absent from pages containing embedded YouTube videos.
+The AdSense script is not initialized on pages where ads are disabled.
+No layout shifts or React hydration warnings are introduced.
+The implementation follows Google AdSense best practices and avoids accidental duplicate ad requests.

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLocation } from "wouter";
 import { useCookieConsent } from "./CookieConsent";
 
 declare global {
@@ -62,6 +63,41 @@ export const ADSENSE_SLOTS = {
 
 function isValidSlot(slot: string | undefined): slot is string {
   return Boolean(slot && /^\d+$/.test(slot.trim()));
+}
+
+// ─── YouTube-page detection ────────────────────────────────────────────────────
+// Ads are suppressed on any page that embeds a YouTube player to avoid
+// competing monetization (YouTube pre-rolls + AdSense on the same page) and
+// to stay within Google AdSense placement policy.
+// Homepage (/) is always allowed — it embeds YouTube only as a facade/thumbnail,
+// and Google's own policy requires consistent homepage ad placement.
+const YOUTUBE_EMBED_PATHS: RegExp[] = [
+  /^\/sermons(\/|$)/,       // /sermons (list + livestream) and /sermons/:id (detail)
+  /^\/livestream(\/|$)/,    // /livestream alias → Sermons component
+  /^\/live(\/|$)/,          // /live alias → Sermons component
+  /^\/intro-videos(\/|$)/,  // /intro-videos — full YouTube player per card
+  /^\/events(\/|$)/,        // /events — embedded YouTube replays
+  /^\/crusade(\/|$)/,       // /crusade — embedded YouTube session recordings
+  /^\/warri-crusade(\/|$)/, // /warri-crusade alias → Crusade component
+  /^\/moments(\/|$)/,       // /moments — full-screen YouTube player
+];
+
+/**
+ * Returns true when AdSense ad slots should be rendered on the current page.
+ *
+ * Logic:
+ *   • Homepage (/) → always true (Google policy requires consistent placement)
+ *   • Pages with embedded YouTube players → false (competing monetization)
+ *   • All other pages → true
+ *
+ * Must be called inside the WouterRouter context (i.e. inside any page component).
+ */
+export function useAdsEnabled(): boolean {
+  const [location] = useLocation();
+  // Homepage always shows ads regardless of any YouTube facade thumbnails present
+  if (location === "/" || location === "") return true;
+  // Suppress ads on pages that embed a live YouTube player
+  return !YOUTUBE_EMBED_PATHS.some((pattern) => pattern.test(location));
 }
 
 // ─── Explicit height presets (CLS prevention) ────────────────────────────────
@@ -182,13 +218,18 @@ export function AdSlot({
   const [shouldLoad, setShouldLoad] = useState(!lazy);
   const [adKey, setAdKey]           = useState(0);
   const consent = useCookieConsent();
+  // Gate: suppress this slot if the current page embeds a YouTube player.
+  // useAdsEnabled() is always called unconditionally (Rules of Hooks) — the
+  // result feeds into canRender so no effects or pushes fire when disabled.
+  const adsEnabled = useAdsEnabled();
 
   // Explicit container height — prevents CLS (Core Web Vitals / AdSense policy)
   const reservedHeight = minHeight ?? FORMAT_MIN_HEIGHTS[format] ?? 90;
 
   const advertisingExplicitlyDenied = consent !== null && consent.advertising === false;
   const slotValid  = isValidSlot(slot);
-  const canRender  = ADSENSE_ENABLED && slotValid && !advertisingExplicitlyDenied;
+  // adsEnabled: false on YouTube-embed pages — prevents ad requests and renders
+  const canRender  = ADSENSE_ENABLED && slotValid && !advertisingExplicitlyDenied && adsEnabled;
 
   useEffect(() => {
     if (!advertisingExplicitlyDenied) {
@@ -243,6 +284,8 @@ export function AdSlot({
 
   if (!ADSENSE_ENABLED || !slotValid) return null;
   if (advertisingExplicitlyDenied) return null;
+  // Return null on YouTube-embed pages — no <ins> element rendered, no ad push fired
+  if (!adsEnabled) return null;
 
   const insProps: Record<string, string | boolean> = {
     "data-ad-client":             ADSENSE_CLIENT_ID,
@@ -293,3 +336,12 @@ export function AdSlot({
 }
 
 export { ADSENSE_ENABLED as AUTO_ADS_ACTIVE };
+
+// ─── AdWrapper ────────────────────────────────────────────────────────────────
+// Drop-in replacement for AdSlot. Use AdWrapper as the public API for placing
+// ads — it delegates to AdSlot (which already enforces useAdsEnabled internally)
+// and is provided as a named export so callers can signal intent clearly.
+// Both AdWrapper and AdSlot are safe to use; AdWrapper is preferred in new code.
+export function AdWrapper(props: AdSlotProps) {
+  return <AdSlot {...props} />;
+}
