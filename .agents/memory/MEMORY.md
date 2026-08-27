@@ -9,3 +9,4 @@
 - [pnpm firewall overrides](pnpm-firewall-overrides.md) — protobufjs@6 and shell-quote@1.8.x blocked by Replit firewall; overrides in pnpm-workspace.yaml; mobile app excluded from workspace packages.
 - [Bulk UPSERT pattern](bulk-upsert-pattern.md) — use sql.join(fragments, sql`, `) from drizzle-orm to batch N rows into one round-trip; avoid per-row loop with await db.execute inside it.
 - [Admin token secret guard](admin-token-secret.md) — ADMIN_TOKEN_SECRET / SESSION_SECRET must be set in production; getTokenSecret() now logs a console.error once if both are missing and the fallback is active.
+- [GitHub publishing blocker](github-publishing-blocker.md) — an added GitHub connection may still be blocked upstream; confirm the remote changed before assuming Render can deploy it.
