@@ -289,7 +289,7 @@ app.use(
       const isConfiguredOrigin = ALLOWED_ORIGINS.has(origin);
       const isReplitOrigin = /\.replit\.(dev|app)$/.test(origin);
       const isRenderOrigin = /\.onrender\.com$/.test(origin);
-      const isLocalhostOrigin = /^https?:\/\/localhost(:\d+)?$/.test(origin);
+      const isLocalhostOrigin = /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(origin);
       if (
         isConfiguredOrigin ||
         !isProduction ||
