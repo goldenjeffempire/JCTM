@@ -99,7 +99,7 @@ services:
     ###################################################################
     # HEALTH CHECK
     ###################################################################
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ping
 
   #####################################################################
   # KEEP-ALIVE CRON — pings the platform every 10 minutes so the free
