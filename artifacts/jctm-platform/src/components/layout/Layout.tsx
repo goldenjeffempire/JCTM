@@ -4,7 +4,6 @@ import { BackToTop } from "./BackToTop";
 import { TempleBots } from "../TempleBots";
 import { BroadcastStatusIndicator } from "../BroadcastStatusIndicator";
 import { LiveBanner } from "../LiveBanner";
-import { LanguageSuggestionBanner } from "../LanguageSuggestionBanner";
 import { EventStickyBar } from "../event-promo/EventStickyBar";
 import { EventBanner } from "../event-promo/EventBanner";
 import { EventLiveToast } from "../event-promo/EventLiveToast";
@@ -48,7 +47,6 @@ export function Layout({ children }: LayoutProps) {
 
       <Footer />
       <TempleBots />
-      <LanguageSuggestionBanner />
       <BackToTop />
       <BroadcastStatusIndicator />
       <EventLiveToast />
