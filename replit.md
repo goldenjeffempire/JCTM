@@ -9,11 +9,14 @@ A full-stack ministry platform for Jesus Christ Temple Ministry (Warri, Nigeria)
 | `pnpm install` | Install all workspace dependencies |
 | `pnpm --filter @workspace/jctm-platform run build` | Build React frontend |
 | `pnpm --filter @workspace/api-server run build` | Build Express API |
+| `pnpm --filter @workspace/api-server run dev` | Start the development API on port 8080 |
+| `pnpm --filter @workspace/jctm-platform run dev` | Start the development web app on port 5000 |
+| `pnpm --filter @workspace/jctm-mobile run dev` | Start the Expo mobile preview |
 | `NODE_ENV=production PORT=5000 node artifacts/api-server/dist/index.mjs` | Start production server |
 
-**Required env vars:** `DATABASE_URL` (Replit PostgreSQL — auto-provisioned), `OPENAI_API_KEY`, `YOUTUBE_API_KEY`, `PAYSTACK_SECRET_KEY`, `STRIPE_SECRET_KEY`
+**Required env vars:** `DATABASE_URL` (Replit PostgreSQL — auto-provisioned), `OPENAI_API_KEY`
 
-**Optional:** `SMTP_*` (email), `VAPID_*` (push notifications), `SENTRY_DSN`, `GCS_*` (Google Cloud Storage)
+**Optional:** `YOUTUBE_API_KEY` (sermon sync), `PAYSTACK_SECRET_KEY` and `STRIPE_SECRET_KEY` (donations), `SMTP_*` (email), `VAPID_*` (push notifications), `SENTRY_DSN`, `GCS_*` (Google Cloud Storage)
 
 ## Stack
 

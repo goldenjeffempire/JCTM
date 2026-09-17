@@ -1,0 +1,106 @@
+Perform a **complete deep-dive audit and production-readiness overhaul of the entire website**, from start to finish.
+
+Do not only identify problems—**find, fix, test, and verify every issue** across the frontend, backend, database, APIs, authentication, routing, forms, integrations, assets, performance, security, SEO, deployment configuration, and overall user experience.
+
+### Critical Priority: Deployment Stability
+
+The website is currently experiencing **deployment failures and automatic restarts**, which is preventing the website from remaining reliably online and is negatively affecting its **Google AdSense approval**.
+
+Investigate the deployment failure at the root cause and fix it completely.
+
+* Inspect all deployment/build/runtime logs.
+* Identify the exact reason the deployment fails or restarts.
+* Fix crashes, uncaught exceptions, dependency conflicts, configuration errors, port issues, memory/resource problems, startup failures, and environment-variable issues.
+* Ensure the application starts correctly and consistently in the production environment.
+* Verify the correct production start command and build process.
+* Ensure the application binds to the required production port/host.
+* Remove unnecessary processes or configurations that can cause restart loops.
+* Verify all required environment variables and secrets are correctly configured.
+* Ensure the database and external services do not prevent the application from starting.
+* Make the deployment resilient and stable rather than applying temporary workarounds.
+
+### Full Website Audit
+
+Systematically inspect **every page, route, component, feature, API endpoint, and user flow**.
+
+Fix:
+
+* Broken pages and links
+* JavaScript/TypeScript errors
+* Backend/API errors
+* Database issues
+* Authentication and authorization problems
+* Forms and validation
+* Mobile responsiveness
+* Navigation and routing
+* Missing or broken assets
+* Images and media
+* Loading/error/empty states
+* Performance bottlenecks
+* Accessibility issues
+* Security vulnerabilities
+* SEO issues
+* Metadata and structured data
+* 404/500 errors
+* Console errors
+* Dependency/package problems
+* Configuration inconsistencies
+* Any unfinished, placeholder, or non-functional features
+
+### Google AdSense Readiness
+
+Since deployment instability is preventing the website from being reliably accessible for AdSense review, ensure the site is **consistently live and accessible in production**.
+
+Also audit the website for common AdSense/website-quality requirements:
+
+* Every important page must load correctly.
+* No critical broken links or server errors.
+* Clear navigation and site structure.
+* High-quality, accessible content.
+* Proper About, Contact, Privacy Policy, and other necessary legal/information pages.
+* Correct SEO metadata.
+* Proper `robots.txt` and sitemap configuration.
+* Correct canonical URLs where applicable.
+* Proper `ads.txt` configuration if already required.
+* No accidental blocking of search-engine crawlers.
+* No major console/runtime errors.
+* No pages that depend on development-only functionality.
+* Ensure the website works correctly on desktop and mobile.
+
+**Do not claim AdSense approval is guaranteed.** The goal is to make the website technically stable, accessible, professional, crawlable, and ready for review.
+
+### Testing & Verification
+
+After making the fixes:
+
+1. Build the project successfully.
+2. Run all available tests.
+3. Test the production build locally where possible.
+4. Verify every major route/page.
+5. Test critical user flows end-to-end.
+6. Check browser console and server logs for remaining errors.
+7. Test API/database connectivity.
+8. Verify mobile and desktop responsiveness.
+9. Deploy the application.
+10. Confirm the deployed application remains online without crashing or restarting.
+11. Monitor the deployment after launch and investigate any recurring errors.
+12. Re-test all fixes after deployment.
+
+### Final Requirement
+
+Do not stop after finding the first issue. **Continue auditing the entire codebase until all critical and high-priority issues are resolved.**
+
+Prioritize **root-cause fixes over temporary patches**.
+
+At the end, provide a concise report containing:
+
+* Issues discovered
+* Issues fixed
+* Remaining issues, if any
+* Root cause of the deployment/restart problem
+* Deployment status
+* Production URL/status
+* AdSense-readiness improvements made
+* Tests performed and their results
+
+The final result must be a **stable, fully functional, production-ready website that can remain deployed reliably without deployment failure or restart loops.**
