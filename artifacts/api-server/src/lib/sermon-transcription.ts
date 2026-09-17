@@ -13,6 +13,7 @@ import { pool } from "@workspace/db";
 import { withDbRetry } from "./db-retry.js";
 import OpenAI from "openai";
 import type { Logger } from "pino";
+import type { PoolClient } from "pg";
 import { embed } from "./local-embeddings.js";
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -147,7 +148,7 @@ async function generateEmbeddingVector(text: string): Promise<string | null> {
 // ─── Store Transcript Chunks ──────────────────────────────────────────────────
 
 async function storeTranscriptChunks(
-  client: pg.PoolClient,
+  client: PoolClient,
   sermon: SermonRow,
   transcriptText: string,
   source: "youtube-captions" | "gpt-enrichment",

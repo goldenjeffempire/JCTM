@@ -671,8 +671,7 @@ router.get("/sitemap-blog.xml", async (_req: Request, res: Response): Promise<vo
       const ageMs   = now - new Date(post.publishedAt ?? now).getTime();
       const priority = agePriority(ageMs, 0.90, 0.45, 60);
       // Use post-specific image → category fallback → ministry OG
-      const imgUrl  = post.featuredImageUrl
-        ?? CATEGORY_IMAGES[post.category ?? ""]
+      const imgUrl  = CATEGORY_IMAGES[post.category ?? ""]
         ?? `${BASE_URL}/opengraph.jpg`;
       const imgTitle = `${post.title} — ${SITE_NAME}`;
       const imgCaption = (post.excerpt ?? post.title).slice(0, 200);

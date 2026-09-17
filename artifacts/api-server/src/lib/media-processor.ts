@@ -84,7 +84,7 @@ function resolveYtDlpBin(): { bin: string; found: boolean } {
 
   try {
     const scan = execSync('ls /nix/store | grep "^yt-dlp-" | head -3', {
-      encoding: "utf8", timeout: 5000, shell: true,
+      encoding: "utf8", timeout: 5000, shell: "/bin/sh",
     }).trim();
     for (const entry of scan.split("\n")) {
       const candidate = `/nix/store/${entry.trim()}/bin/yt-dlp`;

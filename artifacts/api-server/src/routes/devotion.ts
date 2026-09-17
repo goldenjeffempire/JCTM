@@ -34,7 +34,7 @@ router.get("/devotion/daily", async (_req: Request, res: Response): Promise<void
 // ─── Devotion for a specific date ─────────────────────────────────────────────
 
 router.get("/devotion/date/:date", async (req: Request, res: Response): Promise<void> => {
-  const dateStr = req.params.date ?? "";
+  const dateStr = String(req.params.date ?? "");
   if (!DATE_RE.test(dateStr) || isNaN(new Date(dateStr + "T00:00:00Z").getTime())) {
     res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
     return;

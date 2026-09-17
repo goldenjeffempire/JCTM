@@ -827,7 +827,7 @@ router.delete(
   "/admin/scheduled-broadcasts/:id",
   requireAdminRole("livestream"),
   async (req: Request, res: Response): Promise<void> => {
-    const id = Number.parseInt(req.params.id ?? "", 10);
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
     if (!Number.isFinite(id)) {
       res.status(400).json({ error: "Invalid id" });
       return;
@@ -927,7 +927,7 @@ router.delete(
   "/admin/broadcast-snippets/:id",
   requireAdminRole("livestream"),
   async (req: Request, res: Response): Promise<void> => {
-    const id = Number.parseInt(req.params.id ?? "", 10);
+    const id = Number.parseInt(String(req.params.id ?? ""), 10);
     if (!Number.isFinite(id)) {
       res.status(400).json({ error: "Invalid id" });
       return;
@@ -1289,7 +1289,7 @@ router.get(
   "/admin/analytics/recommendations/:visitorId",
   requireAdminRole(["sermon", "gallery", "livestream"]),
   async (req: Request, res: Response): Promise<void> => {
-    const { visitorId } = req.params;
+    const visitorId = String(req.params.visitorId ?? "");
     if (!visitorId || visitorId.length > 128) {
       res.status(400).json({ error: "Invalid visitorId" });
       return;
@@ -1740,7 +1740,7 @@ router.delete(
   "/admin/media-jobs/:id",
   requireAdminRole(["sermon", "gallery", "livestream"]),
   async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const id = String(req.params.id ?? "");
     if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
       res.status(400).json({ error: "Invalid job ID" });
       return;
@@ -2112,7 +2112,7 @@ router.delete(
   "/admin/knowledge-chunks/:id",
   requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id!, 10);
+    const id = parseInt(String(req.params.id ?? ""), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid chunk id" }); return; }
 
     try {
@@ -2473,7 +2473,7 @@ router.get(
   "/admin/conversations/:id",
   requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id!, 10);
+    const id = parseInt(String(req.params.id ?? ""), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid conversation id" }); return; }
 
     try {
@@ -2508,7 +2508,7 @@ router.patch(
   "/admin/conversations/:id/flag",
   requireAdminRole("sermon"),
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id!, 10);
+    const id = parseInt(String(req.params.id ?? ""), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid conversation id" }); return; }
     const { flagged, reason } = req.body as { flagged: boolean; reason?: string };
 

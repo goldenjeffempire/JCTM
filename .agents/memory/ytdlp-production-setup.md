@@ -6,9 +6,9 @@ description: How yt-dlp is installed and configured for the JCTM media processor
 ## Rule
 Always resolve the workspace binary at `/home/runner/workspace/bin/yt-dlp` first, before any env var or system PATH lookup.
 
-**Why:** The Nix-installed yt-dlp is outdated and cannot handle current YouTube SABR streaming (breaks with JS runtime / PO token errors). The standalone binary is downloaded to `workspace/bin/yt-dlp` to survive restarts.
+**Why:** YouTube regularly changes player-client and PO-token requirements. The June 2026 `android_vr` default began returning HTTP 403; official yt-dlp 2026.08.19 removed it from defaults and added working fallbacks.
 
 **How to apply:**
 - Binary resolver in `media-processor.ts`: check `workspace/bin/yt-dlp` first, then `YT_DLP_PATH` env var, then `yt-dlp` on PATH.
-- Do NOT pass `--extractor-args "youtube:player_client=ios,web"` — the default `android_vr` client works without PO tokens.
-- Download new binary: `curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /home/runner/workspace/bin/yt-dlp && chmod +x /home/runner/workspace/bin/yt-dlp`
+- Do not pin obsolete player clients; use the current upstream defaults unless an official current issue recommends otherwise.
+- Keep the binary checksum-verified and updated to the latest official stable release because a previously working binary can break without code changes.

@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 
   [[artifacts]]
   id = "artifacts/jctm-platform"
@@ -58,7 +58,6 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-VAPID_PUBLIC_KEY = "BNFsWPaSN3hKiDjWa1RrYaWFoaiuYdQuDq8SueByYlaSuGcTr12lKzDJaoL584jXRptTLbxBSrs_vPsY9lMpSY8"
 VITE_ADSENSE_ENABLE = "true"
 GCS_PROJECT_ID = "jctm-492511"
 GCS_CLIENT_EMAIL = "jeffemuodafe124-gmail-com-633@jctm-492511.iam.gserviceaccount.com"

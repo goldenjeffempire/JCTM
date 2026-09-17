@@ -15,9 +15,9 @@ import { syncFromRSS } from "../lib/rss-sync.js";
 import { isQuotaPaused, getQuotaResetTime, setQuotaPaused, getCronState } from "../lib/cron.js";
 import { sseBroadcaster } from "../lib/sse-broadcaster.js";
 import { randomUUID } from "crypto";
-import { requireAdminRole } from "../lib/adminAuth.js";
+import { getAdminTokenFromRequest, requireAdminRole, verifyAdminToken } from "../lib/adminAuth.js";
 import { summarizeSermon } from "../lib/local-content-intelligence.js";
-import { preprocessNewSermons } from "../lib/media-preprocess.js";
+import { preprocessFeaturedSermons, preprocessNewSermons } from "../lib/media-preprocess.js";
 
 // ── In-memory sermon summary cache (survives restarts only in dev) ─────────────
 const summaryCache = new Map<number, { summary: string; keyPoints: string[]; generatedAt: string }>();
@@ -739,7 +739,7 @@ function actorRoleFromReq(req: import("express").Request): string {
 }
 
 router.post("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res): Promise<void> => {
-  const { videoId } = req.params;
+  const videoId = String(req.params.videoId ?? "");
   if (!videoId || !/^[-_A-Za-z0-9]{6,32}$/.test(videoId)) {
     res.status(400).json({ error: "Invalid videoId" });
     return;
@@ -772,7 +772,7 @@ router.post("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res
 });
 
 router.delete("/sermons/:videoId/pin", requireAdminRole("sermon"), async (req, res): Promise<void> => {
-  const { videoId } = req.params;
+  const videoId = String(req.params.videoId ?? "");
   if (!videoId || !/^[-_A-Za-z0-9]{6,32}$/.test(videoId)) {
     res.status(400).json({ error: "Invalid videoId" });
     return;

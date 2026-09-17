@@ -1,13 +1,12 @@
 - [ECONNABORTED permanent fix](econnaborted-fix.md) — pool keepAlive+idleTimeout+max+error-listener; withDbRetry for background tasks; staggered startup; do NOT remove pool config.
 - [Render health crash root causes](render-health-crash-fix.md) — yt-dlp stderr overflow crashes server; health check must use background cache not live queries; /api/ping before all middleware.
 - [Translation architecture](translation-architecture.md) — three-tier i18n: t() static (17 langs), T component async AI, usePageStrings batch; terms JCTM/Temple TV/TempleBots/Prophet Amos never translated.
-- [yt-dlp production setup](ytdlp-production-setup.md) — standalone v2026.06.09 at workspace/bin/yt-dlp; resolver checks workspace binary first; default android_vr client (no --extractor-args).
+- [yt-dlp production setup](ytdlp-production-setup.md) — standalone stable binary at workspace/bin/yt-dlp; keep it current because YouTube client support changes frequently.
 - [Embedding migration guard](embedding-migration-guard.md) — pgvector atttypmod stores (dim+4); use atttypmod directly (not -4) when comparing stored vs expected dimension.
 - [Media job NaN guard](media-job-nan-guard.md) — all integer fields (progress, duration, fileSize) must pass through safeInt() before PostgreSQL INSERT/UPDATE to prevent NaN cast errors.
 - [pg SSL ESM warning](pg-ssl-esm-warning.md) — pg-connection-string SSL deprecation fires during module resolution before index.ts body runs; cosmetic only, db normalizes to verify-full correctly.
-- [VAPID key persistence](vapid-key-persistence.md) — initVapidKeys is async; reads env vars first, then DB vapid_keys table (id=1 singleton), then generates + persists; call with await in index.ts after migrations.
+- [VAPID key rotation](vapid-key-persistence.md) — keys persist in the database; every rotation must clear old browser subscriptions because they cannot authenticate with the new pair.
 - [pnpm firewall overrides](pnpm-firewall-overrides.md) — protobufjs@6 and shell-quote@1.8.x blocked by Replit firewall; overrides in pnpm-workspace.yaml; mobile app excluded from workspace packages.
 - [Bulk UPSERT pattern](bulk-upsert-pattern.md) — use sql.join(fragments, sql`, `) from drizzle-orm to batch N rows into one round-trip; avoid per-row loop with await db.execute inside it.
 - [Admin token secret guard](admin-token-secret.md) — ADMIN_TOKEN_SECRET / SESSION_SECRET must be set in production; getTokenSecret() now logs a console.error once if both are missing and the fallback is active.
 - [GitHub publishing blocker](github-publishing-blocker.md) — an added GitHub connection may still be blocked upstream; confirm the remote changed before assuming Render can deploy it.
-- [VAPID key rotation pending](vapid-key-rotation-pending.md) — a formerly tracked private key may still be stored in DB; rotate it with consent because existing push subscriptions will be invalidated.

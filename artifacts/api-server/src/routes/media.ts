@@ -381,7 +381,7 @@ router.post("/media/batch", async (req: Request, res: Response): Promise<void> =
 // ─── GET /api/media/progress/:id  (SSE) ──────────────────────────────────────
 
 router.get("/media/progress/:id", async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const id = String(req.params.id ?? "");
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
     res.status(400).json({ error: "Invalid job ID" });
     return;
@@ -441,7 +441,7 @@ router.get("/media/progress/:id", async (req: Request, res: Response): Promise<v
 // ─── GET /api/media/jobs/:id ─────────────────────────────────────────────────
 
 router.get("/media/jobs/:id", async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const id = String(req.params.id ?? "");
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
     res.status(400).json({ error: "Invalid job ID" });
     return;
@@ -460,7 +460,7 @@ router.get("/media/jobs/:id", async (req: Request, res: Response): Promise<void>
 // ─── GET /api/media/download/:id ─────────────────────────────────────────────
 
 router.get("/media/download/:id", async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const id = String(req.params.id ?? "");
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
     res.status(400).json({ error: "Invalid job ID" });
     return;
@@ -514,7 +514,7 @@ router.get("/media/stats", (_req: Request, res: Response): void => {
 // ─── DELETE /api/media/jobs/:id ───────────────────────────────────────────────
 
 router.delete("/media/jobs/:id", async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const id = String(req.params.id ?? "");
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
     res.status(400).json({ error: "Invalid job ID" });
     return;
@@ -539,7 +539,7 @@ router.delete("/media/jobs/:id", async (req: Request, res: Response): Promise<vo
 // ─── POST /api/media/token/:id ────────────────────────────────────────────────
 
 router.post("/media/token/:id", async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const id = String(req.params.id ?? "");
   const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
 
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
@@ -589,7 +589,7 @@ router.post("/media/token/:id", async (req: Request, res: Response): Promise<voi
 // ─── GET /api/media/dl/:token ────────────────────────────────────────────────
 
 router.get("/media/dl/:token", async (req: Request, res: Response): Promise<void> => {
-  const { token } = req.params;
+  const token = String(req.params.token ?? "");
   const ip = String(req.ip ?? req.socket?.remoteAddress ?? "unknown");
 
   if (!token || !/^[0-9a-f]{64}$/.test(token)) {

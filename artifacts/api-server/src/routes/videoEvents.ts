@@ -74,7 +74,18 @@ router.post("/video-events", ingestLimiter, async (req: Request, res: Response):
   }
 
   // Aggregate the batch in memory first → one INSERT per (videoId,page) pair.
-  type Bucket = Record<string, number> & { videoId: string; page: string };
+  type CounterKey = "impressions" | "plays" | "pauses" | "q25" | "q50" | "q75" | "completes";
+  type Bucket = {
+    videoId: string;
+    page: string;
+    impressions: number;
+    plays: number;
+    pauses: number;
+    q25: number;
+    q50: number;
+    q75: number;
+    completes: number;
+  };
   const buckets = new Map<string, Bucket>();
 
   for (const ev of events.slice(0, 200)) {
@@ -86,10 +97,11 @@ router.post("/video-events", ingestLimiter, async (req: Request, res: Response):
     const key = `${videoId}::${page}`;
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = { videoId, page, impressions: 0, plays: 0, pauses: 0, q25: 0, q50: 0, q75: 0, completes: 0 } as Bucket;
+      bucket = { videoId, page, impressions: 0, plays: 0, pauses: 0, q25: 0, q50: 0, q75: 0, completes: 0 };
       buckets.set(key, bucket);
     }
-    bucket[column] = (bucket[column] ?? 0) + 1;
+    const counter = column as CounterKey;
+    bucket[counter] += 1;
   }
 
   if (buckets.size === 0) {

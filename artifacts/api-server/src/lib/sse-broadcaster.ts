@@ -41,7 +41,7 @@ export type SSEEvent = {
 } | {
   type: "gallery_updated";
   data: {
-    action: "created" | "updated" | "deleted" | "thumbnail_ready";
+    action: "created" | "updated" | "deleted" | "thumbnail_ready" | "bulk_deleted";
     imageId?: number;
     objectPath?: string | null;
     thumbnailPath?: string | null;

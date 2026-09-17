@@ -120,7 +120,7 @@ export const EXPANDED_DEVOTION_POOL: DevotionEntry[] = [
 
 // ─── Scripture Study Generator ────────────────────────────────────────────────
 
-const SCRIPTURE_TEMPLATES: Record<string, string> = {
+const SCRIPTURE_TEMPLATES: Record<string, string | ((passage: string) => string)> = {
   default: (passage: string) => `## 📖 Passage Overview
 **${passage}** is a foundational scripture that speaks to the heart of Christian faith as understood through the lens of Primitive Christianity and the Correction Mandate of Jesus Christ Temple Ministry (JCTM).
 
