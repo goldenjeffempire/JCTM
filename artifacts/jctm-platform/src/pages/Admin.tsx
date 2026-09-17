@@ -13,7 +13,7 @@ import {
   Megaphone, MapPin, Save, Plus, Edit3, Mail,
   Bot, Database, Cpu, Server, Layers,
   DollarSign, ExternalLink, Info, Hash, CircleDot,
-  AlertTriangle, CheckCircle2, Search, Archive,
+  AlertTriangle, CheckCircle2, Search, Archive, Lock,
 } from "lucide-react";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
@@ -64,6 +64,25 @@ interface PlatformMetrics {
   platform?: { sermons?: number; blogs?: number; members?: number; conversations?: number; testimonies?: number };
   ai?: { totalFeedback?: number; averageRating?: string | null; averageLatencyMs?: string | null; tierBreakdown?: Record<string, number> };
 }
+
+interface BrowserSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+interface BrowserSpeechRecognitionEvent {
+  results: ArrayLike<SpeechRecognitionResult>;
+}
+
+type BrowserSpeechRecognitionWindow = Window & {
+  SpeechRecognition?: new () => BrowserSpeechRecognition;
+  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+};
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -5280,17 +5299,17 @@ function KnowledgeSection({ auth }: { auth: AdminAuth }) {
   // Speech-to-text state
   const [sttActive, setSttActive] = useState(false);
   const [sttSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
-  const recognitionRef = useRef<unknown>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
   const startSpeechCapture = useCallback(() => {
-    const SR = (window as Record<string, unknown>)["SpeechRecognition"] as (new () => SpeechRecognition) | undefined
-      ?? (window as Record<string, unknown>)["webkitSpeechRecognition"] as (new () => SpeechRecognition) | undefined;
+    const speechWindow = window as BrowserSpeechRecognitionWindow;
+    const SR = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!SR) return;
     const rec = new SR();
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-NG";
-    rec.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onresult = (e: BrowserSpeechRecognitionEvent) => {
       const transcript = Array.from(e.results)
         .map((r: SpeechRecognitionResult) => r[0]!.transcript)
         .join(" ");
@@ -5303,7 +5322,7 @@ function KnowledgeSection({ auth }: { auth: AdminAuth }) {
   }, []);
 
   const stopSpeechCapture = useCallback(() => {
-    (recognitionRef.current as SpeechRecognition | null)?.stop();
+    recognitionRef.current?.stop();
     setSttActive(false);
   }, []);
 

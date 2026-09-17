@@ -20,7 +20,7 @@ import { Link, useLocation } from "wouter";
 import { DualStreamToggle, useStreamQuality } from "@/components/DualStreamToggle";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ADSENSE_SLOTS, AdSlot, useAdPageTracker } from "@/components/ads/AdSense";
-import { safeLocalGet, safeLocalSet } from "@/lib/utils";
+import { safeLocalGetJson, safeLocalSetJson } from "@/lib/utils";
 import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useLiveViewerCount } from "@/hooks/useLiveViewerCount";
 import { StreamPlayer } from "@/components/StreamPlayer";
@@ -94,14 +94,14 @@ export default function Sermons() {
   const [livePlaying, setLivePlaying] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [recentlyPlayed, setRecentlyPlayed] = useState<SermonItem[]>(
-    () => safeLocalGet<SermonItem[]>("jctm_recently_played") ?? [],
+    () => safeLocalGetJson<SermonItem[]>("jctm_recently_played") ?? [],
   );
 
   const addToRecentlyPlayed = useCallback((sermon: SermonItem) => {
     setRecentlyPlayed(prev => {
       const filtered = prev.filter(s => s.videoId !== sermon.videoId);
       const updated = [sermon, ...filtered].slice(0, 5);
-      safeLocalSet("jctm_recently_played", updated);
+      safeLocalSetJson("jctm_recently_played", updated);
       return updated;
     });
   }, []);
@@ -510,7 +510,7 @@ export default function Sermons() {
                     </span>
                   </div>
                   <button
-                    onClick={() => { setRecentlyPlayed([]); safeLocalSet("jctm_recently_played", []); }}
+                    onClick={() => { setRecentlyPlayed([]); safeLocalSetJson("jctm_recently_played", []); }}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Clear

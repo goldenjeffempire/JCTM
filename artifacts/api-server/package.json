@@ -33,15 +33,15 @@
     "fluent-ffmpeg": "^2.1.3",
     "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
-    "multer": "^2.1.1",
-    "nodemailer": "^8.0.7",
+    "multer": "^2.3.0",
+    "nodemailer": "^9.0.1",
     "openai": "^6.27.0",
     "pg": "^8.13.0",
     "pino": "^9",
     "pino-http": "^10",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.4",
     "web-push": "^3.6.7",
-    "ws": "^8.20.0"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/compression": "^1.8.1",

@@ -193,6 +193,7 @@ type EventItem = {
   eventType: string;
   imageUrl?: string | null;
   youtubeUrl?: string | null;
+  youtubeVideoId?: string | null;
   createdAt: string;
 };
 

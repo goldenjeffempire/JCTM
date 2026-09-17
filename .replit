@@ -7,7 +7,7 @@ modules = ["nodejs-20", "web", "bash"]
   id = "artifacts/api-server"
 
   [[artifacts]]
-  id = "artifacts/mockup-sandbox"
+  id = "artifacts/jctm-mobile"
 
   [deployment]
   router = "application"
@@ -59,7 +59,6 @@ channel = "stable-25_05"
 
 [userenv.shared]
 VAPID_PUBLIC_KEY = "BNFsWPaSN3hKiDjWa1RrYaWFoaiuYdQuDq8SueByYlaSuGcTr12lKzDJaoL584jXRptTLbxBSrs_vPsY9lMpSY8"
-VAPID_PRIVATE_KEY = "da55-4msNNm4kgmaAOhh-hj-rwbH8nGsrbg8tulBS6I"
 VITE_ADSENSE_ENABLE = "true"
 GCS_PROJECT_ID = "jctm-492511"
 GCS_CLIENT_EMAIL = "jeffemuodafe124-gmail-com-633@jctm-492511.iam.gserviceaccount.com"

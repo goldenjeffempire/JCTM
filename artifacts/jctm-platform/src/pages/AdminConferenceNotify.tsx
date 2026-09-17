@@ -515,7 +515,7 @@ export default function AdminConferenceNotify() {
         <meta name="googlebot" content="noindex, nofollow" />
       </Helmet>
       <AdminLoginGate role="livestream" auth={auth} title="Ministers Conference 2026 — Broadcast Notifications">
-        <ConferenceNotifyInner adminToken={auth.token ?? ""} />
+        <ConferenceNotifyInner adminToken={auth.adminToken} />
       </AdminLoginGate>
     </Layout>
   );

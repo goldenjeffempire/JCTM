@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, CheckCircle2, XCircle, Star, StarOff, Trash2,
   Clock, User, MapPin, Mail, Video,
-  RefreshCw, FileDown, Play, X, Loader2,
+  RefreshCw, FileDown, Download, Play, X, Loader2,
 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { toast } from "sonner";

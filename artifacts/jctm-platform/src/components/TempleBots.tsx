@@ -156,6 +156,7 @@ export function TempleBots() {
       }, 950);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [location]);
 
   useEffect(() => {

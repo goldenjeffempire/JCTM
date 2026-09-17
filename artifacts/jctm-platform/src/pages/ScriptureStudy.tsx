@@ -687,7 +687,7 @@ export default function ScriptureStudy() {
               <motion.div key="browse" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}
                 className="rounded-3xl border border-white/10 p-6 md:p-8" style={{ background: "rgba(255,254,248,0.03)", backdropFilter: "blur(24px)" }}>
                 <BibleBrowserPanel />
-                <AdSlot slot={ADSENSE_SLOTS.IN_FEED} className="mt-8" />
+                <AdSlot slot={ADSENSE_SLOTS.scriptureStudy} className="mt-8" />
               </motion.div>
             )}
           </AnimatePresence>

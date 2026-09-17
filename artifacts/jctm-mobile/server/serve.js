@@ -15,6 +15,10 @@ const path = require("path");
 
 const STATIC_ROOT = path.resolve(__dirname, "..", "static-build");
 const TEMPLATE_PATH = path.resolve(__dirname, "templates", "landing-page.html");
+const MANIFEST_PATHS = Object.freeze({
+  ios: path.resolve(STATIC_ROOT, "ios", "manifest.json"),
+  android: path.resolve(STATIC_ROOT, "android", "manifest.json"),
+});
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
 
 const MIME_TYPES = {
@@ -46,7 +50,13 @@ function getAppName() {
 }
 
 function serveManifest(platform, res) {
-  const manifestPath = path.join(STATIC_ROOT, platform, "manifest.json");
+  if (platform !== "ios" && platform !== "android") {
+    res.writeHead(400, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "Unsupported platform" }));
+    return;
+  }
+
+  const manifestPath = MANIFEST_PATHS[platform];
 
   if (!fs.existsSync(manifestPath)) {
     res.writeHead(404, { "content-type": "application/json" });
@@ -56,7 +66,7 @@ function serveManifest(platform, res) {
     return;
   }
 
-  const manifest = fs.readFileSync(manifestPath, "utf-8");
+  const manifest = fs.readFileSync(manifestPath, "utf-8"); // nosemgrep: javascript.express.file.fs-express.fs-express
   res.writeHead(200, {
     "content-type": "application/json",
     "expo-protocol-version": "1",
@@ -82,10 +92,19 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
 }
 
 function serveStaticFile(urlPath, res) {
-  const safePath = path.normalize(urlPath).replace(/^(\.\.(\/|\\|$))+/, "");
-  const filePath = path.join(STATIC_ROOT, safePath);
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(urlPath);
+  } catch {
+    res.writeHead(400);
+    res.end("Bad Request");
+    return;
+  }
 
-  if (!filePath.startsWith(STATIC_ROOT)) {
+  const filePath = path.resolve(STATIC_ROOT, `.${decodedPath}`);
+  const staticRootPrefix = `${STATIC_ROOT}${path.sep}`;
+
+  if (filePath !== STATIC_ROOT && !filePath.startsWith(staticRootPrefix)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
@@ -97,9 +116,16 @@ function serveStaticFile(urlPath, res) {
     return;
   }
 
-  const ext = path.extname(filePath).toLowerCase();
+  const realFilePath = fs.realpathSync(filePath);
+  if (!realFilePath.startsWith(staticRootPrefix)) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+
+  const ext = path.extname(realFilePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
-  const content = fs.readFileSync(filePath);
+  const content = fs.readFileSync(realFilePath); // nosemgrep: javascript.express.file.fs-express.fs-express
   res.writeHead(200, { "content-type": contentType });
   res.end(content);
 }

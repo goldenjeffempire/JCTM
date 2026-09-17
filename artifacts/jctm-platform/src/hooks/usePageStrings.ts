@@ -41,7 +41,7 @@ export function usePageStrings<T extends StringMap>(englishStrings: T): T {
     const langCache = pageStringCache.get(language);
     if (langCache?.has(cacheMapKey)) {
       const cached = JSON.parse(langCache.get(cacheMapKey)!);
-      const newMap = { ...englishRef.current };
+      const newMap: StringMap = { ...englishRef.current };
       keys.forEach((k, i) => { newMap[k] = cached[i] ?? englishRef.current[k]; });
       setTranslated(newMap as T);
       return;
@@ -52,7 +52,7 @@ export function usePageStrings<T extends StringMap>(englishStrings: T): T {
 
     translateBatch(values).then(results => {
       pendingRef.current = false;
-      const newMap = { ...englishRef.current };
+      const newMap: StringMap = { ...englishRef.current };
       keys.forEach((k, i) => { newMap[k] = results[i] ?? englishRef.current[k]; });
       setTranslated(newMap as T);
 

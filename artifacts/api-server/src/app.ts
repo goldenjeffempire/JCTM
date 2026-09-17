@@ -197,6 +197,10 @@ app.use(
     crossOriginOpenerPolicy: false,
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    // CSP frame-ancestors above is the authoritative allowlist. Helmet's
+    // legacy X-Frame-Options: SAMEORIGIN would contradict the Google origins
+    // needed by AdSense publisher review and authorization tools.
+    xFrameOptions: false,
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     strictTransportSecurity: {
       maxAge: 60 * 60 * 24 * 365,

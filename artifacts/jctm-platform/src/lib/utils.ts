@@ -41,6 +41,20 @@ export function safeLocalRemove(key: string): void {
   safeRemove(typeof localStorage === "undefined" ? undefined : localStorage, key)
 }
 
+export function safeLocalGetJson<T>(key: string): T | null {
+  const value = safeLocalGet(key)
+  if (value === null) return null
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return null
+  }
+}
+
+export function safeLocalSetJson(key: string, value: unknown): void {
+  safeLocalSet(key, JSON.stringify(value))
+}
+
 export function safeSessionGet(key: string): string | null {
   return safeGet(typeof sessionStorage === "undefined" ? undefined : sessionStorage, key)
 }
