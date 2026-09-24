@@ -47,6 +47,7 @@ import {
   processQueueOnce,
 } from "../lib/event-notification-worker.js";
 import { validatePushCredentials } from "../lib/push-manager.js";
+import { getActiveSmtpIncidents } from "../lib/smtp-alert.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -521,6 +522,14 @@ router.post(
 );
 
 // ─── Credential / delivery health ────────────────────────────────────────────
+
+router.get(
+  "/admin/email/incidents",
+  requireAdminRole("livestream"),
+  async (_req: Request, res: Response): Promise<void> => {
+    res.json({ incidents: await getActiveSmtpIncidents() });
+  },
+);
 
 router.get(
   "/admin/event-notifications/health",

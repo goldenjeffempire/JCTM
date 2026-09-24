@@ -37,6 +37,7 @@ import nodemailer, { type Transporter, type SendMailOptions } from "nodemailer";
 import { logger } from "./logger.js";
 import type { Logger } from "pino";
 import type { DailyDevotion } from "@workspace/db";
+import { recordSmtpFailure, recordSmtpRecovery } from "./smtp-alert.js";
 
 let cachedTransporter: Transporter | null = null;
 let cachedConfigured: boolean | null = null;
@@ -165,6 +166,7 @@ export async function sendWithRetry(
       health.lastSendError = null;
       health.totalSent += 1;
       if (attempt > 1) health.totalRetried += attempt - 1;
+      await recordSmtpRecovery("send");
       return info.messageId;
     } catch (err) {
       lastErr = err;
@@ -191,6 +193,7 @@ export async function sendWithRetry(
   health.lastSendOk = false;
   health.lastSendError = lastErr instanceof Error ? lastErr.message : String(lastErr);
   health.totalFailed += 1;
+  await recordSmtpFailure("send", health.lastSendError);
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
@@ -203,6 +206,7 @@ export async function verifyEmailTransport(log: Logger = logger): Promise<{ ok: 
     health.lastVerifyAt = new Date().toISOString();
     health.lastVerifyOk = false;
     health.lastVerifyError = "SMTP not configured";
+    await recordSmtpFailure("verify", "SMTP not configured");
     return { ok: false, error: "SMTP not configured" };
   }
   const transporter = buildTransporter();
@@ -210,6 +214,7 @@ export async function verifyEmailTransport(log: Logger = logger): Promise<{ ok: 
     health.lastVerifyAt = new Date().toISOString();
     health.lastVerifyOk = false;
     health.lastVerifyError = "Transporter unavailable";
+    await recordSmtpFailure("verify", "Transporter unavailable");
     return { ok: false, error: "Transporter unavailable" };
   }
   try {
@@ -217,6 +222,7 @@ export async function verifyEmailTransport(log: Logger = logger): Promise<{ ok: 
     health.lastVerifyAt = new Date().toISOString();
     health.lastVerifyOk = true;
     health.lastVerifyError = null;
+    await recordSmtpRecovery("verify");
     log.info(
       { host: process.env.SMTP_HOST, port: process.env.SMTP_PORT ?? "587" },
       "SMTP transport verified — email delivery ready",
@@ -227,6 +233,7 @@ export async function verifyEmailTransport(log: Logger = logger): Promise<{ ok: 
     health.lastVerifyAt = new Date().toISOString();
     health.lastVerifyOk = false;
     health.lastVerifyError = message;
+    await recordSmtpFailure("verify", message);
     log.warn({ err, host: process.env.SMTP_HOST }, "SMTP verify failed");
     return { ok: false, error: message };
   }

@@ -3160,6 +3160,78 @@ interface DispatchLogRow {
   createdAt: string;
 }
 
+interface SmtpIncident {
+  kind: "verify" | "send";
+  failureCount: number;
+  firstFailedAt: string;
+  lastFailedAt: string;
+  alertedAt: string;
+  lastError: string;
+}
+
+function SmtpIncidentBanner({ auth, onOpenTest }: { auth: AdminAuth; onOpenTest: () => void }) {
+  const incidentsQuery = useQuery<{ incidents: SmtpIncident[] }>({
+    queryKey: ["admin-smtp-incidents", auth.adminToken],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/email/incidents`, {
+        headers: { Authorization: `Bearer ${auth.adminToken}` },
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ incidents: SmtpIncident[] }>(res, "Unable to load SMTP alerts");
+    },
+    enabled: !!auth.adminToken,
+    refetchInterval: 30_000,
+  });
+  const incidents = incidentsQuery.data?.incidents ?? [];
+  const deliveriesQuery = useQuery<{ rows: { id: number; status: string; emailType: string; sentAt: string; error: string | null }[] }>({
+    queryKey: ["admin-smtp-recent-deliveries", auth.adminToken],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/subscribers/log?limit=10`, {
+        headers: { Authorization: `Bearer ${auth.adminToken}` },
+      });
+      if (res.status === 401) auth.logout();
+      return readApiJson<{ rows: { id: number; status: string; emailType: string; sentAt: string; error: string | null }[] }>(res, "Unable to load recent delivery log");
+    },
+    enabled: !!auth.adminToken && incidents.length > 0,
+    refetchInterval: 30_000,
+  });
+  if (!auth.adminToken) return null;
+  if (incidentsQuery.isError) return <p role="alert" className="mb-5 text-sm text-rose-700">Unable to check SMTP alerts. Refresh the dashboard to retry.</p>;
+  if (!incidents.length) return null;
+
+  return (
+    <div role="alert" className="mb-6 rounded-xl border border-rose-300 bg-rose-50 p-4 text-rose-950">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-700" />
+        <div className="min-w-0 space-y-2">
+          <p className="font-semibold">Email delivery needs attention</p>
+          {incidents.map((incident) => (
+            <p key={incident.kind} className="text-sm">
+              {incident.kind === "verify" ? "SMTP verification" : "SMTP sending"} failed {incident.failureCount} consecutive times
+              {" "}since {new Date(incident.firstFailedAt).toLocaleString()}. Last error: {incident.lastError}
+            </p>
+          ))}
+          <p className="text-xs">This alert clears automatically when the affected transport check or send succeeds.</p>
+          <button type="button" onClick={onOpenTest} className="text-sm font-semibold underline underline-offset-2 hover:text-rose-700">
+            Open email test
+          </button>
+          <div className="pt-2 border-t border-rose-200">
+            <p className="text-xs font-semibold">Recent subscriber delivery log</p>
+            {deliveriesQuery.isError && <p className="text-xs">Could not load delivery log.</p>}
+            {deliveriesQuery.data?.rows.length === 0 && <p className="text-xs">No subscriber deliveries recorded yet.</p>}
+            {deliveriesQuery.data?.rows.map((row) => (
+              <p key={row.id} className="text-xs mt-1">
+                {new Date(row.sentAt).toLocaleString()} · {row.emailType} · {row.status}
+                {row.error && <> · {row.error}</>}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface NotifStats {
   total: number;
   sent: number;
@@ -3854,6 +3926,7 @@ function EventNotificationsSection({ auth }: { auth: AdminAuth }) {
         </div>
 
         <form
+          id="smtp-email-test"
           className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3"
           onSubmit={(e) => {
             e.preventDefault();
@@ -8933,6 +9006,17 @@ export default function Admin() {
               </button>
             ))}
           </div>
+
+          <SmtpIncidentBanner
+            auth={livestreamAuth}
+            onOpenTest={() => {
+              setSection("events");
+              window.setTimeout(() => {
+                document.getElementById("smtp-test-to")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                document.getElementById("smtp-test-to")?.focus({ preventScroll: true });
+              }, 250);
+            }}
+          />
 
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>

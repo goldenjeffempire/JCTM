@@ -769,6 +769,19 @@ export async function runMigrations(): Promise<void> {
     ON expo_push_receipts (sent_at) WHERE status = 'pending'
   `);
 
+  // One row per SMTP failure source. Alert state survives restarts and is
+  // cleared only by recovery of that source (verification or actual sending).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS smtp_incident_state (
+      kind             text PRIMARY KEY CHECK (kind IN ('verify', 'send')),
+      failure_count    integer NOT NULL DEFAULT 0,
+      first_failed_at  timestamptz,
+      last_failed_at   timestamptz,
+      alerted_at       timestamptz,
+      last_error       text
+    )
+  `);
+
   // ── Event Notification Queue ────────────────────────────────────────────────
   // FIFO work queue for the event-notification worker. The 30-min scheduler
   // ENQUEUES one row per (event × bucket × channel); the worker drains the

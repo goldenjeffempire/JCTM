@@ -37,6 +37,7 @@ let metadataStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let midnightTimer: ReturnType<typeof setTimeout> | null = null;
 let dailyDevotionHandle: ReturnType<typeof setInterval> | null = null;
 let eventNotificationHandle: ReturnType<typeof setInterval> | null = null;
+let smtpVerificationHandle: ReturnType<typeof setInterval> | null = null;
 let eventNotificationStartupTimer: ReturnType<typeof setTimeout> | null = null;
 let lastFullSync: Date | null = null;
 
@@ -2473,11 +2474,14 @@ export function startCron(log: Logger, websubUrl?: string): void {
     // Verify SMTP credentials & TLS handshake on boot so the admin dashboard
     // shows a green/red light immediately. Fire-and-forget — verify failures
     // never block server startup or notification delivery.
-    if (isEmailConfigured()) {
-      verifyEmailTransport(log).catch(err =>
-        log.warn({ err }, "Initial SMTP verify threw — will retry on first send"),
-      );
-    } else {
+    verifyEmailTransport(log).catch(err =>
+      log.warn({ err }, "Initial SMTP verify threw — will retry on next health check"),
+    );
+    smtpVerificationHandle = setInterval(() => {
+      verifyEmailTransport(log).catch(err => log.warn({ err }, "Periodic SMTP verify threw"));
+    }, 5 * 60 * 1000);
+    smtpVerificationHandle.unref();
+    if (!isEmailConfigured()) {
       log.warn("SMTP not configured — devotion + event-reminder emails will be skipped");
     }
   }, 30_000);
@@ -2507,7 +2511,7 @@ export function stopCron(): void {
   stopMediaRetryScheduler();
   stopEventNotificationWorker();
   stopContentSyncScheduler();
-  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, aiKnowledgeRefreshHandle]
+  [apiCronHandle, fullSyncCronHandle, rssCronHandle, websubCronHandle, metadataCronHandle, reminderCronHandle, receiptCheckerHandle, eventNotificationHandle, smtpVerificationHandle, aiKnowledgeRefreshHandle]
     .forEach(h => h && clearInterval(h));
   [apiStartupTimer, metadataStartupTimer, midnightTimer, eventNotificationStartupTimer]
     .forEach(h => h && clearTimeout(h));
@@ -2524,6 +2528,7 @@ export function stopCron(): void {
   midnightTimer = null;
   dailyDevotionHandle = null;
   eventNotificationHandle = null;
+  smtpVerificationHandle = null;
   eventNotificationStartupTimer = null;
   aiKnowledgeRefreshHandle = null;
 }
