@@ -75,6 +75,11 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Charles Odes", location: "Port Harcourt – Rumuokoro", phone: "09110083033", phone2: "08036714296" },
 ];
 
+// Stable sorting retains every entry, including duplicate locations.
+VIEWING_CENTRES.sort((a, b) =>
+  a.location.localeCompare(b.location, "en", { sensitivity: "base" }),
+);
+
 export default function ViewingCentres() {
   return (
     <Layout>
