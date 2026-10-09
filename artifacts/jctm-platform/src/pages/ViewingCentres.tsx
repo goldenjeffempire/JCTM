@@ -18,6 +18,8 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Bro Monday",                              location: "Benue – Gboko",    phone: "07062291532" },
   { name: "Josiah Anfofun",                         location: "Benue – Makurdi",  phone: "07032818130" },
   { name: "Amechi Odiete",                          location: "Delta – Abraka",   phone: "08034730378", phone2: "09078759138" },
+  { name: "Evang. Josiah Anfofun",                   location: "Benue – Makurdi",  phone: "07032818130" },
+  { name: "Bro Odiete Onoriode",                     location: "Delta – Abraka",   phone: "08034430378" },
   { name: "Bro Chikwado Martins",                    location: "Delta – Asaba",    phone: "08063261415" },
   { name: "Okrodono Friday",                         location: "Delta – Enwhe",    phone: "08146904779" },
   { name: "Bro Victor Udekwe",                       location: "Delta – Kwale",    phone: "07087707817" },

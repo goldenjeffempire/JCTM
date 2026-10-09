@@ -13,3 +13,4 @@
 - [Render edge vs DNS ownership](render-edge-dns.md) — a Cloudflare response header from Render does not prove the site has a user-owned Cloudflare zone; verify authoritative nameservers.
 - [Render SMTP verification](render-smtp-verification.md) — Replit SMTP checks can time out while Render sends successfully; verify live mail with admin test and later delivery logs.
 - [SMTP incident channel](smtp-incident-channel.md) — keep transport incidents admin-only; audience push subscriptions are not an admin alert channel.
+- [Directory preservation](directory-preservation.md) — keep duplicate viewing-centre entries unless the user explicitly requests removal.
