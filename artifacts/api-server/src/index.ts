@@ -28,6 +28,7 @@ import { startKeepalive, stopKeepalive } from "./lib/keepalive.js";
 import { bootstrapSubscribers } from "./lib/subscriber-manager.js";
 import { pool } from "@workspace/db";
 import { initHealthCache, stopHealthCache, setReadyState } from "./routes/health.js";
+import { createServer } from "node:http";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -82,17 +83,17 @@ validateEnv();
 // after the port is claimed. This prevents race conditions in dev where the
 // Vite dev server can reclaim port 5000 during the migration window.
 
-const server = app.listen(port, async (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+const server = createServer(app);
+// Configure the proxy-facing timeouts before accepting requests. Render's
+// reverse proxy can hold connections open for up to 120 seconds.
+server.keepAliveTimeout = 120_000;
+server.headersTimeout = 120_000;
+server.on("error", (err) => {
+  logger.error({ err }, "Error listening on port");
+  process.exit(1);
+});
 
-  // Keep connections alive longer than the 60 s timeout used by most
-  // load balancers / reverse proxies (Render, Replit, Cloudflare).
-  server.keepAliveTimeout = 65_000;
-  server.headersTimeout   = 66_000;
-
+server.listen(port, "0.0.0.0", async () => {
   logger.info({ port }, "Server listening");
 
   // ── Background health probe — start immediately so first Render probe ─────
