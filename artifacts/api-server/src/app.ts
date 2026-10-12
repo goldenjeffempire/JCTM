@@ -13,6 +13,7 @@ import { getDevotionPrerenderScript, getDevotionOgData } from "./lib/devotion-pr
 import router from "./routes";
 import seoRouter from "./routes/seo";
 import { logger } from "./lib/logger";
+import { createOptionalHtmlEnrichment } from "./lib/optional-html.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -404,6 +405,15 @@ if (process.env.NODE_ENV === "production") {
     return htmlTemplate;
   }
 
+  const optionalEventSchemas = createOptionalHtmlEnrichment(
+    getActiveEventSchemaScripts,
+    (reason) => logger.warn({ reason }, "HTML event enrichment skipped — serving public page"),
+  );
+  const optionalDevotionScript = createOptionalHtmlEnrichment(
+    getDevotionPrerenderScript,
+    (reason) => logger.warn({ reason }, "HTML devotion enrichment skipped — serving public page"),
+  );
+
   // ─── Edge-cache layering strategy ──────────────────────────────────────────
   // We set THREE families of cache headers on every static response:
   //   • Cache-Control               — what the user's browser does
@@ -495,8 +505,10 @@ if (process.env.NODE_ENV === "production") {
   // from edge caching exactly like every other HTML response above.
   //
   // Dynamic event schema injection: we read the index.html template once,
-  // then on each request we fetch the current active-event JSON-LD (cached
-  // 60 s in-process) and inject it just before </head>.  Past events are
+  // then fetch the current active-event JSON-LD with a 300 ms maximum wait.
+  // Outstanding work is shared across requests, so slow DB/AI enrichment
+  // cannot prevent public HTML delivery or flood the database with duplicates.
+  // Results are cached 60 s in-process. Past events are
   // automatically excluded because the DB query filters end_at > NOW().
   // When there are no live events the response is identical to a plain
   // sendFile — no overhead, no empty <script> tags.
@@ -515,8 +527,8 @@ if (process.env.NODE_ENV === "production") {
     try {
       const [baseHtml, eventSchemas, devotionScript] = await Promise.all([
         Promise.resolve(getHtmlTemplate()),
-        getActiveEventSchemaScripts(),
-        isDevotionRoute ? getDevotionPrerenderScript() : Promise.resolve(null),
+        optionalEventSchemas(),
+        isDevotionRoute ? optionalDevotionScript() : Promise.resolve(null),
       ]);
 
       let html = baseHtml;

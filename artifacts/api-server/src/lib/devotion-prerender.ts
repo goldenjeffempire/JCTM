@@ -18,6 +18,7 @@ import { logger } from "./logger.js";
 let cachedScript: string | null = null;
 let cachedForDate: string = "";          // YYYY-MM-DD
 let cacheExpiresAt = 0;
+let retryAfter = 0;
 const CACHE_TTL_MS = 7 * 60_000;        // 7 minutes
 
 /** Subset of the devotion object kept for Open Graph tag injection. */
@@ -51,6 +52,7 @@ export async function getDevotionPrerenderScript(): Promise<string> {
   ) {
     return cachedScript;
   }
+  if (now < retryAfter) return "";
 
   try {
     const { devotion } = await ensureDevotionForDate(todayStr);
@@ -64,6 +66,7 @@ export async function getDevotionPrerenderScript(): Promise<string> {
       `  <script>window.__DEVOTION__=${safeJson};</script>`;
 
     cachedScript = script;
+    retryAfter = 0;
     cachedForDate = todayStr;
     cacheExpiresAt = now + CACHE_TTL_MS;
     cachedOgData = {
@@ -74,7 +77,8 @@ export async function getDevotionPrerenderScript(): Promise<string> {
     return script;
   } catch (err) {
     logger.warn({ err }, "devotion-prerender: failed to fetch today's devotion — skipping injection");
-    // Don't cache the failure; retry on the next request.
+    // Avoid repeated DB/AI attempts on every visitor request during an outage.
+    retryAfter = Date.now() + 15_000;
     return "";
   }
 }
@@ -112,6 +116,7 @@ export function invalidateDevotionPrerenderCache(): void {
   cachedScript = null;
   cachedForDate = "";
   cacheExpiresAt = 0;
+  retryAfter = 0;
   cachedOgData = null;
   logger.debug("devotion-prerender: cache invalidated");
 }

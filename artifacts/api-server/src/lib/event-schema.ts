@@ -112,7 +112,10 @@ export async function getActiveEventSchemaScripts(): Promise<string> {
     return scripts;
   } catch (err) {
     logger.warn({ err }, "event-schema: DB query failed — skipping injection");
-    // Don't cache the failure — try again on next request.
+    // Briefly cache omission rather than retrying on every public page view.
+    // Never serve expired event metadata during an outage.
+    cachedSchemas = "";
+    cacheExpiresAt = Date.now() + 15_000;
     return "";
   }
 }

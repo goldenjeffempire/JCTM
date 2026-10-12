@@ -14,3 +14,4 @@
 - [Render SMTP verification](render-smtp-verification.md) — Replit SMTP checks can time out while Render sends successfully; verify live mail with admin test and later delivery logs.
 - [SMTP incident channel](smtp-incident-channel.md) — keep transport incidents admin-only; audience push subscriptions are not an admin alert channel.
 - [Directory preservation](directory-preservation.md) — keep duplicate viewing-centre entries unless the user explicitly requests removal.
+- [Public availability](public-availability.md) — user prioritizes Google, AdSense, and audience access; successful checks do not guarantee review approval.
