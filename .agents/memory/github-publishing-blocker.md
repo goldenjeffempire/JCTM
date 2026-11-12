@@ -20,3 +20,9 @@ Cross-environment Vite bundle filenames are not reliable deployment identities.
 **Why:** A Render release can have different bundle hashes from the Replit build even when the changed component matches the tested component.
 
 **How to apply:** Verify the remote revision, Render's successful deployment for that revision, and the live feature's code or behavior. Do not diagnose a stale deployment solely from a different local bundle filename.
+
+A successful development page-module request does not prove that the preview has recovered from Vite's `Outdated Optimize Dep` errors.
+
+**Why:** After forced dependency optimization, current modules returned HTTP 200 while the browser still encountered stale dependency imports. This was a preview verification issue, not evidence of a failed Render release.
+
+**How to apply:** Confirm the rendered preview as well as its current dependency requests. Keep preview-cache failures separate from production availability checks.

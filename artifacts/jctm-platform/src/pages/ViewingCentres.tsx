@@ -14,7 +14,7 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Bro Stephen Bassey",                      location: "Akwa Ibom",        phone: "08123451718" },
   { name: "Bro Ifeadi Henry",                        location: "Anambra",          phone: "07036312885" },
   { name: "Bro Ntui Cyril",                          location: "Anambra",          phone: "07031296721" },
-  { name: "Smart Oyinkiye Julius",                    location: "Sagbama - Bayelsa", phone: "08138559370" },
+  { name: "Smart Oyinkiye Julius",                    location: "Bayelsa - Sagbama", phone: "08138559370" },
   { name: "Bro Monday",                              location: "Benue – Gboko",    phone: "07062291532" },
   { name: "Josiah Anfofun",                         location: "Benue – Makurdi",  phone: "07032818130" },
   { name: "Amechi Odiete",                          location: "Delta – Abraka",   phone: "08034730378", phone2: "09078759138" },
@@ -41,9 +41,9 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Pst Chibuwa James",                       location: "Rivers",           phone: "08162062703" },
   { name: "Bro Eke Samson",                          location: "Rivers",           phone: "09022759069" },
   { name: "Bro Akaku Emeka",                         location: "Rivers",           phone: "08039386734" },
-  { name: "Sunday Chinweume", location: "Uduenu LGA – Enugu", phone: "08030703762", phone2: "07068118355" },
+  { name: "Sunday Chinweume", location: "Enugu - Uduenu LGA", phone: "08030703762", phone2: "07068118355" },
   { name: "Omoni Dakodu", location: "Lagos – Iba", phone: "07080985556" },
-  { name: "Omeke Simon", location: "Nsukka – Enugu", phone: "08064551249" },
+  { name: "Omeke Simon", location: "Enugu - Nsukka", phone: "08064551249" },
   { name: "Victor Otunu", location: "Bayelsa – Yenagoa", phone: "07036988634" },
   { name: "Inokon Item Mark", location: "Delta – Ogwashi-Uku", phone: "07062672667" },
   { name: "Samson David", location: "Delta – Bomadi", phone: "08071332134", phone2: "09013752610" },
@@ -73,7 +73,7 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Ibekwe Peter", location: "Abuja – Abaji", phone: "07039619402" },
   { name: "Emmanuel Ibhazebo", location: "Edo – Ehanlen Ewu", phone: "07064965556" },
   { name: "Charles Odes", location: "Port Harcourt – Rumuokoro", phone: "09110083033", phone2: "08036714296" },
-  { name: "Progress Etim Akpan", location: "Eka - Bayelsa", phone: "+2348160231012" },
+  { name: "Progress Etim Akpan", location: "Bayelsa - Opolo Eka", phone: "+2348160231012" },
 ];
 
 // Stable sorting retains every entry, including duplicate locations.
