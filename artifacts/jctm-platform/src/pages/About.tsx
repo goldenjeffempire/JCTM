@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { HERO_IMAGES as OVERSEER_IMAGES } from "@/constants/hero-images";
 import { motion } from "framer-motion";
 import { AdSlot, ADSENSE_SLOTS, useAdPageTracker } from "@/components/ads/AdSense";
 import { TempleAppCTAStrip } from "@/components/TempleAppCTAStrip";
@@ -36,17 +37,6 @@ const ABOUT_STRINGS = {
   startsIn: "Starts In",
   livestreamed: "Live-streamed via Temple TV · 8:00 AM WAT",
 };
-
-const OVERSEER_IMAGES = [
-  { key: "img1", src: "/founder/DSC3371.webp", fallback: "/founder/DSC3371.jpg", label: "Prophetic Word", tag: "Prophet" },
-  { key: "img2", src: "/founder/DSC3376.webp", fallback: "/founder/DSC3376.jpg", label: "Apostolic Voice", tag: "Ministry" },
-  { key: "img3", src: "/founder/DSC1657.jpg", label: "Worship", tag: "Praise" },
-  { key: "img4", src: "/founder/DSC1671.jpg", label: "Crusade", tag: "Outreach" },
-  { key: "img5", src: "/founder/DSC1743.jpg", label: "Preaching", tag: "Ministry" },
-  { key: "img6", src: "/founder/DSC1774.jpg", label: "Prayer", tag: "Intercession" },
-  { key: "img7", src: "/founder/DSC5377.jpg", label: "Anointing", tag: "Prophet" },
-  { key: "img8", src: "/founder/DSC5382.jpg", label: "Proclamation", tag: "Apostolic" },
-];
 
 function OverseerSlideshow() {
   const n = OVERSEER_IMAGES.length;
@@ -103,7 +93,6 @@ function OverseerSlideshow() {
             opacity: 0,
             animation: `jctmCrossfade ${total}s ease-in-out ${delay} infinite`,
           };
-          const fallbackSrc = (img as { fallback?: string }).fallback;
 
           return (
             <div key={img.key} className="absolute inset-0" style={crossfadeStyle}>
@@ -124,9 +113,6 @@ function OverseerSlideshow() {
                 }}
                 loading="lazy"
                 decoding="async"
-                onError={(e) => {
-                  if (fallbackSrc) (e.target as HTMLImageElement).src = fallbackSrc;
-                }}
               />
 
               {/* ── Foreground — full image, never cropped ─────────────────────
@@ -144,9 +130,6 @@ function OverseerSlideshow() {
                 }}
                 loading={i < 2 ? "eager" : "lazy"}
                 decoding="async"
-                onError={(e) => {
-                  if (fallbackSrc) (e.target as HTMLImageElement).src = fallbackSrc;
-                }}
               />
 
               {/* ── Bottom gradient — blends into the label strip ────────────── */}
