@@ -1967,21 +1967,8 @@ function TestimoniesMarquee() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PROPHET SECTION — Cinematic dual-photo editorial layout with interactive gallery
 // ═══════════════════════════════════════════════════════════════════════════
-const FOUNDER_PHOTOS = [
-  { key: "photo1", src: "/founder/DSC3371.webp", fallback: "/founder/DSC3371.jpg", label: "Portrait" },
-  { key: "photo2", src: "/founder/DSC3376.webp", fallback: "/founder/DSC3376.jpg", label: "Preaching" },
-  { key: "photo3", src: "/founder/DSC1657.jpg", label: "Worship" },
-  { key: "photo4", src: "/founder/DSC1671.jpg", label: "Crusade" },
-  { key: "photo5", src: "/founder/DSC1743.jpg", label: "Ministry" },
-  { key: "photo6", src: "/founder/DSC1774.jpg", label: "Prayer" },
-  { key: "photo7", src: "/founder/DSC5377.jpg", label: "Anointing" },
-  { key: "photo8", src: "/founder/DSC5382.jpg", label: "Proclamation" },
-  { key: "photo9", src: "/founder/DSC6453.jpg", label: "Conference" },
-  { key: "photo10", src: "/founder/DSC6455.jpg", label: "The Word" },
-  { key: "photo11", src: "/founder/DSC6459.jpg", label: "The Mandate" },
-  { key: "photo12", src: "/founder/DSC6468.jpg", label: "Triumphant" },
-  { key: "photo13", src: "/founder/P1409629.jpg", label: "Gathered" },
-];
+// Keep both homepage photo rotations on the same optimized image set.
+const FOUNDER_PHOTOS = HERO_IMAGES;
 
 function ProphetSection() {
   const ref = useRef<HTMLElement>(null);
@@ -2046,7 +2033,6 @@ function ProphetSection() {
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 loading="lazy" decoding="async"
                 fetchPriority="low"
-                onError={(e) => { if ("fallback" in activePhoto && activePhoto.fallback) (e.target as HTMLImageElement).src = (activePhoto as { fallback: string }).fallback; }}
               />
             </AnimatePresence>
           </motion.div>
