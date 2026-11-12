@@ -19,7 +19,13 @@ Verify exact Scripture quotations against the named translation, including short
 
 **Why:** A spiritually accurate summary can still insert a word that is not present in a contiguous KJV excerpt.
 
-**How to apply:** Check quotations independently before admitting them, and limit quotation corrections to unpublished material so published history remains intact.
+**How to apply:** Check quotations independently before admitting them. Preserve published text except for the explicitly approved NKJV migration described below.
+
+Use NKJV for all Bible passages, including previously published devotions. Preserve original versions when migrating the archive.
+
+**Why:** The user requested all passages in NKJV and explicitly confirmed that previously published devotions are included.
+
+**How to apply:** Replace actual quotations using a verified NKJV source, not translation labels alone. Preserve dates, titles, and original revision records. Confirm that source access permits the site's advertising-supported use before integrating a licensed provider.
 
 Use available JCTM preaching materials as the foundation for ministry-specific devotion writing, and distinguish actual transcripts from descriptions or teaching notes.
 
