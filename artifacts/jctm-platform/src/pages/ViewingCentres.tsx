@@ -14,7 +14,7 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Bro Stephen Bassey",                      location: "Akwa Ibom",        phone: "08123451718" },
   { name: "Bro Ifeadi Henry",                        location: "Anambra",          phone: "07036312885" },
   { name: "Bro Ntui Cyril",                          location: "Anambra",          phone: "07031296721" },
-  { name: "Bro Julius",                              location: "Bayelsa",          phone: "08138559370" },
+  { name: "Smart Oyinkiye Julius",                    location: "Sagbama - Bayelsa", phone: "08138559370" },
   { name: "Bro Monday",                              location: "Benue – Gboko",    phone: "07062291532" },
   { name: "Josiah Anfofun",                         location: "Benue – Makurdi",  phone: "07032818130" },
   { name: "Amechi Odiete",                          location: "Delta – Abraka",   phone: "08034730378", phone2: "09078759138" },
