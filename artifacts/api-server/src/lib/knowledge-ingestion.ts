@@ -801,6 +801,7 @@ export async function ingestDailyDevotionals(log?: Logger): Promise<void> {
     }>(
       `SELECT date, title, scripture, reference, reflection, prayer_focus, declaration, prophetic_word
        FROM daily_devotions
+       WHERE date <= (now() AT TIME ZONE 'Africa/Lagos')::date AND published_at IS NOT NULL
        ORDER BY date DESC
        LIMIT 45`,
     );

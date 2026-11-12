@@ -1,5 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { ensureDevotionForDate, getDevotionHistory } from "../lib/devotion-engine.js";
+import { devotionDate, ensureDevotionForDate, findPublishedDevotion, getDevotionHistory } from "../lib/devotion-engine.js";
+import { addLibraryContent, getLibraryStatus, seedDevotionLibrary } from "../lib/devotion-library.js";
+import { expandDevotionLibrary, verifyScripture } from "../lib/devotion-expansion.js";
+import { validateContent } from "../lib/devotion-quality.js";
 import { db, devotionSubscribersTable, devotionsTable, pool } from "@workspace/db";
 import { eq, count, desc, and } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
@@ -18,16 +21,47 @@ const router: IRouter = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+router.get("/devotion/admin/library", requireAdminRole("livestream"), async (_req, res) => {
+  try {
+    await seedDevotionLibrary();
+    res.json(await getLibraryStatus());
+  } catch {
+    res.status(503).json({ error: "The devotion library is temporarily unavailable." });
+  }
+});
+
+router.post("/devotion/admin/library/import", requireAdminRole("livestream"), async (req, res) => {
+  if (req.body?.confirmReviewed !== true || !Array.isArray(req.body?.devotions) ||
+      req.body.devotions.length < 1 || req.body.devotions.length > 12) {
+    res.status(400).json({ error: "Confirm pastoral review and provide between 1 and 12 complete devotions." });
+    return;
+  }
+  try {
+    const content = (req.body.devotions as unknown[]).map(validateContent);
+    await Promise.all(content.map(devotion => verifyScripture(devotion)));
+    const result = await addLibraryContent(content, "editor");
+    res.status(result.rejected.length ? 409 : 201).json(result);
+  } catch (error) {
+    res.status(422).json({ error: (error as Error).message });
+  }
+});
+
+router.post("/devotion/admin/library/expand", requireAdminRole("livestream"), async (_req, res) => {
+  // Work continues outside the HTTP request; no request waits for a model.
+  void expandDevotionLibrary(logger).catch(() => logger.warn("Devotion expansion needs editorial attention"));
+  res.status(202).json({ ok: true, message: "Expansion requested. Refresh the library status to see the result." });
+});
+
 // ─── Today's devotion ─────────────────────────────────────────────────────────
 
 router.get("/devotion/daily", async (_req: Request, res: Response): Promise<void> => {
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = devotionDate();
   try {
     const result = await ensureDevotionForDate(today);
     res.json(result);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Devotion generation failed";
-    res.status(500).json({ error: msg });
+    res.status(503).json({ error: msg });
   }
 });
 
@@ -35,18 +69,24 @@ router.get("/devotion/daily", async (_req: Request, res: Response): Promise<void
 
 router.get("/devotion/date/:date", async (req: Request, res: Response): Promise<void> => {
   const dateStr = String(req.params.date ?? "");
-  if (!DATE_RE.test(dateStr) || isNaN(new Date(dateStr + "T00:00:00Z").getTime())) {
+  if (!DATE_RE.test(dateStr) || isNaN(new Date(dateStr + "T00:00:00Z").getTime()) ||
+      new Date(dateStr + "T00:00:00Z").toISOString().slice(0, 10) !== dateStr) {
     res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
     return;
   }
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = devotionDate();
   if (dateStr > today) {
     res.status(400).json({ error: "Cannot fetch devotions for future dates." });
     return;
   }
   try {
-    const result = await ensureDevotionForDate(dateStr);
-    res.json(result);
+    if (dateStr === today) {
+      res.json(await ensureDevotionForDate(dateStr));
+    } else {
+      const devotion = await findPublishedDevotion(dateStr);
+      if (!devotion) { res.status(404).json({ error: "No devotion was published for this date." }); return; }
+      res.json({ devotion, cached: true });
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Devotion generation failed";
     res.status(500).json({ error: msg });
@@ -57,7 +97,7 @@ router.get("/devotion/date/:date", async (req: Request, res: Response): Promise<
 
 router.get("/devotion/history", async (req: Request, res: Response): Promise<void> => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 7, 30);
+    const limit = Math.max(1, Math.min(Math.trunc(Number(req.query.limit)) || 7, 365));
     const devotions = await getDevotionHistory(limit);
     res.json({ devotions });
   } catch (err: unknown) {
@@ -233,7 +273,7 @@ router.get(
   requireAdminRole("livestream"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
-      const today = new Date().toISOString().split("T")[0]!;
+      const today = devotionDate();
       const { devotion } = await ensureDevotionForDate(today);
       const { html } = renderDevotionEmail(
         devotion,
@@ -263,7 +303,7 @@ router.post(
       return;
     }
     try {
-      const today = new Date().toISOString().split("T")[0]!;
+      const today = devotionDate();
       const { devotion } = await ensureDevotionForDate(today, logger);
       const unsubUrl = `${getPublicBaseUrl()}/api/devotion/unsubscribe?token=test-preview`;
       const ok = await sendDevotionEmail(toEmail, devotion, unsubUrl, logger);
@@ -290,7 +330,7 @@ router.post(
       return;
     }
     try {
-      const today = new Date().toISOString().split("T")[0]!;
+      const today = devotionDate();
       const { devotion } = await ensureDevotionForDate(today, logger);
 
       const {

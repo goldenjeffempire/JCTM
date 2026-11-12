@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Image,
   Linking,
   RefreshControl,
@@ -11,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useGetFeaturedSermon, useGetLivestreamStatus } from "@workspace/api-client-react";
+import { getGetLivestreamStatusQueryKey, useGetFeaturedSermon, useGetLivestreamStatus } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useCrusadeCountdown } from "@/hooks/useCrusadeCountdown";
 import { PushPermissionPrompt } from "@/components/PushPermissionPrompt";
@@ -38,7 +39,7 @@ async function openVideo(videoId?: string | null, fallbackUrl?: string | null) {
 }
 
 function LiveBanner({ colors }: { colors: ReturnType<typeof useColors> }) {
-  const { data } = useGetLivestreamStatus({ query: { refetchInterval: 30_000, staleTime: 15_000 } });
+  const { data } = useGetLivestreamStatus({ query: { queryKey: getGetLivestreamStatusQueryKey(), refetchInterval: 30_000, staleTime: 15_000 } });
   const status = data as {
     isLive?: boolean;
     title?: string | null;
@@ -121,25 +122,51 @@ function FeaturedCard({ colors }: { colors: ReturnType<typeof useColors> }) {
 }
 
 type Devotion = {
+  date?: string;
   title?: string;
   scripture?: string;
   reference?: string;
   declaration?: string;
+  introduction?: string;
+  reflection?: string;
+  application?: string;
+  prayerFocus?: string;
+  propheticWord?: string;
 };
 
 function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
   const [devotion, setDevotion] = useState<Devotion | null>(null);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/devotion/daily`)
-      .then((r) => r.json())
-      .then((data: { devotion?: Devotion }) => {
-        if (data?.devotion) setDevotion(data.devotion);
-      })
-      .catch(() => {});
+  const [expanded, setExpanded] = useState(false);
+  const [error, setError] = useState(false);
+  const loadDevotion = useCallback(async () => {
+    try {
+      const response = await fetch(`${BASE}/api/devotion/daily`);
+      if (!response.ok) throw new Error("Devotion unavailable");
+      const data = await response.json() as { devotion?: Devotion };
+      if (!data.devotion?.title) throw new Error("Invalid devotion");
+      setDevotion(data.devotion);
+      setError(false);
+    } catch {
+      setError(true);
+    }
   }, []);
 
-  if (!devotion) return null;
+  useEffect(() => {
+    void loadDevotion();
+    const listener = AppState.addEventListener("change", state => {
+      if (state === "active") void loadDevotion();
+    });
+    const refresh = setInterval(() => {
+      if (AppState.currentState === "active") void loadDevotion();
+    }, 15 * 60 * 1000);
+    return () => { listener.remove(); clearInterval(refresh); };
+  }, [loadDevotion]);
+
+  if (!devotion) return error ? (
+    <TouchableOpacity onPress={() => void loadDevotion()} accessibilityRole="button">
+      <Text style={{ color: colors.text, padding: 16 }}>Daily devotion could not load. Tap to retry.</Text>
+    </TouchableOpacity>
+  ) : null;
 
   return (
     <View style={[styles.devotionCard, { backgroundColor: colors.primary }]}>
@@ -153,6 +180,18 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
       {devotion.reference && (
         <Text style={styles.devotionRef}>— {devotion.reference}</Text>
       )}
+      {expanded && (
+        <View style={{ gap: 14, marginTop: 12 }}>
+          {devotion.introduction && <Text style={styles.devotionVerse}>{devotion.introduction}</Text>}
+          {devotion.reflection && <Text style={styles.devotionVerse}>{devotion.reflection}</Text>}
+          {!devotion.introduction && devotion.propheticWord && <Text style={styles.devotionVerse}>{devotion.propheticWord}</Text>}
+          {devotion.application && <Text style={styles.devotionVerse}>PUT IT INTO PRACTICE{"\n"}{devotion.application}</Text>}
+          {devotion.prayerFocus && <Text style={styles.devotionVerse}>CLOSING PRAYER{"\n"}{devotion.prayerFocus}</Text>}
+          <TouchableOpacity accessibilityRole="link" onPress={() => Linking.openURL(`${BASE}/devotion`)}>
+            <Text style={styles.devotionRef}>Open on the website</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {devotion.declaration && (
         <Text style={[styles.devotionDeclaration]} numberOfLines={2}>
           ✦ {devotion.declaration}
@@ -160,11 +199,13 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
       )}
       <TouchableOpacity
         style={styles.devotionReadBtn}
-        onPress={() => Linking.openURL(`${BASE}/devotion`)}
+        onPress={() => setExpanded(value => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
         activeOpacity={0.85}
       >
         <Text style={[styles.devotionReadBtnText, { color: colors.primary }]}>
-          Read Full Devotion
+          {expanded ? "Show Less" : "Read Full Devotion"}
         </Text>
       </TouchableOpacity>
     </View>

@@ -3,7 +3,7 @@
  *
  * Replaces GPT-4o for all text generation tasks:
  *  - TempleBots conversational responses (pastoral, theological)
- *  - Daily devotion generation (365+ unique devotions)
+ *  - Legacy devotion excerpts (publishing uses devotion-engine.ts)
  *  - Sermon summaries and SEO descriptions
  *  - Blog post generation
  *  - Spiritual insight responses
@@ -13,7 +13,7 @@
  * Falls back gracefully when specific content is unavailable.
  */
 
-// ─── JCTM Devotion Pool (365+ entries) ────────────────────────────────────────
+// ─── Legacy JCTM Devotion Excerpts ──────────────────────────────────────────
 
 export interface DevotionEntry {
   title: string;
@@ -253,7 +253,8 @@ export function generateDevotionForDate(
     e => !usedReferences.includes(e.reference)
   );
 
-  const pool = unusedEntries.length > 0 ? unusedEntries : EXPANDED_DEVOTION_POOL;
+  if (!unusedEntries.length) throw new Error("Legacy devotion pool exhausted; recycling is prohibited");
+  const pool = unusedEntries;
   return pool[Math.abs(dayOfYear) % pool.length] ?? pool[0]!;
 }
 

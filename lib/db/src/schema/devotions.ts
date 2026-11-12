@@ -1,4 +1,4 @@
-import { pgTable, text, date } from "drizzle-orm/pg-core";
+import { pgTable, text, date, boolean, timestamp } from "drizzle-orm/pg-core";
 
 export const devotionsTable = pgTable("daily_devotions", {
   date: date("date").primaryKey(),
@@ -9,6 +9,16 @@ export const devotionsTable = pgTable("daily_devotions", {
   propheticWord: text("prophetic_word").notNull(),
   prayerFocus: text("prayer_focus").notNull(),
   declaration: text("declaration").notNull(),
+  topic: text("topic"),
+  category: text("category"),
+  introduction: text("introduction"),
+  application: text("application"),
+  scriptureVersion: text("scripture_version"),
+  topicKey: text("topic_key"),
+  titleKey: text("title_key"),
+  contentHash: text("content_hash"),
+  reviewRequired: boolean("review_required").notNull().default(false),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
 });
 
 export type DailyDevotion = typeof devotionsTable.$inferSelect;

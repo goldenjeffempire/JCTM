@@ -1,5 +1,6 @@
 import { pool } from "@workspace/db";
 import { logger } from "./logger.js";
+import { DEVOTION_SCHEMA_SQL } from "./devotion-schema.js";
 
 /**
  * Runs all idempotent schema migrations.
@@ -1565,5 +1566,6 @@ export async function runMigrations(): Promise<void> {
       WHERE is_featured = true
   `);
 
+  await pool.query(DEVOTION_SCHEMA_SQL);
   logger.info("All migrations complete");
 }

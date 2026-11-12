@@ -19,6 +19,7 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { DevotionLibraryPanel } from "@/components/admin/DevotionLibraryPanel";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 import { EventPromotionPreview } from "@/components/event-promo/EventPromotionPreview";
 import { WarriCrusadeStatsTile } from "@/components/admin/WarriCrusadeStatsTile";
@@ -106,13 +107,14 @@ function countdown(iso: string) {
 
 // ─── Nav sections ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email" | "knowledge" | "downloads";
+type Section = "overview" | "broadcast" | "events" | "sermons" | "gallery" | "testimonies" | "platform" | "analytics" | "ai" | "ads" | "credentials" | "email" | "knowledge" | "downloads" | "devotions";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
   { id: "overview",     label: "Overview",     icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "broadcast",    label: "Broadcast",    icon: <Radio className="w-4 h-4" /> },
   { id: "events",       label: "Events",       icon: <Megaphone className="w-4 h-4" /> },
   { id: "sermons",      label: "Sermons",      icon: <BookOpen className="w-4 h-4" /> },
+  { id: "devotions",    label: "Devotions",    icon: <BookOpen className="w-4 h-4" /> },
   { id: "gallery",      label: "Gallery",      icon: <Image className="w-4 h-4" /> },
   { id: "testimonies",  label: "Testimonies",  icon: <MessageSquare className="w-4 h-4" /> },
   { id: "platform",     label: "Platform",     icon: <BarChart3 className="w-4 h-4" /> },
@@ -9037,6 +9039,7 @@ export default function Admin() {
               {section === "ads"         && <AdSenseDiagnosticsSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
               {section === "email"       && <EmailCampaignSection auth={livestreamAuth} />}
+              {section === "devotions"   && <DevotionLibraryPanel token={livestreamAuth.adminToken ?? ""} onLogin={livestreamAuth.login} />}
               {section === "knowledge"   && <KnowledgeSection auth={sermonAuth} />}
               {section === "downloads"   && <DownloadsSection auth={sermonAuth} />}
             </motion.div>

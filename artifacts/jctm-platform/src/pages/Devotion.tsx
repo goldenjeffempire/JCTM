@@ -18,6 +18,10 @@ interface DailyDevotion {
   propheticWord: string;
   prayerFocus: string;
   declaration: string;
+  introduction?: string;
+  application?: string;
+  scriptureVersion?: string;
+  category?: string;
 }
 
 // Read the server-pre-rendered devotion injected by the API server into the HTML.
@@ -43,7 +47,9 @@ export default function Devotion() {
   const [copied, setCopied] = useState(false);
 
   const today = new Date();
-  const dateLabel = format(today, "EEEE, MMMM d, yyyy");
+  const dateLabel = devotion?.date
+    ? format(new Date(devotion.date + "T12:00:00Z"), "EEEE, MMMM d, yyyy")
+    : today.toLocaleDateString("en-GB", { timeZone: "Africa/Lagos", weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -68,15 +74,30 @@ export default function Devotion() {
   }, [load, serverDevotion]);
 
   useEffect(() => {
+    const refreshAtNewDay = () => {
+      const current = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+      if (document.visibilityState === "visible" && devotion?.date && devotion.date !== current) void load();
+    };
+    window.addEventListener("focus", refreshAtNewDay);
+    document.addEventListener("visibilitychange", refreshAtNewDay);
+    const timer = window.setInterval(refreshAtNewDay, 60000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refreshAtNewDay);
+      document.removeEventListener("visibilitychange", refreshAtNewDay);
+    };
+  }, [devotion?.date, load]);
+
+  useEffect(() => {
     fetch(`${BASE}/api/devotion/history?limit=14`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { devotions?: DailyDevotion[] } | null) => {
         if (!data?.devotions) return;
-        const todayStr = new Date().toISOString().split("T")[0]!;
+        const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
         setHistory(data.devotions.filter((d) => d.date !== todayStr).slice(0, 13));
       })
       .catch(() => {});
-  }, []);
+  }, [devotion?.date]);
 
   return (
     <Layout>
@@ -164,14 +185,20 @@ export default function Devotion() {
                   {devotion.scripture}
                 </blockquote>
                 <figcaption className="mt-4 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                  {devotion.reference}
+                  {devotion.reference}{devotion.scriptureVersion ? ` · ${devotion.scriptureVersion}` : ""}
                 </figcaption>
               </figure>
             </section>
 
+            {devotion.introduction && (
+              <section>
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">Introduction · {devotion.category}</h2>
+                <p className="text-[17px] leading-[1.8] text-primary/85">{devotion.introduction}</p>
+              </section>
+            )}
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
-                Reflection
+                {devotion.introduction ? "Today's Message" : "Reflection"}
               </p>
               <div className="space-y-5 text-[17px] sm:text-[18px] leading-[1.8] text-primary/85 font-medium devotion-prose">
                 {devotion.reflection
@@ -183,7 +210,7 @@ export default function Devotion() {
               </div>
             </section>
 
-            <section>
+            {!devotion.introduction && <section>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
                 Prophetic Word
               </p>
@@ -193,11 +220,18 @@ export default function Devotion() {
               <p className="mt-3 text-xs sm:text-sm font-semibold uppercase tracking-[0.16em] text-primary/55">
                 — Through Prophet Amos Evomobor · JCTM
               </p>
-            </section>
+            </section>}
+
+            {devotion.application && (
+              <section className="rounded-xl border border-accent/25 bg-accent/[0.06] p-6">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">Put It into Practice</h2>
+                <p className="text-[17px] leading-[1.8] text-primary/85">{devotion.application}</p>
+              </section>
+            )}
 
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent mb-4">
-                Prayer Focus
+                {devotion.introduction ? "Closing Prayer" : "Prayer Focus"}
               </p>
               <p className="text-[17px] sm:text-[18px] leading-[1.8] text-primary/85 font-medium">
                 {devotion.prayerFocus}
@@ -280,7 +314,7 @@ export default function Devotion() {
             The JCTM Daily Devotion is a ministry gift from Jesus Christ Temple Ministry — a holiness-preaching, apostolic church founded in Warri, Nigeria by Prophet Amos Evomobor. For years, the devotional tradition of JCTM has been rooted in the conviction that believers must feed daily on the Word of God. As Jesus declared, "Man shall not live by bread alone, but by every word that proceeds from the mouth of God" (Matthew 4:4). The daily devotion brings this tradition into the digital age, ensuring that JCTM's scriptural depth and prophetic anointing reaches believers worldwide — every morning, wherever they are.
           </p>
           <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
-            Each devotion follows a structured, five-part format designed to take the believer from scripture to application and into prayer. It opens with a <strong>Scripture</strong> passage drawn from the New King James Version — selected for its relevance to the spiritual climate of the day. This is followed by a <strong>Reflection</strong> that unpacks the passage through the lens of JCTM's Primitive Christianity doctrine: the original, first-century apostolic faith free from the distortions of prosperity theology, false prophetic movements, and spiritual compromise. The reflection connects timeless biblical truth to the real-life challenges believers face today.
+            New daily readings include a <strong>Scripture</strong> passage from the King James Version, an original introduction, a biblical message, a practical application, and a closing prayer. Each explores a specific new lesson across faith, prayer, love, forgiveness, holiness, spiritual growth, and everyday Christian living. Earlier published devotions remain available in their original format. JCTM's commitment to Primitive Christianity places Scripture, faithful discipleship, and practical love at the centre of every reading.
           </p>
           <p className="text-[16px] leading-[1.8] text-primary/75 font-medium">
             The <strong>Prophetic Word</strong> section brings the immediacy of prophetic ministry into the devotion — a faith-building, Spirit-led word released through the prophetic anointing of the ministry and attributed to Prophet Amos Evomobor. This is followed by a focused <strong>Prayer</strong> — not a formal religious recitation, but a genuine, heartfelt petition aligned with the day's scripture and theme. Finally, the <strong>Declaration</strong> section gives believers a power-filled statement of faith to speak aloud — because Scripture affirms that "death and life are in the power of the tongue" (Proverbs 18:21), and the holy practice of declaring God's Word over one's life has spiritual authority.
@@ -322,18 +356,20 @@ export default function Devotion() {
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
                           {past.reference}
                         </p>
+                        {past.introduction && <p><strong>Introduction: </strong>{past.introduction}</p>}
                         {past.reflection
                           .split(/\n+/)
                           .filter(Boolean)
                           .map((p, i) => (
                             <p key={i}>{p}</p>
                           ))}
-                        <p>
+                        {!past.introduction && <p>
                           <span className="font-bold text-primary">Prophetic Word: </span>
                           {past.propheticWord}
-                        </p>
+                        </p>}
+                        {past.application && <p><strong>Put It into Practice: </strong>{past.application}</p>}
                         <p>
-                          <span className="font-bold text-primary">Prayer Focus: </span>
+                          <span className="font-bold text-primary">{past.introduction ? "Closing Prayer: " : "Prayer Focus: "}</span>
                           {past.prayerFocus}
                         </p>
                         <p className="font-serif italic font-semibold text-primary">

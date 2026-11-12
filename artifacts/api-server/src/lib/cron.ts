@@ -10,7 +10,8 @@ import { enrichNextSermonBatch } from "./broadcast-engine.js";
 import { dispatchPushNotification, buildServiceReminderNotification, buildDailyDevotionNotification, type NotificationPayload } from "./push-manager.js";
 import { runEventNotificationTick, setEventNotificationIntervalMs } from "./event-notification-scheduler.js";
 import { startEventNotificationWorker, stopEventNotificationWorker } from "./event-notification-worker.js";
-import { ensureDevotionForDate } from "./devotion-engine.js";
+import { devotionDate, ensureDevotionForDate } from "./devotion-engine.js";
+import { maintainDevotionLibrary } from "./devotion-maintenance.js";
 import { sendDevotionEmail, isEmailConfigured, getPublicBaseUrl, verifyEmailTransport } from "./email-engine.js";
 import { checkAndSendConferencePreReminder, checkAndSendConferenceLiveEmail, checkAndSendConferenceMorningBulkEmail, checkAndResendDay1CorrectedEmail } from "./email-automation.js";
 import { getActiveSubscribersMissedToday, recordDelivery, makeUnsubscribeUrl } from "./subscriber-manager.js";
@@ -842,7 +843,8 @@ export function setWebSubCallbackUrl(url: string): void {
 
 function msUntilUtcMidnight(): number {
   const now = new Date();
-  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  // 23:00 UTC is midnight in Nigeria. All devotion surfaces use this boundary.
+  const midnight = new Date(`${devotionDate(now)}T23:00:00Z`);
   return midnight.getTime() - now.getTime();
 }
 
@@ -862,17 +864,10 @@ function tomorrowUTC(): string {
 // instant response with no AI generation delay.
 
 async function preGenerateTomorrowsDevotion(log: Logger): Promise<void> {
-  const tomorrow = tomorrowUTC();
   try {
-    log.info({ date: tomorrow }, "Midnight pre-generation: ensuring tomorrow's devotion exists");
-    const { cached } = await ensureDevotionForDate(tomorrow, log);
-    if (cached) {
-      log.info({ date: tomorrow }, "Tomorrow's devotion already cached — skipping generation");
-    } else {
-      log.info({ date: tomorrow }, "Tomorrow's devotion pre-generated successfully");
-    }
+    await maintainDevotionLibrary(log);
   } catch (err) {
-    log.warn({ err, date: tomorrow }, "Midnight devotion pre-generation failed (non-fatal)");
+    log.warn({ err }, "Devotion library maintenance failed (non-fatal; no recycled content was published)");
   }
 }
 
@@ -913,7 +908,7 @@ function checkAndSendDevotionNotification(log: Logger): void {
 
   const hour   = wat.getUTCHours();
   const minute = wat.getUTCMinutes();
-  const today  = todayUTC();
+  const today  = devotionDate();
 
   // Target: 6:00–6:04 AM WAT — only send once per day
   if (hour !== 6 || minute > 4) return;
@@ -921,31 +916,11 @@ function checkAndSendDevotionNotification(log: Logger): void {
 
   devotionNotificationSentDate = today;
 
-  // Fetch today's devotion from DB (pre-generated at midnight) then push
-  db.select({ title: devotionsTable.title, reference: devotionsTable.reference })
-    .from(devotionsTable)
-    .where(eq(devotionsTable.date, today))
-    .limit(1)
-    .then(async (rows) => {
-      const row = rows[0];
-      if (!row) {
-        // No pre-generated devotion — generate on-the-fly then notify
-        log.info({ date: today }, "6 AM WAT: devotion not pre-generated yet — generating now");
-        try {
-          const { devotion } = await ensureDevotionForDate(today, log);
-          await dispatchPushNotification(
-            buildDailyDevotionNotification(devotion.title, devotion.reference),
-            log,
-          );
-        } catch (err) {
-          log.warn({ err }, "Devotion on-demand generation for push notification failed (non-fatal)");
-        }
-        return;
-      }
-      log.info({ date: today, title: row.title }, "Sending daily devotion push notification");
-      dispatchPushNotification(buildDailyDevotionNotification(row.title, row.reference), log).catch(err => {
-        log.warn({ err }, "Daily devotion push failed (non-fatal)");
-      });
+  // Use the publication gate, not a raw scheduled row. A due but rejected
+  // duplicate must never escape through notifications during a supply outage.
+  ensureDevotionForDate(today, log)
+    .then(async ({ devotion }) => {
+      await dispatchPushNotification(buildDailyDevotionNotification(devotion.title, devotion.reference), log);
     })
     .catch(err => {
       log.warn({ err }, "Failed to query today's devotion for push notification (non-fatal)");
@@ -1921,7 +1896,7 @@ async function checkAndBroadcastCampaignPromotions(log: Logger): Promise<void> {
 // served today.
 
 async function broadcastDailyDevotionEmail(log: Logger): Promise<void> {
-  const today = todayUTC();
+  const today = devotionDate();
   if (devotionEmailBroadcastDate === today) return;
 
   if (!isEmailConfigured()) {
@@ -2434,7 +2409,7 @@ export function startCron(log: Logger, websubUrl?: string): void {
     preGenerateTomorrowsDevotion(log).catch(err => log.warn({ err }, "Midnight devotion generation error"));
     dailyDevotionHandle = setInterval(
       () => preGenerateTomorrowsDevotion(log).catch(err => log.warn({ err }, "Daily devotion cron error")),
-      DAILY_MS,
+      6 * 60 * 60 * 1000,
     );
     dailyDevotionHandle.unref();
   }, msToMidnight);
@@ -2442,6 +2417,12 @@ export function startCron(log: Logger, websubUrl?: string): void {
   if (typeof midnightTimer === "object" && midnightTimer !== null && "unref" in midnightTimer) {
     (midnightTimer as ReturnType<typeof setTimeout> & { unref(): void }).unref();
   }
+  // Stagger this behind startup tasks and catch up after downtime, rather than
+  // waiting until the next midnight to discover an empty reservoir.
+  const devotionStartup = setTimeout(() => {
+    preGenerateTomorrowsDevotion(log).catch(err => log.warn({ err }, "Devotion startup catch-up failed"));
+  }, 90_000);
+  devotionStartup.unref();
 
   // ── Event notification scheduler — every 30 minutes ─────────────────────────
   // Scans `event_calendar` for upcoming events and dispatches multi-channel

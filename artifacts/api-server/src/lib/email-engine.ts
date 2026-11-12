@@ -36,7 +36,7 @@
 import nodemailer, { type Transporter, type SendMailOptions } from "nodemailer";
 import { logger } from "./logger.js";
 import type { Logger } from "pino";
-import type { DailyDevotion } from "@workspace/db";
+import type { DailyDevotion } from "./devotion-engine.js";
 import { recordSmtpFailure, recordSmtpRecovery } from "./smtp-alert.js";
 
 let cachedTransporter: Transporter | null = null;
@@ -354,15 +354,15 @@ export function renderDevotionEmail(d: DailyDevotion, unsubscribeUrl: string): {
     d.title,
     ``,
     `"${d.scripture}"`,
-    `— ${d.reference}`,
+    `— ${d.reference}${d.scriptureVersion ? ` (${d.scriptureVersion})` : ""}`,
     ``,
-    `REFLECTION`,
+    ...(d.introduction ? ["INTRODUCTION", d.introduction, ""] : []),
+    d.introduction ? `MESSAGE` : `REFLECTION`,
     d.reflection,
     ``,
-    `PROPHETIC WORD — Through Prophet Amos Evomobor`,
-    d.propheticWord,
+    ...(d.introduction ? ["PRACTICAL APPLICATION", d.application ?? ""] : ["PROPHETIC WORD — Through Prophet Amos Evomobor", d.propheticWord]),
     ``,
-    `PRAYER FOCUS`,
+    d.introduction ? `CLOSING PRAYER` : `PRAYER FOCUS`,
     d.prayerFocus,
     ``,
     `DECLARATION (Speak this aloud)`,
@@ -409,15 +409,17 @@ export function renderDevotionEmail(d: DailyDevotion, unsubscribeUrl: string): {
           <td style="padding:16px 20px;background:#f8fafc;border-radius:0 8px 8px 0;">
             <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;font-weight:600;">Scripture</p>
             <p style="margin:0 0 10px 0;font-size:17px;font-style:italic;line-height:1.6;color:#0f172a;">${escapeHtml(d.scripture)}</p>
-            <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#475569;">— ${escapeHtml(d.reference)}</p>
+            <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#475569;">— ${escapeHtml(d.reference)}${d.scriptureVersion ? ` (${escapeHtml(d.scriptureVersion)})` : ""}</p>
           </td>
         </tr>
       </table>
 
       <!-- Reflection -->
+      ${d.introduction ? `<p style="font-weight:700;color:#0f172a;">Introduction</p><div style="margin-bottom:24px;line-height:1.8;color:#374151;">${paragraphs(d.introduction)}</div>` : ""}
       <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Reflection</p>
       <div style="margin-bottom:28px;font-size:15px;line-height:1.8;color:#374151;">${paragraphs(d.reflection)}</div>
 
+      ${d.introduction ? `<p style="font-weight:700;color:#0f172a;">Practical Application</p><div style="margin-bottom:24px;line-height:1.8;color:#374151;">${paragraphs(d.application ?? "")}</div>` : `
       <!-- Prophetic Word -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
         <tr><td style="background:#fef9f0;border:1px solid #fed7aa;border-radius:10px;padding:20px 22px;">
@@ -427,6 +429,7 @@ export function renderDevotionEmail(d: DailyDevotion, unsubscribeUrl: string): {
         </td></tr>
       </table>
 
+      `}
       <!-- Prayer Focus -->
       <p style="margin:0 0 8px 0;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Prayer Focus</p>
       <div style="margin-bottom:28px;font-size:15px;line-height:1.8;color:#374151;">${paragraphs(d.prayerFocus)}</div>
