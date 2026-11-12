@@ -14,3 +14,9 @@ Treat publishing failures as transport- and session-specific, not a permanent re
 **Why:** Stale conclusions about an unavailable publishing transport can unnecessarily prevent a later deployment.
 
 **How to apply:** Recheck the current authorized connection and remote revision before declaring publication blocked. If the intended files are already on the remote, verify them and avoid creating a duplicate commit or overwriting concurrent work.
+
+Cross-environment Vite bundle filenames are not reliable deployment identities.
+
+**Why:** A Render release can have different bundle hashes from the Replit build even when the changed component matches the tested component.
+
+**How to apply:** Verify the remote revision, Render's successful deployment for that revision, and the live feature's code or behavior. Do not diagnose a stale deployment solely from a different local bundle filename.

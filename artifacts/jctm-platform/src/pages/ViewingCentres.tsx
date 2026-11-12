@@ -73,6 +73,7 @@ const VIEWING_CENTRES: { name: string; location: string; phone: string | null; p
   { name: "Ibekwe Peter", location: "Abuja – Abaji", phone: "07039619402" },
   { name: "Emmanuel Ibhazebo", location: "Edo – Ehanlen Ewu", phone: "07064965556" },
   { name: "Charles Odes", location: "Port Harcourt – Rumuokoro", phone: "09110083033", phone2: "08036714296" },
+  { name: "Progress Etim Akpan", location: "Eka - Bayelsa", phone: "+2348160231012" },
 ];
 
 // Stable sorting retains every entry, including duplicate locations.
