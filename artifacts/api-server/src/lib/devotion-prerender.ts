@@ -13,6 +13,7 @@
 
 import { ensureDevotionForDate } from "./devotion-engine.js";
 import { logger } from "./logger.js";
+import { pool } from "@workspace/db";
 
 // ── In-memory TTL cache ───────────────────────────────────────────────────────
 let cachedScript: string | null = null;
@@ -50,7 +51,18 @@ export async function getDevotionPrerenderScript(): Promise<string> {
     cachedForDate === todayStr &&
     now < cacheExpiresAt
   ) {
-    return cachedScript;
+    // Several Render workers can share this database. A local cache invalidation
+    // alone cannot hide an unpublished reading on the other workers.
+    try {
+      const state = await pool.query("SELECT is_hidden FROM daily_devotions WHERE date=$1", [todayStr]);
+      if (state.rows[0] && !state.rows[0].is_hidden) return cachedScript;
+      invalidateDevotionPrerenderCache();
+      return "";
+    } catch {
+      // The site shell still loads; do not serve content whose current
+      // publication permission cannot be confirmed.
+      return "";
+    }
   }
   if (now < retryAfter) return "";
 

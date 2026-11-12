@@ -141,7 +141,10 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
   const loadDevotion = useCallback(async () => {
     try {
       const response = await fetch(`${BASE}/api/devotion/daily`);
-      if (!response.ok) throw new Error("Devotion unavailable");
+      if (!response.ok) {
+        if (response.status === 503 || response.status === 404) setDevotion(null);
+        throw new Error("Devotion unavailable");
+      }
       const data = await response.json() as { devotion?: Devotion };
       if (!data.devotion?.title) throw new Error("Invalid devotion");
       setDevotion(data.devotion);
@@ -158,7 +161,7 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
     });
     const refresh = setInterval(() => {
       if (AppState.currentState === "active") void loadDevotion();
-    }, 15 * 60 * 1000);
+    }, 60 * 1000);
     return () => { listener.remove(); clearInterval(refresh); };
   }, [loadDevotion]);
 
@@ -193,7 +196,7 @@ function DevotionCard({ colors }: { colors: ReturnType<typeof useColors> }) {
         </View>
       )}
       {devotion.declaration && (
-        <Text style={[styles.devotionDeclaration]} numberOfLines={2}>
+        <Text style={[styles.devotionDeclaration]} numberOfLines={expanded ? undefined : 2}>
           ✦ {devotion.declaration}
         </Text>
       )}

@@ -8,6 +8,7 @@ export interface DailyDevotion {
   reflection: string; propheticWord: string; prayerFocus: string; declaration: string;
   topic?: string; category?: string; scriptureVersion?: string;
   introduction?: string; application?: string; message?: string; closingPrayer?: string;
+  sources?: DevotionContent["sources"]; seriesId?: string; seriesDay?: number;
 }
 
 export function devotionFromRow(row: StoredDevotion): DailyDevotion {
@@ -20,6 +21,7 @@ export function devotionFromRow(row: StoredDevotion): DailyDevotion {
       topic: row.topic ?? row.title, category: row.category ?? "Christian Living",
       scriptureVersion: row.scripture_version ?? "KJV",
       message: row.reflection, closingPrayer: row.prayer_focus,
+      sources: row.source_notes ?? undefined, seriesId: row.series_id ?? undefined, seriesDay: row.series_day ?? undefined,
     } : {}),
   };
 }
@@ -48,6 +50,7 @@ export async function ensureDevotionForDate(
 export async function reserveDevotionForDate(client: DevotionClient, dateStr: string, log?: Logger) {
     const result = await client.query<StoredDevotion>("SELECT *,date::text FROM daily_devotions WHERE date=$1", [dateStr]);
     const existing = result.rows[0];
+    if (existing?.is_hidden) throw new Error("This devotion date has been paused by an administrator.");
     // Preserve everything already published, even legacy repetitions. An existing
     // reservation is already validated, and has no need to consume another topic.
     if (existing && !existing.review_required && existing.published_at && dateStr <= devotionDate()) return { devotion: devotionFromRow(existing), cached: true };
@@ -94,20 +97,22 @@ export async function reserveDevotionForDate(client: DevotionClient, dateStr: st
     const c = selected.content;
     const values = [
       dateStr,c.title,c.scripture,c.reference,c.message,c.scripture,c.closingPrayer,
-      `With Christ's help, I will put this teaching into practice: ${c.application}`,
+      c.declaration ?? `With Christ's help, I will put this teaching into practice: ${c.application}`,
       c.topic,c.category,c.introduction,c.application,c.scriptureVersion,
       normalizeIdentity(c.topic),normalizeIdentity(c.title),contentHash(c),
+      JSON.stringify(c.sources ?? []), c.seriesId ?? null, c.seriesDay ?? null,
     ];
     const saved = await client.query<StoredDevotion>(
       `INSERT INTO daily_devotions(date,title,scripture,reference,reflection,prophetic_word,prayer_focus,declaration,
-        topic,category,introduction,application,scripture_version,topic_key,title_key,content_hash,published_at)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+        topic,category,introduction,application,scripture_version,topic_key,title_key,content_hash,source_notes,series_id,series_day,published_at)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18,$19,
          CASE WHEN $1::date<=(now() AT TIME ZONE 'Africa/Lagos')::date THEN now() ELSE NULL END)
        ON CONFLICT(date) DO UPDATE SET title=EXCLUDED.title,scripture=EXCLUDED.scripture,reference=EXCLUDED.reference,
          reflection=EXCLUDED.reflection,prophetic_word=EXCLUDED.prophetic_word,prayer_focus=EXCLUDED.prayer_focus,
          declaration=EXCLUDED.declaration,topic=EXCLUDED.topic,category=EXCLUDED.category,introduction=EXCLUDED.introduction,
          application=EXCLUDED.application,scripture_version=EXCLUDED.scripture_version,topic_key=EXCLUDED.topic_key,
          title_key=EXCLUDED.title_key,content_hash=EXCLUDED.content_hash,review_required=false,published_at=EXCLUDED.published_at
+         ,source_notes=EXCLUDED.source_notes,series_id=EXCLUDED.series_id,series_day=EXCLUDED.series_day
        WHERE daily_devotions.review_required=true
        RETURNING *,date::text`, values,
     );
@@ -119,7 +124,7 @@ export async function reserveDevotionForDate(client: DevotionClient, dateStr: st
 
 export async function findPublishedDevotion(date: string): Promise<DailyDevotion | null> {
   const result = await pool.query<StoredDevotion>(
-    "SELECT *,date::text FROM daily_devotions WHERE date=$1 AND date<=$2 AND review_required=false AND published_at IS NOT NULL",
+    "SELECT *,date::text FROM daily_devotions WHERE date=$1 AND date<=$2 AND review_required=false AND is_hidden=false AND published_at IS NOT NULL",
     [date, devotionDate()],
   );
   return result.rows[0] ? devotionFromRow(result.rows[0]) : null;
@@ -127,7 +132,7 @@ export async function findPublishedDevotion(date: string): Promise<DailyDevotion
 
 export async function getDevotionHistory(limit: number): Promise<DailyDevotion[]> {
   const rows = await pool.query<StoredDevotion>(
-    "SELECT *,date::text FROM daily_devotions WHERE date<=$1 AND review_required=false AND published_at IS NOT NULL ORDER BY daily_devotions.date DESC LIMIT $2",
+    "SELECT *,date::text FROM daily_devotions WHERE date<=$1 AND review_required=false AND is_hidden=false AND published_at IS NOT NULL ORDER BY daily_devotions.date DESC LIMIT $2",
     [devotionDate(), Math.max(1, Math.min(365, Math.trunc(limit) || 7))],
   );
   return rows.rows.map(devotionFromRow);

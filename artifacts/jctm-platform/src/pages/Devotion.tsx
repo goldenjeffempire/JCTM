@@ -51,12 +51,15 @@ export default function Devotion() {
     ? format(new Date(devotion.date + "T12:00:00Z"), "EEEE, MMMM d, yyyy")
     : today.toLocaleDateString("en-GB", { timeZone: "Africa/Lagos", weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setIsLoading(true);
     setError("");
     try {
       const res = await fetch(`${BASE}/api/devotion/daily`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 503 || res.status === 404) setDevotion(null);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = (await res.json()) as { devotion: DailyDevotion };
       setDevotion(data.devotion);
     } catch {
@@ -75,8 +78,7 @@ export default function Devotion() {
 
   useEffect(() => {
     const refreshAtNewDay = () => {
-      const current = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
-      if (document.visibilityState === "visible" && devotion?.date && devotion.date !== current) void load();
+      if (document.visibilityState === "visible") void load(true);
     };
     window.addEventListener("focus", refreshAtNewDay);
     document.addEventListener("visibilitychange", refreshAtNewDay);
@@ -89,7 +91,7 @@ export default function Devotion() {
   }, [devotion?.date, load]);
 
   useEffect(() => {
-    fetch(`${BASE}/api/devotion/history?limit=14`)
+    const refreshHistory = () => fetch(`${BASE}/api/devotion/history?limit=14`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { devotions?: DailyDevotion[] } | null) => {
         if (!data?.devotions) return;
@@ -97,6 +99,11 @@ export default function Devotion() {
         setHistory(data.devotions.filter((d) => d.date !== todayStr).slice(0, 13));
       })
       .catch(() => {});
+    void refreshHistory();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshHistory();
+    }, 60000);
+    return () => clearInterval(timer);
   }, [devotion?.date]);
 
   return (
@@ -125,7 +132,7 @@ export default function Devotion() {
           <div className="mb-10 rounded-lg border border-red-200 bg-red-50/60 px-4 py-3">
             <p className="text-[15px] text-red-800 font-medium">{error}</p>
             <button
-              onClick={load}
+              onClick={() => void load()}
               className="mt-2 text-sm font-semibold text-primary underline underline-offset-2 hover:text-accent transition-colors"
             >
               Try again
@@ -266,7 +273,7 @@ export default function Devotion() {
                 Generate a prayer
               </a>
               <button
-                onClick={load}
+                onClick={() => void load()}
                 className="text-[15px] font-semibold text-primary/60 underline underline-offset-4 decoration-primary/30 hover:text-primary hover:decoration-primary/60 transition-colors"
               >
                 Reload

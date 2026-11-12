@@ -20,3 +20,9 @@ Verify exact Scripture quotations against the named translation, including short
 **Why:** A spiritually accurate summary can still insert a word that is not present in a contiguous KJV excerpt.
 
 **How to apply:** Check quotations independently before admitting them, and limit quotation corrections to unpublished material so published history remains intact.
+
+Use available JCTM preaching materials as the foundation for ministry-specific devotion writing, and distinguish actual transcripts from descriptions or teaching notes.
+
+**Why:** The user asked for content based on JCTM's preaching and explicitly prohibited invented minister quotations.
+
+**How to apply:** Record the actual inspiration source for a reading. When only a sermon description or doctrinal note is available, label it accordingly rather than claiming to have heard or transcribed the sermon.

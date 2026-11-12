@@ -12,7 +12,9 @@
 
 ## Content and automation
 
-The shipped reserve contains 64 independently authored readings, four in each of 16 categories. Each includes KJV Scripture, an introduction, message, concrete application, and closing prayer. Legacy API fields remain available for existing clients.
+The original reserve contains 64 independently authored readings. An additional authored 90-day JCTM formation series contains three chronological 30-day sections, each with a unique title, specific lesson, verified KJV passage, introduction, substantial message, concrete application, closing prayer, and original declaration. Every series reading records the actual ministry teaching note or sermon description used for inspiration. No stored sermon transcripts were available during the source audit; these are original biblical devotions, not purported transcripts or minister quotations.
+
+The series installer appends its 90 dates after existing valid reservations. It never overwrites the earlier seven-day schedule or published history. Installation is idempotent and leaves subsequent editorial changes intact. The authored series does not require AI credits.
 
 Background maintenance catches up 90 seconds after startup, then runs at Nigerian midnight and every six hours. It reserves seven days ahead. When fewer than 90 unused readings remain, it requests up to 12 fresh drafts.
 
@@ -22,7 +24,11 @@ Provider failure or exhausted credits never enables fallback recycling. Restore 
 
 ## Administrator workflow
 
-Use livestream administrator access in the existing Admin panel. The Devotions section shows unused stock, category distribution, upcoming content, rejected material, and expansion failures. Editors can atomically import 1–12 reviewed readings as JSON:
+Use livestream administrator access in the existing Admin panel. The Devotions section shows unused stock, category distribution, upcoming content, rejected material, and expansion failures. The daily readings workspace supports search, series/state filters, all 90 previews, three 30-item pages, original source notes, draft creation/editing, date changes, visibility controls, and the published archive.
+
+Published text is read-only to preserve history and avoid repeating a lesson on a second date. Unpublish hides a reading without deleting or freeing its identity; restore brings back the same content. Pausing a future date prevents the automatic scheduler from replacing it. Changes require the latest revision, so another editor's work cannot be silently overwritten. Previous versions and identities remain reserved permanently. Date conflicts are rejected rather than swapped or overwritten.
+
+Editors can also atomically import 1–12 reviewed readings as JSON:
 
 ```json
 [{
@@ -35,7 +41,8 @@ Use livestream administrator access in the existing Admin panel. The Devotions s
   "introduction": "At least ten words of original introduction.",
   "message": "A full original exposition of at least fifty-five words.",
   "application": "At least twelve words of specific practical application.",
-  "closingPrayer": "At least twelve words of original prayer."
+  "closingPrayer": "At least twelve words of original prayer.",
+  "declaration": "A short and original statement grounded in the Scripture."
 }]
 ```
 
@@ -46,6 +53,12 @@ Endpoints (all library operations require livestream administrator authorization
 - `GET /api/devotion/admin/library`
 - `POST /api/devotion/admin/library/import` with `{ "confirmReviewed": true, "devotions": [...] }`
 - `POST /api/devotion/admin/library/expand` (asynchronous, bounded)
+- `GET /api/devotion/admin/entries` (pagination, state/search/series filters)
+- `POST /api/devotion/admin/entries` (complete content and pastoral review)
+- `PUT /api/devotion/admin/entries/:id` (complete content, review and current revision)
+- `POST /api/devotion/admin/entries/:id/schedule` (date and current revision)
+- `POST /api/devotion/admin/entries/:id/publish` (current revision)
+- `POST /api/devotion/admin/entries/:id/unpublish` (current revision)
 
 Public API compatibility is retained. New readings add `topic`, `category`, `scriptureVersion`, `introduction`, `message`, `application`, and `closingPrayer`. Existing `reflection`, `prayerFocus`, `propheticWord`, and `declaration` remain present. Website and mobile share the Nigerian calendar day. Mobile can expand the complete reading natively.
 
@@ -55,8 +68,12 @@ The existing Render startup/predeploy migration path adds columns and library ta
 
 ```sh
 pnpm --filter @workspace/api-server run test:devotions
+pnpm --filter @workspace/api-server run test:devotion-editor
+pnpm --filter @workspace/api-server run devotions:populate-series
 pnpm --filter @workspace/api-server run devotions:verify-scripture
 pnpm --filter @workspace/api-server run devotions:expand --batches=1 --target=90
 ```
 
 Tests use an isolated, uniquely named temporary test schema and remove only their own fixtures. They do not modify subscribers, deliveries, or public readings. Do not send test broadcasts during library validation.
+
+`devotions:populate-series --audit-only` validates the authored series without inserting it. Normal installation verifies all 90 content records, distinct identities and consecutive dates, and compares a checksum of the published archive before and after. Scripture text is independently fetched from the public KJV service by `scripts/prepare-series-scripture.mjs`; it is not reconstructed from memory.

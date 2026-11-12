@@ -1,6 +1,6 @@
 {
   "name": "@workspace/api-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "migrate": "node ./dist/migrate.mjs",
+    "devotions:populate-series": "node ./scripts/run-devotion-tool.mjs populate-devotion-series",
+    "test:devotion-editor": "node ./scripts/run-devotion-tool.mjs test-devotion-editor",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:availability": "node scripts/test-availability.mjs",
     "test:devotions": "node scripts/run-devotion-tool.mjs test-devotions",

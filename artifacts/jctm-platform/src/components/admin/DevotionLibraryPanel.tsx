@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DevotionEntries } from "./DevotionEntries";
 
 type Content = { title: string; reference: string; scripture: string; introduction?: string; message?: string; reflection?: string; application?: string; closingPrayer?: string; prayerFocus?: string };
 type Status = {
@@ -41,7 +42,7 @@ export function DevotionLibraryPanel({ token, onLogin }: { token: string; onLogi
       if (!response.ok) throw new Error(result.error ?? result.rejected?.map((r: { title: string; reason: string }) => `${r.title}: ${r.reason}`).join("; ") ?? "Request failed");
       setNotice(result.message ?? `${result.added} new devotions admitted to the library.`);
       if (kind === "import") { setJson(""); setReviewed(false); }
-      await cache.invalidateQueries({ queryKey: ["devotion-library"] });
+      await Promise.all([cache.invalidateQueries({ queryKey: ["devotion-library"] }), cache.invalidateQueries({ queryKey: ["devotion-entries"] })]);
     } catch (error) { setNotice((error as Error).message); }
     finally { setBusy(false); }
   };
@@ -101,6 +102,7 @@ export function DevotionLibraryPanel({ token, onLogin }: { token: string; onLogi
           {data.review.map(d => <details key={d.topic_key} className="border-t py-3"><summary className="cursor-pointer">{d.title} · {d.review_reason}</summary>{preview(d.content)}<p className="text-xs mt-3">This original is retained, not republished. Import a genuinely new lesson rather than rename a duplicate.</p></details>)}
         </section>}
       </>}
+      <DevotionEntries token={token} />
       <section className="rounded-xl border p-5 space-y-3">
         <h3 className="font-bold">Import pastorally reviewed readings</h3>
         <p className="text-sm text-muted-foreground">Paste a JSON array of 1–12 readings. Each needs topic, category, title, reference, scripture, scriptureVersion (&quot;KJV&quot;), introduction, message, application, and closingPrayer. Scripture quotations and duplicates are checked before an atomic import.</p>

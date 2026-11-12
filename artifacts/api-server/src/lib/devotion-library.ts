@@ -13,6 +13,8 @@ export type StoredDevotion = {
   topic?: string | null; category?: string | null; introduction?: string | null;
   application?: string | null; scripture_version?: string | null; review_required?: boolean;
   published_at?: Date | string | null;
+  is_hidden?: boolean; revision?: number; source_notes?: DevotionContent["sources"];
+  series_id?: string; series_day?: number;
 };
 
 // All creation, approval, scheduling and publication paths share this lock.
@@ -42,32 +44,38 @@ export function fromStored(row: StoredDevotion): ComparableDevotion {
   };
 }
 
-export async function inventory(client: DevotionClient): Promise<ComparableDevotion[]> {
+export async function inventory(client: DevotionClient, excludeOwner?: string): Promise<ComparableDevotion[]> {
   // Deliberately unbounded by age: old topics must never become eligible again.
   const published = await client.query<StoredDevotion>(
     `SELECT date::text, title, reference, reflection, prayer_focus, topic, introduction, application
-     FROM daily_devotions ORDER BY date`,
+     FROM daily_devotions d WHERE NOT EXISTS (SELECT 1 FROM devotion_library l
+       WHERE l.assigned_date=d.date AND l.topic_key=$1) ORDER BY date`, [excludeOwner ?? null],
   );
   const queued = await client.query<{ content: DevotionContent }>(
-    "SELECT content FROM devotion_library WHERE source <> 'legacy-review'",
+    "SELECT content FROM devotion_library WHERE source <> 'legacy-review' AND topic_key IS DISTINCT FROM $1", [excludeOwner ?? null],
   );
+  const revisions = await client.query<{ content: DevotionContent }>(
+    "SELECT content FROM devotion_revisions WHERE owner IS DISTINCT FROM $1", [excludeOwner ?? null]);
   // Exact copies in the preserved legacy archive need only one comparison;
   // different titles, topics, passages or body versions are all retained.
-  return uniqueComparables([...published.rows.map(fromStored), ...queued.rows.map(r => r.content)]);
+  return uniqueComparables([...published.rows.map(fromStored), ...queued.rows.map(r => r.content), ...revisions.rows.map(r => r.content)]);
 }
 
 export async function addLibraryContent(
-  entries: unknown[], source: "curated" | "editor" | "ai" = "editor",
+  entries: unknown[], source: "curated" | "editor" | "ai" | "jctm-series" = "editor",
   requireAll = true,
 ): Promise<{ added: number; rejected: { title: string; reason: string }[] }> {
   return devotionTransaction(async client => {
     const existing = await inventory(client);
     const accepted: DevotionContent[] = [];
+    const identities = await client.query<{kind:string;identity:string}>("SELECT kind,identity FROM devotion_identity_history");
+    const reserved = new Set(identities.rows.map(r => `${r.kind}:${r.identity}`));
     const rejected: { title: string; reason: string }[] = [];
     for (const input of entries) {
       let candidate: DevotionContent;
       try {
         candidate = validateContent(input);
+        if (reserved.has(`title:${normalizeIdentity(candidate.title)}`) || reserved.has(`topic:${normalizeIdentity(candidate.topic)}`)) throw new Error("Title or topic was permanently reserved by an earlier version");
         let duplicate: string | null = null;
         for (const previous of existing) {
           duplicate = duplicateReason(candidate, previous);
@@ -84,17 +92,24 @@ export async function addLibraryContent(
     // Import is atomic by default: an invalid batch cannot partially publish.
     if (requireAll && rejected.length) return { added: 0, rejected };
     if (accepted.length) {
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO devotion_library(topic_key,title_key,content_hash,content,category,source)
          SELECT topic_key,title_key,content_hash,content,category,$2
          FROM jsonb_to_recordset($1::jsonb)
            AS x(topic_key text,title_key text,content_hash text,content jsonb,category text)
-         ON CONFLICT DO NOTHING`,
+         ON CONFLICT DO NOTHING RETURNING topic_key`,
         [JSON.stringify(accepted.map(c => ({
           topic_key: normalizeIdentity(c.topic), title_key: normalizeIdentity(c.title),
           content_hash: contentHash(c), content: c, category: c.category,
         }))), source],
       );
+      if (inserted.rowCount !== accepted.length) throw new Error("A concurrent identity conflict prevented the complete import");
+      await client.query(`INSERT INTO devotion_identity_history(kind,identity,owner)
+        SELECT kind,identity,owner FROM jsonb_to_recordset($1::jsonb) AS x(kind text,identity text,owner text)
+        ON CONFLICT DO NOTHING`, [JSON.stringify(accepted.flatMap(c=>[
+          {kind:"topic",identity:normalizeIdentity(c.topic),owner:normalizeIdentity(c.topic)},
+          {kind:"title",identity:normalizeIdentity(c.title),owner:normalizeIdentity(c.topic)},
+        ]))]);
     }
     return { added: accepted.length, rejected };
   });
@@ -140,7 +155,7 @@ export async function getLibraryStatus() {
     pool.query("SELECT attempted_at,succeeded_at,added,error_code,error_message FROM devotion_expansion_state WHERE id=1"),
     pool.query(`SELECT d.date::text,d.title,d.topic,d.category,l.content FROM daily_devotions d
       LEFT JOIN devotion_library l ON l.assigned_date=d.date
-      WHERE d.date>(now() AT TIME ZONE 'Africa/Lagos')::date ORDER BY d.date LIMIT 14`),
+      WHERE d.date>(now() AT TIME ZONE 'Africa/Lagos')::date AND d.is_hidden=false ORDER BY d.date LIMIT 120`),
   ]);
   return {
     counts: counts.rows, categories: categories.rows, archive: history.rows[0], review: review.rows,

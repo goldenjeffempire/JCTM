@@ -702,7 +702,7 @@ async function buildActivityContext(): Promise<string> {
     const devoRes = await ragPool.query<{
       title: string; reference: string | null; scripture: string | null; prayer_focus: string | null;
     }>(
-      `SELECT title, reference, scripture, prayer_focus FROM daily_devotions WHERE date = $1 AND published_at IS NOT NULL LIMIT 1`,
+      `SELECT title, reference, scripture, prayer_focus FROM daily_devotions WHERE date = $1 AND published_at IS NOT NULL AND is_hidden=false LIMIT 1`,
       [today],
     );
     if (devoRes.rows[0]) {

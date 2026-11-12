@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const tool = process.argv[2];
-if (!["expand-devotions", "test-devotions", "verify-devotion-scripture"].includes(tool)) throw new Error("Unknown devotion tool");
+if (!["expand-devotions", "test-devotions", "verify-devotion-scripture", "populate-devotion-series", "test-devotion-editor", "check-devotion-api"].includes(tool)) throw new Error("Unknown devotion tool");
 const root = fileURLToPath(new URL("../", import.meta.url));
 const output = `${root}dist/devotion-tools/${tool}.mjs`;
 await build({

@@ -26,3 +26,9 @@ A successful development page-module request does not prove that the preview has
 **Why:** After forced dependency optimization, current modules returned HTTP 200 while the browser still encountered stale dependency imports. This was a preview verification issue, not evidence of a failed Render release.
 
 **How to apply:** Confirm the rendered preview as well as its current dependency requests. Keep preview-cache failures separate from production availability checks.
+
+Multiple Render services can deploy the same repository independently. One successful origin deployment does not prove that the custom domain is serving the upgrade.
+
+**Why:** During an approved release, the older origin updated before the service serving jctm.org.ng, which temporarily continued exposing the previous API and frontend.
+
+**How to apply:** Inspect deployment statuses for the approved revision across services, then verify the changed behavior directly on jctm.org.ng. Do not infer the domain's serving service from a remembered onrender.com address.

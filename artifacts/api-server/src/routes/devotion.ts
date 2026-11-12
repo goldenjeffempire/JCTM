@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import devotionEditor from "./devotion-editor.js";
 import { devotionDate, ensureDevotionForDate, findPublishedDevotion, getDevotionHistory } from "../lib/devotion-engine.js";
 import { addLibraryContent, getLibraryStatus, seedDevotionLibrary } from "../lib/devotion-library.js";
 import { expandDevotionLibrary, verifyScripture } from "../lib/devotion-expansion.js";
@@ -17,6 +18,8 @@ import { requireAdminRole } from "../lib/adminAuth.js";
 import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
+router.use("/devotion",(_req,res,next)=>{res.setHeader("Cache-Control","private, no-store");next();});
+router.use(devotionEditor);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

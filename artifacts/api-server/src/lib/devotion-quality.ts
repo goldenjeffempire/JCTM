@@ -17,6 +17,10 @@ export interface DevotionContent {
   message: string;
   application: string;
   closingPrayer: string;
+  declaration?: string;
+  sources?: { kind: "sermon-description" | "ministry-note"; id: string; title: string; url?: string }[];
+  seriesId?: string;
+  seriesDay?: number;
 }
 
 export interface ComparableDevotion {
@@ -123,7 +127,7 @@ export function duplicateReason(candidate: ComparableDevotion, existing: Compara
 export function validateContent(input: unknown): DevotionContent {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Devotion must be an object");
   const value = input as Record<string, unknown>;
-  const minimum: Record<keyof DevotionContent, number> = {
+  const minimum = {
     topic: 3, category: 1, title: 3, reference: 2, scripture: 3, scriptureVersion: 1,
     introduction: 10, message: 55, application: 12, closingPrayer: 12,
   };
@@ -136,5 +140,25 @@ export function validateContent(input: unknown): DevotionContent {
   if (!(DEVOTION_CATEGORIES as readonly string[]).includes(value.category as string)) throw new Error("Choose a supported devotion category");
   if (!/^[1-3]?\s*[A-Za-z ]+\s+\d+:\d+(?:[-–]\d+)?$/.test(value.reference as string)) throw new Error("A Bible book, chapter and verse are required");
   if (value.scriptureVersion !== "KJV") throw new Error("New devotions must use verified public-domain KJV scripture");
-  return Object.fromEntries(Object.keys(minimum).map(k => [k, (value[k] as string).trim()])) as unknown as DevotionContent;
+  const result = Object.fromEntries(Object.keys(minimum).map(k => [k, (value[k] as string).trim()])) as unknown as DevotionContent;
+  if (value.declaration !== undefined) {
+    if (typeof value.declaration !== "string" || value.declaration.trim().split(/\s+/).length < 6 || value.declaration.length > 1500) throw new Error("A Scripture-grounded declaration of at least six words is required");
+    result.declaration = value.declaration.trim();
+  }
+  if (value.seriesId !== undefined) {
+    if (typeof value.seriesId !== "string" || !/^[a-z0-9-]{1,100}$/.test(value.seriesId) ||
+        !Number.isInteger(value.seriesDay) || Number(value.seriesDay) < 1 || Number(value.seriesDay) > 1000) throw new Error("Invalid series identity");
+    result.seriesId = value.seriesId; result.seriesDay = Number(value.seriesDay);
+  }
+  if (value.sources !== undefined) {
+    if (!Array.isArray(value.sources) || value.sources.length > 8) throw new Error("Invalid source notes");
+    result.sources = value.sources.map((s: unknown) => {
+      const v = s as Record<string, unknown>;
+      if (!v || !["sermon-description", "ministry-note"].includes(String(v.kind)) ||
+          typeof v.id !== "string" || v.id.length > 150 || typeof v.title !== "string" || v.title.length > 400) throw new Error("Invalid source note");
+      if (v.url !== undefined && (typeof v.url !== "string" || !/^https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=[\w-]+|jctm\.org\.ng\/[\w/?=&.-]*)$/.test(v.url))) throw new Error("Source links must refer to JCTM or YouTube");
+      return { kind: v.kind, id: v.id, title: v.title, ...(v.url ? { url: v.url } : {}) } as NonNullable<DevotionContent["sources"]>[number];
+    });
+  }
+  return result;
 }
