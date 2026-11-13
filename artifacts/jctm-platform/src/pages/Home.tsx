@@ -27,6 +27,7 @@ import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { MutedVideoPlayer } from "@/components/MutedVideoPlayer";
 import { Layout } from "@/components/layout/Layout";
 import { HERO_IMAGES } from "@/constants/hero-images";
+import { CrusadeFeature, CrusadeListing } from "@/components/crusade/CrusadeFeature";
 import { EventPopupModal } from "@/components/event-promo/EventPopupModal";
 import { VideoDownloadButton } from "@/components/VideoDownloadButton";
 import appPromoPortrait from "@assets/image_1782999572173.png";
@@ -2774,27 +2775,7 @@ function EventsSection() {
             <span className="h-px flex-1 bg-border/60" />
           </div>
 
-          {/* Empty state */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col items-center justify-center py-20 px-6 rounded-3xl border border-border/50 bg-white/60 text-center"
-          >
-            <div className="h-16 w-16 rounded-2xl bg-accent/8 flex items-center justify-center mb-5 border border-accent/10">
-              <Calendar className="h-7 w-7 text-accent/40" />
-            </div>
-            <h3 className="text-xl font-serif font-bold text-primary mb-2">No Upcoming Events Available</h3>
-            <p className="text-muted-foreground text-sm max-w-sm mb-7 leading-relaxed">
-              There are no events scheduled at this time. Check back soon or explore our event history for past gatherings.
-            </p>
-            <Link href="/events">
-              <Button variant="outline" className="rounded-full px-7 group border-primary/20">
-                View Past Events <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-          </motion.div>
+          <CrusadeListing />
         </div>
       </div>
     </section>
@@ -4343,6 +4324,7 @@ export default function Home() {
         ]}
       />
       <HeroSection />
+      <CrusadeFeature />
       <EventPopupModal />
       <div className="container mx-auto px-4 py-4">
         <AdSlot slot={ADSENSE_SLOTS.homeHero} minHeight={120} className="mx-auto max-w-5xl" lazy={false} />

@@ -311,6 +311,114 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /crusade-2026:
+    get:
+      operationId: getCrusade2026
+      tags: [events]
+      summary: Published crusade campaign and published programs in Nigeria time
+      responses:
+        "200":
+          description: Current published campaign; draft programs are excluded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrusadeCampaign"
+        "404":
+          description: Campaign is unpublished
+        "503":
+          description: Campaign could not be loaded
+  /crusade-2026/admin:
+    get:
+      operationId: getAdminCrusade2026
+      tags: [events]
+      summary: Complete campaign, authenticated livestream administrator only
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Campaign including unpublished programs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrusadeCampaign"
+        "401":
+          description: Authentication required
+        "403":
+          description: Livestream administrator role required
+    put:
+      operationId: updateAdminCrusade2026
+      tags: [events]
+      summary: Save complete campaign with optimistic revision protection
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrusadeCampaign"
+      responses:
+        "200":
+          description: Saved campaign with incremented revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrusadeCampaign"
+        "400":
+          description: Invalid campaign
+        "401":
+          description: Authentication required
+        "403":
+          description: Livestream administrator role required
+        "409":
+          description: Another administrator saved a newer revision
+  /crusade-2026/admin/flyer:
+    post:
+      operationId: uploadCrusade2026Flyer
+      tags: [events]
+      summary: Upload an official flyer; authenticated livestream administrator only
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [flyer]
+              properties:
+                flyer:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Uploaded flyer path; save campaign to publish this flyer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flyerUrl]
+                properties:
+                  flyerUrl:
+                    type: string
+        "400":
+          description: Invalid image or file larger than 10 MB
+        "401":
+          description: Authentication required
+        "403":
+          description: Livestream administrator role required
   /events:
     get:
       operationId: listEvents
@@ -810,6 +918,57 @@ components:
       description: Bearer gallery admin token returned by `/gallery/admin/login`.
 
   schemas:
+    CrusadeProgram:
+      type: object
+      required: [id, title, description, startsAt, published]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        startsAt:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            format: date-time
+        published:
+          type: boolean
+    CrusadeCampaign:
+      type: object
+      required: [title, minister, venue, flyerUrl, published, revision, programs]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        minister:
+          type: string
+          minLength: 3
+          maxLength: 160
+        venue:
+          type: string
+          minLength: 10
+          maxLength: 400
+        flyerUrl:
+          type: string
+          maxLength: 500
+        published:
+          type: boolean
+        revision:
+          type: integer
+          minimum: 0
+        programs:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/CrusadeProgram"
     HealthStatus:
       type: object
       properties:

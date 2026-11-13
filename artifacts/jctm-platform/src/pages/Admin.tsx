@@ -19,6 +19,7 @@ import { useLivestreamStatus } from "@/hooks/useLivestreamStatus";
 import { useListGalleryImages } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { Crusade2026Admin } from "@/components/admin/Crusade2026Admin";
 import { DevotionLibraryPanel } from "@/components/admin/DevotionLibraryPanel";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
 import { EventPromotionPreview } from "@/components/event-promo/EventPromotionPreview";
@@ -9026,6 +9027,7 @@ export default function Admin() {
               {section === "broadcast"   && <BroadcastSection liveStatus={liveStatus} auth={livestreamAuth} />}
               {section === "events"      && (
                 <div className="space-y-8">
+                  <Crusade2026Admin token={livestreamAuth.adminToken ?? ""} />
                   <EventPromotionsSection auth={livestreamAuth} />
                   <EventNotificationsSection auth={livestreamAuth} />
                 </div>

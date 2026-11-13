@@ -18,3 +18,4 @@ export * from "./gallery";
 export * from "./conferenceRegistrations";
 export * from "./eventPromotions";
 export * from "./eventNotifications";
+export * from "./ministryCampaigns";

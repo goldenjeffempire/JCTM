@@ -16,3 +16,4 @@
 - [Directory preservation](directory-preservation.md) — keep duplicate viewing-centre entries unless the user explicitly requests removal.
 - [Public availability](public-availability.md) — user prioritizes Google, AdSense, and audience access; successful checks do not guarantee review approval.
 - [Devotion editorial policy](devotion-editorial-policy.md) — preserve published history, never recycle specific lessons, and keep approved AI expansion bounded and independently reviewed.
+- [API generator compatibility](api-codegen-compatibility.md) — pin runtime targets; newer generator defaults can produce invalid Zod calls despite a successful bundle.

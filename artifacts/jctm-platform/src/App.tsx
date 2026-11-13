@@ -21,6 +21,7 @@ const SermonDetail = lazy(() => import("@/pages/SermonDetail"));
 const Testimonies = lazy(() => import("@/pages/Testimonies"));
 const Give = lazy(() => import("@/pages/Give"));
 const Events = lazy(() => import("@/pages/Events"));
+const EndOfYearCrusade2026 = lazy(() => import("@/pages/EndOfYearCrusade2026"));
 const Members = lazy(() => import("@/pages/Members"));
 const Timeline = lazy(() => import("@/pages/Timeline"));
 const About = lazy(() => import("@/pages/About"));
@@ -99,6 +100,7 @@ function Router() {
         <Route path="/testimonies" component={Testimonies} />
         <Route path="/give" component={Give} />
         <Route path="/events" component={Events} />
+        <Route path="/events/end-of-year-crusade-2026" component={EndOfYearCrusade2026} />
         <Route path="/members" component={Members} />
         <Route path="/correction-timeline" component={Timeline} />
         <Route path="/about" component={About} />

@@ -1,6 +1,6 @@
 {
   "name": "@workspace/api-server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "test:devotion-editor": "node ./scripts/run-devotion-tool.mjs test-devotion-editor",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:availability": "node scripts/test-availability.mjs",
+    "test:crusade": "node scripts/run-crusade-test.mjs",
     "test:devotions": "node scripts/run-devotion-tool.mjs test-devotions",
     "devotions:verify-scripture": "node scripts/run-devotion-tool.mjs verify-devotion-scripture",
     "devotions:expand": "node scripts/run-devotion-tool.mjs expand-devotions"

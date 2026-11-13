@@ -14,6 +14,7 @@ import {
   Share2, Copy, Check, ChevronDown, Instagram, Facebook, Megaphone, Download, CalendarPlus,
   Flame, CheckCircle2, ExternalLink,
 } from "lucide-react";
+import { CrusadeFeature } from "@/components/crusade/CrusadeFeature";
 import { TempleAppCTAStrip } from "@/components/TempleAppCTAStrip";
 import ministerConferenceFlyer from "@assets/WhatsApp_Image_2026-04-16_at_2.59.53_PM_1776348424004.jpeg";
 import { format, isPast, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
@@ -958,7 +959,10 @@ export default function Events() {
           message="Never miss a JCTM event or live broadcast — get notified the moment we go live."
         />
 
+        <div className="-mx-4 mb-10"><CrusadeFeature /></div>
+
         {/* ─── Upcoming Events ──────────────────────────────────────────── */}
+        {(isLoading || STATIC_UPCOMING_EVENTS.length + upcoming.length > 0) && <>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-serif font-bold text-primary flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
@@ -992,6 +996,7 @@ export default function Events() {
             </div>
           ))}
         </div>
+        </>}
 
         {/* ─── Email reminder subscribe ──────────────────────────────────── */}
         <section className="mb-14 rounded-2xl border border-border bg-card/60 p-5 sm:p-6">

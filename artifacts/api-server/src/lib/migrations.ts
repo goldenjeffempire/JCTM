@@ -1,6 +1,7 @@
 import { pool } from "@workspace/db";
 import { logger } from "./logger.js";
 import { DEVOTION_SCHEMA_SQL } from "./devotion-schema.js";
+import { ensureCrusadeCampaign } from "./crusade-campaign.js";
 
 /**
  * Runs all idempotent schema migrations.
@@ -1567,5 +1568,6 @@ export async function runMigrations(): Promise<void> {
   `);
 
   await pool.query(DEVOTION_SCHEMA_SQL);
+  await ensureCrusadeCampaign();
   logger.info("All migrations complete");
 }
