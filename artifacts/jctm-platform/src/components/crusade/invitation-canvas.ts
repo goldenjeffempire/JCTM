@@ -1,5 +1,5 @@
-import type { CrusadeCampaign, CrusadeProgram } from "@workspace/content";
-import { scheduleSummary } from "@/lib/crusade-format";
+import type { CrusadeCampaign } from "@workspace/content";
+import { scheduleSummary, publishedPrograms } from "@/lib/crusade-format";
 import { clampCrop, type CropArea } from "./photo-utils";
 
 export type InviteFormat = "square" | "portrait";
@@ -20,6 +20,9 @@ function loadSameOrigin(src: string, err: string): Promise<HTMLImageElement> {
 export const loadFlyer = (src: string) => loadSameOrigin(src, "The official flyer could not be loaded.");
 /** Official JCTM logo (same-origin asset, keeps the canvas untainted). */
 export const JCTM_LOGO_SRC = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/jctm-logo-sm.jpeg`;
+/** Flyer-derived mountain/fire-streak texture (no people, no printed text). */
+export const INVITE_BACKGROUND_SRC = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/images/end-of-year-crusade-background.webp`;
+export const loadBackground = (src = INVITE_BACKGROUND_SRC) => loadFlyer(src);
 export const loadLogo = (src = JCTM_LOGO_SRC) => loadSameOrigin(src, "The JCTM logo could not be loaded.");
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
@@ -79,10 +82,10 @@ export interface InvitePhoto {
 export interface InviteInput {
   format: InviteFormat;
   flyer: HTMLImageElement;
+  /** Official flyer-derived background texture; the UI always supplies it. */
+  background?: HTMLImageElement | null;
   campaign: CrusadeCampaign;
-  program: CrusadeProgram;
   name: string;
-  message: string;
   /** Optional attendee portrait — when absent a framed placeholder is drawn. */
   photo?: InvitePhoto | null;
   /** Optional official JCTM logo (same-origin). Falls back to a drawn monogram. */
@@ -105,6 +108,13 @@ export function splitTitle(title: string): { gold: string; white: string } {
   const i = words.findIndex((w, idx) => idx > 0 && (/^CRUSADE\b/.test(w) || /^\d{4}$/.test(w)));
   if (i <= 0) return { gold: words.join(" "), white: "" };
   return { gold: words.slice(0, i).join(" "), white: words.slice(i).join(" ") };
+}
+
+/** Source rect that cover-fits a sw×sh image into a W×H target (centre crop). Exported for tests. */
+export function coverSource(sw: number, sh: number, W: number, H: number) {
+  const scale = Math.max(W / Math.max(1, sw), H / Math.max(1, sh));
+  const w = Math.min(sw, W / scale), h = Math.min(sh, H / scale);
+  return { x: (sw - w) / 2, y: (sh - h) / 2, w, h };
 }
 
 export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) {
@@ -130,16 +140,23 @@ export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) 
     ctx.moveTo(x, y); ctx.lineTo(x + size * 0.38, y + size * 0.38); ctx.lineTo(x + size, y - size * 0.45); ctx.stroke();
   };
 
-  // ── Deep navy field with an indigo crown of light ──
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#1b1f78"); bg.addColorStop(0.35, "#0f1a5c"); bg.addColorStop(1, "#060b2b");
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  const crown = ctx.createRadialGradient(W / 2, 0, 10, W / 2, 0, W * 0.75);
-  crown.addColorStop(0, "rgba(120,90,255,0.35)"); crown.addColorStop(1, "rgba(120,90,255,0)");
-  ctx.fillStyle = crown; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "rgba(255,255,255,0.025)";
-  for (let gx = 40; gx < W; gx += 40) ctx.fillRect(gx, 0, 1, H);
-  for (let gy = 40; gy < H; gy += 40) ctx.fillRect(0, gy, W, 1);
+  // ── Official flyer mountains + fire streaks, under a navy legibility veil ──
+  const bgImg = input.background;
+  if (bgImg && bgImg.naturalWidth) {
+    const c = coverSource(bgImg.naturalWidth, bgImg.naturalHeight, W, H);
+    ctx.drawImage(bgImg, c.x, c.y, c.w, c.h, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = "#0f1a5c"; ctx.fillRect(0, 0, W, H);
+  }
+  const veil = ctx.createLinearGradient(0, 0, 0, H);
+  veil.addColorStop(0, "rgba(6,16,60,0.62)"); veil.addColorStop(0.3, "rgba(8,22,78,0.42)");
+  veil.addColorStop(0.62, "rgba(6,16,60,0.58)"); veil.addColorStop(1, "rgba(4,10,40,0.9)");
+  ctx.fillStyle = veil; ctx.fillRect(0, 0, W, H);
+  const ember = ctx.createRadialGradient(W * 0.9, H * 0.35, 10, W * 0.9, H * 0.35, W * 0.55);
+  ember.addColorStop(0, "rgba(255,140,40,0.18)"); ember.addColorStop(1, "rgba(255,140,40,0)");
+  ctx.fillStyle = ember; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(255,201,60,0.45)"; ctx.lineWidth = 2;
+  roundRect(ctx, 14, 14, W - 28, H - 28, 26); ctx.stroke();
 
   // ── Header: logo, ministry line, confirmed chip ──
   const LR = 30, lcx = PAD + LR, lcy = 34 + LR;
@@ -191,27 +208,38 @@ export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) 
   draw(["jctm.org.ng/events/end-of-year-crusade-2026"], 16, 1, fy - 16, `700 16px ${SANS}`, "rgba(255,201,60,0.85)");
   fy -= 24;
 
-  const thumbW = portrait ? 190 : 170;
-  const textX = PAD + 24 + thumbW + 22, textW = W - PAD - 24 - textX;
-  const sched = scheduleSummary(input.program);
-  const sf = fit(ctx, sched, sans(800), textW, 70, portrait ? 24 : 21, 12, 1.2);
-  const vf = fit(ctx, input.campaign.venue, sans(500), textW, portrait ? 110 : 84, 18, 10, 1.25);
+  const thumbW = portrait ? 170 : 150;
+  const textX = PAD + 22 + thumbW + 22, textW = W - PAD - 20 - textX;
+  const progs = publishedPrograms(input.campaign);
+  const n = Math.max(1, progs.length);
+  const rows = progs.map(p => {
+    const tf = fit(ctx, p.title.toUpperCase(), sans(800), textW, portrait ? 40 : 30, portrait ? 19 : 16, 10, 1.15);
+    const sf = fit(ctx, scheduleSummary(p), sans(500), textW, portrait ? 44 : 34, portrait ? 17 : 14, 9, 1.2);
+    return { tf, sf, h: tf.lines.length * tf.size * 1.15 + 2 + sf.lines.length * sf.size * 1.2 };
+  });
+  const rowGap = portrait ? 10 : 6;
+  const vf = fit(ctx, input.campaign.venue, sans(500), textW, portrait ? 66 : 44, 16, 9, 1.22);
   const contact = [input.campaign.contactPhone, input.campaign.contactEmail].filter(v => v && v.trim()).join("  ·  ");
-  const cf = contact ? fit(ctx, contact, sans(700), textW, 46, 18, 10, 1.2) : { lines: [] as string[], size: 0 };
-  const innerH = sf.lines.length * sf.size * 1.2 + 10 + vf.lines.length * vf.size * 1.25 + (cf.lines.length ? 10 + cf.lines.length * cf.size * 1.2 : 0);
-  const panelH = Math.max(innerH + 40, portrait ? 150 : 130);
+  const cf = contact ? fit(ctx, contact, sans(700), textW, 36, 16, 9, 1.2) : { lines: [] as string[], size: 0 };
+  const listH = rows.reduce((t, r) => t + r.h, 0) + rowGap * (n - 1);
+  const innerH = listH + 12 + vf.lines.length * vf.size * 1.22 + (cf.lines.length ? 6 + cf.lines.length * cf.size * 1.2 : 0);
+  const panelH = Math.max(innerH + 32, portrait ? 170 : 140);
   const panelY = fy - panelH;
   roundRect(ctx, PAD, panelY, CW, panelH, 22);
-  ctx.fillStyle = "rgba(10,18,60,0.72)"; ctx.fill(); ctx.strokeStyle = "rgba(120,150,255,0.25)"; ctx.lineWidth = 1.5; ctx.stroke();
-  const tb = containRect(input.flyer.naturalWidth || 16, input.flyer.naturalHeight || 9, PAD + 20, panelY + 18, thumbW, panelH - 36);
+  ctx.fillStyle = "rgba(6,14,52,0.8)"; ctx.fill(); ctx.strokeStyle = "rgba(56,189,248,0.3)"; ctx.lineWidth = 1.5; ctx.stroke();
+  const tb = containRect(input.flyer.naturalWidth || 16, input.flyer.naturalHeight || 9, PAD + 20, panelY + 16, thumbW, panelH - 32);
   ctx.save(); roundRect(ctx, tb.x, tb.y, tb.w, tb.h, 8); ctx.clip();
   ctx.drawImage(input.flyer, tb.x, tb.y, tb.w, tb.h); ctx.restore();
   ctx.strokeStyle = "rgba(255,201,60,0.6)"; ctx.lineWidth = 1.5; roundRect(ctx, tb.x, tb.y, tb.w, tb.h, 8); ctx.stroke();
-  const tcx = textX + textW / 2;
   let py = panelY + (panelH - innerH) / 2;
-  py = draw(sf.lines, sf.size, 1.2, py, sans(800)(sf.size), "#ffffff", tcx) + 10;
-  py = draw(vf.lines, vf.size, 1.25, py, sans(500)(vf.size), "rgba(214,222,250,0.85)", tcx);
-  if (cf.lines.length) draw(cf.lines, cf.size, 1.2, py + 10, sans(700)(cf.size), GOLD, tcx);
+  rows.forEach((r, i) => {
+    ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(textX - 10, py + r.tf.size * 0.55, 3, 0, Math.PI * 2); ctx.fill();
+    py = draw(r.tf.lines, r.tf.size, 1.15, py, sans(800)(r.tf.size), GOLD, textX, "left") + 2;
+    py = draw(r.sf.lines, r.sf.size, 1.2, py, sans(500)(r.sf.size), "#ffffff", textX, "left") + (i < n - 1 ? rowGap : 0);
+  });
+  ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.fillRect(textX, py + 5, textW, 1);
+  py = draw(vf.lines, vf.size, 1.22, py + 12, sans(500)(vf.size), "rgba(214,222,250,0.88)", textX, "left");
+  if (cf.lines.length) draw(cf.lines, cf.size, 1.2, py + 6, sans(700)(cf.size), CYAN, textX, "left");
 
   // ── Middle: portrait, name, pill, programme, message ──
   const bottomLimit = panelY - 18;
@@ -219,12 +247,8 @@ export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) 
   const nf = fit(ctx, name, sans(900), CW, portrait ? 120 : 90, portrait ? 56 : 46, 18, 1.08);
   const nameH = nf.lines.length * nf.size * 1.08;
   const pillH = portrait ? 54 : 46;
-  const pf = fit(ctx, input.program.title.toUpperCase(), sans(600), CW - 40, 48, portrait ? 20 : 18, 11, 1.2);
-  const progH = 22 + 6 + pf.lines.length * pf.size * 1.2;
-  const msg = input.message.trim();
-  const msgBudget = msg ? (portrait ? 150 : 104) : 0;
-  const fixed = 22 + nameH + 14 + pillH + 14 + progH + (msg ? 10 + msgBudget : 0);
-  const S = Math.max(150, Math.min(portrait ? 440 : 330, bottomLimit - y - fixed - 10));
+  const fixed = 22 + nameH + 14 + pillH + 12 + 22;
+  const S = Math.max(150, Math.min(portrait ? 500 : 360, bottomLimit - y - fixed - 10));
   const fx = Math.round((W - S) / 2), fyy = Math.round(y + 6);
 
   // glowing cyan frame + corner brackets
@@ -276,14 +300,7 @@ export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) 
   ctx.fillStyle = GREEN; ctx.beginPath(); ctx.arc(pillX + 34, my + pillH / 2, 6, 0, Math.PI * 2); ctx.fill();
   ctx.textAlign = "center"; ctx.fillText("CONFIRMED & ATTENDING", W / 2 + 12, my + pillH / 2 + (portrait ? 8 : 7));
   my += pillH + 14;
-  my = draw(["PERSONAL ATTENDEE INVITATION"], 20, 1.1, my, `800 20px ${SANS}`, GOLD) + 6;
-  my = draw(pf.lines, pf.size, 1.2, my, sans(600)(pf.size), "rgba(214,222,250,0.85)");
-  if (msg) {
-    const room = Math.max(20, bottomLimit - my - 10);
-    const mm = fit(ctx, `“${msg}”`, serifI, CW - 30, room, portrait ? 24 : 20, 7, 1.26);
-    const bh = mm.lines.length * mm.size * 1.26;
-    draw(mm.lines, mm.size, 1.26, my + 10 + Math.max(0, (room - bh) / 2), serifI(mm.size), "#eef1ff");
-  }
+  draw(["PERSONAL ATTENDEE INVITATION"], 20, 1.1, my, `800 20px ${SANS}`, GOLD);
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {

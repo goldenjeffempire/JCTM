@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CrusadeCampaign } from "@workspace/content";
 import { toast } from "sonner";
 import { Download, Share2, Copy, Facebook, MessageCircle, RefreshCw, ImageOff, Check, Camera, Trash2, Crop, ShieldCheck } from "lucide-react";
-import { renderInvitation, loadFlyer, loadLogo, canvasToBlob, INVITE_SIZE, type InviteFormat } from "./invitation-canvas";
+import { renderInvitation, loadFlyer, loadBackground, loadLogo, canvasToBlob, INVITE_SIZE, type InviteFormat } from "./invitation-canvas";
 import { PhotoCropper } from "./PhotoCropper";
 import { readPhotoFile, inviteFileName, PHOTO_ACCEPT, type CropArea, type LoadedPhoto } from "./photo-utils";
-import { CRUSADE_CANONICAL, invitationText, publishedPrograms } from "@/lib/crusade-format";
+import { CRUSADE_CANONICAL, campaignInvitationText, publishedPrograms } from "@/lib/crusade-format";
 
 const NAME_MAX = 80;
-const MSG_MAX = 350;
 
 async function copyText(text: string) {
   try {
@@ -26,8 +25,6 @@ async function copyText(text: string) {
 export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign }) {
   const programs = useMemo(() => publishedPrograms(campaign), [campaign]);
   const [name, setName] = useState("");
-  const [message, setMessage] = useState("");
-  const [programId, setProgramId] = useState(programs[0]?.id ?? "");
   const [format, setFormat] = useState<InviteFormat>("portrait");
   const [logo, setLogo] = useState<HTMLImageElement | null>(null);
   const [photo, setPhoto] = useState<(LoadedPhoto & { crop: CropArea }) | null>(null);
@@ -82,38 +79,38 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
     setPhoto(null); setEditing(null); setPhotoError("");
     setStatus("Photo cleared from this page.");
   };
-  const [flyer, setFlyer] = useState<{ status: "loading" | "ready" | "error"; img?: HTMLImageElement }>({ status: "loading" });
+  const [flyer, setFlyer] = useState<{ status: "loading" | "ready" | "error"; img?: HTMLImageElement; bg?: HTMLImageElement }>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [busy, setBusy] = useState<null | "download" | "share">(null);
   const [status, setStatus] = useState("");
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const program = programs.find(p => p.id === programId) ?? programs[0];
-  useEffect(() => { if (program && program.id !== programId) setProgramId(program.id); }, [program, programId]);
 
   useEffect(() => {
     let alive = true;
     setFlyer({ status: "loading" });
-    loadFlyer(campaign.flyerUrl).then(img => alive && setFlyer({ status: "ready", img }))
+    // Both the official flyer and the flyer-derived background must load before preview/export.
+    Promise.all([loadFlyer(campaign.flyerUrl), loadBackground()])
+      .then(([img, bg]) => alive && setFlyer({ status: "ready", img, bg }))
       .catch(() => alive && setFlyer({ status: "error" }));
     return () => { alive = false; };
   }, [campaign.flyerUrl, reloadKey]);
 
   useEffect(() => {
-    if (flyer.status !== "ready" || !flyer.img || !program || !canvasRef.current) return;
+    if (flyer.status !== "ready" || !flyer.img || !flyer.bg || programs.length === 0 || !canvasRef.current) return;
     const id = requestAnimationFrame(() => {
-      if (canvasRef.current && flyer.img) {
+      if (canvasRef.current && flyer.img && flyer.bg) {
         renderInvitation(canvasRef.current, {
-          format, flyer: flyer.img, campaign, program, name: name.slice(0, NAME_MAX), message: message.slice(0, MSG_MAX),
+          format, flyer: flyer.img, background: flyer.bg, campaign, name: name.slice(0, NAME_MAX),
           logo, photo: photo ? { image: photo.image, crop: photo.crop } : null,
         });
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [flyer, format, campaign, program, name, message, logo, photo]);
+  }, [flyer, format, campaign, programs.length, name, logo, photo]);
 
-  if (!program) {
+  if (programs.length === 0) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-white/75" data-testid="status-invite-unavailable">
         Invitations will be available once a programme is published.
@@ -121,9 +118,9 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
     );
   }
 
-  const text = invitationText(campaign, program, name, message);
-  const fileName = inviteFileName(program.id, format);
-  const ready = flyer.status === "ready";
+  const text = campaignInvitationText(campaign, name);
+  const fileName = inviteFileName("end-of-year-crusade-2026", format);
+  const ready = flyer.status === "ready" && !!flyer.bg;
   const canShareFiles = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
 
   const getFile = async () => {
@@ -238,19 +235,11 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
             onChange={e => setName(e.target.value.slice(0, NAME_MAX))} placeholder="Your full name as it should appear" autoComplete="name" />
         </div>
         <div>
-          <div className="flex justify-between mb-1.5">
-            <label htmlFor="invite-message" className="text-sm font-semibold text-white">Personal message <span className="text-white/45 font-normal">(optional)</span></label>
-            <span className={`text-xs tabular-nums ${message.length >= MSG_MAX ? "text-[#ff8a5c]" : "text-white/45"}`}>{message.length}/{MSG_MAX}</span>
+          <p className="text-sm font-semibold text-white mb-1.5" id="invite-event-label">Event</p>
+          <div aria-labelledby="invite-event-label" className="rounded-xl border border-[#ffc93c]/30 bg-[#060d26]/60 px-4 py-3" data-testid="text-invite-event">
+            <p className="text-white font-bold">{campaign.title}</p>
+            <p className="text-xs text-white/55 mt-0.5">An invitation to the full crusade.</p>
           </div>
-          <textarea id="invite-message" data-testid="input-invite-message" rows={4} className={`${field} resize-none`} value={message} maxLength={MSG_MAX}
-            onChange={e => setMessage(e.target.value.slice(0, MSG_MAX))} placeholder="Come and let us cross into the new year in God's presence." />
-          {message.length >= MSG_MAX && <p className="text-xs text-[#ff8a5c] mt-1" role="status">Maximum length reached.</p>}
-        </div>
-        <div>
-          <label htmlFor="invite-program" className="text-sm font-semibold text-white block mb-1.5">Programme</label>
-          <select id="invite-program" data-testid="select-invite-program" className={field} value={program.id} onChange={e => setProgramId(e.target.value)}>
-            {programs.map(p => <option key={p.id} value={p.id} className="text-black">{p.title}</option>)}
-          </select>
         </div>
         <fieldset>
           <legend className="text-sm font-semibold text-white mb-1.5">Format</legend>
@@ -301,12 +290,12 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
         <div className="relative rounded-2xl overflow-hidden bg-[#060d26] border border-white/10 shadow-2xl mx-auto transition-all duration-300"
           style={{ aspectRatio: `${w} / ${h}`, maxWidth: format === "portrait" ? 480 : 560 }}>
           <canvas ref={canvasRef} width={w} height={h} className={`w-full h-full block transition-opacity duration-300 ${ready ? "opacity-100" : "opacity-0"}`}
-            role="img" aria-label={`Invitation preview for ${program.title}`} data-testid="canvas-invite-preview" />
+            role="img" aria-label={`Invitation preview for ${campaign.title}`} data-testid="canvas-invite-preview" />
           {flyer.status === "loading" && <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-[#0c1d52] to-[#2a0b1e]" aria-label="Loading preview" />}
           {flyer.status === "error" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-white" role="alert">
               <ImageOff className="h-8 w-8 text-[#ffc93c]" />
-              <p className="text-sm">The official flyer could not be loaded, so the invitation cannot be drawn.</p>
+              <p className="text-sm">The official crusade artwork could not be loaded, so the invitation cannot be drawn.</p>
               <button type="button" onClick={() => setReloadKey(k => k + 1)} className="h-10 px-5 rounded-full border border-white/30 inline-flex items-center gap-2 hover:bg-white/10">
                 <RefreshCw className="h-4 w-4" /> Retry
               </button>

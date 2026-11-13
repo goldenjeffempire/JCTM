@@ -14,7 +14,9 @@ Unpublishing a program removes it from public schedules and generator choices. U
 
 ## Public invitations
 
-No account or registration is required. Names, invitation messages and visitor photographs stay in browser memory; the server does not store them. Visitors can crop, position, replace or remove JPG, PNG and WebP photos. Removing a photograph or leaving the page releases its temporary object URLs. Photo generation does not submit a registration or save an attendance record.
+No account or registration is required. Names and visitor photographs stay in browser memory; the server does not store them. Visitors can crop, position, replace or remove JPG, PNG and WebP photos. Removing a photograph or leaving the page releases its temporary object URLs. Photo generation does not submit a registration or save an attendance record.
+
+The invitation is for the whole End Of Year Crusade 2026. The form shows the event name instead of a programme selector and has no personal-message field. Cards and sharing text include every published programme's live schedule. The mountain-and-light background is a text-free crop from the official flyer, rendered into both the preview and downloaded PNG, not just styled behind the canvas.
 
 The **CONFIRMED & ATTENDING** badge expresses the visitor's intent, not a verified reservation or admission ticket. Square PNGs are **1080 × 1080**; portrait PNGs are **1080 × 1350**. The displayed preview and download use the same rendered canvas.
 

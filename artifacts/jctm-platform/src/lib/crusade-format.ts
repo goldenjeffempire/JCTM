@@ -68,15 +68,16 @@ export function directionsUrl(venue: string) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(venue)}`;
 }
 
-export function invitationText(c: CrusadeCampaign, program: CrusadeProgram, name: string, message: string) {
+export function campaignInvitationText(c: CrusadeCampaign, name: string) {
   const lines = [
-    `You are invited to the ${program.title} — ${c.title}.`,
+    `You are invited to the ${c.title}.`,
     `Ministering: ${c.minister}`,
-    `When: ${scheduleSummary(program)}`,
+    "",
+    ...publishedPrograms(c).map(program => `${program.title}: ${scheduleSummary(program)}`),
+    "",
     `Venue: ${c.venue}`,
     ...([c.contactPhone, c.contactEmail].filter(Boolean).length ? [`Enquiries: ${[c.contactPhone, c.contactEmail].filter(Boolean).join(" · ")}`] : []),
   ];
-  if (message.trim()) lines.push("", message.trim());
   if (name.trim()) lines.push("", `— ${name.trim()}`);
   lines.push("", `Details: ${CRUSADE_CANONICAL}`);
   return lines.join("\n");
