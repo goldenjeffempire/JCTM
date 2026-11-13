@@ -271,11 +271,7 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
             <p className="text-xs text-white/55 mt-0.5">An invitation to the full crusade.</p>
           </div>
         </div>
-        <section aria-labelledby="invite-newsletter-heading" className="rounded-2xl border border-white/12 bg-white/[0.04] p-4 space-y-3">
-          <div>
-            <h3 id="invite-newsletter-heading" className="!text-white text-sm font-bold">JCTM newsletter <span className="text-white/45 font-normal">(optional)</span></h3>
-            <p className="mt-1 text-xs leading-relaxed text-white/65">Your email is saved for JCTM newsletters only after you agree. It never appears on your card or invitation message.</p>
-          </div>
+        <section aria-label="Optional newsletter signup" className="rounded-2xl border border-white/12 bg-white/[0.04] p-4 space-y-3">
           <label htmlFor="invite-newsletter-email" className="block text-sm font-semibold text-white">Email address <span className="text-white/45 font-normal">(optional)</span></label>
           <input id="invite-newsletter-email" data-testid="input-invite-newsletter-email" type="email" maxLength={254}
             autoComplete="email" className={field} value={newsletterEmail}

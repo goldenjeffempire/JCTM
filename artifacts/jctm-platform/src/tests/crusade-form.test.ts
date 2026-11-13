@@ -13,7 +13,8 @@ describe("simplified crusade invitation form", () => {
     expect(html).toContain('type="email"');
     expect(html).not.toContain('data-testid="checkbox-invite-newsletter-consent"');
     expect(html).not.toContain('data-testid="button-newsletter-subscribe"');
-    expect(html).toContain("never appears on your card");
+    expect(html).not.toContain("JCTM newsletter (optional)");
+    expect(html).not.toContain("Your email is saved for JCTM newsletters");
     expect(html).toContain('data-testid="text-invite-event"');
     expect(html.toLowerCase()).toContain("end of year crusade 2026");
     expect(html).not.toContain('data-testid="input-invite-message"');
