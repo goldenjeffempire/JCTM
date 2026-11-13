@@ -76,6 +76,8 @@ describe("high-resolution invitation rendering", () => {
         expect(all).toContain("BAPTISM PROGRAM");
         for (const program of campaign.programs) expect(all.toUpperCase()).toContain(program.title.toUpperCase());
         expect(all).toContain("CONFIRMED & ATTENDING");
+        expect(all).toContain("ATTENDEE INVITATION");
+        expect(all.toLowerCase()).not.toContain("personal attendee invitation");
         expect(all).toContain(campaign.contactPhone);
         expect(all).toContain(campaign.contactEmail);
         const cropped = images.find(call => call.image === photo.image);

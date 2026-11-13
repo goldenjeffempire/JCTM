@@ -203,7 +203,7 @@ export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) 
 
   // ── Bottom-up: footer, then details panel (with official flyer accent) ──
   let fy = H - 34;
-  draw(["Personal attendee invitation, self-declared by the visitor. Not a registration, RSVP or admission ticket."], 13, 1, fy - 13, `500 13px ${SANS}`, "rgba(200,208,240,0.5)");
+  draw(["Attendee invitation, self-declared by the visitor. Not a registration, RSVP or admission ticket."], 13, 1, fy - 13, `500 13px ${SANS}`, "rgba(200,208,240,0.5)");
   fy -= 26;
   draw(["jctm.org.ng/events/end-of-year-crusade-2026"], 16, 1, fy - 16, `700 16px ${SANS}`, "rgba(255,201,60,0.85)");
   fy -= 24;
@@ -300,7 +300,7 @@ export function renderInvitation(canvas: HTMLCanvasElement, input: InviteInput) 
   ctx.fillStyle = GREEN; ctx.beginPath(); ctx.arc(pillX + 34, my + pillH / 2, 6, 0, Math.PI * 2); ctx.fill();
   ctx.textAlign = "center"; ctx.fillText("CONFIRMED & ATTENDING", W / 2 + 12, my + pillH / 2 + (portrait ? 8 : 7));
   my += pillH + 14;
-  draw(["PERSONAL ATTENDEE INVITATION"], 20, 1.1, my, `800 20px ${SANS}`, GOLD);
+  draw(["ATTENDEE INVITATION"], 20, 1.1, my, `800 20px ${SANS}`, GOLD);
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
