@@ -5,6 +5,7 @@ import { MapPin, Navigation, RefreshCw, ArrowLeft, Clock, Phone, Mail } from "lu
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { useCrusade } from "@/lib/crusade-api";
+import { crusadeFlyerImage } from "@/lib/crusade-flyer";
 import { CrusadeCountdown, useNow } from "@/components/crusade/CrusadeCountdown";
 import { CRUSADE_CANONICAL, CRUSADE_PATH, directionsUrl, publishedPrograms, scheduleSummary, sortedStarts, watParts, watTime } from "@/lib/crusade-format";
 
@@ -84,7 +85,9 @@ export default function EndOfYearCrusade2026() {
             <div className="grid lg:grid-cols-[1.5fr_1fr] gap-8 mt-10 items-start">
               <motion.figure initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.1 }}
                 className="rounded-3xl overflow-hidden ring-2 ring-[#ffc93c]/60 shadow-[0_40px_100px_-30px_rgba(255,122,24,0.5)]">
-                <img src={data.flyerUrl} alt={`${data.title} official flyer`} className="w-full h-auto block" fetchPriority="high" data-testid="img-crusade-flyer" />
+                <img {...crusadeFlyerImage(data.flyerUrl)} sizes="(min-width: 1024px) 50vw, 100vw"
+                  alt={`${data.title} official flyer`} className="w-full h-auto block" loading="eager"
+                  decoding="async" fetchPriority="high" data-testid="img-crusade-flyer" />
               </motion.figure>
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }} className="space-y-6">
                 <div className="rounded-3xl bg-white/[0.05] border border-white/10 p-6"><CrusadeCountdown campaign={data} /></div>

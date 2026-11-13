@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowRight, MapPin, Calendar, RefreshCw, Navigation } from "lucide-react";
 import { useCrusade } from "@/lib/crusade-api";
+import { crusadeFlyerImage } from "@/lib/crusade-flyer";
 import { CrusadeCountdown } from "./CrusadeCountdown";
 import { CRUSADE_PATH, directionsUrl, publishedPrograms, sortedStarts, watParts, scheduleSummary } from "@/lib/crusade-format";
 
@@ -26,7 +27,8 @@ export function CrusadeFeature({ fallback = null }: { fallback?: React.ReactNode
         <div className="pointer-events-none absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-[#ff7a18]/25 blur-3xl" />
         <div className="relative grid lg:grid-cols-[1.15fr_1fr] gap-8 p-5 sm:p-8 lg:p-10">
           <Link href={CRUSADE_PATH} className="block group rounded-2xl overflow-hidden ring-2 ring-[#ffc93c]/50 self-start" data-testid="link-crusade-flyer">
-            <img src={data.flyerUrl} alt={`${data.title} official flyer — ${data.minister}`} className="w-full h-auto block group-hover:scale-[1.015] transition-transform duration-700" loading="lazy" decoding="async" />
+            <img {...crusadeFlyerImage(data.flyerUrl)} sizes="(min-width: 1024px) 50vw, 100vw"
+              alt={`${data.title} official flyer — ${data.minister}`} className="w-full h-auto block group-hover:scale-[1.015] transition-transform duration-700" loading="eager" decoding="async" />
           </Link>
           <div className="flex flex-col gap-5">
             <div>
@@ -86,8 +88,9 @@ export function CrusadeListing() {
   return (
     <div className="grid md:grid-cols-2 rounded-3xl border border-border/60 bg-white/70 overflow-hidden" data-testid="card-upcoming-crusade">
       <Link href={CRUSADE_PATH} className="flex items-center bg-[#071130]" aria-label={`View ${data.title} event details`} data-testid="link-upcoming-crusade-flyer">
-        <img src={data.flyerUrl} alt={`${data.title} official event flyer`} width={2048} height={1144}
-          loading="lazy" decoding="async" className="w-full h-auto object-contain" data-testid="img-upcoming-crusade-flyer" />
+        <img {...crusadeFlyerImage(data.flyerUrl)} sizes="(min-width: 768px) 50vw, 100vw"
+          alt={`${data.title} official event flyer`} loading="eager" decoding="async"
+          className="w-full h-auto object-contain" data-testid="img-upcoming-crusade-flyer" />
       </Link>
     <ul className="divide-y divide-border/60">
       {publishedPrograms(data).map(p => {
