@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { MapPin, Navigation, RefreshCw, ArrowLeft, Clock, Phone, Mail } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
-import { useCrusade } from "@/lib/crusade-api";
+import { isCrusadeNotFound, useCrusade } from "@/lib/crusade-api";
 import { crusadeFlyerImage } from "@/lib/crusade-flyer";
 import { CrusadeCountdown, useNow } from "@/components/crusade/CrusadeCountdown";
 import { CRUSADE_CANONICAL, CRUSADE_PATH, directionsUrl, publishedPrograms, scheduleSummary, sortedStarts, watParts, watTime } from "@/lib/crusade-format";
@@ -29,8 +29,8 @@ export default function EndOfYearCrusade2026() {
     );
   }
 
-  if (isError || !data) {
-    const notFound = /not|unpublish|found/i.test(error instanceof Error ? error.message : "");
+  const notFound = isCrusadeNotFound(error);
+  if (!data || notFound) {
     return (
       <Layout>
         <SEO title="End of Year Crusade 2026 — JCTM" description="End of Year Crusade 2026 with Prophet Amos." path={CRUSADE_PATH} noIndex />
@@ -70,6 +70,19 @@ export default function EndOfYearCrusade2026() {
         breadcrumbs={[{ name: "Home", url: "https://jctm.org.ng/" }, { name: "Events", url: "https://jctm.org.ng/events" }, { name: data.title, url: CRUSADE_CANONICAL }]} />
 
       <div className="bg-[#071130] text-white">
+        {isError && data && (
+          <div className="container mx-auto max-w-6xl px-4 pt-4" role="status" data-testid="status-crusade-stale">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ffc93c]/30 bg-white/[0.06] px-4 py-3 text-sm text-white/80">
+              <span>Showing the last successfully loaded crusade details while we reconnect.</span>
+              <button onClick={() => refetch()} disabled={isFetching}
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-white/30 px-4 hover:bg-white/10 disabled:opacity-60"
+                data-testid="button-retry-crusade-refresh">
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                {isFetching ? "Refreshing…" : "Try again"}
+              </button>
+            </div>
+          </div>
+        )}
         {/* Hero */}
         <section className="relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_100%,rgba(255,122,24,0.28),transparent_60%),radial-gradient(ellipse_at_10%_0%,rgba(56,189,248,0.18),transparent_55%)]" />
