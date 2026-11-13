@@ -16,6 +16,7 @@ const SECTIONS = [
 • **Giving Records:** Donor name, email address, currency, amount, giving category, and transaction reference when you make a financial contribution.
 • **Testimony Submissions:** Name, email address (optional), testimony content, category, and any video URL you choose to share.
 • **Crusade newsletter:** Your email address only when you enter it on the End of Year Crusade invitation form and separately agree to receive newsletters. We use it only for JCTM newsletters; it never appears on your invitation or card. Your name and photo are not stored with it.
+• **Invitation card count:** An aggregate site-wide total, incremented once after an invitation PNG is downloaded or image-shared. No card name, photo, email address, or visitor identifier is stored with this total.
 • **Communications:** Messages you send through TempleBots or our contact channels.
 • **Technical Data:** IP address, browser type, device identifiers, and usage logs collected automatically for security and analytics purposes.`,
   },

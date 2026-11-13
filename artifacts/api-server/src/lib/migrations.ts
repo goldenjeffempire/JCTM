@@ -1185,6 +1185,18 @@ export async function runMigrations(): Promise<void> {
     )
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS crusade_newsletter_active_idx ON crusade_newsletter_subscribers (is_active)`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS crusade_invitation_stats (
+      id smallint PRIMARY KEY CHECK (id = 1),
+      generated_cards bigint NOT NULL DEFAULT 0 CHECK (generated_cards >= 0),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    INSERT INTO crusade_invitation_stats (id, generated_cards)
+    VALUES (1, 0)
+    ON CONFLICT (id) DO NOTHING
+  `);
   await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_active_idx        ON subscribers (is_active) WHERE is_active = true`);
   await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_email_idx         ON subscribers (lower(trim(email)))`);
   await pool.query(`CREATE INDEX IF NOT EXISTS subscribers_source_idx        ON subscribers (source, subscribed_at DESC)`);

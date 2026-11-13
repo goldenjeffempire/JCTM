@@ -14,6 +14,7 @@ const admin = requireAdminRole("livestream");
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 const uploadLimit = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false });
 const newsletterSubscribeLimit = rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false });
+const invitationCountLimit = rateLimit({ windowMs: 15 * 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
 const newsletterEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 router.use("/crusade-2026", (_req, res, next) => {
@@ -30,6 +31,43 @@ router.get("/crusade-2026", async (req, res) => {
     res.status(503).json({ error: "Event information is temporarily unavailable. Please try again." });
   }
 });
+router.get("/crusade-2026/invitation-count", async (req, res) => {
+  try {
+    const result = await pool.query<{ generatedCount: string }>(
+      "SELECT generated_cards::text AS \"generatedCount\" FROM crusade_invitation_stats WHERE id = 1",
+    );
+    const count = result.rows[0]?.generatedCount;
+    if (count === undefined) throw new Error("Invitation count row is missing");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({ generatedCount: count });
+  } catch (error) {
+    req.log.error({ err: error }, "Crusade invitation count could not be read");
+    res.status(503).json({ error: "Invitation count is temporarily unavailable." });
+  }
+});
+
+router.post("/crusade-2026/invitation-count", invitationCountLimit, async (req, res) => {
+  if (!req.is("application/json")) {
+    res.status(415).json({ error: "JSON requests only." });
+    return;
+  }
+  try {
+    const result = await pool.query<{ generatedCount: string }>(
+      `UPDATE crusade_invitation_stats
+       SET generated_cards = generated_cards + 1, updated_at = now()
+       WHERE id = 1
+       RETURNING generated_cards::text AS "generatedCount"`,
+    );
+    const count = result.rows[0]?.generatedCount;
+    if (count === undefined) throw new Error("Invitation count row is missing");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({ generatedCount: count });
+  } catch (error) {
+    req.log.error({ err: error }, "Crusade invitation count could not be updated");
+    res.status(503).json({ error: "Invitation count is temporarily unavailable." });
+  }
+});
+
 router.post("/crusade-2026/newsletter-subscribe", newsletterSubscribeLimit, async (req, res) => {
   const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
   if (!email || email.length > 254 || !newsletterEmailPattern.test(email)) {

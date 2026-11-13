@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CrusadeCampaign } from "@workspace/content";
 import { toast } from "sonner";
 import { Download, Share2, Copy, Facebook, MessageCircle, RefreshCw, ImageOff, Check, Camera, Trash2, Crop, ShieldCheck } from "lucide-react";
@@ -88,7 +88,59 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
   const [busy, setBusy] = useState<null | "download" | "share">(null);
   const [status, setStatus] = useState("");
   const [copied, setCopied] = useState(false);
+  const [generatedCount, setGeneratedCount] = useState<number | null>(null);
+  const [countError, setCountError] = useState(false);
+  const [countNotice, setCountNotice] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const loadGeneratedCount = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/crusade-2026/invitation-count`, {
+        cache: "no-store",
+        signal,
+      });
+      if (!response.ok) throw new Error("Count request failed");
+      const data = await response.json() as { generatedCount?: unknown };
+      const count = Number(data.generatedCount);
+      if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid count response");
+      if (signal?.aborted) return;
+      setGeneratedCount(current => current === null ? count : Math.max(current, count));
+      setCountError(false);
+    } catch {
+      if (signal?.aborted) return;
+      setCountError(true);
+    }
+  }, []);
+
+  const recordGeneratedCard = useCallback(async () => {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/crusade-2026/invitation-count`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!response.ok) throw new Error("Count update failed");
+      const data = await response.json() as { generatedCount?: unknown };
+      const count = Number(data.generatedCount);
+      if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid count response");
+      setGeneratedCount(current => current === null ? count : Math.max(current, count));
+      setCountError(false);
+      setCountNotice("");
+    } catch {
+      setCountNotice("Your card was created, but the shared total could not be updated.");
+      void loadGeneratedCount();
+    }
+  }, [loadGeneratedCount]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadGeneratedCount(controller.signal);
+    const interval = window.setInterval(() => void loadGeneratedCount(), 60_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [loadGeneratedCount]);
 
 
   useEffect(() => {
@@ -141,6 +193,7 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
       const a = document.createElement("a");
       a.href = url; a.download = fileName; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
+      void recordGeneratedCard();
       setStatus("Invitation image downloaded.");
       toast.success("Invitation downloaded");
     } catch (e) {
@@ -158,11 +211,13 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
         const a = document.createElement("a");
         a.href = url; a.download = fileName; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 2000);
+        void recordGeneratedCard();
         const note = "This browser cannot share images directly, so your card was downloaded. In WhatsApp, open a chat, tap the attach (paperclip or plus) icon and choose the downloaded PNG.";
         setStatus(note); toast.info("Card downloaded — attach it in WhatsApp");
         return;
       }
       await navigator.share({ files: [file], title: campaign.title, text });
+      void recordGeneratedCard();
       setStatus("Shared.");
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
@@ -211,6 +266,19 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
     <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-8 lg:gap-12 items-start">
       <form className="space-y-5" onSubmit={e => { e.preventDefault(); void onDownload(); }} aria-describedby="invite-help">
         <p id="invite-help" className="text-white/70 text-sm leading-relaxed">No sign-in or registration. Your card is drawn right here in your browser.</p>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[#ffc93c]/25 bg-white/[0.04] px-4 py-3"
+          aria-live="polite" data-testid="invite-generation-count">
+          <div>
+            <span className="text-sm text-white/75">Cards generated</span>
+            <p className="mt-0.5 text-xs text-white/45">PNG downloads and image shares</p>
+          </div>
+          <strong className="text-lg font-bold text-[#ffc93c]" data-testid="text-generated-card-count">
+            {generatedCount === null ? (countError ? "Unavailable" : "Loading…") : generatedCount.toLocaleString("en-NG")}
+          </strong>
+          {countError && <button type="button" onClick={() => void loadGeneratedCount()}
+            className="text-xs font-semibold text-white underline underline-offset-2" data-testid="button-retry-generated-count">Retry</button>}
+        </div>
+        {countNotice && <p role="status" className="text-xs text-[#ffc93c]" data-testid="status-generated-count">{countNotice}</p>}
 
         <section aria-labelledby="photo-heading" className="rounded-2xl border border-white/12 bg-white/[0.04] p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">

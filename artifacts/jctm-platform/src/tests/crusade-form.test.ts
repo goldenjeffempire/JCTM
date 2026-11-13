@@ -11,6 +11,9 @@ describe("simplified crusade invitation form", () => {
     expect(html).toContain('data-testid="input-invite-photo"');
     expect(html).toContain('data-testid="input-invite-newsletter-email"');
     expect(html).toContain('type="email"');
+    expect(html).toContain('data-testid="invite-generation-count"');
+    expect(html).toContain("Cards generated");
+    expect(html).toContain("PNG downloads and image shares");
     expect(html).not.toContain('data-testid="checkbox-invite-newsletter-consent"');
     expect(html).not.toContain('data-testid="button-newsletter-subscribe"');
     expect(html).not.toContain("JCTM newsletter (optional)");

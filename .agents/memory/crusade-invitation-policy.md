@@ -20,3 +20,9 @@ Newsletter email collection is optional and requires a separate, unchecked opt-i
 **Why:** The user explicitly asked to retain optional invitation-form emails for a JCTM newsletter, not to create attendee registrations or silently subscribe visitors to other email services.
 
 **How to apply:** Save only the submitted email and consent record after the visitor explicitly checks the newsletter box. Respect both newsletter-specific and global unsubscribe preferences; do not send any signup confirmation or newsletter automatically.
+
+Count one card per successful PNG download or image share; do not increment the total for live canvas preview redraws.
+
+**Why:** The user specified how generated invitation cards should be counted.
+
+**How to apply:** Increment the counter only after a download or image share succeeds. Keep the count aggregate-only and do not attach names, photos, emails, or visitor identifiers.
