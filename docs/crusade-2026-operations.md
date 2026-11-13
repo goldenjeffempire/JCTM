@@ -14,7 +14,11 @@ Unpublishing a program removes it from public schedules and generator choices. U
 
 ## Public invitations
 
-No account or registration is required. Names and invitation messages stay in the browser; the server does not store them. Square PNGs are **1080 × 1080**; portrait PNGs are **1080 × 1350**. The displayed preview and download use the same rendered canvas.
+No account or registration is required. Names, invitation messages and visitor photographs stay in browser memory; the server does not store them. Visitors can crop, position, replace or remove JPG, PNG and WebP photos. Removing a photograph or leaving the page releases its temporary object URLs. Photo generation does not submit a registration or save an attendance record.
+
+The **CONFIRMED & ATTENDING** badge expresses the visitor's intent, not a verified reservation or admission ticket. Square PNGs are **1080 × 1080**; portrait PNGs are **1080 × 1350**. The displayed preview and download use the same rendered canvas.
+
+Official phone and email are editable campaign metadata stored in the database, shared by the public page, generated card and sharing text. An additive backfill supplies the ministry's existing public contact information only when the fields are missing; saved administrator corrections are never replaced.
 
 WhatsApp shares invitation text. Facebook shares the event-page link, not an automatically uploaded image. Native image sharing is available where the browser supports file sharing; otherwise download the PNG and attach it manually.
 

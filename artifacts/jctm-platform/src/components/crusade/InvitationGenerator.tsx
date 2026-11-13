@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CrusadeCampaign } from "@workspace/content";
 import { toast } from "sonner";
-import { Download, Share2, Copy, Facebook, MessageCircle, RefreshCw, ImageOff, Check } from "lucide-react";
-import { renderInvitation, loadFlyer, canvasToBlob, INVITE_SIZE, type InviteFormat } from "./invitation-canvas";
+import { Download, Share2, Copy, Facebook, MessageCircle, RefreshCw, ImageOff, Check, Camera, Trash2, Crop, ShieldCheck } from "lucide-react";
+import { renderInvitation, loadFlyer, loadLogo, canvasToBlob, INVITE_SIZE, type InviteFormat } from "./invitation-canvas";
+import { PhotoCropper } from "./PhotoCropper";
+import { readPhotoFile, inviteFileName, PHOTO_ACCEPT, type CropArea, type LoadedPhoto } from "./photo-utils";
 import { CRUSADE_CANONICAL, invitationText, publishedPrograms } from "@/lib/crusade-format";
 
 const NAME_MAX = 80;
@@ -26,7 +28,60 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [programId, setProgramId] = useState(programs[0]?.id ?? "");
-  const [format, setFormat] = useState<InviteFormat>("square");
+  const [format, setFormat] = useState<InviteFormat>("portrait");
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
+  const [photo, setPhoto] = useState<(LoadedPhoto & { crop: CropArea }) | null>(null);
+  const [editing, setEditing] = useState<LoadedPhoto | null>(null);
+  const [photoError, setPhotoError] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const liveUrls = useRef(new Set<string>());
+  const photoRequest = useRef(0);
+  const release = (url?: string) => { if (url && liveUrls.current.has(url)) { URL.revokeObjectURL(url); liveUrls.current.delete(url); } };
+  useEffect(() => {
+    const urls = liveUrls.current;
+    return () => { photoRequest.current++; urls.forEach(u => URL.revokeObjectURL(u)); urls.clear(); };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    loadLogo().then(img => alive && setLogo(img)).catch(() => { /* monogram fallback */ });
+    return () => { alive = false; };
+  }, []);
+
+  const onPickFile = async (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    const request = ++photoRequest.current;
+    setPhotoError(""); setPhotoBusy(true);
+    try {
+      const loaded = await readPhotoFile(file);
+      if (request !== photoRequest.current) { URL.revokeObjectURL(loaded.url); return; }
+      liveUrls.current.add(loaded.url);
+      if (editing && editing.url !== photo?.url) release(editing.url);
+      setEditing(loaded);
+    } catch (e) {
+      if (request === photoRequest.current) setPhotoError(e instanceof Error ? e.message : "That photo could not be used.");
+    } finally { if (request === photoRequest.current) setPhotoBusy(false); }
+  };
+  const applyCrop = (crop: CropArea) => {
+    if (!editing) return;
+    if (photo && photo.url !== editing.url) release(photo.url);
+    setPhoto({ ...editing, crop });
+    setEditing(null);
+    setStatus("Photo added to your card.");
+  };
+  const cancelCrop = () => {
+    if (editing && editing.url !== photo?.url) release(editing.url);
+    setEditing(null);
+  };
+  const removePhoto = () => {
+    photoRequest.current++;
+    setPhotoBusy(false);
+    if (editing && editing.url !== photo?.url) release(editing.url);
+    release(photo?.url);
+    setPhoto(null); setEditing(null); setPhotoError("");
+    setStatus("Photo cleared from this page.");
+  };
   const [flyer, setFlyer] = useState<{ status: "loading" | "ready" | "error"; img?: HTMLImageElement }>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [busy, setBusy] = useState<null | "download" | "share">(null);
@@ -49,11 +104,14 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
     if (flyer.status !== "ready" || !flyer.img || !program || !canvasRef.current) return;
     const id = requestAnimationFrame(() => {
       if (canvasRef.current && flyer.img) {
-        renderInvitation(canvasRef.current, { format, flyer: flyer.img, campaign, program, name: name.slice(0, NAME_MAX), message: message.slice(0, MSG_MAX) });
+        renderInvitation(canvasRef.current, {
+          format, flyer: flyer.img, campaign, program, name: name.slice(0, NAME_MAX), message: message.slice(0, MSG_MAX),
+          logo, photo: photo ? { image: photo.image, crop: photo.crop } : null,
+        });
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [flyer, format, campaign, program, name, message]);
+  }, [flyer, format, campaign, program, name, message, logo, photo]);
 
   if (!program) {
     return (
@@ -64,7 +122,7 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
   }
 
   const text = invitationText(campaign, program, name, message);
-  const fileName = `jctm-crusade-2026-${program.id}-${format}.png`;
+  const fileName = inviteFileName(program.id, format);
   const ready = flyer.status === "ready";
   const canShareFiles = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
 
@@ -94,7 +152,15 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
     setBusy("share");
     try {
       const file = await getFile();
-      if (!navigator.canShare?.({ files: [file] })) throw new Error("Image sharing is not supported on this device. Download it instead.");
+      if (!canShareFiles || !navigator.canShare({ files: [file] })) {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        const note = "This browser cannot share images directly, so your card was downloaded. In WhatsApp, open a chat, tap the attach (paperclip or plus) icon and choose the downloaded PNG.";
+        setStatus(note); toast.info("Card downloaded — attach it in WhatsApp");
+        return;
+      }
       await navigator.share({ files: [file], title: campaign.title, text });
       setStatus("Shared.");
     } catch (e) {
@@ -117,14 +183,59 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-8 lg:gap-12 items-start">
       <form className="space-y-5" onSubmit={e => { e.preventDefault(); void onDownload(); }} aria-describedby="invite-help">
-        <p id="invite-help" className="text-white/70 text-sm leading-relaxed">No sign-in needed. Your details stay on this device — the image is drawn right here in your browser.</p>
+        <p id="invite-help" className="text-white/70 text-sm leading-relaxed">No sign-in or registration. Your card is drawn right here in your browser.</p>
+
+        <section aria-labelledby="photo-heading" className="rounded-2xl border border-white/12 bg-white/[0.04] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="photo-heading" className="!text-white text-sm font-bold flex items-center gap-2"><Camera className="h-4 w-4 text-[#ffc93c]" /> Your photo</h3>
+            {photo && <span className="text-[11px] font-bold uppercase tracking-widest text-[#ffc93c]" data-testid="status-photo-added">Added</span>}
+          </div>
+          <p className="text-xs text-white/65 flex gap-2 leading-relaxed" data-testid="text-photo-privacy">
+            <ShieldCheck className="h-4 w-4 text-[#ffc93c] shrink-0 mt-0.5" />
+            Your photo is processed in this page’s memory, not uploaded to or retained by JCTM. Clear it or leave the page to remove it. Downloading or sharing creates a copy you control.
+          </p>
+          <input ref={fileRef} id="invite-photo" type="file" accept={PHOTO_ACCEPT} className="sr-only" aria-describedby="photo-rules"
+            onChange={e => void onPickFile(e.target.files?.[0])} data-testid="input-invite-photo" />
+          {editing ? (
+            <PhotoCropper key={editing.url} src={editing.url} imageWidth={editing.width} imageHeight={editing.height}
+              initialCrop={editing.url === photo?.url ? photo.crop : undefined} onApply={applyCrop} onCancel={cancelCrop} />
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="relative h-20 w-20 shrink-0 rounded-xl ring-[3px] ring-[#38bdf8] shadow-[0_0_24px_rgba(56,189,248,0.45)] bg-[#0a1640] overflow-hidden flex items-center justify-center">
+                {photo ? <svg role="img" aria-label="Your cropped photo" className="h-full w-full"
+                  viewBox={`${photo.crop.x} ${photo.crop.y} ${photo.crop.width} ${photo.crop.height}`}>
+                  <image href={photo.url} x="0" y="0" width={photo.width} height={photo.height} />
+                </svg> : <Camera className="h-6 w-6 text-[#ffc93c]/60" />}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <label htmlFor="invite-photo" role="button" tabIndex={0} aria-disabled={photoBusy}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); } }}
+                  className="h-10 px-4 rounded-full bg-[#ffc93c] text-[#071130] text-sm font-black inline-flex items-center gap-2 cursor-pointer hover:-translate-y-0.5 transition-transform" data-testid="button-choose-photo">
+                  <Camera className="h-4 w-4" /> {photoBusy ? "Checking…" : photo ? "Replace photo" : "Add your photo"}
+                </label>
+                {photo && (
+                  <>
+                    <button type="button" onClick={() => setEditing(photo)} className="h-10 px-4 rounded-full border border-white/25 text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-white/10" data-testid="button-recrop-photo">
+                      <Crop className="h-4 w-4" /> Adjust
+                    </button>
+                    <button type="button" onClick={removePhoto} className="h-10 px-4 rounded-full border border-white/25 text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-white/10" data-testid="button-clear-photo">
+                      <Trash2 className="h-4 w-4" /> Clear photo
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <p id="photo-rules" className="text-[11px] text-white/45">JPG, PNG or WEBP, up to 10 MB. Optional — without a photo, the card shows a framed placeholder.</p>
+          {photoError && <p role="alert" className="text-sm text-[#ff8a5c]" data-testid="error-photo">{photoError}</p>}
+        </section>
         <div>
           <div className="flex justify-between mb-1.5">
-            <label htmlFor="invite-name" className="text-sm font-semibold text-white">Your name <span className="text-white/45 font-normal">(optional)</span></label>
+            <label htmlFor="invite-name" className="text-sm font-semibold text-white">Full name <span className="text-white/45 font-normal">(shown on the card)</span></label>
             <span className="text-xs text-white/45 tabular-nums">{name.length}/{NAME_MAX}</span>
           </div>
           <input id="invite-name" data-testid="input-invite-name" className={field} value={name} maxLength={NAME_MAX}
-            onChange={e => setName(e.target.value.slice(0, NAME_MAX))} placeholder="e.g. Sister Ese Okoro" autoComplete="name" />
+            onChange={e => setName(e.target.value.slice(0, NAME_MAX))} placeholder="Your full name as it should appear" autoComplete="name" />
         </div>
         <div>
           <div className="flex justify-between mb-1.5">
@@ -159,10 +270,10 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
             className="col-span-2 h-12 rounded-full bg-gradient-to-r from-[#ffc93c] to-[#ff7a18] text-[#2a0b1e] font-black tracking-wide inline-flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-0.5 transition-transform">
             <Download className="h-4 w-4" /> {busy === "download" ? "Preparing…" : "Download PNG"}
           </button>
-          {canShareFiles && (
+          {(
             <button type="button" onClick={onShare} disabled={!ready || busy !== null} data-testid="button-share-invite"
               className="col-span-2 h-11 rounded-full border border-white/25 text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-white/10 disabled:opacity-50">
-              <Share2 className="h-4 w-4" /> {busy === "share" ? "Opening…" : "Share image"}
+              <Share2 className="h-4 w-4" /> {busy === "share" ? "Preparing…" : canShareFiles ? "Share card image" : "Share card image (downloads)"}
             </button>
           )}
           <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" data-testid="link-share-whatsapp"
@@ -178,7 +289,7 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
             {copied ? <Check className="h-4 w-4 text-[#ffc93c]" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy invitation text"}
           </button>
         </div>
-        <p className="text-xs text-white/50">WhatsApp and Facebook share the text and page link. To post the image, download it or use Share image.</p>
+        <p className="text-xs text-white/55 leading-relaxed">The WhatsApp and Facebook buttons share the invitation text and page link only — they cannot attach your card. To send the card itself, use Share card image on your phone, or download it and attach the PNG in your chat.</p>
         <p role="status" aria-live="polite" className="text-sm text-[#ffc93c] min-h-[1.25rem]" data-testid="status-invite">{status}</p>
         <details className="text-xs text-white/60">
           <summary className="cursor-pointer">Preview invitation text</summary>
@@ -203,6 +314,9 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
           )}
         </div>
         <p className="text-center text-xs text-white/45 mt-3">Exact preview of the {w} × {h} PNG you will download.</p>
+        <p className="text-center text-[11px] text-white/50 mt-1.5 max-w-md mx-auto" data-testid="text-badge-clarifier">
+          "Confirmed &amp; Attending" is your own statement of intent. Making this card does not register you, save an RSVP or act as an admission ticket.
+        </p>
       </div>
     </div>
   );

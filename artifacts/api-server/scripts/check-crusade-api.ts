@@ -10,6 +10,8 @@ try {
   assert.match(publicResponse.headers.get("cache-control") ?? "", /no-store/);
   const campaign = await publicResponse.json();
   assert.equal(campaign.programs.length, 4);
+  assert.equal(typeof campaign.contactPhone, "string");
+  assert.equal(typeof campaign.contactEmail, "string");
   assert.equal(campaign.programs.flatMap((p: { startsAt: string[] }) => p.startsAt).length, 6);
   assert.equal((await fetch(`${base}${campaign.flyerUrl}`)).status, 200);
   assert.equal((await fetch(`${base}/api/crusade-2026/admin`)).status, 401);

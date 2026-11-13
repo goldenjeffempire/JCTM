@@ -11,6 +11,8 @@ export const crusadeCampaignInput = z.object({
   title: z.string().trim().min(3).max(120),
   minister: z.string().trim().min(3).max(160),
   venue: z.string().trim().min(10).max(400),
+  contactPhone: z.string().trim().max(60).default(DEFAULT_CRUSADE.contactPhone),
+  contactEmail: z.union([z.string().trim().email().max(160), z.literal("")]).default(DEFAULT_CRUSADE.contactEmail),
   flyerUrl: z.string().max(500).regex(
     /^\/(?:images\/[a-zA-Z0-9_-]+\.(?:webp|png|jpg|jpeg)|api\/storage\/objects\/uploads\/[a-zA-Z0-9_.-]+)$/,
     "Use the uploaded flyer or a local image asset",
@@ -51,6 +53,13 @@ function ensureCrusadeCampaign(): Promise<void> {
     await database.query(
       "INSERT INTO ministry_campaigns(slug,content) VALUES ($1,$2::jsonb) ON CONFLICT(slug) DO NOTHING",
       [SLUG, JSON.stringify(DEFAULT_CRUSADE)],
+    );
+    // Add official ministry contact metadata without replacing schedules or admin edits.
+    await database.query(
+      `UPDATE ministry_campaigns
+       SET content=$2::jsonb || content
+       WHERE slug=$1 AND (NOT content ? 'contactPhone' OR NOT content ? 'contactEmail')`,
+      [SLUG, JSON.stringify({ contactPhone: DEFAULT_CRUSADE.contactPhone, contactEmail: DEFAULT_CRUSADE.contactEmail })],
     );
   })().catch(error => { initialization = undefined; throw error; });
 }

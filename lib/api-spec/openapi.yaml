@@ -942,7 +942,7 @@ components:
           type: boolean
     CrusadeCampaign:
       type: object
-      required: [title, minister, venue, flyerUrl, published, revision, programs]
+      required: [title, minister, venue, flyerUrl, contactPhone, contactEmail, published, revision, programs]
       properties:
         title:
           type: string
@@ -959,6 +959,12 @@ components:
         flyerUrl:
           type: string
           maxLength: 500
+        contactPhone:
+          type: string
+          maxLength: 60
+        contactEmail:
+          type: string
+          maxLength: 160
         published:
           type: boolean
         revision:

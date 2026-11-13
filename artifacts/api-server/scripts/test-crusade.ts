@@ -15,6 +15,7 @@ try {
     { flyerUrl: "https://evil.invalid/tracker.svg" },
     { flyerUrl: "/images/../private.png" },
     { revision: -1 },
+    { contactEmail: "not-an-email" },
     { programs: [] },
     { programs: DEFAULT_CRUSADE.programs.map(p => ({ ...p, startsAt: ["garbage"] })) },
     { programs: DEFAULT_CRUSADE.programs.map(p => ({ ...p, id: "same" })) },
@@ -45,7 +46,17 @@ try {
   const initial = await store.readCrusadeCampaign();
   assert.equal(initial.programs.length, 4);
   assert.equal(initial.revision, 0);
-  const updated = await store.updateCrusadeCampaign({ ...initial, title: "Persisted editorial update", venue: "A corrected auditorium address in Effurun, Nigeria" });
+  assert.equal(initial.contactPhone, DEFAULT_CRUSADE.contactPhone);
+  assert.equal(initial.contactEmail, DEFAULT_CRUSADE.contactEmail);
+  await testPool.query("UPDATE ministry_campaigns SET content=content-'contactPhone'-'contactEmail'");
+  const legacyStore = createCrusadeRepository(testPool);
+  const migrated = await legacyStore.readCrusadeCampaign();
+  assert.equal(migrated.contactPhone, DEFAULT_CRUSADE.contactPhone);
+  assert.equal(migrated.contactEmail, DEFAULT_CRUSADE.contactEmail);
+  assert.deepEqual(migrated.programs, initial.programs);
+  assert.equal(migrated.revision, initial.revision);
+  pass("legacy campaigns gain official contact metadata without changing schedules or revision");
+  const updated = await store.updateCrusadeCampaign({ ...initial, title: "Persisted editorial update", venue: "A corrected auditorium address in Effurun, Nigeria", contactPhone: "+234 800 000 0000", contactEmail: "office@example.org" });
   assert.equal(updated?.revision, 1);
   assert.equal((await store.readCrusadeCampaign()).title, "Persisted editorial update");
   const revisions = await testPool.query("SELECT content,revision FROM ministry_campaign_revisions");
@@ -58,6 +69,8 @@ try {
   const newInstance = createCrusadeRepository(testPool);
   await newInstance.ensureCrusadeCampaign();
   assert.equal((await newInstance.readCrusadeCampaign()).title, "Persisted editorial update");
+  assert.equal((await newInstance.readCrusadeCampaign()).contactPhone, "+234 800 000 0000");
+  assert.equal((await newInstance.readCrusadeCampaign()).contactEmail, "office@example.org");
   pass("restart and idempotent seed never replace administrator edits");
   const [a, b] = await Promise.all([
     store.updateCrusadeCampaign({ ...updated!, published: false }),

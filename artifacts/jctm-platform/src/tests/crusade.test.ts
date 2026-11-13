@@ -29,6 +29,8 @@ describe("crusade schedule and sharing", () => {
     expect(text).toContain("Grace");
     expect(text).toContain("Please join my family.");
     expect(text).toContain("https://jctm.org.ng/events/end-of-year-crusade-2026");
+    expect(text).toContain(campaign.contactPhone);
+    expect(text).toContain(campaign.contactEmail);
     expect(new URL(directionsUrl(campaign.venue)).searchParams.get("destination")).toBe(campaign.venue);
   });
 });
@@ -53,9 +55,11 @@ describe("high-resolution invitation rendering", () => {
         const message = ("Join us for worship, prayer and a joyful encounter together. ".repeat(8)).slice(0, 340) + " Amen.";
         const name = "Grace and the entire extended family of worshippers in our community";
         const campaign = { ...DEFAULT_CRUSADE, title: "The live campaign title", minister: "The live minister" };
+        const photo = { image: { naturalWidth: 800, naturalHeight: 1200 } as HTMLImageElement,
+          crop: { x: 50, y: 250, width: 600, height: 600 } };
         renderInvitation(canvas as unknown as HTMLCanvasElement, {
           format, flyer: { naturalWidth: aspect === "landscape" ? 2048 : 800, naturalHeight: aspect === "landscape" ? 1144 : 1600 } as HTMLImageElement,
-          campaign, program: campaign.programs[0], name, message,
+          campaign, program: campaign.programs[0], name, message, photo,
         });
         expect(canvas.width).toBe(1080);
         expect(canvas.height).toBe(format === "square" ? 1080 : 1350);
@@ -65,8 +69,14 @@ describe("high-resolution invitation rendering", () => {
         expect(all).toContain("THE LIVE CAMPAIGN TITLE");
         expect(all).toContain("The live minister");
         expect(all).toContain("BAPTISM PROGRAM");
+        expect(all).toContain("CONFIRMED & ATTENDING");
+        expect(all).toContain(campaign.contactPhone);
+        expect(all).toContain(campaign.contactEmail);
+        const cropped = images.find(coords => coords.length === 8);
+        expect(cropped?.slice(0, 4)).toEqual([50, 250, 600, 600]);
         expect(texts.every(t => t.y > 0 && t.y < canvas.height)).toBe(true);
-        for (const [x, y, w, h] of images) {
+        for (const coords of images) {
+          const [x, y, w, h] = coords.length === 8 ? coords.slice(4) : coords;
           expect(x).toBeGreaterThanOrEqual(0); expect(y).toBeGreaterThanOrEqual(0);
           expect(x + w).toBeLessThanOrEqual(canvas.width); expect(y + h).toBeLessThanOrEqual(canvas.height);
         }

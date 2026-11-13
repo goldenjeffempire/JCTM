@@ -262,6 +262,10 @@ export const getCrusade2026ResponseVenueMax = 400;
 
 export const getCrusade2026ResponseFlyerUrlMax = 500;
 
+export const getCrusade2026ResponseContactPhoneMax = 60;
+
+export const getCrusade2026ResponseContactEmailMax = 160;
+
 export const getCrusade2026ResponseRevisionMin = 0;
 
 export const getCrusade2026ResponseProgramsItemTitleMin = 3;
@@ -280,6 +284,8 @@ export const GetCrusade2026Response = zod.object({
   "minister": zod.string().min(getCrusade2026ResponseMinisterMin).max(getCrusade2026ResponseMinisterMax),
   "venue": zod.string().min(getCrusade2026ResponseVenueMin).max(getCrusade2026ResponseVenueMax),
   "flyerUrl": zod.string().max(getCrusade2026ResponseFlyerUrlMax),
+  "contactPhone": zod.string().max(getCrusade2026ResponseContactPhoneMax),
+  "contactEmail": zod.string().max(getCrusade2026ResponseContactEmailMax),
   "published": zod.boolean(),
   "revision": zod.number().int().min(getCrusade2026ResponseRevisionMin),
   "programs": zod.array(zod.object({
@@ -310,6 +316,10 @@ export const getAdminCrusade2026ResponseVenueMax = 400;
 
 export const getAdminCrusade2026ResponseFlyerUrlMax = 500;
 
+export const getAdminCrusade2026ResponseContactPhoneMax = 60;
+
+export const getAdminCrusade2026ResponseContactEmailMax = 160;
+
 export const getAdminCrusade2026ResponseRevisionMin = 0;
 
 export const getAdminCrusade2026ResponseProgramsItemTitleMin = 3;
@@ -328,6 +338,8 @@ export const GetAdminCrusade2026Response = zod.object({
   "minister": zod.string().min(getAdminCrusade2026ResponseMinisterMin).max(getAdminCrusade2026ResponseMinisterMax),
   "venue": zod.string().min(getAdminCrusade2026ResponseVenueMin).max(getAdminCrusade2026ResponseVenueMax),
   "flyerUrl": zod.string().max(getAdminCrusade2026ResponseFlyerUrlMax),
+  "contactPhone": zod.string().max(getAdminCrusade2026ResponseContactPhoneMax),
+  "contactEmail": zod.string().max(getAdminCrusade2026ResponseContactEmailMax),
   "published": zod.boolean(),
   "revision": zod.number().int().min(getAdminCrusade2026ResponseRevisionMin),
   "programs": zod.array(zod.object({
@@ -358,6 +370,10 @@ export const updateAdminCrusade2026BodyVenueMax = 400;
 
 export const updateAdminCrusade2026BodyFlyerUrlMax = 500;
 
+export const updateAdminCrusade2026BodyContactPhoneMax = 60;
+
+export const updateAdminCrusade2026BodyContactEmailMax = 160;
+
 export const updateAdminCrusade2026BodyRevisionMin = 0;
 
 export const updateAdminCrusade2026BodyProgramsItemTitleMin = 3;
@@ -376,6 +392,8 @@ export const UpdateAdminCrusade2026Body = zod.object({
   "minister": zod.string().min(updateAdminCrusade2026BodyMinisterMin).max(updateAdminCrusade2026BodyMinisterMax),
   "venue": zod.string().min(updateAdminCrusade2026BodyVenueMin).max(updateAdminCrusade2026BodyVenueMax),
   "flyerUrl": zod.string().max(updateAdminCrusade2026BodyFlyerUrlMax),
+  "contactPhone": zod.string().max(updateAdminCrusade2026BodyContactPhoneMax),
+  "contactEmail": zod.string().max(updateAdminCrusade2026BodyContactEmailMax),
   "published": zod.boolean(),
   "revision": zod.number().int().min(updateAdminCrusade2026BodyRevisionMin),
   "programs": zod.array(zod.object({
@@ -398,6 +416,10 @@ export const updateAdminCrusade2026ResponseVenueMax = 400;
 
 export const updateAdminCrusade2026ResponseFlyerUrlMax = 500;
 
+export const updateAdminCrusade2026ResponseContactPhoneMax = 60;
+
+export const updateAdminCrusade2026ResponseContactEmailMax = 160;
+
 export const updateAdminCrusade2026ResponseRevisionMin = 0;
 
 export const updateAdminCrusade2026ResponseProgramsItemTitleMin = 3;
@@ -416,6 +438,8 @@ export const UpdateAdminCrusade2026Response = zod.object({
   "minister": zod.string().min(updateAdminCrusade2026ResponseMinisterMin).max(updateAdminCrusade2026ResponseMinisterMax),
   "venue": zod.string().min(updateAdminCrusade2026ResponseVenueMin).max(updateAdminCrusade2026ResponseVenueMax),
   "flyerUrl": zod.string().max(updateAdminCrusade2026ResponseFlyerUrlMax),
+  "contactPhone": zod.string().max(updateAdminCrusade2026ResponseContactPhoneMax),
+  "contactEmail": zod.string().max(updateAdminCrusade2026ResponseContactEmailMax),
   "published": zod.boolean(),
   "revision": zod.number().int().min(updateAdminCrusade2026ResponseRevisionMin),
   "programs": zod.array(zod.object({

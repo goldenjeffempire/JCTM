@@ -11,6 +11,8 @@ export interface CrusadeCampaign {
   minister: string;
   venue: string;
   flyerUrl: string;
+  contactPhone: string;
+  contactEmail: string;
   published: boolean;
   revision: number;
   programs: CrusadeProgram[];
@@ -22,6 +24,8 @@ export const DEFAULT_CRUSADE: CrusadeCampaign = {
   minister: "Prophet Amos – Child of God",
   venue: "Church Auditorium, KM 1 East West Road, By Ebrumede Roundabout, Effurun, Uvwie L.G.A., Delta State, Nigeria",
   flyerUrl: "/images/end-of-year-crusade-2026.webp",
+  contactPhone: "+234 808 131 3111",
+  contactEmail: "info@jctm.org.ng",
   published: true,
   revision: 0,
   programs: [

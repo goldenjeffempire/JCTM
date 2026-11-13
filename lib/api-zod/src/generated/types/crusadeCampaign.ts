@@ -25,6 +25,10 @@ export interface CrusadeCampaign {
   venue: string;
   /** @maxLength 500 */
   flyerUrl: string;
+  /** @maxLength 60 */
+  contactPhone: string;
+  /** @maxLength 160 */
+  contactEmail: string;
   published: boolean;
   /** @minimum 0 */
   revision: number;

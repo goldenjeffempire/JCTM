@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { MapPin, Navigation, RefreshCw, ArrowLeft, Clock } from "lucide-react";
+import { MapPin, Navigation, RefreshCw, ArrowLeft, Clock, Phone, Mail } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { SEO } from "@/components/SEO";
 import { useCrusade } from "@/lib/crusade-api";
@@ -91,6 +91,12 @@ export default function EndOfYearCrusade2026() {
                 <div className="rounded-3xl bg-white/[0.05] border border-white/10 p-6">
                   <p className="text-[#ffc93c] text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2"><MapPin className="h-4 w-4" /> Venue</p>
                   <p className="mt-2 text-white/85 leading-relaxed" data-testid="text-crusade-venue">{data.venue}</p>
+                  {(data.contactPhone || data.contactEmail) && (
+                    <div className="mt-3 text-sm text-white/75 space-y-1" data-testid="text-crusade-contact">
+                      {data.contactPhone && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-[#ffc93c]" /><a className="hover:text-white underline-offset-4 hover:underline" href={`tel:${data.contactPhone.replace(/[^+\d]/g, "")}`}>{data.contactPhone}</a></p>}
+                      {data.contactEmail && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#ffc93c]" /><a className="hover:text-white underline-offset-4 hover:underline" href={`mailto:${data.contactEmail}`}>{data.contactEmail}</a></p>}
+                    </div>
+                  )}
                   <a href={directionsUrl(data.venue)} target="_blank" rel="noopener noreferrer" data-testid="link-directions"
                     className="mt-4 h-11 px-5 rounded-full bg-white text-[#071130] font-bold inline-flex items-center gap-2 hover:-translate-y-0.5 transition-transform">
                     <Navigation className="h-4 w-4" /> Get directions
@@ -145,7 +151,7 @@ export default function EndOfYearCrusade2026() {
         <section id="invite" className="bg-gradient-to-b from-[#0c1d52] to-[#2a0b1e] py-16" aria-labelledby="invite-heading">
           <div className="container mx-auto max-w-6xl px-4">
             <p className="text-[#ffc93c] text-xs font-bold uppercase tracking-[0.3em]">Bring someone</p>
-            <h2 id="invite-heading" className="!text-white text-3xl sm:text-4xl font-black mt-2 mb-8">Make a personal invitation</h2>
+            <h2 id="invite-heading" className="!text-white text-3xl sm:text-4xl font-black mt-2 mb-8">Make your attendee card</h2>
             <Suspense fallback={<div className="h-[520px] rounded-3xl bg-white/5 animate-pulse" aria-label="Loading invitation generator" />}>
               <InvitationGenerator campaign={data} />
             </Suspense>

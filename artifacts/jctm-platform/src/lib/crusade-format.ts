@@ -5,7 +5,7 @@ export const CRUSADE_CANONICAL = "https://jctm.org.ng/events/end-of-year-crusade
 /** Compare values, not JSONB/TanStack object property insertion order. */
 export function campaignSignature(c: CrusadeCampaign) {
   return JSON.stringify([
-    c.title, c.minister, c.venue, c.flyerUrl, c.published, c.revision,
+    c.title, c.minister, c.venue, c.flyerUrl, c.contactPhone, c.contactEmail, c.published, c.revision,
     c.programs.map(p => [p.id, p.title, p.description, p.published, p.startsAt]),
   ]);
 }
@@ -74,6 +74,7 @@ export function invitationText(c: CrusadeCampaign, program: CrusadeProgram, name
     `Ministering: ${c.minister}`,
     `When: ${scheduleSummary(program)}`,
     `Venue: ${c.venue}`,
+    ...([c.contactPhone, c.contactEmail].filter(Boolean).length ? [`Enquiries: ${[c.contactPhone, c.contactEmail].filter(Boolean).join(" · ")}`] : []),
   ];
   if (message.trim()) lines.push("", message.trim());
   if (name.trim()) lines.push("", `— ${name.trim()}`);

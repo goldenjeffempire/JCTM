@@ -29,6 +29,11 @@ function validate(c: CrusadeCampaign): string[] {
   if (!c.title.trim()) e.push("Campaign title is required.");
   if (!c.minister.trim()) e.push("Minister is required.");
   if (!c.venue.trim()) e.push("Venue is required.");
+  const phone = (c.contactPhone ?? "").trim(), email = (c.contactEmail ?? "").trim();
+  if (phone.length > 40) e.push("Contact phone must be 40 characters or fewer.");
+  if (phone && !/^\+?[0-9 ()-]{7,40}$/.test(phone)) e.push("Contact phone may contain only digits, spaces, +, ( ) and -.");
+  if (email.length > 120) e.push("Contact email must be 120 characters or fewer.");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.push("Contact email is not valid.");
   if (!FLYER_RE.test(c.flyerUrl.trim())) e.push("Flyer path must be /images/<file>.webp|png|jpg or an uploaded /api/storage/objects/uploads/<id>.webp file.");
   c.programs.forEach((p, i) => {
     if (!p.title.trim()) e.push(`Programme ${i + 1}: title is required.`);
@@ -104,7 +109,7 @@ export function Crusade2026Admin({ token }: { token: string }) {
 
   const save = async () => {
     const payload: CrusadeCampaign = {
-      ...draft, flyerUrl: draft.flyerUrl.trim(),
+      ...draft, flyerUrl: draft.flyerUrl.trim(), contactPhone: (draft.contactPhone ?? "").trim(), contactEmail: (draft.contactEmail ?? "").trim(),
       programs: draft.programs.map(p => ({ ...p, startsAt: [...p.startsAt].sort((a, b) => Date.parse(a) - Date.parse(b)) })),
     };
     const errs = validate(payload);
@@ -174,6 +179,10 @@ export function Crusade2026Admin({ token }: { token: string }) {
             <input className={`${input} mt-1`} value={draft.title} onChange={e => set({ title: e.target.value })} data-testid="input-crusade-title" /></label>
           <label className="block text-sm font-medium">Minister
             <input className={`${input} mt-1`} value={draft.minister} onChange={e => set({ minister: e.target.value })} data-testid="input-crusade-minister" /></label>
+          <label className="block text-sm font-medium">Contact phone <span className="text-muted-foreground font-normal">(shown on invitations)</span>
+            <input type="tel" maxLength={40} className={`${input} mt-1`} value={draft.contactPhone ?? ""} onChange={e => set({ contactPhone: e.target.value })} data-testid="input-crusade-phone" /></label>
+          <label className="block text-sm font-medium">Contact email <span className="text-muted-foreground font-normal">(optional)</span>
+            <input type="email" maxLength={120} className={`${input} mt-1`} value={draft.contactEmail ?? ""} onChange={e => set({ contactEmail: e.target.value })} data-testid="input-crusade-email" /></label>
           <label className="block text-sm font-medium md:col-span-2">Venue
             <textarea rows={2} className={`${input} mt-1 resize-none`} value={draft.venue} onChange={e => set({ venue: e.target.value })} data-testid="input-crusade-venue" /></label>
         </div>
