@@ -22,6 +22,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Crusade2026Admin } from "@/components/admin/Crusade2026Admin";
 import { DevotionLibraryPanel } from "@/components/admin/DevotionLibraryPanel";
 import { AdminLoginGate, AdminBadge } from "@/components/admin/AdminLoginGate";
+import { CrusadeNewsletterSignups } from "@/components/admin/CrusadeNewsletterSignups";
 import { EventPromotionPreview } from "@/components/event-promo/EventPromotionPreview";
 import { WarriCrusadeStatsTile } from "@/components/admin/WarriCrusadeStatsTile";
 import { GenericBroadcastTile } from "@/components/admin/GenericBroadcastTile";
@@ -9040,7 +9041,12 @@ export default function Admin() {
               {section === "ai"          && <AIDashboardSection auth={sermonAuth} />}
               {section === "ads"         && <AdSenseDiagnosticsSection auth={sermonAuth} />}
               {section === "credentials" && <CredentialsSection galleryAuth={galleryAuth} sermonAuth={sermonAuth} livestreamAuth={livestreamAuth} />}
-              {section === "email"       && <EmailCampaignSection auth={livestreamAuth} />}
+              {section === "email"       && (
+                <div className="space-y-6">
+                  <CrusadeNewsletterSignups auth={livestreamAuth} />
+                  <EmailCampaignSection auth={livestreamAuth} />
+                </div>
+              )}
               {section === "devotions"   && <DevotionLibraryPanel token={livestreamAuth.adminToken ?? ""} onLogin={livestreamAuth.login} />}
               {section === "knowledge"   && <KnowledgeSection auth={sermonAuth} />}
               {section === "downloads"   && <DownloadsSection auth={sermonAuth} />}

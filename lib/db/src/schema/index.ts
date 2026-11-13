@@ -18,4 +18,5 @@ export * from "./gallery";
 export * from "./conferenceRegistrations";
 export * from "./eventPromotions";
 export * from "./eventNotifications";
+export * from "./crusadeNewsletterSubscribers";
 export * from "./ministryCampaigns";

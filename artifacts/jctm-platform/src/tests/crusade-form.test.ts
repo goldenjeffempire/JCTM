@@ -9,6 +9,11 @@ describe("simplified crusade invitation form", () => {
     const html = renderToStaticMarkup(createElement(InvitationGenerator, { campaign: DEFAULT_CRUSADE }));
     expect(html).toContain('data-testid="input-invite-name"');
     expect(html).toContain('data-testid="input-invite-photo"');
+    expect(html).toContain('data-testid="input-invite-newsletter-email"');
+    expect(html).toContain('type="email"');
+    expect(html).not.toContain('data-testid="checkbox-invite-newsletter-consent"');
+    expect(html).not.toContain('data-testid="button-newsletter-subscribe"');
+    expect(html).toContain("never appears on your card");
     expect(html).toContain('data-testid="text-invite-event"');
     expect(html.toLowerCase()).toContain("end of year crusade 2026");
     expect(html).not.toContain('data-testid="input-invite-message"');

@@ -14,3 +14,9 @@ The requested “CONFIRMED & ATTENDING” badge represents the visitor's own sta
 **Why:** The user wants the badge and the visual style of a registered-attendee reference, but expressly requires no registration.
 
 **How to apply:** Preserve the requested badge, avoid “registered attendee” claims, and explain that generating a card does not create a registration.
+
+Newsletter email collection is optional and requires a separate, unchecked opt-in. Keep newsletter signups separate from invitation names/photos, daily-devotion subscriptions, and event reminders. Never place the email on an invitation card or include it in the invitation share text.
+
+**Why:** The user explicitly asked to retain optional invitation-form emails for a JCTM newsletter, not to create attendee registrations or silently subscribe visitors to other email services.
+
+**How to apply:** Save only the submitted email and consent record after the visitor explicitly checks the newsletter box. Respect both newsletter-specific and global unsubscribe preferences; do not send any signup confirmation or newsletter automatically.

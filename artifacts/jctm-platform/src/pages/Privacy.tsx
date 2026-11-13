@@ -15,6 +15,7 @@ const SECTIONS = [
 • **Member Registration:** Full name, email address, phone number, and location when you join the Digital Sanctuary.
 • **Giving Records:** Donor name, email address, currency, amount, giving category, and transaction reference when you make a financial contribution.
 • **Testimony Submissions:** Name, email address (optional), testimony content, category, and any video URL you choose to share.
+• **Crusade newsletter:** Your email address only when you enter it on the End of Year Crusade invitation form and separately agree to receive newsletters. We use it only for JCTM newsletters; it never appears on your invitation or card. Your name and photo are not stored with it.
 • **Communications:** Messages you send through TempleBots or our contact channels.
 • **Technical Data:** IP address, browser type, device identifiers, and usage logs collected automatically for security and analytics purposes.`,
   },
@@ -26,6 +27,7 @@ const SECTIONS = [
 • To manage your Digital Sanctuary membership account.
 • To review, moderate, and publish approved testimonies.
 • To notify you of upcoming services, events, and ministry updates (with your consent).
+• To send JCTM newsletters only if you explicitly opt in on the crusade invitation form. Entering an email or generating an invitation alone does not subscribe you.
 • To maintain the security and integrity of the platform.
 • To comply with applicable Nigerian and international legal obligations.
 
@@ -33,7 +35,7 @@ We do not sell, rent, or share your personal information with third parties for 
   },
   {
     title: "4. Security of Member Data",
-    content: `We take the security of your data seriously. All data in transit is encrypted using industry-standard TLS/HTTPS protocols. Giving records and member profiles are stored in a secured, access-controlled PostgreSQL database. Financial transactions are processed through PCI-DSS compliant payment providers (Paystack for NGN, Stripe for USD) — JCTM does not store your card details at any time. Access to member data is restricted to authorised ministry administrators only.`,
+    content: `We take the security of your data seriously. All data in transit is encrypted using industry-standard TLS/HTTPS protocols. Giving records and member profiles are stored in a secured, access-controlled PostgreSQL database. Newsletter signups are stored in a separate mailing list and are accessible only to authorised ministry administrators. Invitation names and photos are not stored with newsletter emails. Financial transactions are processed through PCI-DSS compliant payment providers (Paystack for NGN, Stripe for USD) — JCTM does not store your card details at any time. Access to member data is restricted to authorised ministry administrators only.`,
   },
   {
     title: "5. Your Rights Under GDPR & NDPR",
@@ -50,7 +52,7 @@ To exercise any of these rights, please contact us. We will respond within 30 da
   },
   {
     title: "6. Data Retention",
-    content: `Giving records are retained for seven (7) years in compliance with Nigerian financial and tax regulations. Member profiles are retained for as long as your account is active. Testimonies are retained indefinitely for ministry archive purposes unless you request deletion. You may request account deletion at any time.`,
+    content: `Giving records are retained for seven (7) years in compliance with Nigerian financial and tax regulations. Member profiles are retained for as long as your account is active. Crusade newsletter emails are kept while subscribed. When you unsubscribe, JCTM deactivates the address and retains the minimal opt-out record needed to respect that choice and prevent further newsletter emails. Testimonies are retained indefinitely for ministry archive purposes unless you request deletion. You may request account deletion or removal of newsletter data through the JCTM administration team.`,
   },
   {
     title: "7. Cookies, Analytics & Advertising",
@@ -125,7 +127,7 @@ export default function Privacy() {
             <strong>Jesus Christ Temple Ministry (JCTM)</strong> — JCTM Digital Sanctuary
           </p>
           <p className="text-sm text-muted-foreground mb-10">
-            Last updated: January 1, 2025 &nbsp;|&nbsp; Effective date: January 1, 2025
+            Last updated: November 13, 2026 &nbsp;|&nbsp; Effective date: January 1, 2025
           </p>
 
           <div className="glass-panel rounded-2xl p-6 mb-10 border border-accent/20">

@@ -25,6 +25,10 @@ async function copyText(text: string) {
 export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign }) {
   const programs = useMemo(() => publishedPrograms(campaign), [campaign]);
   const [name, setName] = useState("");
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterConsent, setNewsletterConsent] = useState(false);
+  const [newsletterStatus, setNewsletterStatus] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const [newsletterBusy, setNewsletterBusy] = useState(false);
   const [format, setFormat] = useState<InviteFormat>("portrait");
   const [logo, setLogo] = useState<HTMLImageElement | null>(null);
   const [photo, setPhoto] = useState<(LoadedPhoto & { crop: CropArea }) | null>(null);
@@ -174,6 +178,32 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
     else toast.error("Copy failed");
   };
 
+  const onNewsletterSubscribe = async () => {
+    const email = newsletterEmail.trim().toLowerCase();
+    if (!newsletterConsent) {
+      setNewsletterStatus({ kind: "error", message: "Please agree to receive JCTM newsletters before subscribing." });
+      return;
+    }
+    setNewsletterBusy(true);
+    setNewsletterStatus(null);
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/crusade-2026/newsletter-subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, consent: true }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "Newsletter signup failed. Please try again.");
+      setNewsletterStatus({ kind: "success", message: "You’re subscribed to JCTM newsletters. Your email is not shown on the card." });
+      setNewsletterEmail("");
+      setNewsletterConsent(false);
+    } catch (error) {
+      setNewsletterStatus({ kind: "error", message: error instanceof Error ? error.message : "Newsletter signup failed. Please try again." });
+    } finally {
+      setNewsletterBusy(false);
+    }
+  };
+
   const field = "w-full rounded-xl bg-[#060d26]/60 border border-white/15 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#ffc93c] focus:outline-none transition-colors";
   const { w, h } = INVITE_SIZE[format];
 
@@ -241,6 +271,41 @@ export function InvitationGenerator({ campaign }: { campaign: CrusadeCampaign })
             <p className="text-xs text-white/55 mt-0.5">An invitation to the full crusade.</p>
           </div>
         </div>
+        <section aria-labelledby="invite-newsletter-heading" className="rounded-2xl border border-white/12 bg-white/[0.04] p-4 space-y-3">
+          <div>
+            <h3 id="invite-newsletter-heading" className="!text-white text-sm font-bold">JCTM newsletter <span className="text-white/45 font-normal">(optional)</span></h3>
+            <p className="mt-1 text-xs leading-relaxed text-white/65">Your email is saved for JCTM newsletters only after you agree. It never appears on your card or invitation message.</p>
+          </div>
+          <label htmlFor="invite-newsletter-email" className="block text-sm font-semibold text-white">Email address <span className="text-white/45 font-normal">(optional)</span></label>
+          <input id="invite-newsletter-email" data-testid="input-invite-newsletter-email" type="email" maxLength={254}
+            autoComplete="email" className={field} value={newsletterEmail}
+            onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }}
+            onChange={event => {
+              setNewsletterEmail(event.target.value);
+              setNewsletterConsent(false);
+              setNewsletterStatus(null);
+            }}
+            placeholder="you@example.com" />
+          {newsletterEmail.trim().length > 0 && (
+            <div className="space-y-3">
+              <label htmlFor="invite-newsletter-consent" className="flex items-start gap-2.5 text-xs leading-relaxed text-white/75">
+                <input id="invite-newsletter-consent" data-testid="checkbox-invite-newsletter-consent" type="checkbox"
+                  checked={newsletterConsent} onChange={event => setNewsletterConsent(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#ffc93c]" />
+                <span>I agree to receive JCTM newsletters by email. I can unsubscribe at any time.</span>
+              </label>
+              <button type="button" onClick={() => void onNewsletterSubscribe()}
+                disabled={newsletterBusy || !newsletterConsent || !newsletterEmail.trim()}
+                className="min-h-10 rounded-full border border-[#ffc93c]/60 px-4 text-sm font-semibold text-white hover:bg-[#ffc93c]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="button-newsletter-subscribe">
+                {newsletterBusy ? "Saving…" : "Subscribe to newsletter"}
+              </button>
+            </div>
+          )}
+          {newsletterStatus && <p role={newsletterStatus.kind === "error" ? "alert" : "status"}
+            className={`text-xs leading-relaxed ${newsletterStatus.kind === "error" ? "text-[#ff8a5c]" : "text-emerald-300"}`}
+            data-testid={`status-newsletter-${newsletterStatus.kind}`}>{newsletterStatus.message}</p>}
+        </section>
         <fieldset>
           <legend className="text-sm font-semibold text-white mb-1.5">Format</legend>
           <div className="grid grid-cols-2 gap-2">
